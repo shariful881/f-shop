@@ -1,0 +1,139 @@
+/* F-Shop — মোবাইল-ফার্স্ট, হালকা CSS */
+:root {
+  --brand: #0f766e;
+  --brand-dark: #115e59;
+  --accent: #ea580c;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --bg: #f8fafc;
+  --card: #fff;
+  --danger: #dc2626;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Noto Sans Bengali", "Hind Siliguri", "SolaimanLipi", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px; line-height: 1.6;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--brand); }
+.wrap { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 14px; }
+.narrow { max-width: 680px; }
+.muted { color: var(--muted); font-size: .9rem; }
+.center { text-align: center; }
+main { min-height: 60vh; padding-bottom: 90px; }
+
+/* হেডার */
+.site-header { background: var(--brand); color: #fff; position: sticky; top: 0; z-index: 20; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.logo { color: #fff; font-weight: 700; font-size: 1.25rem; text-decoration: none; }
+.cart-link { color: #fff; text-decoration: none; font-weight: 600; }
+.cart-count { background: var(--accent); border-radius: 999px; padding: 0 8px; margin-left: 2px; }
+
+/* বাটন */
+.btn {
+  display: inline-block; border: 2px solid transparent; border-radius: 10px; padding: 9px 14px;
+  font: inherit; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; line-height: 1.3;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #c2410c; }
+.btn-outline { background: #fff; color: var(--brand); border-color: var(--brand); }
+.btn-block { display: block; width: 100%; }
+.btn-lg { padding: 14px 18px; font-size: 1.1rem; }
+.btn[disabled] { opacity: .6; cursor: wait; }
+.btn-link { background: none; border: 0; cursor: pointer; font: inherit; color: var(--brand); padding: 6px; }
+.danger { color: var(--danger); }
+
+/* হোম */
+.home-section { margin: 22px 0; }
+.section-title { font-size: 1.3rem; margin: 0 0 12px; padding-left: 10px; border-left: 4px solid var(--accent); }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 700px) { .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+@media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+.card { background: var(--card); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); display: flex; flex-direction: column; }
+.card-img { position: relative; aspect-ratio: 1; background: #f1f5f9; }
+.card-img img { width: 100%; height: 100%; object-fit: cover; }
+.badge { position: absolute; top: 8px; left: 8px; background: var(--danger); color: #fff; font-size: .8rem; padding: 2px 8px; border-radius: 999px; }
+.badge.inline { position: static; display: inline-block; }
+.card-body { padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.card-title { color: var(--text); text-decoration: none; font-weight: 600; line-height: 1.35; }
+.price-row { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.price { color: var(--brand-dark); font-weight: 700; }
+.price.big { font-size: 1.8rem; }
+.compare { color: var(--muted); }
+.card-actions { margin-top: auto; display: grid; gap: 6px; }
+.card-actions form { margin: 0; }
+.card-actions .btn { width: 100%; font-size: .92rem; padding: 8px 6px; }
+
+/* ল্যান্ডিং */
+.landing-title { font-size: 1.6rem; line-height: 1.35; text-align: center; margin: 18px 0 12px; }
+@media (min-width: 700px) { .landing-title { font-size: 2.1rem; } }
+.landing-img img { width: 100%; border-radius: var(--radius); }
+.landing-price { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 14px 0 6px; }
+.lead { font-size: 1.08rem; text-align: center; }
+.video { margin: 20px 0; aspect-ratio: 16 / 9; background: #000; border-radius: var(--radius); overflow: hidden; }
+.video iframe, .video-thumb { width: 100%; height: 100%; border: 0; }
+.video-thumb { position: relative; padding: 0; cursor: pointer; background: #000; }
+.video-thumb img { width: 100%; height: 100%; object-fit: cover; opacity: .85; }
+.play { position: absolute; inset: 0; margin: auto; width: 68px; height: 48px; border-radius: 12px; background: #dc2626; color: #fff; font-size: 24px; display: grid; place-items: center; }
+.details { background: #fff; border-radius: var(--radius); padding: 14px 16px; margin: 18px 0; border: 1px solid var(--line); }
+.details img { border-radius: 8px; }
+.order-section { background: #fff; border: 2px solid var(--brand); border-radius: var(--radius); padding: 16px; margin: 22px 0; scroll-margin-top: 64px; }
+.order-section h2 { font-size: 1.2rem; text-align: center; margin: 0 0 12px; }
+.order-product { display: flex; gap: 10px; align-items: center; background: var(--bg); border-radius: 10px; padding: 8px; margin-bottom: 12px; }
+.order-product img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.sticky-order {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--accent); color: #fff;
+  text-align: center; font-weight: 700; font-size: 1.1rem; padding: 14px; text-decoration: none;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.15);
+}
+@media (min-width: 768px) { .sticky-order { display: none; } }
+
+/* ফর্ম */
+.order-form { display: grid; gap: 12px; }
+.field { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; }
+.field > span { font-weight: 600; font-size: .95rem; }
+.field input[type=text], .field input[type=tel], .field input[type=email], .field input[type=password],
+.field input[type=number], .field input[type=url], .field textarea, .field select {
+  width: 100%; font: inherit; padding: 11px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #fff;
+}
+.field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(15,118,110,.15); }
+.radio { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-weight: 500; }
+.area-field { gap: 6px; }
+.error { color: var(--danger); font-weight: 600; }
+.alert { padding: 12px 14px; border-radius: 10px; font-weight: 600; }
+.alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.alert-ok { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+.summary { background: var(--bg); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; margin: 6px 0; }
+.summary > div { display: flex; justify-content: space-between; gap: 10px; }
+.summary-total { font-weight: 700; font-size: 1.08rem; border-top: 1px dashed #cbd5e1; padding-top: 6px; }
+
+/* কার্ট */
+.page-title { font-size: 1.4rem; margin: 18px 0 12px; }
+.cart-list { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 8px; }
+.cart-item { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.cart-item img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.compact .cart-item img { width: 48px; height: 48px; }
+.cart-item-info { flex: 1; }
+.cart-item form { margin: 0; }
+.empty { text-align: center; padding: 40px 0; }
+
+/* ধন্যবাদ */
+.thanks { text-align: center; padding-top: 24px; }
+.thanks .summary { text-align: left; }
+.thanks-icon { width: 72px; height: 72px; margin: 0 auto; border-radius: 50%; background: #16a34a; color: #fff; font-size: 40px; display: grid; place-items: center; }
+.order-no { font-size: 1.2rem; }
+
+/* ফুটার + টোস্ট */
+.site-footer { background: #0f172a; color: #cbd5e1; padding: 18px 0; text-align: center; }
+.site-footer a { color: #fff; font-weight: 700; }
+.toast {
+  position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%) translateY(20px); opacity: 0;
+  background: #111827; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 50; transition: .25s; pointer-events: none;
+  max-width: 90vw; text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
