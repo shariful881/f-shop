@@ -149,6 +149,31 @@
     });
   });
 
+  /* ---- কাউন্টডাউন: নির্দিষ্ট সময় পর্যন্ত, অথবা প্রতিটা ভিজিটরের জন্য আলাদা ---- */
+  document.querySelectorAll("[data-countdown]").forEach(function (box) {
+    var end;
+    if (box.dataset.countdown === "fixed" && box.dataset.ends) {
+      end = new Date(box.dataset.ends + ":00+06:00").getTime(); // ঢাকার সময়
+    } else {
+      var key = box.dataset.key, mins = +box.dataset.minutes || 120;
+      try { end = +localStorage.getItem(key); } catch (e) {}
+      if (!end || end < Date.now()) {
+        end = Date.now() + mins * 60000;
+        try { localStorage.setItem(key, String(end)); } catch (e) {}
+      }
+    }
+    function pad(n) { return bn(n < 10 ? "0" + n : String(n)); }
+    function tick() {
+      var left = Math.max(0, end - Date.now());
+      var sec = Math.floor(left / 1000);
+      var v = { d: Math.floor(sec / 86400), h: Math.floor(sec % 86400 / 3600), m: Math.floor(sec % 3600 / 60), s: sec % 60 };
+      Object.keys(v).forEach(function (k) { var el = box.querySelector("[data-cd=" + k + "]"); if (el) el.textContent = pad(v[k]); });
+      if (left <= 0) clearInterval(timer);
+    }
+    var timer = setInterval(tick, 1000);
+    tick();
+  });
+
   /* ---- YouTube: ক্লিক করলে তবেই ভিডিও লোড (পেজ দ্রুত খোলে) ---- */
   document.querySelectorAll("[data-yt]").forEach(function (box) {
     var btn = box.querySelector(".video-thumb");

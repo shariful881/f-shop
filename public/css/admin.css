@@ -86,3 +86,24 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .color-fields input[type=color] { width: 80px; height: 42px; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 2px; background: #fff; }
 .input-sm { font: inherit; padding: 5px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; }
 .coupon-code { font-size: 1rem; font-weight: 700; letter-spacing: .5px; }
+
+/* ল্যান্ডিং বিল্ডার */
+.b-section { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); margin: 10px 0; }
+.b-section.off { opacity: .55; }
+.b-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #f8fafc; border-radius: var(--radius) var(--radius) 0 0; flex-wrap: wrap; }
+.b-actions { display: flex; gap: 6px; align-items: center; }
+.b-body { padding: 12px; display: grid; gap: 10px; }
+.b-body input[type=text], .b-body input[type=number], .b-body input[type=datetime-local], .b-body textarea, .b-body select {
+  width: 100%; font: inherit; padding: 9px 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; }
+.b-list { display: grid; gap: 8px; }
+.b-row { display: flex; gap: 6px; align-items: center; }
+.b-row input { flex: 1; }
+.b-row select { width: auto; }
+.b-card { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px; display: grid; gap: 8px; }
+.b-images { display: flex; flex-wrap: wrap; gap: 8px; }
+.b-img { position: relative; }
+.b-img img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; }
+.b-img button { position: absolute; top: -6px; right: -6px; background: #fff; border-radius: 50%; padding: 2px 6px; }
+.b-toolbar { position: sticky; bottom: 0; background: #f1f5f9; padding: 10px 0; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.b-add { display: flex; gap: 8px; margin: 10px 0; }
+.b-add select { font: inherit; padding: 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; }

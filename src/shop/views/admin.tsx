@@ -275,6 +275,7 @@ export const ProductsPage = ({ products, categories }: { products: Product[]; ca
               </td>
               <td class="nowrap">
                 <a href={`/admin/products/${p.id}/edit`} class="btn btn-outline btn-sm">এডিট</a>
+                <a href={`/admin/products/${p.id}/landing`} class="btn btn-outline btn-sm">ল্যান্ডিং পেজ</a>
                 <form method="post" action={`/admin/products/${p.id}/toggle`} class="inline">
                   <button class="btn-link">{p.is_active ? "বন্ধ করুন" : "চালু করুন"}</button>
                 </form>
@@ -296,7 +297,7 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
   return (
     <>
       <p><a href="/admin/products">← পণ্য তালিকা</a></p>
-      <h1>{isEdit ? "পণ্য এডিট" : "নতুন পণ্য"}</h1>
+      <h1>{isEdit ? "পণ্য এডিট" : "নতুন পণ্য"} {isEdit && <a href={`/admin/products/${v.id}/landing`} class="btn btn-outline btn-sm">ল্যান্ডিং পেজ বিল্ডার →</a>}</h1>
       <form method="post" action={isEdit ? `/admin/products/${v.id}` : "/admin/products"} enctype="multipart/form-data" class="admin-form">
         <div class="form-grid">
           <label class="field"><span>নাম *</span><input type="text" name="name" value={v.name ?? ""} required />{e.name && <small class="error">{e.name}</small>}</label>
@@ -808,3 +809,36 @@ export const CouponsPage = (p: { coupons: CouponRow[]; errors?: Record<string, s
     </>
   );
 };
+
+/* ---------- ল্যান্ডিং পেজ বিল্ডার ---------- */
+export const LandingBuilderPage = (p: { product: Product; landingJson: string; labels: Record<string, string>; custom: boolean }) => (
+  <>
+    <p><a href={`/admin/products/${p.product.id}/edit`}>← পণ্য এডিট</a></p>
+    <h1>ল্যান্ডিং পেজ: {p.product.name}</h1>
+    <p class="muted">
+      সেকশন সাজান, ↑↓ দিয়ে ক্রম বদলান, দরকার না হলে বন্ধ রাখুন। "প্রিভিউ" নতুন ট্যাবে দেখাবে (সেভ হবে না)।
+      {" "}<a href={`/p/${p.product.slug}`} target="_blank">লাইভ পেজ ↗</a>
+    </p>
+    <div id="builder" data-landing={p.landingJson} data-labels={JSON.stringify(p.labels)}>
+      <div id="sections"></div>
+      <div class="b-add">
+        <select id="new-type">
+          {Object.entries(p.labels).filter(([k]) => k !== "order_form").map(([k, l]) => <option value={k}>{l}</option>)}
+        </select>
+        <button type="button" class="btn btn-outline" id="add-section">+ সেকশন যোগ করুন</button>
+      </div>
+      <form method="post" id="builder-form" action={`/admin/products/${p.product.id}/landing`}
+        data-save={`/admin/products/${p.product.id}/landing`} data-preview={`/admin/products/${p.product.id}/landing/preview`} class="b-toolbar">
+        <input type="hidden" name="landing_json" id="landing-json" />
+        <button class="btn btn-primary">সেভ করুন</button>
+        <button type="button" class="btn btn-outline" id="preview-btn">প্রিভিউ</button>
+      </form>
+      {p.custom && (
+        <form method="post" action={`/admin/products/${p.product.id}/landing/reset`} data-confirm="বিল্ডারের সাজানো সব বাদ দিয়ে সাধারণ ল্যান্ডিং পেজে ফিরবেন?">
+          <button class="btn-link danger">সাধারণ ল্যান্ডিং পেজে ফিরুন</button>
+        </form>
+      )}
+    </div>
+    <script src={`/js/builder.js?v=${ASSET_VERSION}`} defer></script>
+  </>
+);

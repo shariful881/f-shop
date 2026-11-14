@@ -4,6 +4,9 @@ import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL } from "../lib/orders";
 import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
 import { deliveryCharge } from "../lib/settings";
+import { parseLanding } from "../lib/landing";
+import { sanitizeHtml } from "../lib/sanitize";
+import { BuiltLanding } from "./landing";
 
 /* ---------- পণ্যের কার্ড ---------- */
 export const ProductCard = ({ p }: { p: Product }) => {
@@ -145,6 +148,8 @@ export const OrderForm = (p: {
 
 /* ---------- ল্যান্ডিং পেজ ---------- */
 export const LandingPage = ({ p, variants = [], settings, form, closed }: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string }) => {
+  const built = parseLanding(p.landing_json);
+  if (built) return <BuiltLanding p={p} landing={built} variants={variants} settings={settings} form={form} closed={closed} />;
   const yt = youtubeId(p.youtube_url);
   const off = discountPercent(p.price, p.compare_price);
   return (
@@ -171,7 +176,7 @@ export const LandingPage = ({ p, variants = [], settings, form, closed }: { p: P
           </div>
         )}
 
-        {p.details_html && <div class="details" dangerouslySetInnerHTML={{ __html: p.details_html }} />}
+        {p.details_html && <div class="details" dangerouslySetInnerHTML={{ __html: sanitizeHtml(p.details_html) }} />}
 
         <section id="order" class="order-section">
           <h2>অর্ডার করতে নিচের ফর্মটি পূরণ করুন</h2>

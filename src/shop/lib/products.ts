@@ -14,6 +14,7 @@ export type Product = {
   show_on_home: number;
   sort_order: number;
   options_json?: string | null;
+  landing_json?: string | null;
   /** হোম/তালিকায়: কতগুলো চালু ভ্যারিয়েন্ট আছে */
   variant_count?: number;
   /** কার্ট/অর্ডারের লাইনে: বাছাই করা ভ্যারিয়েন্ট (price তখন ভ্যারিয়েন্টের দাম) */

@@ -13,7 +13,10 @@ import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
-import { CouponsPage, type CouponRow } from "../views/admin";
+import { CouponsPage, LandingBuilderPage, type CouponRow } from "../views/admin";
+import { defaultLanding, normalizeLanding, parseLanding, SECTION_LABEL } from "../lib/landing";
+import { Layout } from "../views/layout";
+import { BuiltLanding } from "../views/landing";
 import { normalizeCode } from "../lib/coupons";
 import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
@@ -682,4 +685,70 @@ admin.post("/coupons/:id{[0-9]+}/delete", async (c) => {
   await c.env.DB.prepare("DELETE FROM coupons WHERE id = ? AND used_count = 0").bind(toInt(c.req.param("id"))).run();
   flash(c, "ok", "কুপন মুছে ফেলা হয়েছে।");
   return c.redirect("/admin/coupons", 303);
+});
+
+/* ---------- ল্যান্ডিং পেজ বিল্ডার (পণ্যের অনুমতি যাদের আছে) ---------- */
+async function productById(c: Ctx, id: number) {
+  return c.env.DB.prepare("SELECT * FROM products WHERE id = ?").bind(id).first<Product>();
+}
+
+admin.get("/products/:id{[0-9]+}/landing", async (c) => {
+  const p = await productById(c, toInt(c.req.param("id")));
+  if (!p) return c.redirect("/admin/products", 303);
+  const landing = parseLanding(p.landing_json) ?? defaultLanding(p);
+  return render(c, "ল্যান্ডিং পেজ", "products",
+    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} />);
+});
+
+function landingFromBody(raw: unknown) {
+  try {
+    return normalizeLanding(JSON.parse(String(raw ?? "")));
+  } catch {
+    return null;
+  }
+}
+
+admin.post("/products/:id{[0-9]+}/landing", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const landing = landingFromBody((await c.req.parseBody()).landing_json);
+  if (!landing) {
+    flash(c, "error", "সেভ করা যায়নি, আবার চেষ্টা করুন");
+  } else {
+    await c.env.DB.prepare("UPDATE products SET landing_json = ?, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(landing), id).run();
+    flash(c, "ok", "ল্যান্ডিং পেজ সেভ হয়েছে।");
+  }
+  return c.redirect(`/admin/products/${id}/landing`, 303);
+});
+
+admin.post("/products/:id{[0-9]+}/landing/preview", async (c) => {
+  const p = await productById(c, toInt(c.req.param("id")));
+  const landing = landingFromBody((await c.req.parseBody()).landing_json);
+  if (!p || !landing) return c.text("প্রিভিউ করা যায়নি", 400);
+  const s = c.var.settings;
+  c.header("Cache-Control", "no-store");
+  return c.html("<!DOCTYPE html>" + String(
+    <Layout title={`প্রিভিউ — ${p.name}`} settings={s}>
+      <div class="banner banner-warn">প্রিভিউ — এখনো সেভ হয়নি</div>
+      <BuiltLanding p={p} landing={landing} variants={await productVariants(c.env.DB, p.id)} settings={s} />
+    </Layout>,
+  ));
+});
+
+admin.post("/products/:id{[0-9]+}/landing/reset", async (c) => {
+  const id = toInt(c.req.param("id"));
+  await c.env.DB.prepare("UPDATE products SET landing_json = NULL WHERE id = ?").bind(id).run();
+  flash(c, "ok", "সাধারণ ল্যান্ডিং পেজে ফেরানো হয়েছে।");
+  return c.redirect(`/admin/products/${id}/landing`, 303);
+});
+
+/** বিল্ডারের ছবি আপলোড (গ্যালারি, রিভিউ স্ক্রিনশট) */
+admin.post("/upload-image", async (c) => {
+  const file = (await c.req.parseBody()).image;
+  if (!(file instanceof File) || !file.size) return c.json({ message: "ছবি পাওয়া যায়নি" }, 400);
+  const ext = IMAGE_TYPES[file.type];
+  if (!ext) return c.json({ message: "শুধু JPG, PNG বা WebP" }, 400);
+  if (file.size > MAX_IMAGE) return c.json({ message: "ছবি ৩ MB-এর কম হতে হবে" }, 400);
+  const key = `p/${crypto.randomUUID()}.${ext}`;
+  await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+  return c.json({ key });
 });
