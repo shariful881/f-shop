@@ -433,7 +433,8 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
         })}
       </>
     ),
-    trust: () => <div class="px-home-trust"><TrustStrip cfg={cfg} /></div>,
+    // ফুটারের উপরে একই ব্যাজ চালু থাকলে হোমে আবার দেখায় না (দুবার আসত)
+    trust: () => on(cfg, "footer_trust") ? null : <div class="px-home-trust"><TrustStrip cfg={cfg} /></div>,
     offer1: offer(1), offer2: offer(2), offer3: offer(3),
     latest: () => latest.length ? (
       <Section title={cfg.latest_title}><div class="grid px-grid">{latest.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section>

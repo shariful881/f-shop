@@ -39,6 +39,19 @@ describe("থিমের বাড়তি অপশন", () => {
     expect(html.indexOf("২৪ ঘণ্টায় ডেলিভারি")).toBeLessThan(html.indexOf("ঈদের বাছাই"));
   });
 
+  it("বিশ্বাসের ব্যাজ হোম সেকশন আর ফুটার দুটোতে চালু থাকলেও হোমপেজে একবারই দেখায়", async () => {
+    const a = await adminBrowser();
+    const count = (h: string) => h.split('class="px-trust-strip"').length - 1;
+    const t = { trust_1: "ক্যাশ অন ডেলিভারি", trust_2: "সারাদেশে ডেলিভারি" };
+    await save(a, { ...t, sec_trust: "1", footer_trust: "1", sec_products: "1", home_order: "products,trust" });
+    const h1 = await get("/");
+    expect(count(h1)).toBe(1);
+    await save(a, { ...t, sec_trust: "1", footer_trust: "", sec_products: "1", home_order: "products,trust" });
+    const html = await get("/");
+    expect(count(html)).toBe(1);
+    expect(html).toContain("px-home-trust");
+  });
+
   it("পপআপ, উপরে যান বাটন, ফ্রি ডেলিভারি ট্যাগ, ছবির অনুপাত, ট্যাবলেটের কলাম", async () => {
     await DB.prepare("UPDATE settings SET value = '1000' WHERE key = 'free_delivery_min'").run();
     const a = await adminBrowser();

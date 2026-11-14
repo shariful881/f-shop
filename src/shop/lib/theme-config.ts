@@ -174,7 +174,7 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "footer_style", type: "choice", label: "ফুটারের ডিজাইন", preview: "footer", options: { simple: "সাধারণ", full: "বড় (৪ কলাম)", center: "মাঝখানে সাজানো" } },
       { key: "footer_logo", type: "image", label: "ফুটারের আলাদা লোগো (ঐচ্ছিক)", hint: "গাঢ় ফুটারে সাদা লোগো ভালো দেখায়। না দিলে মূল লোগো।" },
       { key: "footer_payments", type: "text", label: "পেমেন্টের মাধ্যম (কমা দিয়ে)", max: 120, placeholder: "ক্যাশ অন ডেলিভারি, bKash, Nagad", hint: "ফুটারে ছোট ব্যাজ হিসেবে দেখাবে। ফাঁকা রাখলে দেখাবে না।" },
-      { key: "footer_trust", type: "toggle", label: "ফুটারের উপরে বিশ্বাসের ব্যাজ" },
+      { key: "footer_trust", type: "toggle", label: "ফুটারের উপরে বিশ্বাসের ব্যাজ", hint: "চালু থাকলে হোমপেজের বিশ্বাসের ব্যাজ সেকশন আর আলাদা দেখায় না (দুবার না আসার জন্য)" },
       { key: "footer_about", type: "textarea", label: "দোকান সম্পর্কে ছোট লেখা", max: 300, hint: "ফাঁকা রাখলে SEO ডেসক্রিপশন দেখাবে" },
       { key: "trust_1", type: "text", label: "ব্যাজ ১", max: 40 }, { key: "trust_1_sub", type: "text", label: "ব্যাজ ১-এর নিচের লেখা", max: 60 },
       { key: "trust_2", type: "text", label: "ব্যাজ ২", max: 40 }, { key: "trust_2_sub", type: "text", label: "ব্যাজ ২-এর নিচের লেখা", max: 60 },
