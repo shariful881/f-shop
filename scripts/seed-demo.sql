@@ -26,4 +26,4 @@ VALUES
 
 -- ডেমো দোকানের মালিক (শুধু লোকাল টেস্টের জন্য): demo@fshop.test / demo12345
 INSERT OR IGNORE INTO users (name, email, password_hash, is_admin) VALUES
-  ('ডেমো মালিক', 'demo@fshop.test', 'pbkdf2_sha256$100000$uF3anFm2RPDRh0w9VDt8SA==$KqXmsQSme3UiGUeRj3tXiuXKkugkmhBTSOI3DNe81iU=', 1);
+  ('ডেমো মালিক', 'demo@fshop.test', 'pbkdf2_sha256$20000$4dl9OOacLfxs9wImYFbZ+g==$wMcEYrcq6XOq3ShGJFFZwFMLf9FgWoCHIRfMd7DzyQw=', 1);

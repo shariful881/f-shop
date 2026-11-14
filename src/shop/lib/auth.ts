@@ -23,7 +23,13 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
   return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
 }
 
-export async function hashPassword(password: string, iterations = 100_000): Promise<string> {
+/**
+ * ২০,০০০ বার — Cloudflare ফ্রি প্ল্যানের ১০ms CPU সীমার মধ্যে থাকে (১,০০,০০০ হলে সীমা পার হয়)।
+ * লগইনে ভুল চেষ্টার সীমা (rate limit) থাকায় যথেষ্ট নিরাপদ।
+ */
+export const PASSWORD_ITERATIONS = 20_000;
+
+export async function hashPassword(password: string, iterations = PASSWORD_ITERATIONS): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const hash = await pbkdf2(password, salt, iterations);
   return `pbkdf2_sha256$${iterations}$${b64(salt)}$${b64(hash)}`;

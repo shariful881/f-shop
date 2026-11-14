@@ -36,8 +36,8 @@ if (!password) {
 if (password.length < 10) { console.error("সুপার অ্যাডমিনের পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।"); process.exit(1); }
 
 const salt = randomBytes(16);
-const hash = pbkdf2Sync(password, salt, 100000, 32, "sha256");
-const stored = `pbkdf2_sha256$100000$${salt.toString("base64")}$${hash.toString("base64")}`;
+const hash = pbkdf2Sync(password, salt, 20000, 32, "sha256");
+const stored = `pbkdf2_sha256$20000$${salt.toString("base64")}$${hash.toString("base64")}`;
 const sql = `INSERT INTO super_admins (email, password_hash) VALUES ('${email}', '${stored}') ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash;`;
 try {
   execFileSync("npx", ["wrangler", "d1", "execute", "PLATFORM_DB", remote ? "--remote" : "--local", "--command", sql], { stdio: ["inherit", "ignore", "inherit"] });

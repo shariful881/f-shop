@@ -5,7 +5,6 @@ declare global {
     interface Env {
       PLATFORM_DB: D1Database;
       SHOP: DurableObjectNamespace<import("../src/shop/shop-do").ShopDO>;
-      IMAGES: R2Bucket;
       PLATFORM_DOMAIN: string;
       DEV_MODE?: string;
       CF_API_TOKEN?: string;

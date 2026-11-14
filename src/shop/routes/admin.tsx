@@ -270,7 +270,7 @@ admin.post("/orders/bulk-courier", async (c) => {
   const b = await c.req.parseBody({ all: true });
   const courier = String(b.courier) as CourierKey;
   const raw = b["ids"] ?? b["ids[]"];
-  const ids = [...new Set((Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => toInt(x)).filter((x) => x > 0))].slice(0, 50);
+  const ids = [...new Set((Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => toInt(x)).filter((x) => x > 0))].slice(0, 20); // ফ্রি প্ল্যানে একবারে ৫০টা বাইরের কল — তাই ২০টা অর্ডার
   if (courier !== "steadfast" && courier !== "pathao") {
     flash(c, "error", "একসাথে পাঠানো যায় Steadfast বা Pathao-তে। RedX-এ এলাকা বাছতে হয়, তাই অর্ডার খুলে পাঠান।");
   } else if (!ids.length) {

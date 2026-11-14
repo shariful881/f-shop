@@ -21,6 +21,17 @@ shopApp.use("*", async (c, next) => {
   await next();
 });
 
+/** ছবি: দোকানের নিজের ডাটাবেস থেকে (key-তে uuid থাকে, তাই চিরকাল cache) */
+shopApp.get("/img/*", async (c) => {
+  const key = c.req.path.slice(5);
+  if (!/^[a-z0-9/_.-]+$/i.test(key) || key.includes("..")) return c.text("not found", 404);
+  const img = await c.env.IMAGES.get(key);
+  if (!img) return c.text("not found", 404);
+  return new Response(img.body, {
+    headers: { "Content-Type": img.type, "Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" },
+  });
+});
+
 shopApp.use("*", securityHeaders, withSettings, sameOriginPost, device);
 shopApp.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : fbCookies(c, next)));
 

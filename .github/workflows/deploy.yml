@@ -1,5 +1,5 @@
 # main-এ push করলে: টেস্ট চলবে, সব পাস করলে Cloudflare-এ লাইভ হবে
-# (CLOUDFLARE_API_TOKEN আর CLOUDFLARE_ACCOUNT_ID secret না থাকলে শুধু টেস্ট চলবে)
+# (CLOUDFLARE_API_TOKEN secret না থাকলে শুধু টেস্ট চলবে)
 name: Test & Deploy
 
 on:
@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -27,3 +26,11 @@ jobs:
       - name: ডাটাবেস migrate + Cloudflare-এ ডিপ্লয়
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
         run: npm run deploy
+
+      - name: Worker-এ CF_API_TOKEN secret (দোকানদারের নিজের ডোমেইন ফিচারের জন্য)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        run: echo "$CLOUDFLARE_API_TOKEN" | npx wrangler secret put CF_API_TOKEN
+
+      - name: মূল ডোমেইনের DNS (sellxbd.com আর *.sellxbd.com → Worker), না থাকলে তৈরি
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        run: node scripts/ensure-dns.mjs

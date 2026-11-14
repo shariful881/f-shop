@@ -2,6 +2,7 @@
   // F-Shop SaaS — Cloudflare Workers কনফিগ
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "f-shop",
+  "account_id": "4d64812aec0633769e58643fa48e5dae",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,26 +11,26 @@
   "assets": { "directory": "./public", "binding": "ASSETS" },
 
   "vars": {
-    // SaaS-এর মূল ডোমেইন — কেনার পর এখানে বসাবেন
-    "PLATFORM_DOMAIN": "ourdomain.com",
+    // SaaS-এর মূল ডোমেইন
+    "PLATFORM_DOMAIN": "sellxbd.com",
     "WORKER_NAME": "f-shop",
-    // আপনার Cloudflare Account ID (নিজের ডোমেইন ফিচারের জন্য)। CF_API_TOKEN secret হিসেবে বসাবেন (README দেখুন)
-    "CF_ACCOUNT_ID": ""
+    // Cloudflare Account ID (দোকানদারের নিজের ডোমেইন ফিচারের জন্য)। CF_API_TOKEN secret হিসেবে বসে (ডিপ্লয়ের সময়)
+    "CF_ACCOUNT_ID": "4d64812aec0633769e58643fa48e5dae"
   },
 
-  // মূল ডোমেইন কিনে Cloudflare-এ যোগ করার পর নিচের // মুছে দিন (README ধাপ ৫)
-  // "routes": [
-  //   { "pattern": "ourdomain.com/*", "zone_name": "ourdomain.com" },
-  //   { "pattern": "*.ourdomain.com/*", "zone_name": "ourdomain.com" }
-  // ],
+  // মূল ডোমেইন আর সব দোকানের subdomain এই Worker-এ আসে
+  // (DNS-এ sellxbd.com আর * — দুটো proxied রেকর্ড লাগে, README দেখুন)
+  "routes": [
+    { "pattern": "sellxbd.com/*", "zone_name": "sellxbd.com" },
+    { "pattern": "*.sellxbd.com/*", "zone_name": "sellxbd.com" }
+  ],
 
   // মূল ডাটাবেস: দোকানের তালিকা, ডোমেইন, বিলিং
-  // লাইভ করার আগে Cloudflare-এ D1 বানিয়ে database_id বদলাবেন (README দেখুন)
   "d1_databases": [
     {
       "binding": "PLATFORM_DB",
       "database_name": "f-shop-platform",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "04f90652-1bb5-461f-b746-e7d4d1e7642d",
       "migrations_dir": "migrations/platform"
     }
   ],
@@ -40,8 +41,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
 
-  // পণ্যের ছবি (প্রতিটা দোকানের আলাদা ফোল্ডার: shops/<দোকানের আইডি>/...)
-  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "f-shop-images" }],
+  // ছবি R2-তে নয়, প্রতিটা দোকানের নিজের ডাটাবেসে (ফ্রি প্ল্যানে চলে) — src/shop/lib/images.ts
 
   // .sql ফাইল কোডে টেক্সট হিসেবে আনা (দোকানের migration)
   "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],

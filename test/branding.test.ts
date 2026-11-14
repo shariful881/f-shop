@@ -40,7 +40,8 @@ describe("দোকানের লোগো আর রং", () => {
 
     await a.post("/admin/settings", { ...baseSettings, remove_logo: "1" });
     expect((await DB.prepare("SELECT value FROM settings WHERE key='logo'").first<{ value: string }>())!.value).toBe("");
-    expect((await new Browser().get(`/img/${key}`)).status).toBe(404);
+    // ডাটাবেস থেকে মুছে যায় (edge cache-এ পুরনো কপি থাকলেও সেই key আর কোথাও ব্যবহার হয় না)
+    expect(await DB.prepare("SELECT 1 FROM images WHERE key = ?").bind(key).first()).toBeNull();
   });
 
   it("বড় বা ভুল ধরনের লোগো নেয় না", async () => {

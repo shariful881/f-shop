@@ -13,6 +13,8 @@ import m0007 from "../../migrations/shop/0007_landing_builder.sql";
 import m0008 from "../../migrations/shop/0008_theme.sql";
 import m0009 from "../../migrations/shop/0009_courier.sql";
 import m0010 from "../../migrations/shop/0010_sms.sql";
+import m0011 from "../../migrations/shop/0011_images.sql";
+import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 
 export const SHOP_MIGRATIONS: [string, string][] = [
@@ -26,6 +28,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0008_theme", m0008],
   ["0009_courier", m0009],
   ["0010_sms", m0010],
+  ["0011_images", m0011],
 ];
 
 export type SetupInput = {
@@ -127,7 +130,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
 
     const env = {
       DB: this.db.asD1(),
-      IMAGES: this.env.IMAGES,
+      IMAGES: new SqlImageStore(this.db),
       PLATFORM_DB: this.env.PLATFORM_DB,
       SHOP_ID: shopId,
       SHOP_SLUG: request.headers.get("x-fshop-slug") || "",

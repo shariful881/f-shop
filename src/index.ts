@@ -4,7 +4,6 @@ import { cfFromEnv, checkPendingDomains } from "./platform/domains";
 import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired } from "./platform/billing";
 import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
-import { imageStorageKey } from "./shop/env";
 
 export { ShopDO } from "./shop/shop-do";
 
@@ -47,9 +46,9 @@ export default {
       if (again.kind === "shop") shop = again.shop;
     }
 
-    // পণ্যের ছবি: R2-তে প্রতিটা দোকানের আলাদা ফোল্ডার থেকে
+    // পণ্যের ছবি: আগে Cloudflare-এর edge cache, না পেলে দোকানের ডাটাবেস থেকে এনে cache-এ রাখা
     if (url.pathname.startsWith("/img/") && request.method === "GET") {
-      return serveImage(env, shop, url.pathname.slice(5));
+      return serveImage(env, shop, request, ctx);
     }
 
     return forwardToShop(env, shop, request);
@@ -77,13 +76,13 @@ export async function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Requ
   return stub.fetch(new Request(request, { headers }));
 }
 
-async function serveImage(env: WorkerEnv, shop: ShopRow, key: string) {
-  if (!/^[a-z0-9/_.-]+$/i.test(key) || key.includes("..")) return new Response("not found", { status: 404 });
-  const obj = await env.IMAGES.get(imageStorageKey(shop.id, key));
-  if (!obj) return new Response("not found", { status: 404 });
-  const headers = new Headers();
-  obj.writeHttpMetadata(headers);
-  headers.set("etag", obj.httpEtag);
-  headers.set("Cache-Control", "public, max-age=31536000, immutable");
-  return new Response(obj.body, { headers });
+async function serveImage(env: WorkerEnv, shop: ShopRow, request: Request, ctx: ExecutionContext) {
+  const url = new URL(request.url);
+  const cacheKey = new Request(`${url.origin}${url.pathname}`, { method: "GET" });
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const hit = cache ? await cache.match(cacheKey).catch(() => undefined) : undefined;
+  if (hit) return hit;
+  const res = await forwardToShop(env, shop, new Request(cacheKey.url, { method: "GET", headers: { "x-forwarded-host": url.host } }));
+  if (res.ok && cache) ctx.waitUntil(cache.put(cacheKey, res.clone()).catch(() => {}));
+  return res;
 }
