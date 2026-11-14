@@ -6,6 +6,7 @@ import { CartPage, CheckoutPage, HomePage, LandingPage, NotFoundPage, ThanksPage
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
 import { createOrder, getOrderByNo } from "../lib/orders";
+import { checkCoupon, normalizeCode } from "../lib/coupons";
 import { deliveryCharge } from "../lib/settings";
 import { clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
 import { imageUrl } from "../lib/format";
@@ -152,6 +153,7 @@ shop.post("/order", async (c) => {
     area: str(body.area, 10),
     note: str(body.note, 300),
     variant_id: str(body.variant_id, 12),
+    coupon: normalizeCode(body.coupon),
   };
 
   // কোন পণ্য: ল্যান্ডিং থেকে হলে শুধু ওই পণ্য, চেকআউট থেকে হলে কার্টের সব (ডুপ্লিকেট বাদ)
@@ -204,7 +206,17 @@ shop.post("/order", async (c) => {
     const guard = await checkOrderGuards(c.env.DB, v.phone, deviceIds, s);
     if (!guard.ok) return fail({ alert: guard.message }, 403);
 
-    // ৪. অর্ডার সেভ
+    // ৪. কুপন (থাকলে) — সার্ভারে যাচাই
+    const subtotal = products.reduce((x, p) => x + p.price, 0);
+    const delivery = deliveryCharge(s, v.area);
+    let coupon: { id: number; code: string; discount: number } | null = null;
+    if (values.coupon) {
+      const cc = await checkCoupon(c.env.DB, values.coupon, subtotal, delivery, v.phone);
+      if (!cc.ok) return fail({ errors: { coupon: cc.message } });
+      coupon = { id: cc.coupon.id, code: cc.coupon.code, discount: cc.discount };
+    }
+
+    // ৫. অর্ডার সেভ
     const order = await createOrder(c.env.DB, {
       name: values.name!,
       phone: v.phone,
@@ -218,11 +230,14 @@ shop.post("/order", async (c) => {
       fbp: c.var.fbp ?? null,
       fbc: c.var.fbc ?? null,
       sourceUrl: (c.req.header("referer") || publicUrl(c)).slice(0, 1000),
+      couponId: coupon?.id ?? null,
+      couponCode: coupon?.code ?? null,
+      discount: coupon?.discount ?? 0,
     }, products);
 
     // Lead: সার্ভার এখন (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
     // (Purchase এখানে কখনো যায় না — শুধু অ্যাডমিন কনফার্ম করলে)
-    trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: products.reduce((x, p) => x + p.price, 0) + deliveryCharge(s, v.area) });
+    trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: subtotal + delivery - (coupon?.discount ?? 0) });
 
     if (source === "cart") clearCart(c);
     setCookie(c, "lo", order.order_no, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 });
@@ -230,6 +245,27 @@ shop.post("/order", async (c) => {
   } finally {
     await releaseOrderLocks(c.env.DB, locks);
   }
+});
+
+/* ---------- কুপন যাচাই (ফর্মে "প্রয়োগ" চাপলে) ---------- */
+shop.post("/coupon/check", async (c) => {
+  if (!(await hitRateLimit(c.env.DB, `coupon:${clientIp(c)}`, 20, 60))) {
+    return c.json({ ok: false, message: "অনেকবার চেষ্টা হয়েছে, একটু পরে চেষ্টা করুন" }, 429);
+  }
+  const body = await c.req.parseBody();
+  const source = body.source === "cart" ? "cart" : "landing";
+  const entries = source === "cart" ? readCartEntries(c) : [{ productId: toInt(body.product_id), variantId: toInt(body.variant_id) || null }];
+  let lines = await cartLines(c.env.DB, entries);
+  if (!lines.length && source === "landing") {
+    // ভ্যারিয়েন্ট এখনো বাছাই হয়নি — মূল দামে হিসাব
+    lines = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
+  }
+  const subtotal = lines.reduce((x, p) => x + p.price, 0);
+  const delivery = deliveryCharge(c.var.settings, body.area === "outside" ? "outside" : "inside");
+  const r = await checkCoupon(c.env.DB, String(body.coupon ?? ""), subtotal, delivery);
+  if (!r.ok) return c.json({ ok: false, message: r.message });
+  const cp = r.coupon;
+  return c.json({ ok: true, message: r.message, code: cp.code, type: cp.type, value: cp.value, max_discount: cp.max_discount, min_order: cp.min_order, discount: r.discount });
 });
 
 /* ---------- InitiateCheckout: ল্যান্ডিং ফর্মে প্রথম ফোকাস ---------- */

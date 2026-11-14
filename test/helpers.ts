@@ -60,7 +60,7 @@ export async function resetDb() {
   await createShop(DEMO_SHOP_ID, "demoshop", "shop.test");
   await runInDurableObject(shopStub(), (i: ShopDO) => i.ensureInit(DEMO_SHOP_ID, false));
   await DB.batch(
-    ["order_items", "orders", "blacklist_entries", "sessions", "users", "products", "categories", "order_locks", "rate_limits"].map(
+    ["order_items", "orders", "coupons", "product_variants", "blacklist_entries", "sessions", "users", "products", "categories", "order_locks", "rate_limits"].map(
       (t) => DB.prepare(`DELETE FROM ${t}`),
     ),
   );

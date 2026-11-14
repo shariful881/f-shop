@@ -48,6 +48,16 @@
   document.querySelectorAll("[data-order-form]").forEach(function (form) {
     var subtotal = +form.dataset.subtotal || 0;
     var charges = { inside: +form.dataset.inside || 0, outside: +form.dataset.outside || 0 };
+    var coupon = null; // সার্ভার থেকে পাওয়া কুপনের নিয়ম
+    function couponDiscount(sub, delivery) {
+      if (!coupon || sub < (coupon.min_order || 0)) return 0;
+      if (coupon.type === "fixed") return Math.min(coupon.value, sub);
+      if (coupon.type === "percent") {
+        var d = Math.floor(sub * Math.min(100, coupon.value) / 100);
+        return coupon.max_discount ? Math.min(d, coupon.max_discount) : d;
+      }
+      return delivery;
+    }
     function update() {
       var vr = form.querySelector("input[name=variant_id]:checked");
       if (vr && vr.dataset.price) subtotal = +vr.dataset.price;
@@ -57,11 +67,38 @@
       var d = charges[checked ? checked.value : "inside"];
       var dEl = form.querySelector("[data-delivery]");
       var tEl = form.querySelector("[data-total]");
+      var disc = couponDiscount(subtotal, d);
+      var row = form.querySelector("[data-discount-row]");
+      if (row) { row.hidden = !disc; row.querySelector("[data-discount]").textContent = "-" + taka(disc); }
       if (dEl) dEl.textContent = taka(d);
-      if (tEl) tEl.textContent = taka(subtotal + d);
+      if (tEl) tEl.textContent = taka(subtotal + d - disc);
     }
     form.addEventListener("change", update);
     update();
+
+    // কুপন প্রয়োগ
+    var applyBtn = form.querySelector("[data-coupon-apply]");
+    var codeInput = form.querySelector("[data-coupon]");
+    var msg = form.querySelector("[data-coupon-msg]");
+    function applyCoupon() {
+      if (!codeInput.value.trim()) { coupon = null; update(); return; }
+      var fd = new FormData(form);
+      fetch("/coupon/check", { method: "POST", body: fd, credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          msg.textContent = d.message || "";
+          msg.className = d.ok ? "ok-text" : "error";
+          coupon = d.ok ? d : null;
+          if (d.ok) codeInput.value = d.code;
+          update();
+        }).catch(function () {});
+    }
+    if (applyBtn && codeInput) {
+      applyBtn.addEventListener("click", applyCoupon);
+      codeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); applyCoupon(); } });
+      codeInput.addEventListener("input", function () { if (coupon) { coupon = null; msg.textContent = ""; update(); } });
+      if (codeInput.value.trim()) applyCoupon();
+    }
 
     // InitiateCheckout: ল্যান্ডিং ফর্মে প্রথমবার ফোকাস করলে (ব্রাউজার + সার্ভার, একই event_id)
     // চেকআউট পেজে এটা পেজ খোলার সময়ই যায়

@@ -32,6 +32,8 @@ export type Order = {
   purchase_sent_at: string | null;
   purchase_response: string | null;
   purchase_sending_until: string | null;
+  coupon_code: string | null;
+  discount: number;
   created_at: string;
   updated_at: string;
 };
@@ -60,6 +62,9 @@ export type NewOrder = {
   fbp: string | null;
   fbc: string | null;
   sourceUrl: string;
+  couponId?: number | null;
+  couponCode?: string | null;
+  discount?: number;
 };
 
 export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে" } as const;
@@ -70,18 +75,19 @@ export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: 
  */
 export async function createOrder(db: D1Database, o: NewOrder, products: Product[]): Promise<{ id: number; order_no: string }> {
   const subtotal = products.reduce((s, p) => s + p.price, 0);
-  const total = subtotal + o.deliveryCharge;
+  const discount = Math.max(0, Math.min(o.discount ?? 0, subtotal + o.deliveryCharge));
+  const total = subtotal + o.deliveryCharge - discount;
   const tmp = "TMP-" + crypto.randomUUID();
 
   const stmts = [
     db
       .prepare(
         `INSERT INTO orders (order_no, name, phone, address, area, note, subtotal, delivery_charge, total, status,
-           device_id, ip, user_agent, fbp, fbc, source_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?)`,
+           device_id, ip, user_agent, fbp, fbc, source_url, coupon_code, discount)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(tmp, o.name, o.phone, o.address, o.area, o.note || null, subtotal, o.deliveryCharge, total,
-        o.deviceId, o.ip, o.userAgent, o.fbp, o.fbc, o.sourceUrl),
+        o.deviceId, o.ip, o.userAgent, o.fbp, o.fbc, o.sourceUrl, discount ? o.couponCode ?? null : null, discount),
     ...products.map((p) =>
       db
         .prepare(
@@ -89,6 +95,7 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
         )
         .bind(tmp, p.id, p.name, p.price, p.variant_id ?? null, p.variant_label ?? null),
     ),
+    ...(o.couponId && discount ? [db.prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?").bind(o.couponId)] : []),
     db.prepare("UPDATE orders SET order_no = 'FS-' || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(tmp),
   ];
   const results = await db.batch<{ id: number; order_no: string }>(stmts);

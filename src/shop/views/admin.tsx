@@ -51,6 +51,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
                 ["products", "/admin/products", "পণ্য"],
                 ["categories", "/admin/categories", "ক্যাটাগরি"],
                 ["blacklist", "/admin/blacklist", "ব্ল্যাকলিস্ট"],
+                ["coupons", "/admin/coupons", "কুপন"],
                 ["settings", "/admin/settings", "সেটিংস"],
                 ["billing", "/admin/billing", "বিলিং"],
                 ["staff", "/admin/staff", "স্টাফ"],
@@ -195,6 +196,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
             <tbody>
               {p.items.map((i) => <tr><td>{i.product_name}{i.variant_label ? <strong> ({i.variant_label})</strong> : ""} × ১</td><td class="right">{taka(i.price)}</td></tr>)}
               <tr><td>ডেলিভারি চার্জ</td><td class="right">{taka(o.delivery_charge)}</td></tr>
+              {o.discount > 0 && <tr><td>কুপন ছাড় ({o.coupon_code})</td><td class="right">-{taka(o.discount)}</td></tr>}
               <tr class="total"><td>মোট</td><td class="right">{taka(o.total)}</td></tr>
             </tbody>
           </table>
@@ -735,6 +737,73 @@ export const DnsPage = (p: { root: string; records: DnsView[]; scanned: DnsView[
           <label class="field"><span>Priority (শুধু MX)</span><input type="number" name="priority" value={v.priority ?? "10"} min="0" max="65535" /></label>
         </div>
         <button class="btn btn-primary">যোগ করুন</button>
+      </form>
+    </>
+  );
+};
+
+/* ---------- কুপন ---------- */
+export type CouponRow = {
+  id: number; code: string; type: "fixed" | "percent" | "free_delivery"; value: number; max_discount: number | null; min_order: number;
+  starts_at: string | null; expires_at: string | null; usage_limit: number | null; used_count: number; once_per_phone: number; active: number;
+};
+
+const couponLabel = (c: CouponRow) =>
+  c.type === "fixed" ? `${taka(c.value)} ছাড়` : c.type === "percent" ? `${bn(c.value)}% ছাড়${c.max_discount ? ` (সর্বোচ্চ ${taka(c.max_discount)})` : ""}` : "ফ্রি ডেলিভারি";
+
+export const CouponsPage = (p: { coupons: CouponRow[]; errors?: Record<string, string>; values?: Record<string, string> }) => {
+  const e = p.errors ?? {};
+  const v = p.values ?? {};
+  return (
+    <>
+      <h1>কুপন</h1>
+      {p.coupons.length === 0 ? <p class="muted">এখনো কোনো কুপন নেই</p> : (
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>কোড</th><th>ছাড়</th><th>শর্ত</th><th>ব্যবহার</th><th>অবস্থা</th><th></th></tr></thead>
+            <tbody>
+              {p.coupons.map((c) => (
+                <tr class={c.active ? "" : "dim"}>
+                  <td><code class="coupon-code">{c.code}</code></td>
+                  <td>{couponLabel(c)}</td>
+                  <td><small>
+                    {c.min_order > 0 && <>কমপক্ষে {taka(c.min_order)}<br /></>}
+                    {c.expires_at && <>মেয়াদ: {dhakaTime(c.expires_at)}<br /></>}
+                    {c.once_per_phone ? "এক নম্বরে একবার" : "এক নম্বরে বারবার"}
+                  </small></td>
+                  <td>{bn(c.used_count)}{c.usage_limit != null ? ` / ${bn(c.usage_limit)}` : ""}</td>
+                  <td>{c.active ? <span class="pill pill-ok">চালু</span> : <span class="pill pill-bad">বন্ধ</span>}</td>
+                  <td class="nowrap">
+                    <form method="post" action={`/admin/coupons/${c.id}/toggle`} class="inline"><button class="btn-link">{c.active ? "বন্ধ করুন" : "চালু করুন"}</button></form>
+                    {c.used_count === 0 && <form method="post" action={`/admin/coupons/${c.id}/delete`} class="inline" data-confirm="কুপনটি মুছবেন?"><button class="btn-link danger">মুছুন</button></form>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <form method="post" action="/admin/coupons" class="admin-form" style="margin-top:14px">
+        <h2>নতুন কুপন</h2>
+        <div class="form-grid">
+          <label class="field"><span>কোড</span><input type="text" name="code" value={v.code ?? ""} placeholder="EID100" required maxlength={30} style="text-transform:uppercase" />{e.code && <small class="error">{e.code}</small>}</label>
+          <label class="field"><span>ধরন</span>
+            <select name="type">
+              <option value="fixed" selected={v.type === "fixed" || !v.type}>টাকায় ছাড়</option>
+              <option value="percent" selected={v.type === "percent"}>শতাংশে ছাড় (%)</option>
+              <option value="free_delivery" selected={v.type === "free_delivery"}>ফ্রি ডেলিভারি</option>
+            </select>
+          </label>
+          <label class="field"><span>ছাড়ের পরিমাণ (৳ বা %)</span><input type="number" name="value" min="0" value={v.value ?? ""} />{e.value && <small class="error">{e.value}</small>}</label>
+          <label class="field"><span>সর্বোচ্চ ছাড় (৳, শুধু % এর জন্য, ঐচ্ছিক)</span><input type="number" name="max_discount" min="0" value={v.max_discount ?? ""} /></label>
+          <label class="field"><span>সর্বনিম্ন পণ্যের দাম (৳)</span><input type="number" name="min_order" min="0" value={v.min_order ?? "0"} /></label>
+          <label class="field"><span>মোট কতবার ব্যবহার করা যাবে (ফাঁকা = সীমাহীন)</span><input type="number" name="usage_limit" min="1" value={v.usage_limit ?? ""} /></label>
+          <label class="field"><span>শুরু (ঐচ্ছিক)</span><input type="datetime-local" name="starts_at" value={v.starts_at ?? ""} /></label>
+          <label class="field"><span>মেয়াদ শেষ (ঐচ্ছিক)</span><input type="datetime-local" name="expires_at" value={v.expires_at ?? ""} /></label>
+        </div>
+        <label class="small-check"><input type="checkbox" name="once_per_phone" value="1" checked={v.once_per_phone !== "0"} /> এক মোবাইল নম্বরে একবারই ব্যবহার করা যাবে</label>
+        <button class="btn btn-primary">কুপন বানান</button>
+        <p class="muted">সময় বাংলাদেশ সময় অনুযায়ী।</p>
       </form>
     </>
   );

@@ -118,6 +118,14 @@ export const OrderForm = (p: {
         <label class="radio"><input type="radio" name="area" value="outside" checked={area === "outside"} /> {AREA_LABEL.outside} ({taka(outside)})</label>
         {e.area && <small class="error">{e.area}</small>}
       </fieldset>
+      <details class="coupon-box" open={!!v.coupon || !!e.coupon}>
+        <summary>কুপন কোড আছে?</summary>
+        <div class="coupon-row">
+          <input type="text" name="coupon" value={v.coupon ?? ""} placeholder="কুপন কোড" maxlength={30} autocomplete="off" data-coupon />
+          <button type="button" class="btn btn-outline" data-coupon-apply>প্রয়োগ</button>
+        </div>
+        <small data-coupon-msg class={e.coupon ? "error" : "muted"}>{e.coupon ?? ""}</small>
+      </details>
       <label class="field">
         <span>নোট (ঐচ্ছিক)</span>
         <input type="text" name="note" value={v.note ?? ""} maxlength={300} />
@@ -126,6 +134,7 @@ export const OrderForm = (p: {
       <div class="summary">
         <div><span>পণ্যের দাম</span><span data-subtotal-text>{taka(p.subtotal)}</span></div>
         <div><span>ডেলিভারি চার্জ</span><span data-delivery>{taka(area === "inside" ? inside : outside)}</span></div>
+        <div class="discount-row" data-discount-row hidden><span>কুপন ছাড়</span><span data-discount>-৳০</span></div>
         <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (area === "inside" ? inside : outside))}</span></div>
       </div>
       <button type="submit" class="btn btn-primary btn-block btn-lg" data-submit>অর্ডার কনফার্ম করুন</button>
@@ -245,6 +254,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     <div class="summary">
       {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
+      {order.discount > 0 && <div><span>কুপন ছাড় ({order.coupon_code})</span><span>-{taka(order.discount)}</span></div>}
       <div class="summary-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(order.total)}</span></div>
     </div>
     <p class="muted">ঠিকানা: {order.address}</p>

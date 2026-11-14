@@ -13,6 +13,8 @@ import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
+import { CouponsPage, type CouponRow } from "../views/admin";
+import { normalizeCode } from "../lib/coupons";
 import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
 import { cfError, type DnsRecord } from "../../platform/cf";
@@ -627,4 +629,57 @@ admin.post("/dns/accept-scan", async (c) => {
   await cf.scanReview(z.zoneId, accepts, rejects);
   flash(c, "ok", `${accepts.length}টা রেকর্ড যোগ হয়েছে।`);
   return c.redirect("/admin/dns", 303);
+});
+
+/* ---------- কুপন (মালিক ও ম্যানেজার) ---------- */
+/** datetime-local (ঢাকার সময়) → UTC 'YYYY-MM-DD HH:MM:SS' */
+function dhakaLocalToUtc(v: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return null;
+  const d = new Date(`${v}:00+06:00`);
+  return isNaN(d.getTime()) ? null : d.toISOString().replace("T", " ").slice(0, 19);
+}
+
+async function renderCoupons(c: Ctx, form?: { errors: Record<string, string>; values: Record<string, string> }) {
+  const { results } = await c.env.DB.prepare("SELECT * FROM coupons ORDER BY active DESC, id DESC").all<CouponRow>();
+  return render(c, "কুপন", "coupons", <CouponsPage coupons={results} errors={form?.errors} values={form?.values} />, form ? 422 : 200);
+}
+
+admin.get("/coupons", (c) => renderCoupons(c));
+
+admin.post("/coupons", async (c) => {
+  const b = await c.req.parseBody();
+  const values: Record<string, string> = {
+    code: normalizeCode(b.code), type: ["fixed", "percent", "free_delivery"].includes(String(b.type)) ? String(b.type) : "fixed",
+    value: str(b.value, 10), max_discount: str(b.max_discount, 10), min_order: str(b.min_order, 10), usage_limit: str(b.usage_limit, 10),
+    starts_at: str(b.starts_at, 20), expires_at: str(b.expires_at, 20), once_per_phone: b.once_per_phone ? "1" : "0",
+  };
+  const errors: Record<string, string> = {};
+  if (values.code.length < 3) errors.code = "কমপক্ষে ৩ অক্ষরের কোড দিন (ইংরেজি অক্ষর/সংখ্যা)";
+  else if (await c.env.DB.prepare("SELECT 1 FROM coupons WHERE code = ?").bind(values.code).first()) errors.code = "এই কোড আগেই আছে";
+  const value = toInt(values.value, 0);
+  if (values.type === "fixed" && value <= 0) errors.value = "ছাড়ের পরিমাণ দিন";
+  if (values.type === "percent" && (value <= 0 || value > 100)) errors.value = "১ থেকে ১০০ এর মধ্যে দিন";
+  if (Object.keys(errors).length) return renderCoupons(c, { errors, values });
+  await c.env.DB.prepare(
+    `INSERT INTO coupons (code, type, value, max_discount, min_order, starts_at, expires_at, usage_limit, once_per_phone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(
+    values.code, values.type, values.type === "free_delivery" ? 0 : value,
+    values.type === "percent" && toInt(values.max_discount) > 0 ? toInt(values.max_discount) : null,
+    Math.max(0, toInt(values.min_order, 0)), dhakaLocalToUtc(values.starts_at), dhakaLocalToUtc(values.expires_at),
+    toInt(values.usage_limit) > 0 ? toInt(values.usage_limit) : null, values.once_per_phone === "1" ? 1 : 0,
+  ).run();
+  flash(c, "ok", `কুপন ${values.code} তৈরি হয়েছে।`);
+  return c.redirect("/admin/coupons", 303);
+});
+
+admin.post("/coupons/:id{[0-9]+}/toggle", async (c) => {
+  await c.env.DB.prepare("UPDATE coupons SET active = 1 - active WHERE id = ?").bind(toInt(c.req.param("id"))).run();
+  return c.redirect("/admin/coupons", 303);
+});
+
+admin.post("/coupons/:id{[0-9]+}/delete", async (c) => {
+  await c.env.DB.prepare("DELETE FROM coupons WHERE id = ? AND used_count = 0").bind(toInt(c.req.param("id"))).run();
+  flash(c, "ok", "কুপন মুছে ফেলা হয়েছে।");
+  return c.redirect("/admin/coupons", 303);
 });

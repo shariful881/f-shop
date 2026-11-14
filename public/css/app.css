@@ -147,3 +147,10 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .pill-option input:checked + span { border-color: var(--brand); background: var(--brand); color: #fff; }
 .pill-option input:focus-visible + span { box-shadow: 0 0 0 3px rgba(0,0,0,.15); }
 .pill-option.disabled span { opacity: .45; text-decoration: line-through; }
+
+/* কুপন */
+.coupon-box summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+.coupon-row { display: flex; gap: 8px; margin: 8px 0 4px; }
+.coupon-row input { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; text-transform: uppercase; }
+.discount-row { color: #15803d; font-weight: 600; }
+.ok-text { color: #15803d; font-weight: 600; }
