@@ -1,0 +1,30 @@
+/* থিম: মিনিমাল — সাদা, পরিষ্কার, প্রিমিয়াম */
+body.theme-minimal { background: #fff; color: #111827; }
+.theme-minimal .site-header { background: #fff; color: #111827; border-bottom: 1px solid #f1f5f9; box-shadow: none; }
+.theme-minimal .logo { color: var(--brand); letter-spacing: -.3px; }
+.theme-minimal .cart-link { color: #111827; }
+.theme-minimal .cart-count { background: #111827; color: #fff; }
+.theme-minimal .btn { border-radius: 6px; font-weight: 600; }
+.theme-minimal .btn-primary { background: #111827; }
+.theme-minimal .btn-primary:hover { background: var(--brand); }
+.theme-minimal .btn-outline { border-color: #111827; color: #111827; }
+.theme-minimal .section-title { border-left: 0; padding-left: 0; font-weight: 600; letter-spacing: -.3px; font-size: 1.15rem; text-transform: none; }
+.theme-minimal .home-section { margin: 32px 0; }
+.theme-minimal .grid { gap: 18px 12px; }
+.theme-minimal .card { border: 0; border-radius: 0; background: transparent; }
+.theme-minimal .card-img { border-radius: 8px; overflow: hidden; background: #f8fafc; }
+.theme-minimal .card-body { padding: 10px 0 0; }
+.theme-minimal .card-title { font-weight: 500; }
+.theme-minimal .price { color: #111827; }
+.theme-minimal .badge { background: #111827; border-radius: 4px; }
+.theme-minimal .landing-title { font-weight: 600; letter-spacing: -.5px; }
+.theme-minimal .landing-img img, .theme-minimal .gallery-track img { border-radius: 8px; }
+.theme-minimal .details, .theme-minimal .lp-box, .theme-minimal .review, .theme-minimal .faq-item { border: 0; background: #f8fafc; }
+.theme-minimal .order-section { border: 1px solid #e5e7eb; border-radius: 10px; }
+.theme-minimal .lp-countdown { background: #111827; }
+.theme-minimal .lp-benefits li::before { background: #111827; }
+.theme-minimal .trust-item { background: #f8fafc; color: #111827; border-color: #e5e7eb; }
+.theme-minimal .sticky-order { background: #111827; }
+.theme-minimal .site-footer { background: #f8fafc; color: #6b7280; border-top: 1px solid #f1f5f9; }
+.theme-minimal .site-footer a { color: #111827; }
+.theme-minimal .pill-option input:checked + span { background: #111827; border-color: #111827; }

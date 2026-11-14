@@ -12,7 +12,16 @@ export const SETTING_KEYS = [
   "logo",
   "brand_color",
   "accent_color",
+  "theme",
 ] as const;
+
+export const THEMES = {
+  classic: { name: "ক্লাসিক", desc: "রঙিন হেডার, কার্ডে বর্ডার — সব ধরনের দোকানের জন্য" },
+  minimal: { name: "মিনিমাল", desc: "সাদা, পরিষ্কার, অনেক ফাঁকা জায়গা — প্রিমিয়াম পণ্যের জন্য" },
+  bold: { name: "বোল্ড", desc: "বড় লেখা, গাঢ় রং, ছায়া — ফ্যাশন আর অফারের জন্য" },
+} as const;
+export type ThemeKey = keyof typeof THEMES;
+export const themeOf = (s: Settings): ThemeKey => (s.theme && s.theme in THEMES ? (s.theme as ThemeKey) : "classic");
 
 const HEX = /^#[0-9a-f]{6}$/i;
 export const safeColor = (v: string | undefined, def: string) => (v && HEX.test(v) ? v.toLowerCase() : def);

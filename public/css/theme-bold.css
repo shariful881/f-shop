@@ -1,0 +1,24 @@
+/* থিম: বোল্ড — বড় লেখা, গাঢ় রং, ছায়া (ফ্যাশন/অফার) */
+body.theme-bold { background: #fff7ed; }
+.theme-bold .site-header { background: linear-gradient(90deg, var(--brand-dark), var(--brand)); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.theme-bold .logo { font-weight: 800; font-size: 1.4rem; letter-spacing: -.5px; }
+.theme-bold .btn { border-radius: 14px; font-weight: 800; }
+.theme-bold .btn-primary { background: var(--accent); box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+.theme-bold .btn-primary:active { transform: translateY(1px); box-shadow: 0 3px 8px rgba(0,0,0,.2); }
+.theme-bold .section-title { font-size: 1.5rem; font-weight: 800; border-left: 0; padding: 0; display: inline-block; background: linear-gradient(transparent 60%, color-mix(in srgb, var(--accent) 35%, transparent) 60%); }
+.theme-bold .card { border: 0; border-radius: 18px; box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+.theme-bold .card-title { font-weight: 700; }
+.theme-bold .price { color: var(--accent); font-weight: 800; font-size: 1.1rem; }
+.theme-bold .price.big { font-size: 2.3rem; }
+.theme-bold .badge { background: var(--accent); font-weight: 800; padding: 3px 10px; transform: rotate(-3deg); }
+.theme-bold .landing-title { font-size: 1.9rem; font-weight: 800; line-height: 1.25; }
+@media (min-width: 700px) { .theme-bold .landing-title { font-size: 2.6rem; } }
+.theme-bold .landing-img img, .theme-bold .gallery-track img { border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+.theme-bold .details, .theme-bold .lp-box, .theme-bold .review, .theme-bold .faq-item { border: 0; border-radius: 18px; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+.theme-bold .lp-box h2, .theme-bold .lp-reviews h2, .theme-bold .lp-faq h2 { font-size: 1.5rem; font-weight: 800; }
+.theme-bold .order-section { border: 3px solid var(--accent); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.1); }
+.theme-bold .order-section h2 { font-weight: 800; font-size: 1.35rem; }
+.theme-bold .lp-countdown { background: linear-gradient(135deg, var(--accent), var(--brand)); border-radius: 20px; }
+.theme-bold .cd-box span { font-size: 2rem; }
+.theme-bold .sticky-order { background: var(--accent); font-size: 1.2rem; font-weight: 800; }
+.theme-bold .trust-item { background: #fff; border: 2px solid var(--brand); color: var(--brand-dark); }

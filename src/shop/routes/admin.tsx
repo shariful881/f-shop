@@ -8,7 +8,7 @@ import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
 import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
-import { safeColor, saveSettings } from "../lib/settings";
+import { safeColor, saveSettings, THEMES } from "../lib/settings";
 import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
@@ -384,6 +384,7 @@ admin.post("/settings", async (c) => {
     fb_test_event_code: str(b.fb_test_event_code, 50),
     fb_graph_version: /^v\d+\.\d+$/.test(str(b.fb_graph_version, 10)) ? str(b.fb_graph_version, 10) : "v26.0",
   };
+  values.theme = typeof b.theme === "string" && b.theme in THEMES ? b.theme : (c.var.settings.theme || "classic");
   values.brand_color = safeColor(str(b.brand_color, 7), c.var.settings.brand_color || "#0f766e");
   values.accent_color = safeColor(str(b.accent_color, 7), c.var.settings.accent_color || "#ea580c");
 

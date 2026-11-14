@@ -2,7 +2,7 @@ import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, STATUS_LABEL } from "../lib/orders";
 import { parseOptions, type Category, type Product, type Variant } from "../lib/products";
-import type { Settings } from "../lib/settings";
+import { THEMES, type Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
@@ -450,6 +450,17 @@ export const SettingsPage = ({ s }: { s: Settings }) => (
         <label class="field"><span>যোগাযোগ নম্বর</span><input type="text" name="contact_phone" value={s.contact_phone} required /></label>
         <label class="field"><span>ডেলিভারি চার্জ — ঢাকার ভিতরে (৳)</span><input type="number" min="0" name="delivery_inside" value={s.delivery_inside} required /></label>
         <label class="field"><span>ডেলিভারি চার্জ — ঢাকার বাইরে (৳)</span><input type="number" min="0" name="delivery_outside" value={s.delivery_outside} required /></label>
+      </div>
+      <h2>থিম</h2>
+      <div class="theme-picks">
+        {(Object.entries(THEMES) as [string, { name: string; desc: string }][]).map(([k, t]) => (
+          <label class={`theme-pick tp-${k}`}>
+            <input type="radio" name="theme" value={k} checked={(s.theme || "classic") === k} />
+            <span class="tp-preview"><i></i><b></b><b></b></span>
+            <strong>{t.name}</strong>
+            <small>{t.desc}</small>
+          </label>
+        ))}
       </div>
       <h2>লোগো আর রং</h2>
       <div class="form-grid">
