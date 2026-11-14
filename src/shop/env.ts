@@ -23,6 +23,8 @@ export type Variables = {
   shopState: ShopState;
   /** প্রো থিমের ক্যাটাগরি মেনু */
   navCats?: { id: number; name: string }[];
+  /** নিজের পেজ (মেনুতে) */
+  navPages?: { title: string; slug: string }[];
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

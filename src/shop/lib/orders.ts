@@ -43,7 +43,22 @@ export type Order = {
   courier_response: string | null;
   created_at: string;
   updated_at: string;
+  email?: string | null;
+  extra_json?: string | null;
 };
+
+/** চেকআউটের নিজের ঘরগুলো (লেবেল → মান) */
+export function orderExtras(o: Pick<Order, "extra_json">): [string, string][] {
+  try {
+    const v = JSON.parse(o.extra_json || "[]");
+    return Array.isArray(v) ? v.filter((x) => Array.isArray(x) && x.length === 2).map((x) => [String(x[0]), String(x[1])] as [string, string]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** দোকানের অর্ডার নম্বরের শুরুর অক্ষর (যেমন FS-, KB-, DD) */
+export const orderPrefix = (s: Record<string, string | undefined>) => (/^[A-Z0-9-]{1,6}$/.test(s.order_prefix || "") ? s.order_prefix! : "FS-");
 
 export type OrderItem = {
   id: number;
@@ -72,6 +87,9 @@ export type NewOrder = {
   couponId?: number | null;
   couponCode?: string | null;
   discount?: number;
+  email?: string | null;
+  extras?: [string, string][];
+  prefix?: string;
 };
 
 export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে" } as const;
@@ -90,11 +108,12 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
     db
       .prepare(
         `INSERT INTO orders (order_no, name, phone, address, area, note, subtotal, delivery_charge, total, status,
-           device_id, ip, user_agent, fbp, fbc, source_url, coupon_code, discount)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?)`,
+           device_id, ip, user_agent, fbp, fbc, source_url, coupon_code, discount, email, extra_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(tmp, o.name, o.phone, o.address, o.area, o.note || null, subtotal, o.deliveryCharge, total,
-        o.deviceId, o.ip, o.userAgent, o.fbp, o.fbc, o.sourceUrl, discount ? o.couponCode ?? null : null, discount),
+        o.deviceId, o.ip, o.userAgent, o.fbp, o.fbc, o.sourceUrl, discount ? o.couponCode ?? null : null, discount,
+        o.email || null, o.extras?.length ? JSON.stringify(o.extras) : null),
     ...products.map((p) =>
       db
         .prepare(
@@ -103,7 +122,7 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
         .bind(tmp, p.id, p.name, p.price, p.variant_id ?? null, p.variant_label ?? null),
     ),
     ...(o.couponId && discount ? [db.prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?").bind(o.couponId)] : []),
-    db.prepare("UPDATE orders SET order_no = 'FS-' || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(tmp),
+    db.prepare("UPDATE orders SET order_no = ? || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(o.prefix || "FS-", tmp),
   ];
   const results = await db.batch<{ id: number; order_no: string }>(stmts);
   const row = results[results.length - 1]!.results[0]!;

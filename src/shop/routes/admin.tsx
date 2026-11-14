@@ -5,13 +5,14 @@ import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage,
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
 import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
-import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
+import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
+import { InvoicePage, type InvoiceData } from "../views/invoice";
 import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
-import { ThemeCustomizePage, SettingsAppearancePage, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
+import { PagesPage, ThemeCustomizePage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
@@ -762,6 +763,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
     ["contact_phone", 30], ["store_email", 120], ["store_address", 300], ["whatsapp", 20], ["fb_test_event_code", 50],
     ["seo_title", 100], ["seo_description", 300], ["thanks_message", 500], ["order_form_title", 100],
     ["delivery_time_inside", 60], ["delivery_time_outside", 60], ["announcement", 120],
+    ["cf1_label", 60], ["cf2_label", 60], ["cf3_label", 60], ["invoice_note", 300],
   ];
   for (const [k, max] of text) if (has(k)) v[k] = str(b[k], max);
   if (has("site_name")) v.site_name = str(b.site_name, 100) || c.var.settings.site_name || "আমার দোকান";
@@ -779,7 +781,17 @@ async function saveSettingsForm(c: Ctx, section: string) {
     const k = `banner_${n}_link`;
     if (has(k)) { const u = str(b[k], 200); v[k] = /^(\/[^/\s][^\s]*|https:\/\/[^\s]+)$/.test(u) ? u : ""; }
   }
-  if (section === "checkout") v.show_note = b.show_note ? "1" : "0";
+  if (section === "checkout") {
+    v.show_note = b.show_note ? "1" : "0";
+    v.sticky_submit = b.sticky_submit ? "1" : "0";
+    for (const n of [1, 2, 3]) v[`cf${n}_req`] = b[`cf${n}_req`] ? "1" : "0";
+    v.invoice_barcode = b.invoice_barcode ? "1" : "0";
+    v.invoice_image = b.invoice_image ? "1" : "0";
+  }
+  if (has("invoice_size")) v.invoice_size = b.invoice_size === "sticker" ? "sticker" : "a4";
+  if (has("checkout_email")) v.checkout_email = ["off", "optional", "required"].includes(String(b.checkout_email)) ? String(b.checkout_email) : "off";
+  if (has("default_area")) v.default_area = ["inside", "outside", "none"].includes(String(b.default_area)) ? String(b.default_area) : "inside";
+  if (has("order_prefix")) { const x = str(b.order_prefix, 6).toUpperCase(); v.order_prefix = /^[A-Z0-9-]{1,6}$/.test(x) ? x : "FS-"; }
   if (section === "seo") v.seo_noindex = b.seo_noindex ? "1" : "0";
 
   // গোপন টোকেন: ফাঁকা রাখলে আগেরটাই থাকে
@@ -1083,6 +1095,70 @@ admin.post("/coupons/:id{[0-9]+}/delete", async (c) => {
   await c.env.DB.prepare("DELETE FROM coupons WHERE id = ? AND used_count = 0").bind(toInt(c.req.param("id"))).run();
   flash(c, "ok", "কুপন মুছে ফেলা হয়েছে।");
   return c.redirect("/admin/coupons", 303);
+});
+
+/* ---------- নিজের পেজ ---------- */
+async function pageRows(c: Ctx) {
+  return (await c.env.DB.prepare("SELECT * FROM pages ORDER BY sort_order, id").all<PageRow>()).results;
+}
+function pageInput(b: Record<string, unknown>) {
+  const v = {
+    title: str(b.title, 80), slug: str(b.slug, 60).toLowerCase(), content: (typeof b.content === "string" ? b.content : "").slice(0, 20000),
+    in_menu: b.in_menu ? 1 : 0, is_active: b.is_active ? 1 : 0, sort_order: toInt(b.sort_order, 0),
+  };
+  const error = !v.title ? "শিরোনাম দিন" : !/^[a-z0-9-]{1,60}$/.test(v.slug) ? "লিংকের নাম শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা আর হাইফেন দিয়ে লিখুন" : "";
+  return { v, error };
+}
+admin.get("/pages", async (c) => render(c, "পেজ", "pages", <PagesPage rows={await pageRows(c)} />));
+admin.get("/pages/:id{[0-9]+}", async (c) => {
+  const edit = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(toInt(c.req.param("id"))).first<PageRow>();
+  if (!edit) return c.redirect("/admin/pages", 303);
+  return render(c, "পেজ এডিট", "pages", <PagesPage rows={await pageRows(c)} edit={edit} />);
+});
+const savePage = async (c: Ctx) => {
+  const id = toInt(c.req.param("id") ?? "0");
+  const { v, error } = pageInput(await c.req.parseBody());
+  if (error) return render(c, "পেজ", "pages", <PagesPage rows={await pageRows(c)} edit={{ ...v, id: id || undefined }} error={error} />, 422);
+  const taken = await c.env.DB.prepare("SELECT id FROM pages WHERE slug = ? AND id != ?").bind(v.slug, id).first();
+  if (taken) return render(c, "পেজ", "pages", <PagesPage rows={await pageRows(c)} edit={{ ...v, id: id || undefined }} error="এই লিংকের নামে আরেকটা পেজ আছে" />, 422);
+  if (id) await c.env.DB.prepare("UPDATE pages SET title=?, slug=?, content=?, in_menu=?, is_active=?, sort_order=? WHERE id=?").bind(v.title, v.slug, v.content, v.in_menu, v.is_active, v.sort_order, id).run();
+  else await c.env.DB.prepare("INSERT INTO pages (title, slug, content, in_menu, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?)").bind(v.title, v.slug, v.content, v.in_menu, v.is_active, v.sort_order).run();
+  flash(c, "ok", "পেজ সেভ হয়েছে।");
+  return c.redirect("/admin/pages", 303);
+};
+admin.post("/pages", savePage);
+admin.post("/pages/:id{[0-9]+}", savePage);
+admin.post("/pages/:id{[0-9]+}/delete", async (c) => {
+  await c.env.DB.prepare("DELETE FROM pages WHERE id = ?").bind(toInt(c.req.param("id"))).run();
+  flash(c, "ok", "পেজ মুছে ফেলা হয়েছে।");
+  return c.redirect("/admin/pages", 303);
+});
+
+/* ---------- ইনভয়েস আর স্টিকার প্রিন্ট ---------- */
+async function invoiceData(c: Ctx, ids: number[]): Promise<InvoiceData[]> {
+  if (!ids.length) return [];
+  const ph = ids.map(() => "?").join(",");
+  const [orders, items] = await c.env.DB.batch([
+    c.env.DB.prepare(`SELECT * FROM orders WHERE id IN (${ph})`).bind(...ids),
+    c.env.DB.prepare(`SELECT i.*, p.image FROM order_items i LEFT JOIN products p ON p.id = i.product_id WHERE i.order_id IN (${ph}) ORDER BY i.id`).bind(...ids),
+  ]);
+  const all = items!.results as (OrderItem & { image: string | null })[];
+  return ids.map((id) => (orders!.results as Order[]).find((o) => o.id === id)).filter((o): o is Order => !!o)
+    .map((order) => ({ order, items: all.filter((i) => i.order_id === order.id) }));
+}
+const invoiceSize = (c: Ctx): "a4" | "sticker" => {
+  const q = c.req.queries("size") ?? [];
+  return q.includes("sticker") ? "sticker" : q.includes("a4") ? "a4" : c.var.settings.invoice_size === "sticker" ? "sticker" : "a4";
+};
+function renderInvoices(c: Ctx, list: InvoiceData[]) {
+  if (!list.length) return c.text("কোনো অর্ডার বাছাই করা হয়নি", 400);
+  c.header("Cache-Control", "no-store");
+  return c.html("<!DOCTYPE html>" + String(<InvoicePage list={list} s={c.var.settings} size={invoiceSize(c)} autoPrint={c.req.query("print") === "1"} />));
+}
+admin.get("/orders/:id{[0-9]+}/invoice", async (c) => renderInvoices(c, await invoiceData(c, [toInt(c.req.param("id"))])));
+admin.get("/orders/invoices", async (c) => {
+  const ids = [...new Set((c.req.queries("ids") ?? []).map((x) => toInt(x)).filter((n) => n > 0))].slice(0, 200);
+  return renderInvoices(c, await invoiceData(c, ids));
 });
 
 /* ---------- ল্যান্ডিং পেজ বিল্ডার (পণ্যের অনুমতি যাদের আছে) ---------- */

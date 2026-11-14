@@ -429,3 +429,50 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .px-fc-links, .px-fc-contact { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin: 14px 0; }
 .px-fc-addr { margin: 6px 0 14px; }
 .px-socials.center { justify-content: center; padding-bottom: 18px; }
+.sticky-submit [data-submit] { position: sticky; bottom: 8px; z-index: 6; box-shadow: 0 8px 22px rgba(0,0,0,.18); }
+@media (min-width: 768px) { .sticky-submit [data-submit] { position: static; box-shadow: none; } }
+
+/* পণ্যের পেজের নিচের অংশ */
+.pd-extras { padding-bottom: 10px; }
+.pd-btns { display: grid; gap: 8px; margin: 4px 0 14px; }
+@media (min-width: 600px) { .pd-btns { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); } }
+.pd-btn { display: block; text-align: center; padding: 12px; border-radius: 12px; font-weight: 700; text-decoration: none; color: #fff; }
+.pd-call { background: var(--brand); }
+.pd-wa { background: #25d366; }
+.pd-msg { background: #0866ff; }
+.pd-share { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 16px; font-size: .92rem; }
+.pd-share a, .pd-share button { font: inherit; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--text); text-decoration: none; cursor: pointer; }
+.pd-related { margin-top: 10px; }
+.pd-zoom { position: fixed; inset: 0; z-index: 95; background: rgba(0,0,0,.92); display: grid; place-items: center; overflow: auto; }
+.pd-zoom img { max-width: 100%; max-height: 100vh; cursor: zoom-in; transition: transform .2s; }
+.pd-zoom.in img { max-width: none; max-height: none; width: 180%; cursor: zoom-out; }
+.pd-zoom button { position: fixed; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: #fff; font-size: 18px; cursor: pointer; z-index: 2; }
+.landing-img img, .gallery-track img { cursor: zoom-in; }
+
+/* পাশের কার্ট */
+.px-side-cart { position: fixed; inset: 0; z-index: 80; background: rgba(15,23,42,0); transition: background .2s; }
+.px-side-cart.open { background: rgba(15,23,42,.45); }
+.px-side-box { position: absolute; top: 0; right: 0; bottom: 0; width: min(340px, 88vw); background: #fff; padding: 16px; display: flex; flex-direction: column; gap: 10px; transform: translateX(102%); transition: transform .22s ease; box-shadow: -8px 0 30px rgba(0,0,0,.15); }
+.px-side-cart.open .px-side-box { transform: none; }
+.px-side-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.px-side-head b { display: flex; gap: 6px; align-items: center; }
+.px-side-head button { border: 0; background: none; cursor: pointer; padding: 4px; }
+.px-side-msg { background: #f0fdf4; color: #166534; border-radius: 10px; padding: 10px; font-weight: 600; margin: 0; }
+/* ফুটারের পেমেন্ট ব্যাজ */
+.px-pay { display: flex; flex-wrap: wrap; gap: 6px; justify-content: inherit; margin: 10px 0; }
+.px-pay span { font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 6px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); }
+.site-footer .px-pay { justify-content: center; }
+.site-footer .px-pay span { background: rgba(255,255,255,.1); }
+.px-footer-center .px-pay { justify-content: center; }
+/* দামের ফিল্টার আর পাতা */
+.px-sort { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.px-price-filter { display: flex; gap: 6px; align-items: center; }
+.px-price-filter input { width: 110px; font: inherit; padding: 7px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #fff; }
+.px-price-filter .btn { padding: 7px 12px; }
+.px-pager { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 22px 0; }
+.px-pager a, .px-pager span { min-width: 38px; text-align: center; padding: 7px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; text-decoration: none; color: var(--text); font-weight: 600; }
+.px-pager .on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.px-page { padding-bottom: 20px; }
+[data-bare] .px-top { bottom: 74px; }
+@media (min-width: 768px) { [data-bare] .px-top { bottom: 22px; } }
+.sticky-order.is-hidden { transform: translateY(110%); } .sticky-order { transition: transform .2s; }

@@ -4,9 +4,10 @@ import type { Settings } from "../lib/settings";
 import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
 import { OrderForm, type FormState } from "./shop";
 import { sanitizeHtml } from "../lib/sanitize";
+import type { Cfg } from "../lib/theme-config";
 
 /** বিল্ডার দিয়ে বানানো ল্যান্ডিং পেজ — সেকশন ক্রম অনুযায়ী */
-export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Variant[]; settings: Settings; form?: FormState; closed?: string; editor?: boolean }) => {
+export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Variant[]; settings: Settings; form?: FormState; closed?: string; editor?: boolean; cfg?: Cfg }) => {
   const prod = p.p;
   const off = discountPercent(prod.price, prod.compare_price);
   const priceRow = (
@@ -113,7 +114,7 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
               <div><strong>{prod.name}</strong><br />{taka(prod.price)}</div>
             </div>
             {p.closed ? <div class="alert alert-error">{p.closed}</div> : (
-              <OrderForm settings={p.settings} subtotal={prod.price} basePrice={prod.price} productId={prod.id} source="landing" form={p.form} variants={p.variants} />
+              <OrderForm settings={p.settings} subtotal={prod.price} basePrice={prod.price} productId={prod.id} source="landing" form={p.form} variants={p.variants} variantStyle={p.cfg?.pd_variant_style} />
             )}
           </section>
         );
@@ -138,7 +139,7 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
     <div class="landing built" style={pageFont ? `font-family:${pageFont.family},sans-serif` : undefined}>
       {fontsHref(p.landing) && <><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" /><link rel="stylesheet" href={fontsHref(p.landing)!} /></>}
       {p.landing.sections.filter((x) => x.enabled).map(wrapSec)}
-      <a href="#order" class="sticky-order">অর্ডার করুন — {taka(prod.price)}</a>
+      <a href="#order" class="sticky-order">{p.cfg?.pd_sticky_text || "অর্ডার করুন"} — {taka(prod.price)}</a>
     </div>
   );
 };

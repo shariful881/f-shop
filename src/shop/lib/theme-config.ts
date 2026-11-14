@@ -76,6 +76,7 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "topbar_hotline", type: "toggle", label: "ঘোষণা বারে হটলাইন নম্বর" },
       { key: "header_search", type: "toggle", label: "পণ্য খোঁজার বক্স" },
       { key: "header_nav", type: "toggle", label: "ক্যাটাগরি মেনু (মোবাইলে ☰ মেনু)" },
+      { key: "header_pages", type: "toggle", label: "নিজের পেজের মেনু (যেমন: আমাদের সম্পর্কে)", hint: "পেজ বানাতে: সাইডবারে \"পেজ\"" },
       { key: "header_call", type: "toggle", label: "হেডারে \"কল করুন\" নম্বর (কম্পিউটারে)" },
       { key: "header_sticky", type: "toggle", label: "স্ক্রল করলেও হেডার উপরে থাকবে" },
       { key: "logo_size", type: "select", label: "লোগোর সাইজ", options: { sm: "ছোট", md: "মাঝারি", lg: "বড়" } },
@@ -127,6 +128,25 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     ],
   },
   {
+    key: "product", title: "পণ্যের পেজ (ল্যান্ডিং পেজ)", desc: "প্রতিটা পণ্যের পেজে অর্ডার ফর্মের নিচে বাটন, শেয়ার, সম্পর্কিত পণ্য। ল্যান্ডিং এডিটরে বানানো পেজেও লাগে।",
+    fields: [
+      { key: "pd_call", type: "toggle", label: "\"কল করুন\" বাটন" },
+      { key: "pd_call_text", type: "text", label: "কল বাটনের লেখা", max: 40 },
+      { key: "pd_wa", type: "toggle", label: "WhatsApp বাটন", hint: "\"দোকানের তথ্য\" ট্যাবে WhatsApp নম্বর লাগবে" },
+      { key: "pd_wa_text", type: "text", label: "WhatsApp বাটনের লেখা", max: 40 },
+      { key: "pd_msg", type: "toggle", label: "Messenger বাটন", hint: "\"ভাসমান বাটন\" অংশে Messenger লিংক লাগবে" },
+      { key: "pd_msg_text", type: "text", label: "Messenger বাটনের লেখা", max: 40 },
+      { key: "pd_sticky", type: "toggle", label: "মোবাইলে নিচে আটকে থাকা অর্ডার বার" },
+      { key: "pd_sticky_text", type: "text", label: "অর্ডার বারের লেখা", max: 30 },
+      { key: "pd_variant_style", type: "select", label: "সাইজ/রং বাছাইয়ের ধরন", options: { pills: "বোতাম (সব একসাথে দেখা যায়)", select: "ড্রপডাউন (অনেক অপশন হলে)" } },
+      { key: "pd_zoom", type: "toggle", label: "ছবিতে চাপলে বড় করে দেখা" },
+      { key: "pd_share", type: "toggle", label: "শেয়ার বাটন (Facebook, WhatsApp, লিংক কপি)" },
+      { key: "pd_related", type: "toggle", label: "সম্পর্কিত পণ্য (একই ক্যাটাগরির)" },
+      { key: "pd_related_title", type: "text", label: "সম্পর্কিত পণ্যের শিরোনাম", max: 60 },
+      { key: "pd_related_count", type: "select", label: "কয়টা সম্পর্কিত পণ্য", options: { "4": "৪টা", "6": "৬টা", "8": "৮টা" } },
+    ],
+  },
+  {
     key: "card", title: "পণ্যের কার্ড", desc: "হোম, ক্যাটাগরি আর সার্চ পেজের পণ্যের বক্স।",
     fields: [
       { key: "card_order_btn", type: "toggle", label: "\"অর্ডার করুন\" বাটন" },
@@ -135,6 +155,9 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "card_cart_text", type: "text", label: "কার্ট বাটনের লেখা", max: 30 },
       { key: "img_ratio", type: "select", label: "ছবির আকার (অনুপাত)", options: { "1/1": "বর্গাকার ১:১", "4/5": "লম্বা ৪:৫ (পোশাকের জন্য)", "3/4": "লম্বা ৩:৪", "4/3": "চওড়া ৪:৩", "16/9": "চওড়া ১৬:৯" } },
       { key: "free_tag", type: "toggle", label: "\"ফ্রি ডেলিভারি\" ট্যাগ", hint: "ডেলিভারি সেটিংসে ফ্রি ডেলিভারির টাকা দেওয়া থাকলে, তার বেশি দামের পণ্যে দেখাবে" },
+      { key: "card_btn_size", type: "select", label: "বাটনের লেখার সাইজ", options: { sm: "ছোট", md: "মাঝারি", lg: "বড়" } },
+      { key: "list_filter", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে দামের ফিল্টার (সর্বনিম্ন–সর্বোচ্চ)" },
+      { key: "list_per_page", type: "select", label: "ক্যাটাগরি/সার্চ পেজে এক পাতায় কয়টা পণ্য", options: { "24": "২৪টা", "48": "৪৮টা", "96": "৯৬টা" } },
       { key: "list_sort", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে \"সাজান\" (দাম কম-বেশি, নতুন)" },
       { key: "img_fit", type: "select", label: "ছবি কীভাবে বসবে", options: { cover: "পুরো বক্স ভরে (কিছুটা কাটা যেতে পারে)", contain: "পুরো ছবি দেখাবে" } },
       { key: "badge_fmt", type: "select", label: "ছাড়ের ব্যাজ", options: { pct: "২৪% ছাড়", minus: "-২৪%", off: "দেখাবে না" } },
@@ -144,6 +167,8 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     key: "footer", title: "ফুটার আর বিশ্বাসের ব্যাজ", desc: "পেজের একদম নিচের অংশ।",
     fields: [
       { key: "footer_style", type: "choice", label: "ফুটারের ডিজাইন", preview: "footer", options: { simple: "সাধারণ", full: "বড় (৪ কলাম)", center: "মাঝখানে সাজানো" } },
+      { key: "footer_logo", type: "image", label: "ফুটারের আলাদা লোগো (ঐচ্ছিক)", hint: "গাঢ় ফুটারে সাদা লোগো ভালো দেখায়। না দিলে মূল লোগো।" },
+      { key: "footer_payments", type: "text", label: "পেমেন্টের মাধ্যম (কমা দিয়ে)", max: 120, placeholder: "ক্যাশ অন ডেলিভারি, bKash, Nagad", hint: "ফুটারে ছোট ব্যাজ হিসেবে দেখাবে। ফাঁকা রাখলে দেখাবে না।" },
       { key: "footer_trust", type: "toggle", label: "ফুটারের উপরে বিশ্বাসের ব্যাজ" },
       { key: "footer_about", type: "textarea", label: "দোকান সম্পর্কে ছোট লেখা", max: 300, hint: "ফাঁকা রাখলে SEO ডেসক্রিপশন দেখাবে" },
       { key: "trust_1", type: "text", label: "ব্যাজ ১", max: 40 }, { key: "trust_1_sub", type: "text", label: "ব্যাজ ১-এর নিচের লেখা", max: 60 },
@@ -164,6 +189,7 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "float_messenger", type: "url", label: "Messenger লিংক (দিলে বাটন দেখাবে)", placeholder: "https://m.me/yourpage" },
       { key: "bottom_nav", type: "toggle", label: "মোবাইলে নিচের মেনু (হোম, ক্যাটাগরি, কার্ট, কল)" },
       { key: "back_top", type: "toggle", label: "\"উপরে যান\" বাটন" },
+      { key: "side_cart", type: "toggle", label: "কার্টে যোগ করলে পাশ থেকে কার্ট খুলবে", hint: "বন্ধ থাকলে শুধু ছোট একটা বার্তা দেখায়" },
     ],
   },
   {
@@ -201,6 +227,9 @@ const BASE: Cfg = {
   feature_2_icon: "cash", feature_2: "ক্যাশ অন ডেলিভারি", feature_2_sub: "পণ্য হাতে পেয়ে টাকা দিন",
   feature_3_icon: "shield", feature_3: "অরিজিনাল পণ্য", feature_3_sub: "মান যাচাই করে পাঠানো",
   popup_on: "0", popup_image: "", popup_link: "", popup_delay: "3",
+  pd_call: "1", pd_call_text: "কল করে অর্ডার করুন", pd_wa: "1", pd_wa_text: "WhatsApp-এ জিজ্ঞাসা করুন", pd_msg: "0", pd_msg_text: "Messenger-এ মেসেজ দিন",
+  pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4",
+  card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
   coming_soon: "0", coming_soon_text: "আমাদের দোকান খুব শীঘ্রই আসছে। অর্ডার করতে কল করুন।", breadcrumbs: "1", track_link: "1",
   ...TRUST_DEFAULTS,
 };
@@ -314,6 +343,9 @@ export function cfgCss(cfg: Cfg): string {
   if (c("img_fit") === "cover") r.push(".theme-pro .card-img{padding:0}");
   const lh = { sm: 30, md: 40, lg: 54 }[c("logo_size") as "sm"] ?? 40;
   r.push(`.logo-img,.px-logo img{height:${lh}px}`);
+  const bs = { sm: ".82rem", md: ".92rem", lg: "1.02rem" }[c("card_btn_size") as "sm"] ?? ".92rem";
+  r.push(`.card-actions .btn,.theme-pro .card-actions .btn{font-size:${bs}}`);
+  if (c("pd_sticky") === "0") r.push(".sticky-order{display:none!important}");
   if (c("header_sticky") === "0") r.push(".site-header,.px-header{position:static}");
   if (c("cat_style") === "square") r.push(".px-cat-img{border-radius:16px}");
   const m = Math.min(3, Math.max(1, parseInt(c("per_row_mobile") || "2", 10)));

@@ -5,12 +5,14 @@ import { Layout } from "../views/layout";
 import { CartPage, CheckoutPage, HomePage, LandingPage, NotFoundPage, ThanksPage, type FormState } from "../views/shop";
 import { ComingSoonPage, ListingPage, SORTS, StoreHome, TrackPage } from "../views/pro";
 import { normalizePhone } from "../lib/phone";
+import { InvoicePage } from "../views/invoice";
+import { sanitizeHtml } from "../lib/sanitize";
 import { ADMIN_COOKIE } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
-import { createOrder, getOrderByNo } from "../lib/orders";
+import { createOrder, getOrderByNo, orderPrefix } from "../lib/orders";
 import { checkCoupon, normalizeCode } from "../lib/coupons";
 import { deliveryCharge, minOrderAmount } from "../lib/settings";
 import { publicOrigin, clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
@@ -34,6 +36,7 @@ shop.use("*", async (c, next) => {
       return page(c, <ComingSoonPage s={c.var.settings} cfg={cfg} />);
     }
     c.set("navCats", await navCategories(c.env.DB));
+    c.set("navPages", (await c.env.DB.prepare("SELECT title, slug FROM pages WHERE is_active = 1 AND in_menu = 1 ORDER BY sort_order, id LIMIT 12").all<{ title: string; slug: string }>()).results);
   }
   await next();
 });
@@ -86,7 +89,7 @@ shop.get("/", async (c) => {
     ? (await c.env.DB.prepare(`${LISTING_SQL} ORDER BY p.id DESC LIMIT ?`).bind(Math.min(12, parseInt(cfg.latest_count || "8", 10))).all<Product>()).results
     : [];
   return page(c,
-    <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
+    <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
       <StoreHome s={s} cfg={cfg} sections={sections} picked={picked} latest={latest} />
     </Layout>,
   );
@@ -96,11 +99,15 @@ shop.get("/", async (c) => {
 async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 | 422 | 429 | 403 = 200) {
   const s = c.var.settings;
   const variants = await productVariants(c.env.DB, p.id);
+  const cfg = themeConfig(s);
+  const related = cfg.pd_related === "1" && p.category_id
+    ? (await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? AND p.id != ? ORDER BY p.sort_order, p.id LIMIT ?`).bind(p.category_id, p.id, parseInt(cfg.pd_related_count || "4", 10)).all<Product>()).results
+    : [];
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
-    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} bare
+    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
-      <LandingPage p={p} variants={variants} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
+      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
   );
@@ -117,15 +124,32 @@ const ORDER_SQL: Record<string, string> = { "": "p.sort_order, p.id", new: "p.id
 const sortKey = (v: unknown) => (typeof v === "string" && v in SORTS ? v : "");
 const LISTING_SQL = "SELECT p.*, (SELECT COUNT(*) FROM product_variants v WHERE v.product_id = p.id AND v.active = 1) AS variant_count FROM products p WHERE p.is_active = 1";
 
+/** দামের ফিল্টার আর পাতা ভাগ */
+function listParams(c: Ctx) {
+  const cfg = themeConfig(c.var.settings);
+  const per = [24, 48, 96].includes(toInt(cfg.list_per_page)) ? toInt(cfg.list_per_page) : 24;
+  const min = Math.max(0, toInt(c.req.query("min")));
+  const max = Math.max(0, toInt(c.req.query("max")));
+  const pageNo = Math.max(1, toInt(c.req.query("page"), 1));
+  const where = `${min ? " AND p.price >= " + min : ""}${max ? " AND p.price <= " + max : ""}`;
+  return { per, min, max, pageNo, where, offset: (pageNo - 1) * per };
+}
+
 shop.get("/c/:id{[0-9]+}", async (c) => {
   const cat = await c.env.DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(toInt(c.req.param("id"))).first<{ id: number; name: string }>();
   if (!cat) return notFound(c);
   const sort = sortKey(c.req.query("sort"));
-  const { results } = await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? ORDER BY ${ORDER_SQL[sort]} LIMIT 200`).bind(cat.id).all<Product>();
+  const lp = listParams(c);
+  const [rows, cnt] = await c.env.DB.batch([
+    c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ?${lp.where} ORDER BY ${ORDER_SQL[sort]} LIMIT ? OFFSET ?`).bind(cat.id, lp.per, lp.offset),
+    c.env.DB.prepare(`SELECT COUNT(*) n FROM products p WHERE p.is_active = 1 AND p.category_id = ?${lp.where}`).bind(cat.id),
+  ]);
+  const results = rows!.results as Product[];
+  const total = (cnt!.results[0] as { n: number }).n;
   const s = c.var.settings;
   return page(c,
-    <Layout title={`${cat.name} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
-      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} cfg={themeConfig(s)} sort={sort} />
+    <Layout title={`${cat.name} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
+      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} cfg={themeConfig(s)} sort={sort} total={total} lp={lp} />
     </Layout>,
   );
 });
@@ -133,15 +157,23 @@ shop.get("/c/:id{[0-9]+}", async (c) => {
 shop.get("/search", async (c) => {
   const q = str(c.req.query("q"), 60);
   const sort = sortKey(c.req.query("sort"));
+  const lp = listParams(c);
   let results: Product[] = [];
+  let total = 0;
   if (q) {
     const like = `%${q.replace(/[%_\\]/g, (m) => "\\" + m)}%`;
-    results = (await c.env.DB.prepare(`${LISTING_SQL} AND (p.name LIKE ? ESCAPE '\\' OR p.headline LIKE ? ESCAPE '\\') ORDER BY ${ORDER_SQL[sort]} LIMIT 60`).bind(like, like).all<Product>()).results;
+    const cond = `(p.name LIKE ? ESCAPE '\\' OR p.headline LIKE ? ESCAPE '\\')${lp.where}`;
+    const [rows, cnt] = await c.env.DB.batch([
+      c.env.DB.prepare(`${LISTING_SQL} AND ${cond} ORDER BY ${ORDER_SQL[sort]} LIMIT ? OFFSET ?`).bind(like, like, lp.per, lp.offset),
+      c.env.DB.prepare(`SELECT COUNT(*) n FROM products p WHERE p.is_active = 1 AND ${cond}`).bind(like, like),
+    ]);
+    results = rows!.results as Product[];
+    total = (cnt!.results[0] as { n: number }).n;
   }
   const s = c.var.settings;
   return page(c,
-    <Layout title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} q={q}>
-      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} cfg={themeConfig(s)} sort={sort} />
+    <Layout title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages} q={q}>
+      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} cfg={themeConfig(s)} sort={sort} total={total} lp={lp} />
     </Layout>,
   );
 });
@@ -163,10 +195,33 @@ shop.get("/track", async (c) => {
   }
   c.header("X-Robots-Tag", "noindex");
   return page(c,
-    <Layout title="অর্ডার ট্র্যাক করুন" settings={s} cartCount={readCart(c).length} nav={c.var.navCats}>
+    <Layout title="অর্ডার ট্র্যাক করুন" settings={s} cartCount={readCart(c).length} nav={c.var.navCats} pages={c.var.navPages}>
       <TrackPage s={s} order={result} error={error} values={{ order: no, phone: str(c.req.query("phone"), 20) }} />
     </Layout>,
   );
+});
+
+/* ---------- নিজের পেজ (আমাদের সম্পর্কে, রিটার্ন নীতি...) ---------- */
+shop.get("/page/:slug", async (c) => {
+  const pg = await c.env.DB.prepare("SELECT title, content FROM pages WHERE slug = ? AND is_active = 1").bind(str(c.req.param("slug"), 80)).first<{ title: string; content: string }>();
+  if (!pg) return notFound(c);
+  const s = c.var.settings;
+  return page(c,
+    <Layout title={`${pg.title} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
+      <div class="wrap narrow px-page"><h1 class="page-title">{pg.title}</h1><div class="details" dangerouslySetInnerHTML={{ __html: sanitizeHtml(pg.content) }} /></div>
+    </Layout>,
+  );
+});
+
+/* কাস্টমারের ইনভয়েস ডাউনলোড (অর্ডার নম্বর + মোবাইল মিললে) */
+shop.get("/track/invoice", async (c) => {
+  const no = str(c.req.query("order"), 30).toUpperCase();
+  const phone = normalizePhone(str(c.req.query("phone"), 20));
+  if (!(await hitRateLimit(c.env.DB, `track:${clientIp(c)}`, 20, 600))) return c.text("অনেকবার চেষ্টা করেছেন, কিছুক্ষণ পরে আবার চেষ্টা করুন।", 429);
+  const data = no ? await getOrderByNo(c.env.DB, no) : null;
+  if (!data || !phone || data.order.phone !== phone) return notFound(c);
+  c.header("X-Robots-Tag", "noindex");
+  return page(c, <InvoicePage list={[data]} s={c.var.settings} size="a4" />);
 });
 
 /* ---------- কার্ট ---------- */
@@ -215,7 +270,7 @@ shop.get("/cart", async (c) => {
   const products = await cartLines(c.env.DB, readCartEntries(c));
   const s = c.var.settings;
   return page(c,
-    <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)} nav={c.var.navCats}>
+    <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
       <CartPage products={products} />
     </Layout>,
   );
@@ -225,7 +280,7 @@ function renderCheckout(c: Ctx, products: Product[], form?: FormState, status: 2
   const s = c.var.settings;
   const head = pixel(c, [{ name: "InitiateCheckout", id: newEventId("ic"), params: productData(products) }]);
   return page(c,
-    <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head} nav={c.var.navCats} bare>
+    <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare>
       <CheckoutPage products={products} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
@@ -250,6 +305,8 @@ shop.post("/order", async (c) => {
     note: str(body.note, 300),
     variant_id: str(body.variant_id, 12),
     coupon: normalizeCode(body.coupon),
+    email: str(body.email, 120),
+    cf1: str(body.cf1, 200), cf2: str(body.cf2, 200), cf3: str(body.cf3, 200),
   };
 
   // কোন পণ্য: ল্যান্ডিং থেকে হলে শুধু ওই পণ্য, চেকআউট থেকে হলে কার্টের সব (ডুপ্লিকেট বাদ)
@@ -292,7 +349,19 @@ shop.post("/order", async (c) => {
 
   // ১. ইনপুট যাচাই (ফোন নম্বর নরমালাইজসহ)
   const v = validateOrderInput(values);
-  if (!v.ok) return fail({ errors: v.errors });
+  // চেকআউটের বাড়তি ঘর (দোকানের সেটিংস অনুযায়ী)
+  const st = c.var.settings;
+  const extraErrors: Record<string, string> = {};
+  if (st.checkout_email === "required" && !values.email) extraErrors.email = "ইমেইল লিখুন";
+  if (values.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) extraErrors.email = "সঠিক ইমেইল লিখুন";
+  const extras: [string, string][] = [];
+  for (const n of [1, 2, 3]) {
+    const label = (st[`cf${n}_label`] || "").trim();
+    if (!label) continue;
+    if (st[`cf${n}_req`] === "1" && !values[`cf${n}`]) extraErrors[`cf${n}`] = `${label} লিখুন`;
+    if (values[`cf${n}`]) extras.push([label, values[`cf${n}`]!]);
+  }
+  if (!v.ok || Object.keys(extraErrors).length) return fail({ errors: { ...(v.ok ? {} : v.errors), ...extraErrors } });
   values.phone = v.phone;
 
   const s = c.var.settings;
@@ -335,6 +404,9 @@ shop.post("/order", async (c) => {
       couponId: coupon?.id ?? null,
       couponCode: coupon?.code ?? null,
       discount: coupon?.discount ?? 0,
+      email: st.checkout_email !== "off" ? values.email || null : null,
+      extras,
+      prefix: orderPrefix(st),
     }, products);
 
     // Lead: সার্ভার এখন (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
@@ -421,7 +493,7 @@ shop.get("/thanks", async (c) => {
     },
   }]);
   return page(c,
-    <Layout title="ধন্যবাদ" settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats}>
+    <Layout title="ধন্যবাদ" settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages}>
       <ThanksPage order={data.order} items={data.items} settings={s} />
     </Layout>,
   );
@@ -432,7 +504,7 @@ export const ordersClosedMessage = (contact: string) =>
 
 export function notFound(c: Ctx) {
   const s = c.var.settings;
-  return page(c, <Layout title="পাওয়া যায়নি" settings={s} nav={c.var.navCats}><NotFoundPage /></Layout>, 404);
+  return page(c, <Layout title="পাওয়া যায়নি" settings={s} nav={c.var.navCats} pages={c.var.navPages}><NotFoundPage /></Layout>, 404);
 }
 
 function uniqueStrings(list: (string | null | undefined)[]): string[] {

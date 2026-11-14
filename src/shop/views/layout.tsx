@@ -5,7 +5,7 @@ import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "10";
+export const ASSET_VERSION = "13";
 
 export type LayoutProps = {
   title: string;
@@ -18,6 +18,8 @@ export type LayoutProps = {
   children?: Child;
   /** প্রো থিম: ক্যাটাগরি মেনু */
   nav?: NavCat[];
+  /** নিজের পেজের মেনু */
+  pages?: { title: string; slug: string }[];
   /** প্রো থিম: ল্যান্ডিং/চেকআউটে নিচের মেনু লুকানো (অর্ডার বাটনের জায়গা) */
   bare?: boolean;
   /** সার্চ বক্সে আগের লেখা */
@@ -73,9 +75,9 @@ export const Layout = (p: LayoutProps) => {
     </head>
     <body class={`theme-${themeOf(p.settings)}`} data-bare={p.bare ? "1" : undefined}>
       {gtm && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${gtm}`} height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>}
-      <StoreHeader s={s} cfg={cfg} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} />
+      <StoreHeader s={s} cfg={cfg} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} pages={p.pages ?? []} />
       <main>{p.children}</main>
-      <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} />
+      <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} pages={p.pages ?? []} />
       <StoreFloating s={s} cfg={cfg} cartCount={p.cartCount ?? 0} bare={p.bare} />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <script src={`/js/app.js?v=${ASSET_VERSION}`} defer></script>

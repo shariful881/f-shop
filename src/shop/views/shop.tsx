@@ -76,17 +76,20 @@ export const OrderForm = (p: {
   form?: FormState;
   variants?: Variant[];
   basePrice?: number;
+  variantStyle?: string;
 }) => {
   const v = p.form?.values ?? {};
   const e = p.form?.errors ?? {};
-  const area = v.area === "outside" ? "outside" : "inside";
+  const s0 = p.settings;
+  const defArea = s0.default_area === "outside" ? "outside" : s0.default_area === "none" ? "" : "inside";
+  const area = v.area === "outside" || v.area === "inside" ? v.area : defArea;
   const inside = deliveryCharge(p.settings, "inside");
   const outside = deliveryCharge(p.settings, "outside");
   const freeMin = freeDeliveryMin(p.settings);
   const isFree = freeMin > 0 && p.subtotal >= freeMin;
   const s = p.settings;
   return (
-    <form method="post" action="/order" class="order-form" id="order-form" data-order-form
+    <form method="post" action="/order" class={`order-form ${s0.sticky_submit !== "0" ? "sticky-submit" : ""}`} id="order-form" data-order-form
       data-subtotal={String(p.subtotal)} data-inside={String(inside)} data-outside={String(outside)} data-free-min={String(freeMin)}
       data-source={p.source} data-product-id={p.productId ? String(p.productId) : ""} novalidate>
       {s.order_form_title && <h3 class="order-form-title">{s.order_form_title}</h3>}
@@ -96,7 +99,20 @@ export const OrderForm = (p: {
       {p.productId && <input type="hidden" name="product_id" value={String(p.productId)} />}
       <input type="hidden" name="did_ls" value="" data-did-ls />
 
-      {p.variants && p.variants.length > 0 && (
+      {p.variants && p.variants.length > 0 && (p.variantStyle === "select" ? (
+        <label class="field variant-field">
+          <span>সাইজ/রং বাছাই করুন *</span>
+          <select name="variant_id" required>
+            <option value="">— বাছাই করুন —</option>
+            {p.variants.map((vr) => (
+              <option value={String(vr.id)} disabled={!vr.active} selected={v.variant_id === String(vr.id)} data-price={String(vr.price ?? p.basePrice ?? p.subtotal)}>
+                {vr.label}{vr.price != null && vr.price !== p.basePrice ? ` — ${taka(vr.price)}` : ""}{vr.active ? "" : " (স্টকে নেই)"}
+              </option>
+            ))}
+          </select>
+          {e.variant && <small class="error">{e.variant}</small>}
+        </label>
+      ) : (
         <fieldset class="field variant-field">
           <span>সাইজ/রং বাছাই করুন *</span>
           <div class="variant-pills">
@@ -110,7 +126,7 @@ export const OrderForm = (p: {
           </div>
           {e.variant && <small class="error">{e.variant}</small>}
         </fieldset>
-      )}
+      ))}
 
       <label class="field">
         <span>আপনার নাম *</span>
@@ -127,6 +143,25 @@ export const OrderForm = (p: {
         <textarea name="address" rows={2} required maxlength={500} placeholder="বাসা, রোড, এলাকা, থানা, জেলা">{v.address ?? ""}</textarea>
         {e.address && <small class="error">{e.address}</small>}
       </label>
+      {s.checkout_email && s.checkout_email !== "off" && (
+        <label class="field">
+          <span>ইমেইল{s.checkout_email === "required" ? " *" : " (ঐচ্ছিক)"}</span>
+          <input type="email" name="email" value={v.email ?? ""} maxlength={120} autocomplete="email" required={s.checkout_email === "required"} />
+          {e.email && <small class="error">{e.email}</small>}
+        </label>
+      )}
+      {[1, 2, 3].map((n) => {
+        const label = (s[`cf${n}_label`] || "").trim();
+        if (!label) return null;
+        const req = s[`cf${n}_req`] === "1";
+        return (
+          <label class="field">
+            <span>{label}{req ? " *" : " (ঐচ্ছিক)"}</span>
+            <input type="text" name={`cf${n}`} value={v[`cf${n}`] ?? ""} maxlength={200} required={req} />
+            {e[`cf${n}`] && <small class="error">{e[`cf${n}`]}</small>}
+          </label>
+        );
+      })}
       <fieldset class="field area-field">
         <span>ডেলিভারি এলাকা *</span>
         <label class="radio"><input type="radio" name="area" value="inside" checked={area === "inside"} /> {AREA_LABEL.inside} ({taka(inside)}){s.delivery_time_inside && <small class="muted"> · {s.delivery_time_inside}</small>}</label>
@@ -150,9 +185,9 @@ export const OrderForm = (p: {
 
       <div class="summary">
         <div><span>পণ্যের দাম</span><span data-subtotal-text>{taka(p.subtotal)}</span></div>
-        <div><span>ডেলিভারি চার্জ</span><span data-delivery>{taka(isFree ? 0 : area === "inside" ? inside : outside)}</span></div>
+        <div><span>ডেলিভারি চার্জ</span><span data-delivery>{taka(isFree ? 0 : area === "outside" ? outside : area === "inside" ? inside : 0)}</span></div>
         <div class="discount-row" data-discount-row hidden><span>কুপন ছাড়</span><span data-discount>-৳০</span></div>
-        <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (isFree ? 0 : area === "inside" ? inside : outside))}</span></div>
+        <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (isFree ? 0 : area === "outside" ? outside : area === "inside" ? inside : 0))}</span></div>
       </div>
       <button type="submit" class="btn btn-primary btn-block btn-lg" data-submit>অর্ডার কনফার্ম করুন</button>
       <p class="muted center">ক্যাশ অন ডেলিভারি — পণ্য হাতে পেয়ে টাকা দিন</p>
@@ -161,9 +196,16 @@ export const OrderForm = (p: {
 };
 
 /* ---------- ল্যান্ডিং পেজ ---------- */
-export const LandingPage = ({ p, variants = [], settings, form, closed }: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string }) => {
+export const LandingPage = (props: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string; cfg?: Cfg; related?: Product[] }) => (
+  <>
+    <LandingBody {...props} />
+    {props.cfg && <ProductExtras p={props.p} s={props.settings} cfg={props.cfg} related={props.related ?? []} />}
+  </>
+);
+
+const LandingBody = ({ p, variants = [], settings, form, closed, cfg }: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string; cfg?: Cfg }) => {
   const built = parseLanding(p.landing_json);
-  if (built) return <BuiltLanding p={p} landing={built} variants={variants} settings={settings} form={form} closed={closed} />;
+  if (built) return <BuiltLanding p={p} landing={built} variants={variants} settings={settings} form={form} closed={closed} cfg={cfg} />;
   const yt = youtubeId(p.youtube_url);
   const off = discountPercent(p.price, p.compare_price);
   return (
@@ -198,10 +240,46 @@ export const LandingPage = ({ p, variants = [], settings, form, closed }: { p: P
             <img src={imageUrl(p.image)} alt="" width="64" height="64" loading="lazy" />
             <div><strong>{p.name}</strong><br />{taka(p.price)}</div>
           </div>
-          {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={p.price} basePrice={p.price} productId={p.id} source="landing" form={form} variants={variants} />}
+          {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={p.price} basePrice={p.price} productId={p.id} source="landing" form={form} variants={variants} variantStyle={cfg?.pd_variant_style} />}
         </section>
       </div>
-      <a href="#order" class="sticky-order">অর্ডার করুন — {taka(p.price)}</a>
+      <a href="#order" class="sticky-order">{cfg?.pd_sticky_text || "অর্ডার করুন"} — {taka(p.price)}</a>
+    </div>
+  );
+};
+
+/* ---------- পণ্যের পেজের নিচে: যোগাযোগের বাটন, শেয়ার, সম্পর্কিত পণ্য ---------- */
+const ProductExtras = ({ p, s, cfg, related }: { p: Product; s: Settings; cfg: Cfg; related: Product[] }) => {
+  const phone = (s.contact_phone || "").replace(/[^\d+]/g, "");
+  const wa = s.whatsapp ? `https://wa.me/88${s.whatsapp.replace(/\D/g, "").replace(/^88/, "")}?text=${encodeURIComponent(`${p.name} সম্পর্কে জানতে চাই`)}` : "";
+  const msg = cfg.float_messenger;
+  const btns = [
+    cfg.pd_call === "1" && phone && <a href={`tel:${phone}`} class="pd-btn pd-call">📞 {cfg.pd_call_text || "কল করুন"}</a>,
+    cfg.pd_wa === "1" && wa && <a href={wa} target="_blank" rel="noopener" class="pd-btn pd-wa">💬 {cfg.pd_wa_text || "WhatsApp"}</a>,
+    cfg.pd_msg === "1" && msg && <a href={msg} target="_blank" rel="noopener" class="pd-btn pd-msg">✉️ {cfg.pd_msg_text || "Messenger"}</a>,
+  ].filter(Boolean);
+  const share = cfg.pd_share === "1";
+  if (!btns.length && !share && !related.length) return <>{cfg.pd_zoom === "1" && <span data-zoom-on hidden />}</>;
+  return (
+    <div class="pd-extras">
+      {cfg.pd_zoom === "1" && <span data-zoom-on hidden />}
+      <div class="wrap narrow">
+        {btns.length > 0 && <div class="pd-btns">{btns}</div>}
+        {share && (
+          <div class="pd-share" data-share-url={`/p/${p.slug}`}>
+            <span>শেয়ার করুন:</span>
+            <a href="#" data-share="facebook">Facebook</a>
+            <a href="#" data-share="whatsapp">WhatsApp</a>
+            <button type="button" data-share="copy">লিংক কপি</button>
+          </div>
+        )}
+      </div>
+      {related.length > 0 && (
+        <div class="wrap pd-related">
+          <h2 class="section-title">{cfg.pd_related_title || "আরও দেখুন"}</h2>
+          <div class="grid px-grid">{related.map((r) => <ProductCard p={r} cfg={cfg} />)}</div>
+        </div>
+      )}
     </div>
   );
 };

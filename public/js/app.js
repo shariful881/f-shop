@@ -32,7 +32,14 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.redirect) { location.href = d.redirect; return; }
-        toast(d.message || "");
+        var side = document.querySelector("[data-side-cart]");
+        if (side) {
+          var name = form.closest(".card") && form.closest(".card").querySelector(".card-title");
+          side.querySelector("[data-side-msg]").textContent = (d.ok ? "✓ " : "") + (d.message || "") + (name ? " — " + name.textContent : "");
+          side.querySelector("[data-side-count]").textContent = bn(d.count || 0);
+          side.hidden = false;
+          requestAnimationFrame(function () { side.classList.add("open"); });
+        } else toast(d.message || "");
         if (d.count != null) {
           document.querySelectorAll("[data-cart-count]").forEach(function (el) { el.textContent = bn(d.count); });
         }
@@ -60,12 +67,12 @@
       return delivery;
     }
     function update() {
-      var vr = form.querySelector("input[name=variant_id]:checked");
+      var vr = form.querySelector("input[name=variant_id]:checked") || form.querySelector("select[name=variant_id] option:checked");
       if (vr && vr.dataset.price) subtotal = +vr.dataset.price;
       var sub = form.querySelector("[data-subtotal-text]");
       if (sub) sub.textContent = taka(subtotal);
       var checked = form.querySelector("input[name=area]:checked");
-      var d = freeMin > 0 && subtotal >= freeMin ? 0 : charges[checked ? checked.value : "inside"];
+      var d = freeMin > 0 && subtotal >= freeMin ? 0 : checked ? charges[checked.value] : 0;
       var dEl = form.querySelector("[data-delivery]");
       var tEl = form.querySelector("[data-total]");
       var disc = couponDiscount(subtotal, d);
@@ -230,4 +237,61 @@
   document.querySelectorAll("[data-autosubmit]").forEach(function (sel) {
     sel.addEventListener("change", function () { sel.form.submit(); });
   });
+})();
+
+
+/* পণ্যের পেজ: ছবিতে চাপলে বড় করে দেখা, শেয়ার বাটন */
+(function () {
+  if (document.querySelector("[data-zoom-on]")) {
+    document.addEventListener("click", function (e) {
+      var img = e.target.closest && e.target.closest(".landing-img img, .gallery-track img, .lp-gallery img");
+      if (!img) return;
+      var box = document.createElement("div");
+      box.className = "pd-zoom";
+      box.innerHTML = '<button type="button" aria-label="বন্ধ করুন">✕</button>';
+      var big = document.createElement("img");
+      big.src = img.currentSrc || img.src; big.alt = img.alt || "";
+      box.appendChild(big);
+      box.addEventListener("click", function (ev) { if (ev.target !== big) box.remove(); });
+      big.addEventListener("click", function () { box.classList.toggle("in"); });
+      document.body.appendChild(box);
+    });
+  }
+  var share = document.querySelector("[data-share-url]");
+  if (share) {
+    var url = location.origin + share.dataset.shareUrl;
+    share.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-share]");
+      if (!b) return;
+      e.preventDefault();
+      var k = b.dataset.share;
+      if (k === "facebook") window.open("https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(url), "_blank", "noopener");
+      if (k === "whatsapp") window.open("https://wa.me/?text=" + encodeURIComponent(document.title + " " + url), "_blank", "noopener");
+      if (k === "copy") {
+        var done = function () { b.textContent = "কপি হয়েছে ✓"; };
+        if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, function () {}); else done();
+      }
+    });
+  }
+})();
+
+
+/* পাশের কার্ট বন্ধ করা */
+document.addEventListener("click", function (e) {
+  var side = document.querySelector("[data-side-cart]");
+  if (!side || side.hidden) return;
+  if (e.target === side || (e.target.closest && e.target.closest("[data-side-close]"))) {
+    side.classList.remove("open");
+    setTimeout(function () { side.hidden = true; }, 220);
+  }
+});
+
+/* অর্ডার ফর্ম স্ক্রিনে থাকলে নিচের "অর্ডার করুন" বার লুকানো (ফর্মের বাটন ঢেকে না যায়) */
+(function () {
+  var bar = document.querySelector(".sticky-order");
+  var order = document.getElementById("order");
+  if (!bar || !order || !("IntersectionObserver" in window)) return;
+  new IntersectionObserver(function (es) {
+    bar.classList.toggle("is-hidden", es[0].isIntersecting);
+  }, { rootMargin: "0px 0px -20% 0px" }).observe(order);
 })();

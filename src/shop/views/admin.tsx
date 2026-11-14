@@ -2,7 +2,7 @@ import { COURIER_NAME, type CourierKey } from "../lib/courier";
 import { SMS_PLACEHOLDERS, SMS_PROVIDERS } from "../lib/sms";
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
-import { AREA_LABEL, STATUS_LABEL } from "../lib/orders";
+import { AREA_LABEL, orderExtras, STATUS_LABEL } from "../lib/orders";
 import { parseOptions, type Category, type Product, type Variant } from "../lib/products";
 import { THEMES, type Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
@@ -108,7 +108,9 @@ export const OrdersPage = (p: {
   hasMore: boolean;
   couriers?: CourierKey[];
 }) => {
-  const bulk = !p.q && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
+  const courierBulk = !p.q && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
+  // ইনভয়েস/স্টিকার একসাথে প্রিন্ট সব তালিকায়
+  const bulk = p.orders.length > 0;
   return (
   <>
     <div class="tabs">
@@ -131,10 +133,16 @@ export const OrdersPage = (p: {
       {bulk && (
         <div class="bulk-bar">
           <label class="inline-check"><input type="checkbox" data-check-all /> সব বাছুন</label>
-          <select name="courier">
-            {(p.couriers ?? []).filter((k) => k !== "redx").map((k) => <option value={k}>{COURIER_NAME[k]}</option>)}
-          </select>
-          <button class="btn btn-primary" data-confirm="বাছাই করা অর্ডারগুলো কুরিয়ারে পাঠাবেন?">বাছাই করা অর্ডার কুরিয়ারে পাঠান</button>
+          {courierBulk && (
+            <>
+              <select name="courier">
+                {(p.couriers ?? []).filter((k) => k !== "redx").map((k) => <option value={k}>{COURIER_NAME[k]}</option>)}
+              </select>
+              <button class="btn btn-primary" data-confirm="বাছাই করা অর্ডারগুলো কুরিয়ারে পাঠাবেন?">বাছাই করা অর্ডার কুরিয়ারে পাঠান</button>
+            </>
+          )}
+          <button class="btn btn-outline" formaction="/admin/orders/invoices" formmethod="get" formtarget="_blank">🖨️ ইনভয়েস প্রিন্ট</button>
+          <button class="btn btn-outline" formaction="/admin/orders/invoices?size=sticker" formmethod="get" formtarget="_blank" name="size" value="sticker">🏷️ স্টিকার প্রিন্ট</button>
         </div>
       )}
       <div class="table-wrap">
@@ -244,6 +252,8 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
           </form>
         ))}
         {TRANSITIONS[o.status].length === 0 && <span class="muted">এই অর্ডারের স্ট্যাটাস আর বদলানো যাবে না।</span>}
+        <a href={`/admin/orders/${o.id}/invoice`} target="_blank" class="btn btn-outline">🖨️ ইনভয়েস</a>
+        <a href={`/admin/orders/${o.id}/invoice?size=sticker`} target="_blank" class="btn btn-outline">🏷️ স্টিকার</a>
       </div>
 
       <div class="panels">
@@ -254,6 +264,8 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
             <dt>মোবাইল</dt><dd><a href={`tel:${o.phone}`}>{o.phone}</a> {p.blocked.phone && <span class="pill pill-bad">ব্লক</span>}</dd>
             <dt>ঠিকানা</dt><dd>{o.address}</dd>
             <dt>এলাকা</dt><dd>{AREA_LABEL[o.area]}</dd>
+            {o.email && <><dt>ইমেইল</dt><dd><a href={`mailto:${o.email}`}>{o.email}</a></dd></>}
+            {orderExtras(o).map(([k, val]) => <><dt>{k}</dt><dd>{val}</dd></>)}
             {o.note && <><dt>নোট</dt><dd>{o.note}</dd></>}
           </dl>
         </section>

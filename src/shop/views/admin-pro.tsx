@@ -19,6 +19,7 @@ const NAV: { key: string; href: string; icon: string; label: string; group?: str
   { key: "products", href: "/admin/products", icon: "📦", label: "পণ্য", group: "ক্যাটালগ" },
   { key: "landing", href: "/admin/landing", icon: "🧩", label: "ল্যান্ডিং পেজ" },
   { key: "categories", href: "/admin/categories", icon: "🗂️", label: "ক্যাটাগরি" },
+  { key: "pages", href: "/admin/pages", icon: "📄", label: "পেজ" },
   { key: "settings", href: "/admin/settings", icon: "⚙", label: "দোকানের সেটিংস", group: "সেটআপ" },
   { key: "courier", href: "/admin/courier", icon: "🚚", label: "কুরিয়ার" },
   { key: "sms", href: "/admin/sms", icon: "💬", label: "SMS" },
@@ -370,6 +371,34 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
         <F label="ফর্মের উপরের শিরোনাম" hint="যেমন: অর্ডার করতে নিচের ফর্মটি পূরণ করুন"><input type="text" name="order_form_title" value={s.order_form_title ?? ""} maxlength={100} /></F>
         <F label="সর্বনিম্ন অর্ডার (৳)" hint="এর কম দামের অর্ডার নেওয়া হবে না। ০ = সীমা নেই"><input type="number" min="0" name="min_order" value={s.min_order || "0"} /></F>
         <label class="set-check"><input type="checkbox" name="show_note" value="1" checked={s.show_note !== "0"} /> ফর্মে "নোট" ঘর দেখাবে</label>
+        <label class="set-check"><input type="checkbox" name="sticky_submit" value="1" checked={s.sticky_submit !== "0"} /> মোবাইলে "অর্ডার কনফার্ম করুন" বাটন নিচে আটকে থাকবে</label>
+        <F label="ইমেইল ঘর">
+          <select name="checkout_email">{Object.entries({ off: "দেখাবে না", optional: "দেখাবে (ঐচ্ছিক)", required: "দেখাবে (অবশ্যই দিতে হবে)" }).map(([k, l]) => <option value={k} selected={(s.checkout_email || "off") === k}>{l}</option>)}</select>
+        </F>
+        <F label="ডেলিভারি এলাকা আগে থেকে বাছা থাকবে">
+          <select name="default_area">{Object.entries({ inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে", none: "কোনোটা না (কাস্টমার নিজে বাছবে)" }).map(([k, l]) => <option value={k} selected={(s.default_area || "inside") === k}>{l}</option>)}</select>
+        </F>
+        <F label="অর্ডার নম্বরের শুরুর অক্ষর" hint="ইংরেজি বড় অক্ষর/সংখ্যা/হাইফেন, ৬টা পর্যন্ত। যেমন KB- দিলে অর্ডার নম্বর হবে KB-100025। আগের অর্ডারের নম্বর বদলাবে না।">
+          <input type="text" name="order_prefix" value={s.order_prefix || "FS-"} maxlength={6} pattern="[A-Za-z0-9-]{1,6}" />
+        </F>
+      </Section>
+      <Section title="ইনভয়েস আর স্টিকার" desc="অর্ডারের পেজ বা তালিকা থেকে প্রিন্ট করা যায়। স্টিকার ৩×৪ ইঞ্চি — কুরিয়ারের প্যাকেটে লাগানোর জন্য।">
+        <F label="প্রিন্টের সাধারণ মাপ">
+          <select name="invoice_size">{Object.entries({ a4: "A4 ইনভয়েস", sticker: "৩×৪ ইঞ্চি স্টিকার" }).map(([k, l]) => <option value={k} selected={(s.invoice_size || "a4") === k}>{l}</option>)}</select>
+        </F>
+        <F label="ইনভয়েসের নিচের লেখা" hint="যেমন: পণ্য হাতে পেয়ে দেখে নিন। ৭ দিনের মধ্যে বদলানো যাবে।" wide>
+          <textarea name="invoice_note" rows={2} maxlength={300}>{s.invoice_note ?? ""}</textarea>
+        </F>
+        <label class="set-check"><input type="checkbox" name="invoice_barcode" value="1" checked={s.invoice_barcode !== "0"} /> অর্ডার নম্বরের বারকোড</label>
+        <label class="set-check"><input type="checkbox" name="invoice_image" value="1" checked={s.invoice_image !== "0"} /> ইনভয়েসে পণ্যের ছবি</label>
+      </Section>
+      <Section title="নিজের বাড়তি ঘর" desc="অর্ডার ফর্মে আরও তথ্য চাইতে পারেন, যেমন: বিকল্প মোবাইল নম্বর, শাড়ির রং, উপহারের বার্তা। লেবেল ফাঁকা রাখলে ঘরটা দেখাবে না।">
+        {[1, 2, 3].map((n) => (
+          <>
+            <F label={`ঘর ${n}-এর লেবেল`}><input type="text" name={`cf${n}_label`} value={s[`cf${n}_label`] ?? ""} maxlength={60} placeholder={["বিকল্প মোবাইল নম্বর", "পছন্দের রং/সাইজ", "উপহারের বার্তা"][n - 1]} /></F>
+            <label class="set-check"><input type="checkbox" name={`cf${n}_req`} value="1" checked={s[`cf${n}_req`] === "1"} /> ঘর {n} অবশ্যই পূরণ করতে হবে</label>
+          </>
+        ))}
       </Section>
       <Section title="ধন্যবাদ পেজ" desc="অর্ডার দেওয়ার পর কাস্টমার যে লেখা দেখবেন">
         <F label="ধন্যবাদ বার্তা" hint="এগুলো লিখলে নিজে থেকে বসবে: {name} নাম, {order_no} অর্ডার নম্বর, {total} মোট টাকা, {phone} মোবাইল, {shop} দোকানের নাম। ফাঁকা রাখলে: আমাদের প্রতিনিধি শীঘ্রই কল করে অর্ডারটি কনফার্ম করবেন।" wide>
@@ -569,3 +598,48 @@ export const ThemeCustomizePage = ({ theme, cfg, products }: { s: Settings; them
     </>
   );
 };
+
+
+/* ---------- নিজের পেজ (আমাদের সম্পর্কে, রিটার্ন নীতি...) ---------- */
+export type PageRow = { id: number; title: string; slug: string; content: string; in_menu: number; is_active: number; sort_order: number };
+
+export const PagesPage = ({ rows, edit, error }: { rows: PageRow[]; edit?: Partial<PageRow>; error?: string }) => (
+  <div class="sa-grid-1-2">
+    <section class="sa-card">
+      <h2>{edit?.id ? "পেজ এডিট" : "নতুন পেজ"}</h2>
+      {error && <div class="sa-alert sa-alert-err">{error}</div>}
+      <form method="post" action={edit?.id ? `/admin/pages/${edit.id}` : "/admin/pages"} class="sa-form">
+        <label>শিরোনাম</label><input type="text" name="title" required maxlength={80} value={edit?.title ?? ""} placeholder="যেমন: আমাদের সম্পর্কে" />
+        <label>লিংকের নাম (ইংরেজিতে)</label><input type="text" name="slug" required maxlength={60} pattern="[a-z0-9-]+" value={edit?.slug ?? ""} placeholder="যেমন: about-us" />
+        <small class="sa-muted">পেজের ঠিকানা হবে /page/{edit?.slug || "about-us"}। শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা আর হাইফেন।</small>
+        <label>লেখা (HTML চলবে: &lt;b&gt;, &lt;h3&gt;, &lt;ul&gt;&lt;li&gt;, &lt;a&gt;)</label>
+        <textarea name="content" rows={10} maxlength={20000}>{edit?.content ?? ""}</textarea>
+        <label class="small-check"><input type="checkbox" name="in_menu" value="1" checked={edit ? edit.in_menu !== 0 : true} /> মেনু আর ফুটারে দেখাবে</label>
+        <label class="small-check"><input type="checkbox" name="is_active" value="1" checked={edit ? edit.is_active !== 0 : true} /> চালু</label>
+        <label>ক্রম (ছোট সংখ্যা আগে)</label><input type="number" name="sort_order" value={String(edit?.sort_order ?? 0)} />
+        <button class="sa-btn">{edit?.id ? "সেভ করুন" : "পেজ যোগ করুন"}</button>
+        {edit?.id && <a href="/admin/pages" class="sa-btn sa-btn-ghost">বাতিল</a>}
+      </form>
+    </section>
+    <section class="sa-card">
+      <h2>সব পেজ</h2>
+      <p class="sa-muted">যেমন: আমাদের সম্পর্কে, রিটার্ন ও রিফান্ড নীতি, ডেলিভারির নিয়ম, প্রাইভেসি পলিসি। মেনুতে দেখাতে "থিম কাস্টমাইজ → হেডার"-এ "নিজের পেজের মেনু" চালু রাখুন।</p>
+      {rows.length === 0 ? <p class="sa-empty">এখনো কোনো পেজ নেই</p> : (
+        <table class="sa-table">
+          <thead><tr><th>পেজ</th><th>অবস্থা</th><th></th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr>
+              <td><b>{r.title}</b><br /><small class="sa-muted">/page/{r.slug}</small></td>
+              <td>{r.is_active ? <span class="sa-pill sa-st-active">চালু</span> : <span class="sa-pill sa-st-closed">বন্ধ</span>}{r.in_menu ? " · মেনুতে" : ""}</td>
+              <td class="sa-row">
+                <a href={`/admin/pages/${r.id}`} class="sa-btn sa-btn-sm sa-btn-ghost">এডিট</a>
+                <a href={`/page/${r.slug}`} target="_blank" class="sa-btn sa-btn-sm sa-btn-ghost">দেখুন ↗</a>
+                <form method="post" action={`/admin/pages/${r.id}/delete`} data-confirm={`"${r.title}" পেজটি মুছবেন?`}><button class="sa-btn sa-btn-sm sa-btn-ghost">মুছুন</button></form>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </section>
+  </div>
+);

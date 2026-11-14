@@ -1,0 +1,49 @@
+/* ইনভয়েস আর স্টিকার প্রিন্ট */
+* { box-sizing: border-box; }
+body.iv { margin: 0; background: #e5e7eb; font-family: "Noto Sans Bengali", "Hind Siliguri", system-ui, sans-serif; color: #111; font-size: 14px; }
+.iv-toolbar { position: sticky; top: 0; background: #0f172a; color: #fff; padding: 10px 16px; display: flex; gap: 14px; align-items: center; z-index: 2; }
+.iv-toolbar button { font: inherit; font-weight: 700; padding: 8px 16px; border: 0; border-radius: 8px; background: #f97316; color: #fff; cursor: pointer; }
+.iv-page { background: #fff; margin: 16px auto; box-shadow: 0 4px 20px rgba(0,0,0,.12); page-break-after: always; break-after: page; }
+.iv-a4 { width: 186mm; min-height: 250mm; padding: 14mm; }
+.iv-head { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #111; padding-bottom: 12px; }
+.iv-logo { max-height: 56px; max-width: 200px; }
+.iv-head h1 { margin: 0; font-size: 22px; }
+.iv-shop { margin: 4px 0 0; color: #444; font-size: 12.5px; }
+.iv-meta { text-align: right; }
+.iv-meta h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: .5px; }
+.iv-meta p { margin: 2px 0; }
+.iv-bar svg { display: block; max-width: 100%; margin: 6px 0 0 auto; height: 46px; }
+.iv-to { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+.iv-to h3 { margin: 0 0 6px; font-size: 13px; color: #555; }
+.iv-to p { margin: 3px 0; }
+.iv-muted { color: #555; font-size: 12.5px; }
+.iv-table { width: 100%; border-collapse: collapse; }
+.iv-table th, .iv-table td { padding: 8px; border-bottom: 1px solid #e5e5e5; text-align: left; vertical-align: middle; }
+.iv-table th { background: #f3f4f6; font-size: 12.5px; }
+.iv-table .r { text-align: right; }
+.iv-img { width: 52px; }
+.iv-img img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.iv-sum { margin: 12px 0 0 auto; width: 60%; }
+.iv-sum div { display: flex; justify-content: space-between; padding: 4px 0; }
+.iv-total { border-top: 2px solid #111; margin-top: 4px; padding-top: 8px !important; font-weight: 800; font-size: 16px; }
+.iv-note { margin-top: 18px; padding: 10px; background: #f9fafb; border-left: 3px solid #111; white-space: pre-line; }
+.iv-thanks { margin-top: 26px; text-align: center; color: #555; }
+/* স্টিকার ৩×৪ ইঞ্চি */
+.iv-sticker { width: 3in; height: 4in; padding: .16in; display: flex; flex-direction: column; gap: 7px; font-size: 13px; overflow: hidden; }
+.st-top { display: flex; justify-content: space-between; border-bottom: 1.5px solid #111; padding-bottom: 4px; font-size: 12px; }
+.st-to { display: grid; gap: 1px; }
+.st-to small { color: #555; }
+.st-name { font-size: 18px; }
+.st-to p { margin: 2px 0 0; line-height: 1.4; max-height: 5.6em; overflow: hidden; font-size: 14px; }
+.st-items { border-top: 1px dashed #999; border-bottom: 1px dashed #999; padding: 4px 0; max-height: 3.4em; overflow: hidden; }
+.st-cod { display: flex; justify-content: space-between; align-items: center; background: #111; color: #fff; padding: 5px 8px; border-radius: 4px; }
+.st-cod { margin-top: auto; }
+.st-cod b { font-size: 20px; }
+.iv-sticker .iv-bar svg { margin: 2px auto 0; height: 52px; }
+.st-no { text-align: center; font-weight: 700; letter-spacing: .5px; }
+@media print {
+  body.iv { background: #fff; }
+  .iv-toolbar { display: none; }
+  .iv-page { margin: 0; box-shadow: none; }
+  .iv-a4 { width: auto; min-height: 0; padding: 0; }
+}
