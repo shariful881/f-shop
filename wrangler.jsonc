@@ -37,9 +37,16 @@
 
   // প্রতিটা দোকান = একটা Durable Object = দোকানের নিজস্ব আলাদা SQLite ডাটাবেস
   "durable_objects": {
-    "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
+    "bindings": [
+      { "name": "SHOP", "class_name": "ShopDO" },
+      // লাইভ সাপোর্টের রিয়েল-টাইম হাব (WebSocket)
+      { "name": "SUPPORT", "class_name": "SupportHub" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ShopDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["SupportHub"] }
+  ],
 
   // ছবি R2-তে নয়, প্রতিটা দোকানের নিজের ডাটাবেসে (ফ্রি প্ল্যানে চলে) — src/shop/lib/images.ts
 

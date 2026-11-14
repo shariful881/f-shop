@@ -171,6 +171,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       DB: this.db.asD1(),
       IMAGES: new SqlImageStore(this.db),
       PLATFORM_DB: this.env.PLATFORM_DB,
+      SUPPORT: this.env.SUPPORT,
       SHOP_ID: shopId,
       SHOP_SLUG: request.headers.get("x-fshop-slug") || "",
       PLATFORM_DOMAIN: this.env.PLATFORM_DOMAIN,

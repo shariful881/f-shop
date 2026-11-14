@@ -3,6 +3,7 @@ import type { ShopDO } from "./shop/shop-do";
 /** মূল Worker-এর binding */
 export type WorkerEnv = {
   PLATFORM_DB: D1Database;        // মূল ডাটাবেস: দোকানের তালিকা, ডোমেইন, বিলিং
+  SUPPORT: DurableObjectNamespace<import("./support-hub").SupportHub>;
   SHOP: DurableObjectNamespace<ShopDO>; // প্রতিটা দোকানের আলাদা ডাটাবেস
   ASSETS: Fetcher;
   PLATFORM_DOMAIN: string;        // যেমন ourdomain.com

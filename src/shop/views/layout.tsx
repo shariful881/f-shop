@@ -5,7 +5,7 @@ import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "15";
+export const ASSET_VERSION = "16";
 
 export type LayoutProps = {
   title: string;

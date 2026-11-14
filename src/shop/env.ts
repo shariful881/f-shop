@@ -6,6 +6,7 @@ export type Bindings = {
   DB: D1Database;
   IMAGES: import("./lib/images").ImageStore;
   PLATFORM_DB: D1Database;
+  SUPPORT: DurableObjectNamespace<import("../support-hub").SupportHub>;
   SHOP_ID: string;
   SHOP_SLUG: string;
   PLATFORM_DOMAIN: string;

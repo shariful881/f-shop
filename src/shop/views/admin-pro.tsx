@@ -8,6 +8,7 @@ import { STATUS_LABEL, type OrderStatus } from "../lib/orders";
 import { THEMES, type Settings, type ThemeKey } from "../lib/settings";
 import { GROUPS, HOME_SECTIONS, type Cfg, type Field } from "../lib/theme-config";
 import { ASSET_VERSION } from "./layout";
+import { ChatWidget } from "./support";
 
 /* ---------- সাইডবার লেআউট ---------- */
 const NAV: { key: string; href: string; icon: string; label: string; group?: string }[] = [
@@ -26,6 +27,7 @@ const NAV: { key: string; href: string; icon: string; label: string; group?: str
   { key: "domains", href: "/admin/domain", icon: "🌐", label: "ডোমেইন" },
   { key: "staff", href: "/admin/staff", icon: "👥", label: "স্টাফ", group: "অ্যাকাউন্ট" },
   { key: "billing", href: "/admin/billing", icon: "💳", label: "বিলিং ও রিচার্জ" },
+  { key: "support", href: "/admin/support", icon: "🛟", label: "সাপোর্ট", group: "সাহায্য" },
 ];
 
 export const ShopShell = (p: {
@@ -49,6 +51,7 @@ export const ShopShell = (p: {
         <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/super.css?v=${ASSET_VERSION}`} />
+        <link rel="stylesheet" href={`/css/support.css?v=${ASSET_VERSION}`} />
         {s.favicon ? <link rel="icon" href={imageUrl(s.favicon)} /> : s.logo ? <link rel="icon" href={imageUrl(s.logo)} /> : null}
       </head>
       <body class="sa admin shop-admin">
@@ -65,6 +68,7 @@ export const ShopShell = (p: {
                 <a href={n.href} class={p.active === n.key ? "active" : ""}>
                   <span class="sa-ico">{n.icon}</span>{n.label}
                   {n.key === "orders" && (p.newOrders ?? 0) > 0 && <span class="sa-badge">{bn(p.newOrders!)}</span>}
+                  {n.key === "support" && <span class="sa-badge" data-sx-nav-badge hidden></span>}
                 </a>
               </>
             ))}
@@ -89,7 +93,9 @@ export const ShopShell = (p: {
           </header>
           <main class="sa-content admin-main">{p.children}</main>
         </div>
+        <ChatWidget shopName={s.site_name || ""} />
         <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
+        <script src={`/js/support.js?v=${ASSET_VERSION}`} defer></script>
       </body>
     </html>
   );
