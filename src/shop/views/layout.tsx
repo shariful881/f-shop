@@ -3,7 +3,7 @@ import type { Settings } from "../lib/settings";
 import { bn, imageUrl } from "../lib/format";
 import { themeCss, themeOf } from "../lib/settings";
 
-export const ASSET_VERSION = "2";
+export const ASSET_VERSION = "3";
 
 export type LayoutProps = {
   title: string;

@@ -25,7 +25,8 @@ import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
 import { clearShopCache } from "../../platform/resolve";
 import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
-import { CourierPage } from "../views/admin";
+import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
+import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
 
 export const admin = new Hono<AppEnv>();
 
@@ -141,8 +142,9 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
     ).bind(o.phone, o.device_id ?? ""),
   ]);
   const types = (bl!.results as { type: string }[]).map((r) => r.type);
+  const sms = (await db.prepare("SELECT * FROM sms_logs WHERE order_id = ? ORDER BY id").bind(o.id).all<SmsLogRow>()).results;
   return render(c, o.order_no, "orders",
-    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} />);
+    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms} />);
 });
 
 admin.post("/orders/:id{[0-9]+}/status", async (c) => {
@@ -161,10 +163,12 @@ admin.post("/orders/:id{[0-9]+}/status", async (c) => {
     }
     // কনফার্ম হলে শুধু সার্ভার থেকে (CAPI) Purchase যায়
     const p = await sendPurchase(c.env.DB, id, c.var.settings);
+    smsLater(c, id, "confirmed");
     flash(c, p.ok ? "ok" : "error", p.ok ? "অর্ডার কনফার্ম হয়েছে, Facebook-এ Purchase গেছে।" : `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${p.message}`);
   } else if (to === "cancelled" || to === "fake") {
     flash(c, "ok", "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।");
   } else {
+    if (to === "shipped") smsLater(c, id, "shipped");
     flash(c, "ok", "স্ট্যাটাস বদলেছে।");
   }
   return c.redirect(`/admin/orders/${id}`, 303);
@@ -176,6 +180,12 @@ admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {
   flash(c, p.ok ? "ok" : "error", p.ok ? "Purchase পাঠানো হয়েছে।" : `Purchase যায়নি: ${p.message}`);
   return c.redirect(`/admin/orders/${id}`, 303);
 });
+
+/* ---------- SMS (রেসপন্সের পরে পেছনে যায়) ---------- */
+function smsLater(c: Ctx, orderId: number, event: SmsEvent) {
+  const job = notifyOrder(c.env.DB, c.var.settings, orderId, event).catch((e) => console.error("sms error", e));
+  try { c.executionCtx.waitUntil(job); } catch { /* টেস্ট/লোকাল */ }
+}
 
 /* ---------- কুরিয়ার ---------- */
 const COURIERS: CourierKey[] = ["steadfast", "pathao", "redx"];
@@ -210,7 +220,8 @@ async function bookOrder(c: Ctx, id: number, courier: CourierKey, opt: Partial<S
   await db.prepare(
     `UPDATE orders SET consignment_id = ?, tracking_code = ?, courier_status = ?, courier_response = ?, courier_sent_at = datetime('now'), courier_checked_at = datetime('now') WHERE id = ?`,
   ).bind(r.consignmentId, r.trackingCode || r.consignmentId, r.status || "", r.raw.slice(0, 4000), id).run();
-  await changeStatus(db, id, "shipped");
+  const moved = await changeStatus(db, id, "shipped");
+  if (moved.ok) smsLater(c, id, "shipped");
   return { ok: true, message: `${o.order_no}: ${r.message} (${r.trackingCode || r.consignmentId})` };
 }
 
@@ -321,6 +332,65 @@ admin.post("/courier", async (c) => {
   await saveSettings(c.env.DB, values);
   flash(c, "ok", "কুরিয়ার সেটিংস সেভ হয়েছে।");
   return c.redirect("/admin/courier", 303);
+});
+
+/* ---------- SMS ---------- */
+admin.post("/orders/sms/:id{[0-9]+}/resend", async (c) => {
+  const log = await c.env.DB.prepare("SELECT order_id FROM sms_logs WHERE id = ?").bind(toInt(c.req.param("id"))).first<{ order_id: number | null }>();
+  const r = await resendSms(c.env.DB, c.var.settings, toInt(c.req.param("id")));
+  flash(c, r.sent ? "ok" : "error", r.message);
+  return c.redirect(log?.order_id ? `/admin/orders/${log.order_id}` : "/admin/sms", 303);
+});
+
+async function renderSms(c: Ctx) {
+  const { results } = await c.env.DB.prepare(
+    "SELECT l.*, o.order_no FROM sms_logs l LEFT JOIN orders o ON o.id = l.order_id ORDER BY l.id DESC LIMIT 100",
+  ).all<SmsLogRow & { order_no: string | null }>();
+  const counts = await c.env.DB.prepare(
+    "SELECT SUM(status='sent') sent, SUM(status='failed') failed FROM sms_logs WHERE created_at >= datetime('now', '-30 days')",
+  ).first<{ sent: number | null; failed: number | null }>();
+  return render(c, "SMS", "sms", <SmsPage s={c.var.settings} logs={results} sent30={counts?.sent ?? 0} failed30={counts?.failed ?? 0} />);
+}
+admin.get("/sms", (c) => renderSms(c));
+
+admin.post("/sms", async (c) => {
+  const b = await c.req.parseBody();
+  const values: Record<string, string> = {
+    sms_enabled: b.sms_enabled ? "1" : "0",
+    sms_provider: typeof b.sms_provider === "string" && b.sms_provider in SMS_PROVIDERS ? b.sms_provider : "bulksmsbd",
+    sms_sender_id: str(b.sms_sender_id, 50),
+    sms_custom_url: str(b.sms_custom_url, 1000),
+    sms_custom_method: b.sms_custom_method === "POST" ? "POST" : "GET",
+    sms_custom_body: str(b.sms_custom_body, 2000),
+    sms_custom_success: str(b.sms_custom_success, 100),
+    sms_on_confirm: b.sms_on_confirm ? "1" : "0",
+    sms_on_shipped: b.sms_on_shipped ? "1" : "0",
+    sms_tpl_confirmed: str(b.sms_tpl_confirmed, 600),
+    sms_tpl_shipped: str(b.sms_tpl_shipped, 600),
+  };
+  const key = str(b.sms_api_key, 500);
+  if (key) values.sms_api_key = key;
+  else if (b.clear_sms_api_key) values.sms_api_key = "";
+  if (values.sms_custom_url && !/^https?:\/\//i.test(values.sms_custom_url)) {
+    flash(c, "error", "গেটওয়ের URL http:// বা https:// দিয়ে শুরু হতে হবে");
+    return c.redirect("/admin/sms", 303);
+  }
+  await saveSettings(c.env.DB, values);
+  flash(c, "ok", "SMS সেটিংস সেভ হয়েছে।");
+  return c.redirect("/admin/sms", 303);
+});
+
+admin.post("/sms/test", async (c) => {
+  const phone = normalizePhone(str((await c.req.parseBody()).phone, 20));
+  if (!phone) {
+    flash(c, "error", "সঠিক মোবাইল নম্বর দিন");
+  } else if (!(await hitRateLimit(c.env.DB, `smstest:${c.var.admin!.id}`, 5, 600))) {
+    flash(c, "error", "অনেকবার টেস্ট করেছেন, ১০ মিনিট পর চেষ্টা করুন");
+  } else {
+    const r = await testSms(c.env.DB, c.var.settings, phone);
+    flash(c, r.ok ? "ok" : "error", r.ok ? `টেস্ট SMS ${phone} নম্বরে গেছে।` : `SMS যায়নি: ${r.response.slice(0, 300)}`);
+  }
+  return c.redirect("/admin/sms", 303);
 });
 
 /* ---------- পণ্য ---------- */

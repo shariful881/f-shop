@@ -61,3 +61,14 @@ document.addEventListener("change", function (e) {
   });
   show();
 })();
+
+/* SMS সেটিংস: গেটওয়ে বদলালে ঘর দেখানো/লুকানো */
+(function () {
+  var sel = document.querySelector("[data-sms-provider]");
+  if (!sel) return;
+  sel.addEventListener("change", function () {
+    document.querySelectorAll("[data-sms-for]").forEach(function (el) {
+      el.hidden = el.getAttribute("data-sms-for").split(" ").indexOf(sel.value) === -1;
+    });
+  });
+})();

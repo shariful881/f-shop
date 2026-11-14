@@ -1,4 +1,5 @@
 import { COURIER_NAME, type CourierKey } from "../lib/courier";
+import { SMS_PLACEHOLDERS, SMS_PROVIDERS } from "../lib/sms";
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, STATUS_LABEL } from "../lib/orders";
@@ -57,6 +58,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
                 ["coupons", "/admin/coupons", "কুপন"],
                 ["settings", "/admin/settings", "সেটিংস"],
                 ["courier", "/admin/courier", "কুরিয়ার"],
+                ["sms", "/admin/sms", "SMS"],
                 ["billing", "/admin/billing", "বিলিং"],
                 ["staff", "/admin/staff", "স্টাফ"],
                 ["domains", "/admin/domain", "ডোমেইন"],
@@ -229,7 +231,7 @@ const CourierPanel = ({ o, couriers }: { o: Order; couriers: CourierKey[] }) => 
   </section>
 );
 
-export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[] }) => {
+export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[] }) => {
   const o = p.order;
   return (
     <>
@@ -275,6 +277,13 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
         </section>
 
         {(o.status === "confirmed" || o.consignment_id) && <CourierPanel o={o} couriers={p.couriers ?? []} />}
+
+        {(p.sms ?? []).length > 0 && (
+          <section class="panel">
+            <h2>SMS</h2>
+            <SmsLogTable logs={p.sms!} compact />
+          </section>
+        )}
 
         <section class="panel">
           <h2>Facebook Purchase</h2>
@@ -1055,3 +1064,100 @@ export const CourierPage = ({ s, active }: { s: Settings; active: CourierKey[] }
     </form>
   </>
 );
+
+/* ---------- SMS ---------- */
+export type SmsLogRow = { id: number; order_id: number | null; order_no?: string | null; event: string; phone: string; message: string; status: string; response: string | null; created_at: string };
+const SMS_EVENT: Record<string, string> = { confirmed: "কনফার্ম", shipped: "শিপড", test: "টেস্ট" };
+const SMS_STATUS: Record<string, [string, string]> = { sent: ["গেছে", "pill-ok"], failed: ["যায়নি", "pill-bad"], sending: ["পাঠানো হচ্ছে", ""] };
+
+export const SmsLogTable = ({ logs, compact }: { logs: SmsLogRow[]; compact?: boolean }) => (
+  <div class="table-wrap">
+    <table class="table compact">
+      <tbody>
+        {logs.map((l) => {
+          const [label, cls] = SMS_STATUS[l.status] ?? [l.status, ""];
+          return (
+            <tr>
+              <td><small>{dhakaTime(l.created_at)}</small><br /><small class="muted">{SMS_EVENT[l.event] ?? l.event}</small></td>
+              {!compact && <td>{l.order_id ? <a href={`/admin/orders/${l.order_id}`}>{l.order_no ?? `#${l.order_id}`}</a> : "—"}<br /><small>{l.phone}</small></td>}
+              <td class="break"><small>{l.message}</small></td>
+              <td>
+                <span class={`pill ${cls}`}>{label}</span>
+                {l.status === "failed" && l.response && <details><summary>কারণ</summary><pre class="pre">{l.response}</pre></details>}
+                {l.status === "failed" && <form method="post" action={`/admin/orders/sms/${l.id}/resend`}><button class="btn-link">আবার পাঠান</button></form>}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+);
+
+export const SmsPage = ({ s, logs, sent30, failed30 }: { s: Settings; logs: SmsLogRow[]; sent30: number; failed30: number }) => {
+  const provider = (s.sms_provider || "bulksmsbd") as keyof typeof SMS_PROVIDERS;
+  return (
+    <>
+      <h1>SMS</h1>
+      <p class="muted">আপনার নিজের SMS গেটওয়ের অ্যাকাউন্ট দিয়ে কাস্টমারকে SMS যাবে — খরচ গেটওয়েতেই। গত ৩০ দিনে: {sent30}টা গেছে, {failed30}টা যায়নি।</p>
+      <form method="post" action="/admin/sms" class="admin-form" data-sms-form>
+        <label class="field inline-check"><input type="checkbox" name="sms_enabled" value="1" checked={s.sms_enabled === "1"} /> <strong>SMS চালু</strong></label>
+        <h2>গেটওয়ে</h2>
+        <div class="form-grid">
+          <label class="field"><span>গেটওয়ে</span>
+            <select name="sms_provider" data-sms-provider>
+              {Object.entries(SMS_PROVIDERS).map(([k, v]) => <option value={k} selected={provider === k}>{v.name}</option>)}
+            </select>
+          </label>
+        </div>
+        {Object.entries(SMS_PROVIDERS).map(([k, v]) => <p class="muted small" data-sms-for={k} hidden={provider !== k}>{v.help}</p>)}
+        <div class="form-grid" data-sms-for="bulksmsbd smsnetbd" hidden={provider === "custom"}>
+          <label class="field"><span>API Key</span>
+            <input type="password" name="sms_api_key" autocomplete="off" placeholder={s.sms_api_key ? "সেভ করা আছে — বদলাতে নতুনটা দিন" : ""} />
+            {s.sms_api_key && <small><label class="inline-check"><input type="checkbox" name="clear_sms_api_key" value="1" /> মুছে ফেলুন</label></small>}
+          </label>
+          <label class="field"><span>Sender ID</span><input type="text" name="sms_sender_id" value={s.sms_sender_id ?? ""} /></label>
+        </div>
+        <div data-sms-for="custom" hidden={provider !== "custom"}>
+          <label class="field"><span>API URL ({"{number}"} = নম্বর 8801..., {"{message}"} = মেসেজ)</span>
+            <input type="text" name="sms_custom_url" value={s.sms_custom_url ?? ""} placeholder="https://gateway.com/api/send?key=XXXX&to={number}&text={message}" />
+          </label>
+          <div class="form-grid">
+            <label class="field"><span>পদ্ধতি</span>
+              <select name="sms_custom_method">
+                <option value="GET" selected={s.sms_custom_method !== "POST"}>GET</option>
+                <option value="POST" selected={s.sms_custom_method === "POST"}>POST</option>
+              </select>
+            </label>
+            <label class="field"><span>সফল হলে রেসপন্সে যে লেখা থাকে (ঐচ্ছিক)</span><input type="text" name="sms_custom_success" value={s.sms_custom_success ?? ""} placeholder="success" /></label>
+          </div>
+          <label class="field"><span>POST বডি (ঐচ্ছিক; JSON হলে {"{"} দিয়ে শুরু)</span>
+            <textarea name="sms_custom_body" rows={3} placeholder={'{"to":"{number}","message":"{message}"}'}>{s.sms_custom_body ?? ""}</textarea>
+          </label>
+        </div>
+
+        <h2>কখন SMS যাবে</h2>
+        <p class="muted small">টেমপ্লেটে লিখতে পারেন: {SMS_PLACEHOLDERS.join(" ")}। বাংলা SMS-এ ৭০ অক্ষরে এক SMS ধরা হয়, তাই ছোট রাখলে খরচ কম।</p>
+        <label class="field inline-check"><input type="checkbox" name="sms_on_confirm" value="1" checked={s.sms_on_confirm === "1"} /> অর্ডার কনফার্ম হলে</label>
+        <label class="field"><textarea name="sms_tpl_confirmed" rows={3} maxlength={600}>{s.sms_tpl_confirmed ?? ""}</textarea></label>
+        <label class="field inline-check"><input type="checkbox" name="sms_on_shipped" value="1" checked={s.sms_on_shipped === "1"} /> কুরিয়ারে পাঠানো/শিপড হলে (ট্র্যাকিংসহ)</label>
+        <label class="field"><textarea name="sms_tpl_shipped" rows={3} maxlength={600}>{s.sms_tpl_shipped ?? ""}</textarea></label>
+        <button class="btn btn-primary">সেভ করুন</button>
+      </form>
+
+      <section class="panel">
+        <h2>টেস্ট SMS</h2>
+        <form method="post" action="/admin/sms/test" class="search">
+          <input type="tel" name="phone" placeholder="01XXXXXXXXX" required />
+          <button class="btn btn-outline">টেস্ট SMS পাঠান</button>
+        </form>
+        <p class="muted small">আগে সেভ করুন, তারপর টেস্ট করুন।</p>
+      </section>
+
+      <section class="panel">
+        <h2>SMS লগ (শেষ ১০০টা)</h2>
+        {logs.length ? <SmsLogTable logs={logs} /> : <p class="muted">এখনো কোনো SMS যায়নি</p>}
+      </section>
+    </>
+  );
+};

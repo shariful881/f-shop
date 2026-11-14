@@ -140,3 +140,4 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .inline-check{display:inline-flex;gap:.4rem;align-items:center;flex-direction:row}
 .courier-form .form-grid{margin-bottom:.5rem}
 .small{font-size:.875rem}
+.panel .courier-form{border:0;padding:0;box-shadow:none;background:none}
