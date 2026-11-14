@@ -15,7 +15,7 @@ export type Variables = {
   fbp: string;
   fbc: string | null;
   settings: Record<string, string>;
-  admin?: { id: number; email: string; name: string };
+  admin?: { id: number; email: string; name: string; role: import("./lib/auth").Role };
   shopState: ShopState;
 };
 

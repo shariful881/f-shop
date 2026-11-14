@@ -62,14 +62,41 @@ export async function sessionUser(db: D1Database, token: string | undefined) {
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
   return db
     .prepare(
-      `SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id
-       WHERE s.id = ? AND s.expires_at > datetime('now') AND u.is_admin = 1`,
+      `SELECT u.id, u.email, u.name, u.role FROM sessions s JOIN users u ON u.id = s.user_id
+       WHERE s.id = ? AND s.expires_at > datetime('now') AND u.is_admin = 1 AND u.active = 1`,
     )
     .bind(await sha256Hex(token))
-    .first<{ id: number; email: string; name: string }>();
+    .first<{ id: number; email: string; name: string; role: Role }>();
 }
 
 export async function destroySession(db: D1Database, token: string | undefined) {
   if (!token) return;
   await db.prepare("DELETE FROM sessions WHERE id = ?").bind(await sha256Hex(token)).run();
+}
+
+/* ---------- রোল ও অনুমতি ---------- */
+export type Role = "owner" | "manager" | "orders";
+
+export const ROLE_LABEL: Record<Role, string> = {
+  owner: "মালিক",
+  manager: "ম্যানেজার",
+  orders: "অর্ডার স্টাফ",
+};
+
+/** কোন পেজ কে দেখতে পারবে */
+export const SECTION_ROLES: Record<string, Role[]> = {
+  orders: ["owner", "manager", "orders"],
+  products: ["owner", "manager"],
+  categories: ["owner", "manager"],
+  blacklist: ["owner", "manager"],
+  settings: ["owner"],
+  billing: ["owner"],
+  staff: ["owner"],
+  domains: ["owner"],
+  dns: ["owner"],
+};
+
+export function canAccess(role: Role, section: string): boolean {
+  const roles = SECTION_ROLES[section];
+  return roles ? roles.includes(role) : role === "owner";
 }

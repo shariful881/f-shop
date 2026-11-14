@@ -7,6 +7,7 @@ import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
 import type { ShopState } from "../../platform/billing";
+import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn } from "../lib/format";
 
 export type Flash = { type: "ok" | "error"; text: string } | null;
@@ -29,7 +30,7 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
   }
 };
 
-export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; state?: ShopState; children?: Child }) => (
+export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; children?: Child }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -52,7 +53,8 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
                 ["blacklist", "/admin/blacklist", "ব্ল্যাকলিস্ট"],
                 ["settings", "/admin/settings", "সেটিংস"],
                 ["billing", "/admin/billing", "বিলিং"],
-              ].map(([k, href, label]) => (
+                ["staff", "/admin/staff", "স্টাফ"],
+              ].filter(([k]) => canAccess(p.role ?? "owner", k!)).map(([k, href, label]) => (
                 <a href={href} class={p.active === k ? "active" : ""}>{label}</a>
               ))}
               <a href="/" target="_blank">সাইট ↗</a>
@@ -504,6 +506,82 @@ export const BillingPage = (p: { state: ShopState; fees: Record<string, string>;
           </table></div>
         )}
       </section>
+    </>
+  );
+};
+
+/* ---------- স্টাফ ---------- */
+export type StaffRow = { id: number; name: string; email: string; role: Role; active: number; created_at: string };
+
+export const StaffPage = (p: { users: StaffRow[]; me: number; fee: number; trial: boolean; errors?: Record<string, string>; values?: Record<string, string> }) => {
+  const e = p.errors ?? {};
+  const v = p.values ?? {};
+  return (
+    <>
+      <h1>স্টাফ</h1>
+      <p class="muted">
+        প্রতিজন স্টাফের জন্য মাসে {taka(p.fee)}। {p.trial ? "ট্রায়ালের সময় স্টাফ ফ্রি, ট্রায়াল শেষে মাসিক বিলে যোগ হবে।" : `নতুন স্টাফ যোগ করলে সাথে সাথে চলতি মাসের ${taka(p.fee)} কাটবে, তারপর প্রতি মাসের বিলে যোগ হবে।`}
+      </p>
+      <div class="panel">
+        <h2>রোল কে কী দেখতে পারবে</h2>
+        <ul class="small-list">
+          <li><strong>{ROLE_LABEL.owner}</strong>: সব কিছু — বিলিং, সেটিংস, স্টাফ, ডোমেইন</li>
+          <li><strong>{ROLE_LABEL.manager}</strong>: অর্ডার, পণ্য, ক্যাটাগরি, ব্ল্যাকলিস্ট</li>
+          <li><strong>{ROLE_LABEL.orders}</strong>: শুধু অর্ডার (দেখা আর স্ট্যাটাস বদল)</li>
+        </ul>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>নাম</th><th>রোল</th><th>অবস্থা</th><th></th></tr></thead>
+          <tbody>
+            {p.users.map((u) => (
+              <tr class={u.active ? "" : "dim"}>
+                <td><strong>{u.name}</strong><br /><small>{u.email}</small></td>
+                <td>
+                  {u.role === "owner" ? ROLE_LABEL.owner : (
+                    <form method="post" action={`/admin/staff/${u.id}/role`} class="row-form inline-form">
+                      <select name="role">
+                        <option value="manager" selected={u.role === "manager"}>{ROLE_LABEL.manager}</option>
+                        <option value="orders" selected={u.role === "orders"}>{ROLE_LABEL.orders}</option>
+                      </select>
+                      <button class="btn btn-outline btn-sm">বদলান</button>
+                    </form>
+                  )}
+                </td>
+                <td>{u.active ? <span class="pill pill-ok">চালু</span> : <span class="pill pill-bad">বন্ধ</span>}</td>
+                <td class="nowrap">
+                  {u.role !== "owner" && u.id !== p.me && (
+                    <>
+                      <form method="post" action={`/admin/staff/${u.id}/password`} class="row-form inline-form">
+                        <input type="password" name="password" placeholder="নতুন পাসওয়ার্ড" minlength={8} required class="w-md" />
+                        <button class="btn-link">পাসওয়ার্ড বদলান</button>
+                      </form>
+                      <form method="post" action={`/admin/staff/${u.id}/delete`} class="inline" data-confirm="এই স্টাফকে মুছে ফেলবেন? সে আর লগইন করতে পারবে না।">
+                        <button class="btn-link danger">মুছুন</button>
+                      </form>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <form method="post" action="/admin/staff" class="admin-form" style="margin-top:14px">
+        <h2>নতুন স্টাফ যোগ করুন</h2>
+        <div class="form-grid">
+          <label class="field"><span>নাম</span><input type="text" name="name" value={v.name ?? ""} required maxlength={60} />{e.name && <small class="error">{e.name}</small>}</label>
+          <label class="field"><span>ইমেইল (লগইনের জন্য)</span><input type="email" name="email" value={v.email ?? ""} required />{e.email && <small class="error">{e.email}</small>}</label>
+          <label class="field"><span>পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)</span><input type="password" name="password" required minlength={8} autocomplete="new-password" />{e.password && <small class="error">{e.password}</small>}</label>
+          <label class="field"><span>রোল</span>
+            <select name="role">
+              <option value="orders" selected={v.role !== "manager"}>{ROLE_LABEL.orders}</option>
+              <option value="manager" selected={v.role === "manager"}>{ROLE_LABEL.manager}</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn btn-primary" data-confirm-fee>যোগ করুন{p.trial ? "" : ` (${taka(p.fee)}/মাস)`}</button>
+      </form>
     </>
   );
 };

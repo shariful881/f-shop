@@ -75,3 +75,6 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .balance-big.neg { color: var(--danger); }
 .small-list { padding-left: 20px; margin: 8px 0; }
 .small-list li { margin: 3px 0; }
+.inline-form { margin: 0; display: inline-flex; gap: 6px; flex-wrap: nowrap; }
+.inline-form select, .inline-form input { font: inherit; padding: 5px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; min-width: 0; flex: 0 1 auto; }
+.w-md { width: 150px; }

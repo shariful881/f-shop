@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, SettingsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
-import { createSession, destroySession, sha256Hex, verifyPassword } from "../lib/auth";
+import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
 import type { Category, Product } from "../lib/products";
@@ -13,8 +13,8 @@ import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
-import { BillingPage, type LedgerRow, type TopupRow } from "../views/admin";
-import { billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
+import { BillingPage, StaffPage, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
+import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
 import { clearShopCache } from "../../platform/resolve";
 
 export const admin = new Hono<AppEnv>();
@@ -33,7 +33,7 @@ function takeFlash(c: Ctx): Flash {
 function render(c: Ctx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200) {
   return c.html(
     "<!DOCTYPE html>" +
-      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} state={c.var.shopState}>{body as any}</AdminLayout>),
+      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState}>{body as any}</AdminLayout>),
     status,
   );
 }
@@ -50,9 +50,9 @@ admin.post("/login", async (c) => {
 
   if (!(await hitRateLimit(c.env.DB, `login:${clientIp(c)}`, 10, 900))) return fail("অনেকবার ভুল চেষ্টা হয়েছে। ১৫ মিনিট পরে চেষ্টা করুন।");
 
-  const user = await c.env.DB.prepare("SELECT id, password_hash, is_admin FROM users WHERE email = ?").bind(email)
-    .first<{ id: number; password_hash: string; is_admin: number }>();
-  if (!user || !user.is_admin || !(await verifyPassword(password, user.password_hash))) return fail("ইমেইল বা পাসওয়ার্ড ভুল");
+  const user = await c.env.DB.prepare("SELECT id, password_hash, is_admin, active FROM users WHERE email = ?").bind(email)
+    .first<{ id: number; password_hash: string; is_admin: number; active: number }>();
+  if (!user || !user.is_admin || !user.active || !(await verifyPassword(password, user.password_hash))) return fail("ইমেইল বা পাসওয়ার্ড ভুল");
 
   const token = await createSession(c.env.DB, user.id);
   setCookie(c, ADMIN_COOKIE, token, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
@@ -401,4 +401,82 @@ admin.post("/billing/topup", async (c) => {
   }
   flash(c, "ok", "রিচার্জের অনুরোধ পাঠানো হয়েছে। যাচাই হলে ব্যালেন্সে যোগ হবে।");
   return c.redirect("/admin/billing", 303);
+});
+
+/* ---------- স্টাফ (শুধু মালিক) ---------- */
+async function syncStaffCount(c: Ctx) {
+  const row = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE role != 'owner' AND active = 1").first<{ n: number }>();
+  await c.env.PLATFORM_DB.prepare("UPDATE shops SET staff_count = ? WHERE id = ?").bind(row?.n ?? 0, c.env.SHOP_ID).run();
+}
+
+async function renderStaff(c: Ctx, form?: { errors: Record<string, string>; values: Record<string, string> }) {
+  const { results } = await c.env.DB.prepare("SELECT id, name, email, role, active, created_at FROM users ORDER BY role = 'owner' DESC, id").all<StaffRow>();
+  const fees = await platformSettings(c.env.PLATFORM_DB);
+  return render(c, "স্টাফ", "staff",
+    <StaffPage users={results} me={c.var.admin!.id} fee={toInt(fees.staff_fee, 99)} trial={c.var.shopState.status === "trial"} errors={form?.errors} values={form?.values} />,
+    form ? 422 : 200);
+}
+
+admin.get("/staff", (c) => renderStaff(c));
+
+admin.post("/staff", async (c) => {
+  const b = await c.req.parseBody();
+  const values = { name: str(b.name, 60), email: str(b.email, 120).toLowerCase(), role: b.role === "manager" ? "manager" : "orders" };
+  const password = typeof b.password === "string" ? b.password : "";
+  const errors: Record<string, string> = {};
+  if (values.name.length < 2) errors.name = "নাম লিখুন";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) errors.email = "সঠিক ইমেইল লিখুন";
+  else if (await c.env.DB.prepare("SELECT 1 FROM users WHERE email = ?").bind(values.email).first()) errors.email = "এই ইমেইলে আগেই অ্যাকাউন্ট আছে";
+  if (password.length < 8) errors.password = "কমপক্ষে ৮ অক্ষর";
+  if (Object.keys(errors).length) return renderStaff(c, { errors, values });
+
+  const r = await c.env.DB.prepare("INSERT INTO users (name, email, password_hash, is_admin, role, active) VALUES (?, ?, ?, 1, ?, 1) RETURNING id")
+    .bind(values.name, values.email, await hashPassword(password), values.role).first<{ id: number }>();
+  await syncStaffCount(c);
+
+  // চলতি মাসের স্টাফ চার্জ (ট্রায়ালে নয়)
+  if (c.var.shopState.status !== "trial") {
+    const fees = await platformSettings(c.env.PLATFORM_DB);
+    const fee = toInt(fees.staff_fee, 99);
+    if (fee > 0) {
+      await applyLedger(c.env.PLATFORM_DB, c.env.SHOP_ID, "monthly", -fee, `staff-add:${r!.id}:${new Date().toISOString().slice(0, 7)}`, `নতুন স্টাফ: ${values.name}`);
+    }
+  }
+  clearShopCache();
+  flash(c, "ok", `${values.name} যোগ হয়েছে। সে ${values.email} দিয়ে /admin-এ লগইন করতে পারবে।`);
+  return c.redirect("/admin/staff", 303);
+});
+
+admin.post("/staff/:id{[0-9]+}/role", async (c) => {
+  const role = (await c.req.parseBody()).role === "manager" ? "manager" : "orders";
+  await c.env.DB.prepare("UPDATE users SET role = ? WHERE id = ? AND role != 'owner'").bind(role, toInt(c.req.param("id"))).run();
+  flash(c, "ok", "রোল বদলেছে।");
+  return c.redirect("/admin/staff", 303);
+});
+
+admin.post("/staff/:id{[0-9]+}/password", async (c) => {
+  const password = String((await c.req.parseBody()).password ?? "");
+  if (password.length < 8) {
+    flash(c, "error", "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে");
+  } else {
+    const id = toInt(c.req.param("id"));
+    await c.env.DB.batch([
+      c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ? AND role != 'owner'").bind(await hashPassword(password), id),
+      c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ? AND user_id IN (SELECT id FROM users WHERE role != 'owner')").bind(id),
+    ]);
+    flash(c, "ok", "পাসওয়ার্ড বদলেছে।");
+  }
+  return c.redirect("/admin/staff", 303);
+});
+
+admin.post("/staff/:id{[0-9]+}/delete", async (c) => {
+  const id = toInt(c.req.param("id"));
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ? AND user_id IN (SELECT id FROM users WHERE role != 'owner')").bind(id),
+    c.env.DB.prepare("DELETE FROM users WHERE id = ? AND role != 'owner'").bind(id),
+  ]);
+  await syncStaffCount(c);
+  clearShopCache();
+  flash(c, "ok", "স্টাফ মুছে ফেলা হয়েছে।");
+  return c.redirect("/admin/staff", 303);
 });

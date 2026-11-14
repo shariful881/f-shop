@@ -5,11 +5,13 @@ import type { WorkerEnv } from "../worker-env";
 // প্রতিটা দোকানের ডাটাবেসের টেবিল (ক্রম অনুযায়ী)
 import m0001 from "../../migrations/shop/0001_init.sql";
 import m0002 from "../../migrations/shop/0002_login_tokens.sql";
+import m0003 from "../../migrations/shop/0003_staff_roles.sql";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 
 export const SHOP_MIGRATIONS: [string, string][] = [
   ["0001_init", m0001],
   ["0002_login_tokens", m0002],
+  ["0003_staff_roles", m0003],
 ];
 
 export type SetupInput = {
