@@ -228,7 +228,25 @@ body.admin .banner { display: flex; gap: 8px; align-items: center; justify-conte
 body.admin-login { min-height: 100vh; display: grid; place-items: center; background: linear-gradient(180deg, #f0fdfa, var(--c-bg) 40%); }
 body.admin-login .admin-main { width: 100%; padding: 24px 16px; }
 body.admin-login .login-box { max-width: 400px; margin: 0 auto; padding: 28px; border-radius: var(--r-lg); box-shadow: var(--sh); border: 1px solid var(--c-line); }
-body.admin-login .login-box h1 { font-size: var(--fs-xl); margin: 0 0 4px; text-align: center; }
+body.admin-login .login-box h1 { font-size: var(--fs-xl); margin: 0 0 4px; text-align: center; justify-content: center; }
 body.admin-login .login-brand { display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 800; color: var(--c-ink); margin-bottom: 18px; font-size: 1.15rem; }
 body.admin-login .login-brand span.mark { width: 34px; height: 34px; border-radius: 10px; background: var(--c-brand); color: #fff; display: grid; place-items: center; }
 body.admin-login .order-form { display: grid; gap: 14px; margin-top: 16px; }
+
+/* ---------- ছোট ঠিকঠাক ---------- */
+/* ফর্মের সেভ বাটন পুরো চওড়া নয় (লগইন বাদে) */
+body.admin:not(.admin-login) form .btn-block { display: inline-flex; width: auto; min-width: 180px; margin-top: var(--sp-2); }
+@media (max-width: 600px) { body.admin:not(.admin-login) form .btn-block { display: flex; width: 100%; } }
+/* এক প্যানেলে কয়েকটা অংশ থাকলে মাঝে দাগ */
+body.admin .panel > h2:not(:first-child), body.admin .admin-form > h2:not(:first-child),
+body.admin .panel > h3:not(:first-child), body.admin .admin-form > h3:not(:first-child) {
+  margin-top: var(--sp-6); padding-top: var(--sp-5); border-top: 1px solid var(--c-line);
+}
+/* টেবিলের কাজের বাটনগুলো */
+body.admin .table td:last-child { white-space: nowrap; }
+body.admin .table td .btn, body.admin .table td form.inline, body.admin .table td .btn-link { margin: 2px; vertical-align: middle; }
+body.admin .table td form.inline { display: inline-block; }
+body.admin .thumb { border-radius: var(--r-sm); object-fit: cover; background: #f1f5f9; }
+/* তারিখ, সার্চ সারি */
+body.admin .search, body.admin .row-form { align-items: center; }
+body.admin .search .btn, body.admin .row-form .btn { flex: none; }
