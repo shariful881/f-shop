@@ -1,0 +1,1152 @@
+[
+ {
+  "key": "sutokotha",
+  "niche": "পাকিস্তানি থ্রি-পিস",
+  "name": "সুতোকথা",
+  "tagline": "পাকিস্তানি স্টাইলের থ্রি-পিস, ঘরে বসে",
+  "theme": "pro",
+  "colors": {
+   "primary": "#9d174d",
+   "accent": "#f59e0b"
+  },
+  "delivery": [
+   70,
+   130
+  ],
+  "cats": [
+   "লন থ্রি-পিস",
+   "এমব্রয়ডারি",
+   "পার্টি ওয়্যার",
+   "আনস্টিচড",
+   "রেডিমেড কুর্তি"
+  ],
+  "products": [
+   {
+    "cat": "লন থ্রি-পিস",
+    "name": "ফ্লোরাল প্রিন্ট লন থ্রি-পিস — গোলাপি",
+    "price": 2150,
+    "compare": 2650,
+    "prompt": "professional e-commerce product photo, flat lay of unstitched pink floral printed lawn three piece suit fabric: shirt, dupatta and trouser neatly folded, on light beige background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "লন থ্রি-পিস",
+    "name": "ডিজিটাল প্রিন্ট লন — আকাশি নীল",
+    "price": 2350,
+    "compare": 2900,
+    "prompt": "professional e-commerce product photo, flat lay of sky blue digital printed lawn three piece suit fabric neatly folded with matching printed dupatta, on light beige background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "লন থ্রি-পিস",
+    "name": "সামার লন কালেকশন — লেমন ইয়েলো",
+    "price": 1950,
+    "compare": 2450,
+    "prompt": "professional e-commerce product photo, flat lay of lemon yellow lawn three piece suit with small white floral print, folded fabric set, on light beige background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "লন থ্রি-পিস",
+    "name": "কটন লন থ্রি-পিস — মিন্ট গ্রিন",
+    "price": 2250,
+    "compare": 2750,
+    "prompt": "professional e-commerce product photo, flat lay of mint green cotton lawn three piece suit with delicate white embroidery on neckline, on light beige background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "এমব্রয়ডারি",
+    "name": "নেক এমব্রয়ডারি থ্রি-পিস — মেরুন",
+    "price": 3250,
+    "compare": 3950,
+    "prompt": "professional e-commerce product photo, flat lay of maroon three piece suit with heavy thread embroidered neckline and chiffon dupatta, on cream fabric background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "এমব্রয়ডারি",
+    "name": "চিকেনকারি স্টাইল — সাদা",
+    "price": 2950,
+    "compare": 3600,
+    "prompt": "professional e-commerce product photo, flat lay of white three piece suit with fine chikankari style hand embroidery, folded, on soft grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "এমব্রয়ডারি",
+    "name": "ফুল এমব্রয়ডারি লন — বটল গ্রিন",
+    "price": 3650,
+    "compare": 4400,
+    "prompt": "professional e-commerce product photo, flat lay of bottle green lawn three piece suit with full front embroidery and organza dupatta, on cream fabric background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "এমব্রয়ডারি",
+    "name": "স্লিভ এমব্রয়ডারি — পিচ",
+    "price": 2850,
+    "compare": 3450,
+    "prompt": "professional e-commerce product photo, flat lay of peach colored three piece suit with embroidered sleeves and border, folded neatly, on cream fabric background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পার্টি ওয়্যার",
+    "name": "শিফন পার্টি থ্রি-পিস — রয়্যাল ব্লু",
+    "price": 4650,
+    "compare": 5600,
+    "prompt": "professional e-commerce product photo, royal blue chiffon party wear three piece suit with sequin and stone work, folded with sparkle details, on dark velvet background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পার্টি ওয়্যার",
+    "name": "অর্গাঞ্জা ফেস্টিভ সেট — গোল্ডেন",
+    "price": 4950,
+    "compare": 5950,
+    "prompt": "professional e-commerce product photo, golden organza festive three piece suit with zari embroidery and tassels, on dark velvet background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পার্টি ওয়্যার",
+    "name": "ভেলভেট শাল সেট — ব্ল্যাক",
+    "price": 5450,
+    "compare": 6500,
+    "prompt": "professional e-commerce product photo, black velvet three piece suit with gold embroidered shawl, luxurious winter party wear, on dark burgundy background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পার্টি ওয়্যার",
+    "name": "জর্জেট পার্টি সেট — রোজ পিংক",
+    "price": 4250,
+    "compare": 5200,
+    "prompt": "professional e-commerce product photo, rose pink georgette party three piece suit with pearl and mirror work dupatta, on dark velvet background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "আনস্টিচড",
+    "name": "আনস্টিচড প্রিন্টেড সেট — অফ হোয়াইট",
+    "price": 1850,
+    "compare": 2300,
+    "prompt": "professional e-commerce product photo, unstitched off white printed fabric set with blue paisley print, rolled and folded fabric pieces, on light wooden surface, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "আনস্টিচড",
+    "name": "আনস্টিচড কটন সেট — অরেঞ্জ",
+    "price": 1750,
+    "compare": 2200,
+    "prompt": "professional e-commerce product photo, unstitched orange cotton three piece fabric set with block print border, on light wooden surface, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "আনস্টিচড",
+    "name": "আনস্টিচড জ্যাকার্ড — লাইলাক",
+    "price": 2450,
+    "compare": 2950,
+    "prompt": "professional e-commerce product photo, unstitched lilac jacquard woven fabric three piece set with self pattern, on light wooden surface, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "আনস্টিচড",
+    "name": "আনস্টিচড খাদি সেট — ব্রাউন",
+    "price": 2650,
+    "compare": 3200,
+    "prompt": "professional e-commerce product photo, unstitched brown khaddar winter fabric three piece set with printed shawl, on light wooden surface, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "রেডিমেড কুর্তি",
+    "name": "রেডিমেড এমব্রয়ডারি কুর্তি — নেভি",
+    "price": 1450,
+    "compare": 1850,
+    "prompt": "professional e-commerce product photo, navy blue embroidered ladies kurti on a wooden hanger, on plain white wall background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": [
+     "M",
+     "L",
+     "XL"
+    ]
+   },
+   {
+    "cat": "রেডিমেড কুর্তি",
+    "name": "রেডিমেড লন কুর্তি — টিল",
+    "price": 1250,
+    "compare": 1600,
+    "prompt": "professional e-commerce product photo, teal printed lawn ladies kurti with lace detailing on a wooden hanger, on plain white wall background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": [
+     "M",
+     "L",
+     "XL"
+    ]
+   },
+   {
+    "cat": "রেডিমেড কুর্তি",
+    "name": "রেডিমেড টু-পিস — বেবি পিংক",
+    "price": 1950,
+    "compare": 2400,
+    "prompt": "professional e-commerce product photo, baby pink stitched two piece kurti with matching trouser on a wooden hanger, on plain white wall background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": [
+     "M",
+     "L",
+     "XL"
+    ]
+   },
+   {
+    "cat": "রেডিমেড কুর্তি",
+    "name": "রেডিমেড এ-লাইন কুর্তি — মাস্টার্ড",
+    "price": 1350,
+    "compare": 1700,
+    "prompt": "professional e-commerce product photo, mustard yellow A-line ladies kurti with mirror work on a wooden hanger, on plain white wall background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": [
+     "M",
+     "L",
+     "XL"
+    ]
+   }
+  ],
+  "banner_prompts": [
+   "wide website hero banner photo, folded pastel pakistani lawn three piece suits with embroidered dupatta on a wooden table with flowers, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, rack of colorful embroidered pakistani shalwar kameez in an elegant boutique, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, luxury festive chiffon dupatta with gold embroidery draped on a velvet surface, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark"
+  ]
+ },
+ {
+  "key": "tokmaya",
+  "niche": "স্কিনকেয়ার",
+  "name": "ত্বকমায়া",
+  "tagline": "কোরিয়ান রুটিনের স্কিনকেয়ার, বাংলাদেশের আবহাওয়ায়",
+  "theme": "minimal",
+  "colors": {
+   "primary": "#0f766e",
+   "accent": "#f472b6"
+  },
+  "delivery": [
+   60,
+   120
+  ],
+  "cats": [
+   "সানস্ক্রিন",
+   "সিরাম",
+   "ক্লেনজার",
+   "ময়েশ্চারাইজার",
+   "চুলের যত্ন"
+  ],
+  "products": [
+   {
+    "cat": "সানস্ক্রিন",
+    "name": "ওয়াটারি সান জেল SPF50+ — ৫০ml",
+    "price": 1150,
+    "compare": 1450,
+    "prompt": "professional e-commerce product photo, white unbranded sunscreen tube with mint cap, on pastel mint background with soft shadow, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সানস্ক্রিন",
+    "name": "অয়েল কন্ট্রোল সানস্ক্রিন — ৫০ml",
+    "price": 1250,
+    "compare": 1600,
+    "prompt": "professional e-commerce product photo, matte white unbranded sunscreen squeeze tube with light blue accents, on pastel blue background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সানস্ক্রিন",
+    "name": "টোন-আপ সান ক্রিম — ৪০ml",
+    "price": 990,
+    "compare": 1250,
+    "prompt": "professional e-commerce product photo, pink unbranded tone up sun cream tube, on pastel pink background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সানস্ক্রিন",
+    "name": "সান স্টিক — ২০g",
+    "price": 1350,
+    "compare": 1700,
+    "prompt": "professional e-commerce product photo, unbranded white sunscreen stick with cap removed, on pastel peach background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সিরাম",
+    "name": "ভিটামিন সি ব্রাইটেনিং সিরাম — ৩০ml",
+    "price": 1450,
+    "compare": 1850,
+    "prompt": "professional e-commerce product photo, amber glass dropper serum bottle with orange slices beside it, on soft cream background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সিরাম",
+    "name": "নিয়াসিনামাইড ১০% সিরাম — ৩০ml",
+    "price": 1250,
+    "compare": 1600,
+    "prompt": "professional e-commerce product photo, clear glass dropper serum bottle with white label area, minimal, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সিরাম",
+    "name": "হায়ালুরোনিক ময়েশ্চার সিরাম — ৫০ml",
+    "price": 1350,
+    "compare": 1700,
+    "prompt": "professional e-commerce product photo, blue tinted glass dropper bottle with water droplets, on light blue background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "সিরাম",
+    "name": "সেন্টেলা কাম সিরাম — ৩০ml",
+    "price": 1150,
+    "compare": 1450,
+    "prompt": "professional e-commerce product photo, green glass dropper bottle with centella leaves around it, on soft green background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ক্লেনজার",
+    "name": "লো পিএইচ জেল ক্লেনজার — ১৫০ml",
+    "price": 850,
+    "compare": 1100,
+    "prompt": "professional e-commerce product photo, unbranded clear gel face cleanser tube, on white marble background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ক্লেনজার",
+    "name": "রাইস ফোম ক্লেনজার — ১২০ml",
+    "price": 750,
+    "compare": 950,
+    "prompt": "professional e-commerce product photo, white foam cleanser tube with a small bowl of rice grains, on beige linen background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ক্লেনজার",
+    "name": "ক্লেনজিং অয়েল — ২০০ml",
+    "price": 1450,
+    "compare": 1800,
+    "prompt": "professional e-commerce product photo, pump bottle of golden cleansing oil, unbranded, on white marble background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ক্লেনজার",
+    "name": "মাইসেলার ওয়াটার — ৩০০ml",
+    "price": 950,
+    "compare": 1200,
+    "prompt": "professional e-commerce product photo, clear plastic bottle of micellar water with cotton pads, on white marble background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ময়েশ্চারাইজার",
+    "name": "সেরামাইড ব্যারিয়ার ক্রিম — ৫০ml",
+    "price": 1550,
+    "compare": 1950,
+    "prompt": "professional e-commerce product photo, white cream jar with lid open showing thick cream texture, on soft beige background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ময়েশ্চারাইজার",
+    "name": "অয়েল-ফ্রি জেল ময়েশ্চারাইজার — ৭০ml",
+    "price": 1150,
+    "compare": 1450,
+    "prompt": "professional e-commerce product photo, clear jar of light blue gel moisturizer, on pastel blue background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ময়েশ্চারাইজার",
+    "name": "স্নেইল রিপেয়ার ক্রিম — ৫০g",
+    "price": 1650,
+    "compare": 2050,
+    "prompt": "professional e-commerce product photo, minimal white cream jar with a cream swatch beside it, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ময়েশ্চারাইজার",
+    "name": "লিপ স্লিপিং মাস্ক — ২০g",
+    "price": 650,
+    "compare": 850,
+    "prompt": "professional e-commerce product photo, small pink lip balm jar with a tiny spatula and berries, on pastel pink background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "চুলের যত্ন",
+    "name": "রোজমেরি হেয়ার অয়েল — ১০০ml",
+    "price": 650,
+    "compare": 850,
+    "prompt": "professional e-commerce product photo, amber glass bottle of hair oil with fresh rosemary sprigs, on light wooden surface, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "চুলের যত্ন",
+    "name": "অ্যান্টি হেয়ার ফল শ্যাম্পু — ৩০০ml",
+    "price": 850,
+    "compare": 1050,
+    "prompt": "professional e-commerce product photo, unbranded white shampoo bottle with green leaves, on white marble background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "চুলের যত্ন",
+    "name": "হেয়ার মাস্ক — ২০০ml",
+    "price": 950,
+    "compare": 1200,
+    "prompt": "professional e-commerce product photo, tub of creamy hair mask with lid open, on beige background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "চুলের যত্ন",
+    "name": "কম্বো: ক্লেনজার + সিরাম + সানস্ক্রিন",
+    "price": 2950,
+    "compare": 3700,
+    "prompt": "professional e-commerce product photo, set of three minimal unbranded skincare products: cleanser tube, dropper serum, sunscreen tube arranged together, on pastel pink background with podium, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   }
+  ],
+  "banner_prompts": [
+   "wide website hero banner photo, minimal skincare bottles and jars arranged on pastel pink stone podiums with soft shadows, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, dewy glass serum dropper bottles with water droplets and green leaves, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, flat lay of a korean style skincare routine set with towels and flowers, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark"
+  ]
+ },
+ {
+  "key": "khatibari",
+  "niche": "মধু-ঘি-খেজুর",
+  "name": "খাঁটিবাড়ি",
+  "tagline": "মধু, ঘি, খেজুর — সরাসরি উৎস থেকে",
+  "theme": "classic",
+  "colors": {
+   "primary": "#b45309",
+   "accent": "#166534"
+  },
+  "delivery": [
+   80,
+   150
+  ],
+  "cats": [
+   "মধু",
+   "ঘি ও তেল",
+   "খেজুর",
+   "বাদাম ও ড্রাই ফ্রুট",
+   "স্বাস্থ্যকর খাবার"
+  ],
+  "products": [
+   {
+    "cat": "মধু",
+    "name": "সুন্দরবনের খলিশা ফুলের মধু — ১ কেজি",
+    "price": 1350,
+    "compare": 1650,
+    "prompt": "professional e-commerce product photo, glass jar of light golden honey with honeycomb piece and wooden dipper, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মধু",
+    "name": "সরিষা ফুলের মধু — ১ কেজি",
+    "price": 690,
+    "compare": 850,
+    "prompt": "professional e-commerce product photo, glass jar of creamy crystallized pale honey with yellow mustard flowers, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মধু",
+    "name": "লিচু ফুলের মধু — ১ কেজি",
+    "price": 750,
+    "compare": 950,
+    "prompt": "professional e-commerce product photo, glass jar of amber honey with fresh lychee fruits beside it, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মধু",
+    "name": "কালোজিরা ফুলের মধু — ৫০০g",
+    "price": 650,
+    "compare": 800,
+    "prompt": "professional e-commerce product photo, glass jar of dark honey with a small bowl of black seeds, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ঘি ও তেল",
+    "name": "গাওয়া ঘি — ১ কেজি",
+    "price": 1650,
+    "compare": 1950,
+    "prompt": "professional e-commerce product photo, glass jar of grainy golden ghee with a wooden spoon, on dark wooden background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ঘি ও তেল",
+    "name": "গাওয়া ঘি — ৫০০g",
+    "price": 850,
+    "compare": 1000,
+    "prompt": "professional e-commerce product photo, small glass jar of golden ghee, lid beside it, on dark wooden background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ঘি ও তেল",
+    "name": "ঘানি ভাঙা সরিষার তেল — ২ লিটার",
+    "price": 650,
+    "compare": 780,
+    "prompt": "professional e-commerce product photo, plastic bottle of golden mustard oil with mustard seeds in a bowl, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ঘি ও তেল",
+    "name": "ভার্জিন নারিকেল তেল — ৫০০ml",
+    "price": 750,
+    "compare": 900,
+    "prompt": "professional e-commerce product photo, glass bottle of clear coconut oil with half coconut, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেজুর",
+    "name": "আজওয়া খেজুর — ১ কেজি",
+    "price": 1650,
+    "compare": 1900,
+    "prompt": "professional e-commerce product photo, premium dark ajwa dates in a wooden bowl, on dark wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেজুর",
+    "name": "মেডজুল খেজুর (জাম্বো) — ১ কেজি",
+    "price": 1950,
+    "compare": 2300,
+    "prompt": "professional e-commerce product photo, large juicy medjool dates in a brass bowl, on dark wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেজুর",
+    "name": "সুক্কারি খেজুর — ১ কেজি",
+    "price": 1150,
+    "compare": 1350,
+    "prompt": "professional e-commerce product photo, soft golden sukkari dates in a basket, on dark wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেজুর",
+    "name": "মাবরুম খেজুর — ৫০০g",
+    "price": 950,
+    "compare": 1150,
+    "prompt": "professional e-commerce product photo, long brown mabroom dates arranged in a box, on dark wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাদাম ও ড্রাই ফ্রুট",
+    "name": "হানি নাট (মধুতে বাদাম) — ৫০০g",
+    "price": 990,
+    "compare": 1250,
+    "prompt": "professional e-commerce product photo, glass jar filled with mixed nuts, dates and raisins soaked in honey, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাদাম ও ড্রাই ফ্রুট",
+    "name": "কাঠবাদাম (আমন্ড) — ৫০০g",
+    "price": 650,
+    "compare": 780,
+    "prompt": "professional e-commerce product photo, bowl of raw almonds with some scattered, on linen cloth on wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাদাম ও ড্রাই ফ্রুট",
+    "name": "কাজুবাদাম (W320) — ৫০০g",
+    "price": 750,
+    "compare": 900,
+    "prompt": "professional e-commerce product photo, bowl of whole white cashew nuts, on linen cloth on wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাদাম ও ড্রাই ফ্রুট",
+    "name": "মিক্সড ড্রাই ফ্রুট — ৫০০g",
+    "price": 890,
+    "compare": 1100,
+    "prompt": "professional e-commerce product photo, wooden bowl of mixed dry fruits: apricots, figs, raisins, cranberries, pistachios, on linen cloth on wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্বাস্থ্যকর খাবার",
+    "name": "চিয়া সিড — ৫০০g",
+    "price": 450,
+    "compare": 560,
+    "prompt": "professional e-commerce product photo, bowl of chia seeds with a wooden scoop, on white marble, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্বাস্থ্যকর খাবার",
+    "name": "কালোজিরা — ২৫০g",
+    "price": 180,
+    "compare": 230,
+    "prompt": "professional e-commerce product photo, small clay bowl of black cumin seeds, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্বাস্থ্যকর খাবার",
+    "name": "খেজুরের গুড় (পাটালি) — ১ কেজি",
+    "price": 450,
+    "compare": 550,
+    "prompt": "professional e-commerce product photo, round blocks of brown date palm jaggery patali on banana leaf, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্বাস্থ্যকর খাবার",
+    "name": "শীতের কম্বো: মধু + ঘি + খেজুর",
+    "price": 3450,
+    "compare": 4100,
+    "prompt": "professional e-commerce product photo, gift set of honey jar, ghee jar and dates box arranged together with jute ribbon, on rustic wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   }
+  ],
+  "banner_prompts": [
+   "wide website hero banner photo, glass jars of golden honey with honeycomb and wooden dipper on a rustic table, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, bowls of premium dates, almonds, cashews and honey on a dark wooden table, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, jar of pure ghee with mustard flowers field in soft background, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark"
+  ]
+ },
+ {
+  "key": "gadgetpara",
+  "niche": "গ্যাজেট ও এক্সেসরিজ",
+  "name": "গ্যাজেটপাড়া",
+  "tagline": "বাজেটের গ্যাজেট, ৭ দিনের রিপ্লেসমেন্ট",
+  "theme": "bold",
+  "colors": {
+   "primary": "#1d4ed8",
+   "accent": "#f97316"
+  },
+  "delivery": [
+   70,
+   130
+  ],
+  "cats": [
+   "ইয়ারবাড",
+   "স্মার্টওয়াচ",
+   "নেকব্যান্ড ও হেডফোন",
+   "পাওয়ার ব্যাংক ও চার্জার",
+   "মোবাইল এক্সেসরিজ"
+  ],
+  "products": [
+   {
+    "cat": "ইয়ারবাড",
+    "name": "TWS ইয়ারবাড ENC — ব্ল্যাক",
+    "price": 1450,
+    "compare": 1950,
+    "prompt": "professional e-commerce product photo, unbranded black true wireless earbuds with open charging case, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইয়ারবাড",
+    "name": "TWS ইয়ারবাড ANC প্রো — হোয়াইট",
+    "price": 2950,
+    "compare": 3800,
+    "prompt": "professional e-commerce product photo, unbranded white noise cancelling earbuds with glossy charging case, on light grey gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইয়ারবাড",
+    "name": "গেমিং ইয়ারবাড লো ল্যাটেন্সি",
+    "price": 1850,
+    "compare": 2450,
+    "prompt": "professional e-commerce product photo, unbranded black gaming earbuds with RGB light charging case, on dark background with blue light, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইয়ারবাড",
+    "name": "মিনি ইয়ারবাড — পিংক",
+    "price": 1250,
+    "compare": 1650,
+    "prompt": "professional e-commerce product photo, small pink unbranded wireless earbuds with case, on pastel background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্মার্টওয়াচ",
+    "name": "কলিং স্মার্টওয়াচ ১.৯৬\" — ব্ল্যাক",
+    "price": 2450,
+    "compare": 3200,
+    "prompt": "professional e-commerce product photo, unbranded square black smartwatch with bright display showing watch face, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্মার্টওয়াচ",
+    "name": "স্মার্টওয়াচ রাউন্ড AMOLED — সিলভার",
+    "price": 3650,
+    "compare": 4500,
+    "prompt": "professional e-commerce product photo, unbranded round silver smartwatch with metal strap, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্মার্টওয়াচ",
+    "name": "লেডিস স্মার্টওয়াচ — রোজ গোল্ড",
+    "price": 2850,
+    "compare": 3600,
+    "prompt": "professional e-commerce product photo, unbranded rose gold slim smartwatch with mesh strap, on pastel pink background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্মার্টওয়াচ",
+    "name": "ফিটনেস ব্যান্ড — ব্ল্যাক",
+    "price": 1350,
+    "compare": 1750,
+    "prompt": "professional e-commerce product photo, unbranded black fitness tracker band with heart rate display, on dark background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "নেকব্যান্ড ও হেডফোন",
+    "name": "ওয়্যারলেস নেকব্যান্ড ৪০ ঘণ্টা",
+    "price": 1050,
+    "compare": 1400,
+    "prompt": "professional e-commerce product photo, unbranded black wireless neckband earphones coiled, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "নেকব্যান্ড ও হেডফোন",
+    "name": "ওভার-ইয়ার ব্লুটুথ হেডফোন",
+    "price": 2650,
+    "compare": 3400,
+    "prompt": "professional e-commerce product photo, unbranded matte black over-ear bluetooth headphones, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "নেকব্যান্ড ও হেডফোন",
+    "name": "গেমিং হেডসেট RGB",
+    "price": 2250,
+    "compare": 2900,
+    "prompt": "professional e-commerce product photo, unbranded gaming headset with microphone and RGB lights, on dark background with purple light, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "নেকব্যান্ড ও হেডফোন",
+    "name": "ব্লুটুথ স্পিকার মিনি",
+    "price": 1450,
+    "compare": 1900,
+    "prompt": "professional e-commerce product photo, small round unbranded bluetooth speaker with fabric cover, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পাওয়ার ব্যাংক ও চার্জার",
+    "name": "পাওয়ার ব্যাংক ২০০০০mAh ২২.৫W",
+    "price": 2150,
+    "compare": 2700,
+    "prompt": "professional e-commerce product photo, unbranded slim black power bank with digital display, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পাওয়ার ব্যাংক ও চার্জার",
+    "name": "পাওয়ার ব্যাংক ১০০০০mAh ম্যাগনেটিক",
+    "price": 1850,
+    "compare": 2400,
+    "prompt": "professional e-commerce product photo, unbranded white magnetic wireless power bank, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পাওয়ার ব্যাংক ও চার্জার",
+    "name": "৩৩W ফাস্ট চার্জার + টাইপ-সি কেবল",
+    "price": 950,
+    "compare": 1250,
+    "prompt": "professional e-commerce product photo, unbranded white wall charger with coiled usb type c cable, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পাওয়ার ব্যাংক ও চার্জার",
+    "name": "কার চার্জার ডুয়াল পোর্ট",
+    "price": 550,
+    "compare": 750,
+    "prompt": "professional e-commerce product photo, unbranded black dual usb car charger, on dark background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মোবাইল এক্সেসরিজ",
+    "name": "ব্রেইডেড টাইপ-সি কেবল ১.৫ মিটার",
+    "price": 350,
+    "compare": 480,
+    "prompt": "professional e-commerce product photo, coiled unbranded braided usb type c cable, on dark gradient background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মোবাইল এক্সেসরিজ",
+    "name": "মোবাইল স্ট্যান্ড অ্যালুমিনিয়াম",
+    "price": 650,
+    "compare": 850,
+    "prompt": "professional e-commerce product photo, unbranded aluminium foldable phone stand, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মোবাইল এক্সেসরিজ",
+    "name": "সেলফি স্টিক ট্রাইপড ব্লুটুথ",
+    "price": 950,
+    "compare": 1250,
+    "prompt": "professional e-commerce product photo, unbranded black selfie stick tripod with bluetooth remote, on light grey background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "মোবাইল এক্সেসরিজ",
+    "name": "রিং লাইট ১০ ইঞ্চি স্ট্যান্ডসহ",
+    "price": 1450,
+    "compare": 1850,
+    "prompt": "professional e-commerce product photo, 10 inch LED ring light with phone holder on tripod stand, on dark background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   }
+  ],
+  "banner_prompts": [
+   "wide website hero banner photo, wireless earbuds with charging case and smartwatch on a dark desk with blue neon light, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, modern smartwatch on wrist-less stand with glowing screen, dark tech background, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, flat lay of phone accessories: power bank, cables, charger, earbuds on dark surface, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark"
+  ]
+ },
+ {
+  "key": "rannaghor",
+  "niche": "কিচেন গ্যাজেট",
+  "name": "রান্নাঘর প্লাস",
+  "tagline": "রান্না সহজ করার জিনিস, এক জায়গায়",
+  "theme": "pro",
+  "colors": {
+   "primary": "#15803d",
+   "accent": "#ea580c"
+  },
+  "delivery": [
+   70,
+   130
+  ],
+  "cats": [
+   "কাটাকাটি",
+   "রান্নার সরঞ্জাম",
+   "স্টোরেজ ও অর্গানাইজার",
+   "ইলেকট্রিক",
+   "পরিষ্কার"
+  ],
+  "products": [
+   {
+    "cat": "কাটাকাটি",
+    "name": "১৪-ইন-১ ভেজিটেবল কাটার",
+    "price": 950,
+    "compare": 1250,
+    "prompt": "professional e-commerce product photo, 14 in 1 vegetable slicer chopper with multiple blades and container, with sliced cucumber, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "কাটাকাটি",
+    "name": "পুশ চপার (পেঁয়াজ-রসুন)",
+    "price": 550,
+    "compare": 750,
+    "prompt": "professional e-commerce product photo, manual push down vegetable chopper with chopped onion inside, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "কাটাকাটি",
+    "name": "পুল কর্ড মিনি চপার ৫০০ml",
+    "price": 450,
+    "compare": 650,
+    "prompt": "professional e-commerce product photo, pull cord mini food chopper with chopped garlic and chili, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "কাটাকাটি",
+    "name": "স্টেইনলেস নাইফ সেট ৬ পিস",
+    "price": 1250,
+    "compare": 1650,
+    "prompt": "professional e-commerce product photo, 6 piece stainless steel kitchen knife set in a block stand, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "রান্নার সরঞ্জাম",
+    "name": "সিলিকন স্প্যাচুলা সেট ১২ পিস",
+    "price": 890,
+    "compare": 1150,
+    "prompt": "professional e-commerce product photo, set of 12 silicone kitchen utensils with wooden handles in holder, on light wooden counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "রান্নার সরঞ্জাম",
+    "name": "অয়েল স্প্রেয়ার বোতল",
+    "price": 350,
+    "compare": 480,
+    "prompt": "professional e-commerce product photo, glass oil sprayer bottle with olive oil, on light wooden counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "রান্নার সরঞ্জাম",
+    "name": "নন-স্টিক ফ্রাই প্যান ২৬cm",
+    "price": 1450,
+    "compare": 1850,
+    "prompt": "professional e-commerce product photo, black non stick frying pan with granite coating, on light wooden counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "রান্নার সরঞ্জাম",
+    "name": "ডিজিটাল কিচেন স্কেল ১০ কেজি",
+    "price": 650,
+    "compare": 850,
+    "prompt": "professional e-commerce product photo, white digital kitchen weighing scale with fruits on it, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্টোরেজ ও অর্গানাইজার",
+    "name": "এয়ারটাইট কন্টেইনার সেট ৬ পিস",
+    "price": 1150,
+    "compare": 1500,
+    "prompt": "professional e-commerce product photo, set of 6 clear airtight food storage containers filled with rice, lentils, pasta, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্টোরেজ ও অর্গানাইজার",
+    "name": "রোটেটিং স্পাইস র‍্যাক ১৬ জার",
+    "price": 1650,
+    "compare": 2100,
+    "prompt": "professional e-commerce product photo, rotating spice rack with 16 glass jars of colorful spices, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্টোরেজ ও অর্গানাইজার",
+    "name": "সিঙ্ক অর্গানাইজার ডিশ র‍্যাক",
+    "price": 1350,
+    "compare": 1750,
+    "prompt": "professional e-commerce product photo, over the sink dish drying rack with plates and cups, on modern kitchen, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "স্টোরেজ ও অর্গানাইজার",
+    "name": "ফ্রিজ অর্গানাইজার বক্স ৪ পিস",
+    "price": 850,
+    "compare": 1100,
+    "prompt": "professional e-commerce product photo, clear refrigerator organizer bins with fruits and vegetables, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইলেকট্রিক",
+    "name": "ইলেকট্রিক কেটলি ১.৮ লিটার",
+    "price": 1150,
+    "compare": 1450,
+    "prompt": "professional e-commerce product photo, stainless steel electric kettle, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইলেকট্রিক",
+    "name": "হ্যান্ড ব্লেন্ডার ৩-ইন-১",
+    "price": 1850,
+    "compare": 2400,
+    "prompt": "professional e-commerce product photo, 3 in 1 hand blender set with whisk and chopper attachments, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইলেকট্রিক",
+    "name": "ইলেকট্রিক এগ বিটার",
+    "price": 750,
+    "compare": 990,
+    "prompt": "professional e-commerce product photo, handheld electric egg beater mixer with bowl of whipped cream, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "ইলেকট্রিক",
+    "name": "পোর্টেবল জুস ব্লেন্ডার USB",
+    "price": 990,
+    "compare": 1350,
+    "prompt": "professional e-commerce product photo, portable usb juice blender bottle with fresh orange juice and fruits, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পরিষ্কার",
+    "name": "মাইক্রোফাইবার কিচেন টাওয়েল ১০ পিস",
+    "price": 450,
+    "compare": 600,
+    "prompt": "professional e-commerce product photo, stack of colorful microfiber kitchen towels, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পরিষ্কার",
+    "name": "সোপ ডিসপেনসার স্পঞ্জ হোল্ডারসহ",
+    "price": 450,
+    "compare": 620,
+    "prompt": "professional e-commerce product photo, kitchen soap dispenser pump with sponge holder, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পরিষ্কার",
+    "name": "সিলিকন ডিশ ওয়াশিং গ্লাভস",
+    "price": 250,
+    "compare": 350,
+    "prompt": "professional e-commerce product photo, pair of silicone dish washing gloves with scrubber bristles, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "পরিষ্কার",
+    "name": "কিচেন কম্বো: কাটার + স্প্রেয়ার + কন্টেইনার",
+    "price": 2250,
+    "compare": 2900,
+    "prompt": "professional e-commerce product photo, kitchen gadget bundle: vegetable chopper, oil sprayer and storage containers arranged together, on white kitchen counter, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   }
+  ],
+  "banner_prompts": [
+   "wide website hero banner photo, bright modern kitchen counter with neatly arranged kitchen gadgets and fresh vegetables, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, vegetable chopper with colorful chopped vegetables on a white kitchen counter, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, organized kitchen shelves with clear storage containers and spice jars, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark"
+  ]
+ },
+ {
+  "key": "chhottosona",
+  "niche": "বাচ্চার পণ্য",
+  "name": "ছোট্টসোনা",
+  "tagline": "নিরাপদ আর আরামের শিশু পণ্য",
+  "theme": "pro",
+  "colors": {
+   "primary": "#2563eb",
+   "accent": "#f9a8d4"
+  },
+  "delivery": [
+   70,
+   130
+  ],
+  "cats": [
+   "খাওয়ানো",
+   "বাচ্চার পোশাক",
+   "খেলনা",
+   "বাচ্চা বহন",
+   "গোসল ও যত্ন"
+  ],
+  "products": [
+   {
+    "cat": "খাওয়ানো",
+    "name": "অ্যান্টি-কলিক ফিডার ২৬০ml",
+    "price": 750,
+    "compare": 950,
+    "prompt": "professional e-commerce product photo, anti colic baby feeding bottle with soft nipple, unbranded, on pastel blue background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খাওয়ানো",
+    "name": "স্পুন ফিডার ১৮০ml",
+    "price": 490,
+    "compare": 650,
+    "prompt": "professional e-commerce product photo, silicone squeeze spoon feeder bottle for babies, on pastel background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খাওয়ানো",
+    "name": "সিলিকন ফিডিং সেট (বাটি, চামচ, বিব)",
+    "price": 1150,
+    "compare": 1450,
+    "prompt": "professional e-commerce product photo, pastel silicone baby feeding set: suction bowl, spoon, bib, on light wooden table, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খাওয়ানো",
+    "name": "বেবি ফিডিং চেয়ার",
+    "price": 2450,
+    "compare": 2950,
+    "prompt": "professional e-commerce product photo, white and grey baby high chair with tray, on bright nursery room, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চার পোশাক",
+    "name": "নিউবর্ন কটন রমপার সেট ৩ পিস",
+    "price": 990,
+    "compare": 1300,
+    "prompt": "professional e-commerce product photo, three soft cotton newborn rompers folded in pastel colors, on white bed sheet, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চার পোশাক",
+    "name": "বেবি ওয়ার্ম জ্যাকেট (শীত)",
+    "price": 1250,
+    "compare": 1600,
+    "prompt": "professional e-commerce product photo, cute baby hooded winter jacket with bear ears, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চার পোশাক",
+    "name": "বেবি ক্যাপ-মোজা-গ্লাভস সেট",
+    "price": 450,
+    "compare": 600,
+    "prompt": "professional e-commerce product photo, baby knitted cap, socks and mittens set in pastel, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চার পোশাক",
+    "name": "মসলিন ওয়্যাপ কাঁথা ২ পিস",
+    "price": 850,
+    "compare": 1100,
+    "prompt": "professional e-commerce product photo, two folded soft muslin baby swaddle wraps with tiny prints, on light wooden surface, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেলনা",
+    "name": "কাঠের শেপ সর্টার খেলনা",
+    "price": 650,
+    "compare": 850,
+    "prompt": "professional e-commerce product photo, wooden shape sorter educational toy with colorful blocks, on soft rug, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেলনা",
+    "name": "মিউজিক্যাল রেটল সেট ৬ পিস",
+    "price": 550,
+    "compare": 750,
+    "prompt": "professional e-commerce product photo, set of colorful baby rattles and teethers, on pastel background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেলনা",
+    "name": "সফট টেডি বিয়ার ২৪ ইঞ্চি",
+    "price": 990,
+    "compare": 1300,
+    "prompt": "professional e-commerce product photo, soft cream colored teddy bear sitting, on pastel background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "খেলনা",
+    "name": "বেবি প্লে জিম ম্যাট",
+    "price": 2250,
+    "compare": 2900,
+    "prompt": "professional e-commerce product photo, baby activity play gym mat with hanging toys, on bright nursery floor, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চা বহন",
+    "name": "বেবি ক্যারিয়ার ৬-ইন-১",
+    "price": 1650,
+    "compare": 2100,
+    "prompt": "professional e-commerce product photo, grey ergonomic baby carrier with padded straps, unbranded, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চা বহন",
+    "name": "ডায়াপার ব্যাগ ব্যাকপ্যাক",
+    "price": 1450,
+    "compare": 1850,
+    "prompt": "professional e-commerce product photo, grey multifunction diaper bag backpack with bottle pockets, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চা বহন",
+    "name": "ফোল্ডিং বেবি স্ট্রলার",
+    "price": 6950,
+    "compare": 8200,
+    "prompt": "professional e-commerce product photo, lightweight foldable baby stroller in grey, on bright park background blurred, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "বাচ্চা বহন",
+    "name": "বেবি ওয়াকার মিউজিক্যাল",
+    "price": 2650,
+    "compare": 3300,
+    "prompt": "professional e-commerce product photo, colorful musical baby walker with toy tray, on bright room, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "গোসল ও যত্ন",
+    "name": "বেবি বাথ টাব ফোল্ডিং",
+    "price": 1350,
+    "compare": 1700,
+    "prompt": "professional e-commerce product photo, foldable pastel blue baby bathtub, on white bathroom, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "গোসল ও যত্ন",
+    "name": "হুডেড বেবি টাওয়েল",
+    "price": 550,
+    "compare": 750,
+    "prompt": "professional e-commerce product photo, soft white hooded baby towel with bear ears folded, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "গোসল ও যত্ন",
+    "name": "বেবি নেইল কাটার সেট",
+    "price": 350,
+    "compare": 480,
+    "prompt": "professional e-commerce product photo, baby grooming kit with nail clipper, brush and comb in pastel case, on white background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   },
+   {
+    "cat": "গোসল ও যত্ন",
+    "name": "মশারি ফোল্ডিং বেবি বেড",
+    "price": 1250,
+    "compare": 1600,
+    "prompt": "professional e-commerce product photo, foldable baby bed with mosquito net canopy, on bright nursery room, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
+    "variants": []
+   }
+  ],
+  "banner_prompts": [
+   "wide website hero banner photo, soft pastel nursery with baby toys, folded baby clothes and a teddy bear, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, baby feeding set: bottles, silicone bib, spoon and bowl in pastel colors, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
+   "wide website hero banner photo, colorful wooden educational baby toys on a soft rug, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark"
+  ]
+ }
+]
