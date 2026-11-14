@@ -42,7 +42,8 @@ describe("প্রো স্টোর থিম", () => {
 
   it("ঘোষণা, ব্যানার লিংক আর WhatsApp সেটিংস থেকে আসে; খারাপ লিংক বাদ", async () => {
     const a = await adminBrowser();
-    await a.post("/admin/settings/appearance", { theme: "pro", announcement: "ঈদ অফার চলছে", banner_1_link: "javascript:alert(1)", brand_color: "#0f766e", accent_color: "#ea580c" });
+    await a.post("/admin/settings/appearance", { theme: "pro", banner_1_link: "javascript:alert(1)", brand_color: "#0f766e", accent_color: "#ea580c" });
+    await a.post("/admin/settings/customize", { theme: "pro", topbar: "1", announcement: "ঈদ অফার চলছে", float_whatsapp: "1", bottom_nav: "1" });
     await a.post("/admin/settings", { whatsapp: "01711111111" });
     expect((await DB.prepare("SELECT value FROM settings WHERE key='banner_1_link'").first<any>()).value).toBe("");
     const html = await get("/");

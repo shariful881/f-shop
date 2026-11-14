@@ -116,3 +116,25 @@ document.addEventListener("click", function (e) {
   b.textContent = "কপি হয়েছে ✓";
   setTimeout(function () { b.textContent = "কপি"; }, 1600);
 });
+
+/* থিম কাস্টমাইজ: হোমপেজ সেকশনের ক্রম (↑↓), রং বাছলে "নিজের রং" টিক */
+(function () {
+  var list = document.querySelector("[data-cz-order]");
+  if (list) {
+    var input = document.querySelector("[data-cz-order-input]");
+    var sync = function () { input.value = Array.prototype.map.call(list.children, function (li) { return li.dataset.key; }).join(","); };
+    list.addEventListener("click", function (e) {
+      var li = e.target.closest("li");
+      if (!li) return;
+      if (e.target.closest("[data-cz-up]") && li.previousElementSibling) list.insertBefore(li, li.previousElementSibling);
+      if (e.target.closest("[data-cz-down]") && li.nextElementSibling) list.insertBefore(li.nextElementSibling, li);
+      sync();
+    });
+  }
+  document.querySelectorAll("[data-cz-color]").forEach(function (inp) {
+    inp.addEventListener("input", function () {
+      var cb = inp.parentNode.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+    });
+  });
+})();

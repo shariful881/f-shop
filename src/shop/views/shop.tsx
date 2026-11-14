@@ -7,15 +7,19 @@ import { deliveryCharge, freeDeliveryMin } from "../lib/settings";
 import { parseLanding } from "../lib/landing";
 import { sanitizeHtml } from "../lib/sanitize";
 import { BuiltLanding } from "./landing";
+import type { Cfg } from "../lib/theme-config";
 
-/* ---------- পণ্যের কার্ড ---------- */
-export const ProductCard = ({ p }: { p: Product }) => {
+/* ---------- পণ্যের কার্ড (থিম কাস্টমাইজের লেখা/বাটন অনুযায়ী) ---------- */
+export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
   const off = discountPercent(p.price, p.compare_price);
+  const fmt = cfg?.badge_fmt ?? "pct";
+  const orderBtn = (cfg?.card_order_btn ?? "1") === "1";
+  const cartBtn = (cfg?.card_cart_btn ?? "1") === "1";
   return (
     <div class="card">
       <a href={`/p/${p.slug}`} class="card-img">
         <img src={imageUrl(p.image)} alt={p.name} loading="lazy" width="400" height="400" />
-        {off > 0 && <span class="badge">{bn(off)}% ছাড়</span>}
+        {off > 0 && fmt !== "off" && <span class="badge">{fmt === "minus" ? `-${bn(off)}%` : `${bn(off)}% ছাড়`}</span>}
       </a>
       <div class="card-body">
         <a href={`/p/${p.slug}`} class="card-title">{p.name}</a>
@@ -23,17 +27,19 @@ export const ProductCard = ({ p }: { p: Product }) => {
           <span class="price">{taka(p.price)}</span>
           {p.compare_price && p.compare_price > p.price && <del class="compare">{taka(p.compare_price)}</del>}
         </div>
-        <div class="card-actions">
-          <a href={`/p/${p.slug}#order`} class="btn btn-primary">অর্ডার করুন</a>
-          {p.variant_count ? (
-            <a href={`/p/${p.slug}#order`} class="btn btn-outline">অপশন বাছুন</a>
-          ) : (
-            <form method="post" action="/cart/add" data-add-to-cart>
-              <input type="hidden" name="product_id" value={String(p.id)} />
-              <button type="submit" class="btn btn-outline">কার্টে যোগ</button>
-            </form>
-          )}
-        </div>
+        {(orderBtn || cartBtn) && (
+          <div class="card-actions">
+            {orderBtn && <a href={`/p/${p.slug}#order`} class="btn btn-primary">{cfg?.card_order_text || "অর্ডার করুন"}</a>}
+            {cartBtn && (p.variant_count ? (
+              <a href={`/p/${p.slug}#order`} class="btn btn-outline">অপশন বাছুন</a>
+            ) : (
+              <form method="post" action="/cart/add" data-add-to-cart>
+                <input type="hidden" name="product_id" value={String(p.id)} />
+                <button type="submit" class="btn btn-outline">{cfg?.card_cart_text || "কার্টে যোগ"}</button>
+              </form>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,8 @@ import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
 import { CartPage, CheckoutPage, HomePage, LandingPage, NotFoundPage, ThanksPage, type FormState } from "../views/shop";
-import { ListingPage, ProHome } from "../views/pro";
+import { ListingPage, StoreHome } from "../views/pro";
+import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
@@ -22,7 +23,7 @@ export const shop = new Hono<AppEnv>();
 
 /* প্রো থিমে হেডারের ক্যাটাগরি মেনু (যেসব ক্যাটাগরিতে চালু পণ্য আছে) */
 shop.use("*", async (c, next) => {
-  if (c.req.method === "GET" && themeOf(c.var.settings) === "pro") c.set("navCats", await navCategories(c.env.DB));
+  if (c.req.method === "GET") c.set("navCats", await navCategories(c.env.DB));
   await next();
 });
 
@@ -63,7 +64,7 @@ shop.get("/", async (c) => {
   const s = c.var.settings;
   return page(c,
     <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
-      {themeOf(s) === "pro" ? <ProHome s={s} sections={sections} /> : <HomePage sections={sections} />}
+      <StoreHome s={s} cfg={themeConfig(s)} sections={sections} />
     </Layout>,
   );
 });
@@ -98,7 +99,7 @@ shop.get("/c/:id{[0-9]+}", async (c) => {
   const s = c.var.settings;
   return page(c,
     <Layout title={`${cat.name} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
-      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} />
+      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} cfg={themeConfig(s)} />
     </Layout>,
   );
 });
@@ -113,7 +114,7 @@ shop.get("/search", async (c) => {
   const s = c.var.settings;
   return page(c,
     <Layout title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} q={q}>
-      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} />
+      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} cfg={themeConfig(s)} />
     </Layout>,
   );
 });

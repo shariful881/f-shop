@@ -2,9 +2,10 @@ import type { Child } from "hono/jsx";
 import type { Settings } from "../lib/settings";
 import { bn, imageUrl } from "../lib/format";
 import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
-import { ProBottom, ProFooter, ProHeader, type NavCat } from "./pro";
+import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
+import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "8";
+export const ASSET_VERSION = "9";
 
 export type LayoutProps = {
   title: string;
@@ -45,7 +46,8 @@ export const Layout = (p: LayoutProps) => {
   const description = p.description || s.seo_description || undefined;
   const ogImage = p.ogImage || (s.seo_image ? imageUrl(s.seo_image) : undefined);
   const gtm = GTM_RE.test(s.gtm_id || "") ? s.gtm_id : "";
-  const pro = themeOf(s) === "pro";
+  const cfg = themeConfig(s);
+  const fonts = cfgFontsHref(cfg);
   return (
   <html lang="bn">
     <head>
@@ -64,41 +66,17 @@ export const Layout = (p: LayoutProps) => {
       {trackingHead(s)}
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       {themeOf(p.settings) !== "classic" && <link rel="stylesheet" href={`/css/theme-${themeOf(p.settings)}.css?v=${ASSET_VERSION}`} />}
-      <style dangerouslySetInnerHTML={{ __html: themeCss(p.settings) }} />
+      <style dangerouslySetInnerHTML={{ __html: themeCss(p.settings) + cfgCss(cfg) }} />
+      {fonts && <><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" /><link rel="stylesheet" href={fonts} /></>}
       <script src={`/js/device.js?v=${ASSET_VERSION}`}></script>
       {p.head}
     </head>
     <body class={`theme-${themeOf(p.settings)}`} data-bare={p.bare ? "1" : undefined}>
       {gtm && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${gtm}`} height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>}
-      {pro ? <ProHeader s={s} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} /> : (
-      <header class="site-header">
-        <div class="wrap header-inner">
-          <a href="/" class="logo">
-            {p.settings.logo ? <img src={imageUrl(p.settings.logo)} alt={p.settings.site_name || ""} class="logo-img" height="36" /> : (p.settings.site_name || "F-Shop")}
-          </a>
-          <a href="/cart" class="cart-link" aria-label="কার্ট">
-            🛒 কার্ট <span class="cart-count" data-cart-count>{bn(p.cartCount ?? 0)}</span>
-          </a>
-        </div>
-      </header>
-      )}
+      <StoreHeader s={s} cfg={cfg} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} />
       <main>{p.children}</main>
-      {pro ? <><ProFooter s={s} nav={p.nav ?? []} /><ProBottom s={s} cartCount={p.cartCount ?? 0} bare={p.bare} /></> : (
-      <footer class="site-footer">
-        <div class="wrap">
-          <p>যেকোনো প্রয়োজনে কল করুন: <a href={`tel:${p.settings.contact_phone}`}>{bn(p.settings.contact_phone || "")}</a></p>
-          {(s.whatsapp || s.facebook_page || s.store_email) && (
-            <p class="footer-links">
-              {s.whatsapp && <a href={`https://wa.me/88${s.whatsapp.replace(/\D/g, "").replace(/^88/, "")}`} target="_blank" rel="noopener">WhatsApp</a>}
-              {s.facebook_page && /^https:\/\//.test(s.facebook_page) && <a href={s.facebook_page} target="_blank" rel="noopener">Facebook পেজ</a>}
-              {s.store_email && <a href={`mailto:${s.store_email}`}>{s.store_email}</a>}
-            </p>
-          )}
-          {s.store_address && <p class="muted">{s.store_address}</p>}
-          <p class="muted">ক্যাশ অন ডেলিভারি • পণ্য হাতে পেয়ে টাকা দিন</p>
-        </div>
-      </footer>
-      )}
+      <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} />
+      <StoreFloating s={s} cfg={cfg} cartCount={p.cartCount ?? 0} bare={p.bare} />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <script src={`/js/app.js?v=${ASSET_VERSION}`} defer></script>
       {p.bodyEnd}

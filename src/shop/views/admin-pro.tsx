@@ -5,7 +5,8 @@ import type { Child } from "hono/jsx";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
 import { STATUS_LABEL, type OrderStatus } from "../lib/orders";
-import { THEMES, type Settings } from "../lib/settings";
+import { THEMES, type Settings, type ThemeKey } from "../lib/settings";
+import { GROUPS, HOME_SECTIONS, type Cfg, type Field } from "../lib/theme-config";
 import { ASSET_VERSION } from "./layout";
 
 /* ---------- সাইডবার লেআউট ---------- */
@@ -243,6 +244,7 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
 export const SETTINGS_TABS: { key: string; href: string; label: string; icon: string }[] = [
   { key: "general", href: "/admin/settings", label: "দোকানের তথ্য", icon: "🏪" },
   { key: "appearance", href: "/admin/settings/appearance", label: "থিম ও লোগো", icon: "🎨" },
+  { key: "customize", href: "/admin/settings/customize", label: "থিম কাস্টমাইজ", icon: "🛠️" },
   { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি", icon: "🚚" },
   { key: "checkout", href: "/admin/settings/checkout", label: "অর্ডার ফর্ম", icon: "🧾" },
   { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "🔍" },
@@ -329,10 +331,7 @@ export const SettingsAppearancePage = ({ s }: { s: Settings }) => (
         <F label="মূল রং (হেডার, দাম)"><input type="color" name="brand_color" value={s.brand_color || "#0f766e"} /></F>
         <F label="বাটনের রং"><input type="color" name="accent_color" value={s.accent_color || "#ea580c"} /></F>
       </Section>
-      <Section title="হোমপেজ (প্রো স্টোর থিম)" desc="উপরের ঘোষণার লাইন আর বড় ব্যানার। ব্যানার না দিলে সরাসরি ক্যাটাগরি আর পণ্য দেখাবে।">
-        <F label="উপরের ঘোষণা" hint="ফাঁকা রাখলে ফ্রি ডেলিভারি বা ক্যাশ অন ডেলিভারির কথা দেখাবে" wide>
-          <input type="text" name="announcement" value={s.announcement ?? ""} maxlength={120} placeholder="যেমন: ঈদ অফার — সব পণ্যে ১০% ছাড়!" />
-        </F>
+      <Section title="হোমপেজের ব্যানার" desc="সব থিমে হোমপেজের উপরে বড় ছবি। ব্যানার না দিলে সরাসরি পণ্য দেখাবে। ঘোষণা বার আর বাকি সব “থিম কাস্টমাইজ” ট্যাবে।">
         {([1, 2, 3] as const).map((n) => (
           <>
             <ImageField name={`banner_${n}`} label={`ব্যানার ${n}`} current={s[`banner_${n}`]} hint="চওড়া ছবি, যেমন ১২০০×৪৫০ (৮:৩)। JPG/WebP, ২ MB পর্যন্ত।" />
@@ -447,3 +446,82 @@ export const SettingsTrackingPage = ({ s }: { s: Settings }) => (
 );
 
 export const ROLE_TEXT = ROLE_LABEL;
+
+
+/* ---------- থিম কাস্টমাইজ (প্রতিটা থিমের আলাদা সেটিংস) ---------- */
+const CfgField = ({ f, cfg }: { f: Field; cfg: Cfg }) => {
+  const v = cfg[f.key] ?? "";
+  switch (f.type) {
+    case "color":
+      return (
+        <F label={f.label} hint={f.hint}>
+          <span class="cz-color">
+            <input type="color" name={f.key} value={v || "#ffffff"} data-cz-color />
+            <label class="small-check"><input type="checkbox" name={`${f.key}_on`} value="1" checked={!!v} /> নিজের রং</label>
+          </span>
+        </F>
+      );
+    case "select":
+      return <F label={f.label} hint={f.hint}><select name={f.key}>{Object.entries(f.options).map(([k, l]) => <option value={k} selected={k === v}>{l}</option>)}</select></F>;
+    case "toggle":
+      return <label class="set-field cz-toggle"><span><input type="checkbox" name={f.key} value="1" checked={v === "1"} /> {f.label}</span>{f.hint && <small>{f.hint}</small>}</label>;
+    case "text":
+      return <F label={f.label} hint={f.hint} wide={f.wide}><input type="text" name={f.key} value={v} maxlength={f.max} placeholder={f.placeholder} /></F>;
+    case "textarea":
+      return <F label={f.label} hint={f.hint} wide><textarea name={f.key} rows={3} maxlength={f.max}>{v}</textarea></F>;
+    case "url":
+      return <F label={f.label} hint={f.hint}><input type="url" name={f.key} value={v} maxlength={200} placeholder={f.placeholder} /></F>;
+    case "order": {
+      const order = (cfg.home_order || "").split(",").filter((k) => k in HOME_SECTIONS);
+      return (
+        <div class="set-field wide">
+          <span>{f.label}</span>
+          <input type="hidden" name="home_order" value={order.join(",")} data-cz-order-input />
+          <ol class="cz-order" data-cz-order>
+            {order.map((k) => (
+              <li data-key={k}>
+                <label class="small-check"><input type="checkbox" name={`sec_${k}`} value="1" checked={cfg[`sec_${k}`] === "1"} /> {HOME_SECTIONS[k]}</label>
+                <span><button type="button" class="sa-btn sa-btn-sm sa-btn-ghost" data-cz-up aria-label="উপরে">↑</button><button type="button" class="sa-btn sa-btn-sm sa-btn-ghost" data-cz-down aria-label="নিচে">↓</button></span>
+              </li>
+            ))}
+          </ol>
+          {f.hint && <small>{f.hint}</small>}
+        </div>
+      );
+    }
+  }
+};
+
+export const ThemeCustomizePage = ({ s, theme, cfg }: { s: Settings; theme: ThemeKey; cfg: Cfg }) => {
+  const active = (s.theme || "classic") as ThemeKey;
+  return (
+    <>
+      <Tabs active="customize" />
+      <div class="cz-themes">
+        {(Object.entries(THEMES) as [ThemeKey, { name: string }][]).map(([k, t]) => (
+          <a href={`/admin/settings/customize?theme=${k}`} class={k === theme ? "active" : ""}>
+            {t.name}{k === active && <em>চালু</em>}
+          </a>
+        ))}
+      </div>
+      <p class="sa-muted cz-note">
+        প্রতিটা থিমের সেটিংস আলাদা সেভ হয়। এখন <b>{THEMES[theme].name}</b> থিমের সেটিংস বদলাচ্ছেন
+        {theme === active ? " — এটাই দোকানে চালু আছে।" : <> — এটা দোকানে চালু নেই, চালু করতে <a href="/admin/settings/appearance">থিম ও লোগো</a> থেকে বাছুন।</>}
+        {" "}<a href="/" target="_blank">দোকান দেখুন ↗</a>
+      </p>
+      <form method="post" action="/admin/settings/customize" class="set-form">
+        <input type="hidden" name="theme" value={theme} />
+        {GROUPS.map((g) => (
+          <details class="sa-card set-section cz-group" open={g.key === "style"}>
+            <summary class="set-section-head"><h2>{g.title}</h2><p class="sa-muted">{g.desc}</p></summary>
+            <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={cfg} />)}</div>
+          </details>
+        ))}
+        <div class="set-save">
+          <button type="submit" name="reset" value="1" class="sa-btn sa-btn-ghost" data-confirm={`${THEMES[theme].name} থিমের সব সেটিংস শুরুর মতো করে দেবেন?`}>শুরুর সেটিংসে ফিরুন</button>
+          <button class="sa-btn">সেভ করুন</button>
+        </div>
+      </form>
+    </>
+  );
+};

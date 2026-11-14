@@ -272,3 +272,22 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .serp-desc { color: #4d5156; font-size: 13px; line-height: 1.5; }
 .cnt-ok { color: #059669; } .cnt-warn { color: #d97706; }
 .sa-top-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* থিম কাস্টমাইজ */
+.cz-themes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.cz-themes a { padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--sa-line); background: #fff; color: #334155 !important; font-weight: 700; text-decoration: none !important; display: inline-flex; gap: 6px; align-items: center; }
+.cz-themes a.active { border-color: var(--sa-ink); background: var(--sa-ink); color: #fff !important; }
+.cz-themes em { font-style: normal; font-size: .72rem; background: #22c55e; color: #fff; border-radius: 999px; padding: 0 7px; }
+.cz-note { margin: 0 0 14px; max-width: 920px; }
+.cz-group { margin-bottom: 14px; }
+.cz-group > summary { cursor: pointer; list-style: none; }
+.cz-group > summary::-webkit-details-marker { display: none; }
+.cz-group > summary h2::after { content: " ▾"; color: #94a3b8; }
+.cz-group:not([open]) > summary h2::after { content: " ▸"; }
+.cz-color { display: flex; align-items: center; gap: 10px; }
+.cz-color input[type=color] { width: 48px; height: 36px; padding: 0; border: 1px solid var(--sa-line); border-radius: 8px; background: #fff; }
+.cz-toggle span { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.cz-order { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cz-order li { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid var(--sa-line); border-radius: 10px; padding: 6px 10px; }
+.cz-order li span { display: flex; gap: 4px; }
+.set-save { display: flex; gap: 10px; justify-content: flex-end; }
