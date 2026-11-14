@@ -92,6 +92,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 /** কোন পেজ কে দেখতে পারবে */
 export const SECTION_ROLES: Record<string, Role[]> = {
   orders: ["owner", "manager", "orders"],
+  customers: ["owner", "manager", "orders"],
   products: ["owner", "manager"],
   landing: ["owner", "manager"],
   pages: ["owner", "manager"],

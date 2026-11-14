@@ -15,6 +15,7 @@ import { Icon, type IconName } from "./icons";
 const NAV: { key: string; href: string; icon: IconName; label: string; group?: string; perm?: string }[] = [
   { key: "dashboard", href: "/admin", icon: "layout-dashboard", label: "ড্যাশবোর্ড" },
   { key: "orders", href: "/admin/orders", icon: "receipt", label: "অর্ডার", group: "বিক্রি" },
+  { key: "customers", href: "/admin/customers", icon: "users", label: "কাস্টমার" },
   { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
   { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "পণ্য" },
   { key: "categories", href: "/admin/categories", icon: "folder", label: "ক্যাটাগরি" },

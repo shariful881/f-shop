@@ -28,6 +28,7 @@ import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, remove
 import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
 import { clearShopCache } from "../../platform/resolve";
+import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/customers";
 import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
@@ -219,6 +220,33 @@ admin.get("/orders", async (c) => {
 
   return render(c, "অর্ডার", "orders",
     <OrdersPage orders={results.slice(0, PER_PAGE)} counts={counts} status={status} q={q} page={page} hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
+});
+
+/** কাস্টমার: ফোন নম্বর ধরে অর্ডারের হিসাব */
+admin.get("/customers", async (c) => {
+  const q = (c.req.query("q") || "").trim().slice(0, 100);
+  const page = Math.max(1, toInt(c.req.query("page"), 1));
+  let where = "";
+  let binds: unknown[] = [];
+  if (q) {
+    const phone = normalizePhone(q);
+    const like = `%${q.replace(/[%_]/g, "")}%`;
+    where = "WHERE (phone LIKE ? OR name LIKE ?" + (phone ? " OR phone = ?" : "") + ")";
+    binds = [like, like, ...(phone ? [phone] : [])];
+  }
+  const total = await c.env.DB.prepare("SELECT COUNT(DISTINCT phone) n FROM orders").first<{ n: number }>();
+  const { results } = await c.env.DB.prepare(
+    `SELECT phone,
+            (SELECT o2.name FROM orders o2 WHERE o2.phone = o.phone ORDER BY o2.id DESC LIMIT 1) AS name,
+            COUNT(*) AS orders,
+            SUM(status IN ('confirmed', 'shipped')) AS delivered,
+            SUM(status IN ('cancelled', 'fake')) AS bad,
+            COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total END), 0) AS spent,
+            MAX(created_at) AS last_at
+     FROM orders o ${where} GROUP BY phone ORDER BY MAX(id) DESC LIMIT ? OFFSET ?`,
+  ).bind(...binds, CUSTOMERS_PER_PAGE + 1, (page - 1) * CUSTOMERS_PER_PAGE).all<CustomerRow>();
+  return render(c, "কাস্টমার", "customers",
+    <CustomersPage rows={results.slice(0, CUSTOMERS_PER_PAGE)} q={q} page={page} hasMore={results.length > CUSTOMERS_PER_PAGE} total={total?.n ?? 0} />);
 });
 
 admin.get("/orders/:id{[0-9]+}", async (c) => {
