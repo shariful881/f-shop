@@ -84,3 +84,4 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .color-fields { display: flex; gap: 18px; flex-wrap: wrap; }
 .color-fields label { display: grid; gap: 4px; font-weight: 600; font-size: .95rem; }
 .color-fields input[type=color] { width: 80px; height: 42px; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 2px; background: #fff; }
+.input-sm { font: inherit; padding: 5px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; }

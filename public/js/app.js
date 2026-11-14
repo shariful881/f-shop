@@ -31,6 +31,7 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (d) {
+        if (d.redirect) { location.href = d.redirect; return; }
         toast(d.message || "");
         if (d.count != null) {
           document.querySelectorAll("[data-cart-count]").forEach(function (el) { el.textContent = bn(d.count); });
@@ -48,6 +49,10 @@
     var subtotal = +form.dataset.subtotal || 0;
     var charges = { inside: +form.dataset.inside || 0, outside: +form.dataset.outside || 0 };
     function update() {
+      var vr = form.querySelector("input[name=variant_id]:checked");
+      if (vr && vr.dataset.price) subtotal = +vr.dataset.price;
+      var sub = form.querySelector("[data-subtotal-text]");
+      if (sub) sub.textContent = taka(subtotal);
       var checked = form.querySelector("input[name=area]:checked");
       var d = charges[checked ? checked.value : "inside"];
       var dEl = form.querySelector("[data-delivery]");
@@ -56,6 +61,7 @@
       if (tEl) tEl.textContent = taka(subtotal + d);
     }
     form.addEventListener("change", update);
+    update();
 
     // InitiateCheckout: ল্যান্ডিং ফর্মে প্রথমবার ফোকাস করলে (ব্রাউজার + সার্ভার, একই event_id)
     // চেকআউট পেজে এটা পেজ খোলার সময়ই যায়
@@ -90,6 +96,11 @@
         e.preventDefault();
         toast("সঠিক মোবাইল নম্বর লিখুন (01XXXXXXXXX)");
         phone.focus();
+        return;
+      }
+      if (form.querySelector("input[name=variant_id]") && !form.querySelector("input[name=variant_id]:checked")) {
+        e.preventDefault();
+        toast("সাইজ/রং বাছাই করুন");
         return;
       }
       var btn = form.querySelector("[data-submit]");

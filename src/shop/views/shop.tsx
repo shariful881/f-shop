@@ -1,4 +1,4 @@
-import type { HomeSection, Product } from "../lib/products";
+import type { HomeSection, Product, Variant } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL } from "../lib/orders";
@@ -22,10 +22,14 @@ export const ProductCard = ({ p }: { p: Product }) => {
         </div>
         <div class="card-actions">
           <a href={`/p/${p.slug}#order`} class="btn btn-primary">অর্ডার করুন</a>
-          <form method="post" action="/cart/add" data-add-to-cart>
-            <input type="hidden" name="product_id" value={String(p.id)} />
-            <button type="submit" class="btn btn-outline">কার্টে যোগ</button>
-          </form>
+          {p.variant_count ? (
+            <a href={`/p/${p.slug}#order`} class="btn btn-outline">অপশন বাছুন</a>
+          ) : (
+            <form method="post" action="/cart/add" data-add-to-cart>
+              <input type="hidden" name="product_id" value={String(p.id)} />
+              <button type="submit" class="btn btn-outline">কার্টে যোগ</button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -60,6 +64,8 @@ export const OrderForm = (p: {
   productId?: number;
   source: "landing" | "cart";
   form?: FormState;
+  variants?: Variant[];
+  basePrice?: number;
 }) => {
   const v = p.form?.values ?? {};
   const e = p.form?.errors ?? {};
@@ -74,6 +80,22 @@ export const OrderForm = (p: {
       <input type="hidden" name="source" value={p.source} />
       {p.productId && <input type="hidden" name="product_id" value={String(p.productId)} />}
       <input type="hidden" name="did_ls" value="" data-did-ls />
+
+      {p.variants && p.variants.length > 0 && (
+        <fieldset class="field variant-field">
+          <span>সাইজ/রং বাছাই করুন *</span>
+          <div class="variant-pills">
+            {p.variants.map((vr) => (
+              <label class={`pill-option ${vr.active ? "" : "disabled"}`}>
+                <input type="radio" name="variant_id" value={String(vr.id)} disabled={!vr.active}
+                  checked={v.variant_id === String(vr.id)} data-price={String(vr.price ?? p.basePrice ?? p.subtotal)} />
+                <span>{vr.label}{vr.price != null && vr.price !== p.basePrice ? ` — ${taka(vr.price)}` : ""}{vr.active ? "" : " (স্টকে নেই)"}</span>
+              </label>
+            ))}
+          </div>
+          {e.variant && <small class="error">{e.variant}</small>}
+        </fieldset>
+      )}
 
       <label class="field">
         <span>আপনার নাম *</span>
@@ -102,7 +124,7 @@ export const OrderForm = (p: {
       </label>
 
       <div class="summary">
-        <div><span>পণ্যের দাম</span><span>{taka(p.subtotal)}</span></div>
+        <div><span>পণ্যের দাম</span><span data-subtotal-text>{taka(p.subtotal)}</span></div>
         <div><span>ডেলিভারি চার্জ</span><span data-delivery>{taka(area === "inside" ? inside : outside)}</span></div>
         <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (area === "inside" ? inside : outside))}</span></div>
       </div>
@@ -113,7 +135,7 @@ export const OrderForm = (p: {
 };
 
 /* ---------- ল্যান্ডিং পেজ ---------- */
-export const LandingPage = ({ p, settings, form, closed }: { p: Product; settings: Settings; form?: FormState; closed?: string }) => {
+export const LandingPage = ({ p, variants = [], settings, form, closed }: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string }) => {
   const yt = youtubeId(p.youtube_url);
   const off = discountPercent(p.price, p.compare_price);
   return (
@@ -148,7 +170,7 @@ export const LandingPage = ({ p, settings, form, closed }: { p: Product; setting
             <img src={imageUrl(p.image)} alt="" width="64" height="64" loading="lazy" />
             <div><strong>{p.name}</strong><br />{taka(p.price)}</div>
           </div>
-          {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={p.price} productId={p.id} source="landing" form={form} />}
+          {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={p.price} basePrice={p.price} productId={p.id} source="landing" form={form} variants={variants} />}
         </section>
       </div>
       <a href="#order" class="sticky-order">অর্ডার করুন — {taka(p.price)}</a>
@@ -175,6 +197,7 @@ export const CartPage = ({ products }: { products: Product[] }) => {
                 <img src={imageUrl(p.image)} alt="" width="64" height="64" loading="lazy" />
                 <div class="cart-item-info">
                   <a href={`/p/${p.slug}`}>{p.name}</a>
+                  {p.variant_label && <div class="muted">{p.variant_label}</div>}
                   <div class="price">{taka(p.price)}</div>
                 </div>
                 <form method="post" action="/cart/remove">
@@ -203,7 +226,7 @@ export const CheckoutPage = ({ products, settings, form, closed }: { products: P
         {products.map((p) => (
           <li class="cart-item">
             <img src={imageUrl(p.image)} alt="" width="48" height="48" loading="lazy" />
-            <div class="cart-item-info"><span>{p.name}</span><div class="price">{taka(p.price)}</div></div>
+            <div class="cart-item-info"><span>{p.name}</span>{p.variant_label && <div class="muted">{p.variant_label}</div>}<div class="price">{taka(p.price)}</div></div>
           </li>
         ))}
       </ul>
@@ -220,7 +243,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     <p class="order-no">অর্ডার নম্বর: <strong>{order.order_no}</strong></p>
     <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>
     <div class="summary">
-      {items.map((i) => <div><span>{i.product_name}</span><span>{taka(i.price)}</span></div>)}
+      {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
       <div class="summary-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(order.total)}</span></div>
     </div>

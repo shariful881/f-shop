@@ -3,8 +3,8 @@ import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
 import { CartPage, CheckoutPage, HomePage, LandingPage, NotFoundPage, ThanksPage, type FormState } from "../views/shop";
-import { activeProductBySlug, activeProductsByIds, homeSections, type Product } from "../lib/products";
-import { addToCart, clearCart, readCart, removeFromCart, uniqueIds } from "../lib/cart";
+import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
+import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
 import { createOrder, getOrderByNo } from "../lib/orders";
 import { deliveryCharge } from "../lib/settings";
 import { clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
@@ -53,13 +53,14 @@ shop.get("/", async (c) => {
 });
 
 /* ---------- ল্যান্ডিং পেজ ---------- */
-function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 | 422 | 429 | 403 = 200) {
+async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 | 422 | 429 | 403 = 200) {
   const s = c.var.settings;
+  const variants = await productVariants(c.env.DB, p.id);
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
     <Layout title={p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head}
       description={p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
-      <LandingPage p={p} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
+      <LandingPage p={p} variants={variants} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
   );
@@ -75,11 +76,19 @@ shop.get("/p/:slug", async (c) => {
 shop.post("/cart/add", async (c) => {
   const body = await c.req.parseBody();
   const id = toInt(body.product_id);
-  const [product] = await activeProductsByIds(c.env.DB, [id]);
+  const variantId = toInt(body.variant_id) || null;
+  const [product] = await cartLines(c.env.DB, [{ productId: id, variantId }]);
   if (!product) {
+    const exists = await activeProductsByIds(c.env.DB, [id]);
+    if (exists[0]) {
+      // ভ্যারিয়েন্ট বাছাই করা দরকার
+      return wantsJson(c)
+        ? c.json({ ok: false, message: "সাইজ/রং বাছাই করুন", redirect: `/p/${exists[0].slug}#order` }, 422)
+        : c.redirect(`/p/${exists[0].slug}#order`, 303);
+    }
     return wantsJson(c) ? c.json({ ok: false, message: "পণ্যটি পাওয়া যায়নি" }, 404) : c.redirect("/cart", 303);
   }
-  const added = addToCart(c, id);
+  const added = addToCart(c, id, product.variant_id ?? null);
   const count = readCart(c).length + (added ? 1 : 0);
   let eventId: string | null = null;
   const fbParams = { ...productData([product]), content_name: product.name };
@@ -106,7 +115,7 @@ shop.post("/cart/remove", async (c) => {
 });
 
 shop.get("/cart", async (c) => {
-  const products = await activeProductsByIds(c.env.DB, readCart(c));
+  const products = await cartLines(c.env.DB, readCartEntries(c));
   const s = c.var.settings;
   return page(c,
     <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)}>
@@ -127,7 +136,7 @@ function renderCheckout(c: Ctx, products: Product[], form?: FormState, status: 2
 }
 
 shop.get("/checkout", async (c) => {
-  const products = await activeProductsByIds(c.env.DB, readCart(c));
+  const products = await cartLines(c.env.DB, readCartEntries(c));
   if (!products.length) return c.redirect("/cart", 303);
   return renderCheckout(c, products);
 });
@@ -142,15 +151,19 @@ shop.post("/order", async (c) => {
     address: str(body.address, 500),
     area: str(body.area, 10),
     note: str(body.note, 300),
+    variant_id: str(body.variant_id, 12),
   };
 
   // কোন পণ্য: ল্যান্ডিং থেকে হলে শুধু ওই পণ্য, চেকআউট থেকে হলে কার্টের সব (ডুপ্লিকেট বাদ)
-  const ids = source === "cart" ? readCart(c) : uniqueIds([body.product_id]);
-  const products = await activeProductsByIds(c.env.DB, ids);
+  // কার্টের লাইন: ল্যান্ডিং থেকে হলে শুধু ওই পণ্য (+ বাছাই করা ভ্যারিয়েন্ট); একই পণ্য দুবার নয়
+  const entries = source === "cart"
+    ? readCartEntries(c)
+    : toInt(body.product_id) > 0 ? [{ productId: toInt(body.product_id), variantId: toInt(body.variant_id) || null }] : [];
+  const products = await cartLines(c.env.DB, entries);
 
   const fail = async (form: FormState, status: 422 | 429 | 403 = 422) => {
     if (source === "landing") {
-      const p = products[0] ?? (await c.env.DB.prepare("SELECT * FROM products WHERE id = ? AND is_active = 1").bind(toInt(body.product_id)).first<Product>());
+      const p = (await c.env.DB.prepare("SELECT * FROM products WHERE id = ? AND is_active = 1").bind(toInt(body.product_id)).first<Product>());
       if (!p) return c.redirect("/", 303);
       return renderLanding(c, p, { ...form, values }, status);
     }
@@ -163,7 +176,12 @@ shop.post("/order", async (c) => {
     return fail({ alert: "অনেকবার চেষ্টা করা হয়েছে। এক মিনিট পরে আবার চেষ্টা করুন।" }, 429);
   }
 
-  if (!products.length) return fail({ alert: "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
+  if (!products.length) {
+    if (source === "landing" && toInt(body.product_id) > 0 && (await productVariants(c.env.DB, toInt(body.product_id), true)).length) {
+      return fail({ errors: { variant: "সাইজ/রং বাছাই করুন" } });
+    }
+    return fail({ alert: "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
+  }
 
   // দোকানের বিলিং বকেয়া বা স্থগিত থাকলে অনলাইনে অর্ডার বন্ধ
   if (!c.var.shopState.accepting) return fail({ alert: ordersClosedMessage(c.var.settings.contact_phone || "") }, 403);

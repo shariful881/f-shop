@@ -1,7 +1,7 @@
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, STATUS_LABEL } from "../lib/orders";
-import type { Category, Product } from "../lib/products";
+import { parseOptions, type Category, type Product, type Variant } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
@@ -193,7 +193,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
           <h2>পণ্য</h2>
           <table class="table compact">
             <tbody>
-              {p.items.map((i) => <tr><td>{i.product_name} × ১</td><td class="right">{taka(i.price)}</td></tr>)}
+              {p.items.map((i) => <tr><td>{i.product_name}{i.variant_label ? <strong> ({i.variant_label})</strong> : ""} × ১</td><td class="right">{taka(i.price)}</td></tr>)}
               <tr><td>ডেলিভারি চার্জ</td><td class="right">{taka(o.delivery_charge)}</td></tr>
               <tr class="total"><td>মোট</td><td class="right">{taka(o.total)}</td></tr>
             </tbody>
@@ -286,8 +286,9 @@ export const ProductsPage = ({ products, categories }: { products: Product[]; ca
   </>
 );
 
-export const ProductFormPage = (p: { product?: Partial<Product>; categories: Category[]; errors?: Record<string, string> }) => {
+export const ProductFormPage = (p: { product?: Partial<Product>; categories: Category[]; errors?: Record<string, string>; variants?: Variant[] }) => {
   const v = p.product ?? {};
+  const opts = parseOptions(v.options_json);
   const e = p.errors ?? {};
   const isEdit = !!v.id;
   return (
@@ -317,12 +318,41 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
         <label class="field"><span>ছোট বর্ণনা</span><textarea name="short_desc" rows={2}>{v.short_desc ?? ""}</textarea></label>
         <label class="field"><span>বিস্তারিত কনটেন্ট (HTML)</span><textarea name="details_html" rows={10} class="mono">{v.details_html ?? ""}</textarea></label>
         <label class="field"><span>YouTube লিংক (ঐচ্ছিক)</span><input type="url" name="youtube_url" value={v.youtube_url ?? ""} placeholder="https://youtu.be/..." />{e.youtube_url && <small class="error">{e.youtube_url}</small>}</label>
+        <h2>সাইজ/রং (ঐচ্ছিক)</h2>
+        <p class="muted">যেমন অপশন: <code>সাইজ</code>, মান: <code>S, M, L, XL</code>। দুটো পর্যন্ত অপশন দেওয়া যায়। সেভ করলে সব কম্বিনেশন নিচে আসবে, সেখানে আলাদা দাম বা "স্টকে নেই" দেওয়া যাবে।</p>
+        <div class="form-grid">
+          {[0, 1].map((i) => (
+            <>
+              <label class="field"><span>অপশন {i + 1}-এর নাম</span><input type="text" name={`opt${i}_name`} value={opts[i]?.name ?? ""} placeholder={i === 0 ? "সাইজ" : "রং"} maxlength={30} /></label>
+              <label class="field"><span>মান (কমা দিয়ে)</span><input type="text" name={`opt${i}_values`} value={opts[i]?.values.join(", ") ?? ""} placeholder={i === 0 ? "S, M, L, XL" : "লাল, কালো"} /></label>
+            </>
+          ))}
+        </div>
         <div class="checks">
           <label><input type="checkbox" name="is_active" value="1" checked={v.is_active !== 0} /> চালু</label>
           <label><input type="checkbox" name="show_on_home" value="1" checked={v.show_on_home !== 0} /> হোম পেজে দেখাবে</label>
         </div>
         <button class="btn btn-primary btn-lg">সেভ করুন</button>
       </form>
+      {isEdit && p.variants && p.variants.length > 0 && (
+        <form method="post" action={`/admin/products/${v.id}/variants`} class="admin-form" style="margin-top:14px">
+          <h2>ভ্যারিয়েন্ট ({p.variants.length})</h2>
+          <p class="muted">দাম ফাঁকা রাখলে পণ্যের দাম ({taka(v.price ?? 0)}) লাগবে।</p>
+          <table class="table compact">
+            <thead><tr><th>ভ্যারিয়েন্ট</th><th>দাম (৳)</th><th>স্টকে আছে</th></tr></thead>
+            <tbody>
+              {p.variants.map((vr) => (
+                <tr>
+                  <td>{vr.label}</td>
+                  <td><input type="number" min="0" name={`price_${vr.id}`} value={vr.price != null ? String(vr.price) : ""} class="w-sm input-sm" /></td>
+                  <td><input type="checkbox" name={`active_${vr.id}`} value="1" checked={!!vr.active} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button class="btn btn-primary">ভ্যারিয়েন্ট সেভ করুন</button>
+        </form>
+      )}
     </>
   );
 };

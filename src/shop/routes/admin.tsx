@@ -6,7 +6,7 @@ import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
 import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
-import type { Category, Product } from "../lib/products";
+import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { safeColor, saveSettings } from "../lib/settings";
 import { clientIp, isHttps, str, toInt } from "../lib/http";
@@ -185,7 +185,7 @@ admin.get("/products/new", async (c) =>
 admin.get("/products/:id{[0-9]+}/edit", async (c) => {
   const p = await c.env.DB.prepare("SELECT * FROM products WHERE id = ?").bind(toInt(c.req.param("id"))).first<Product>();
   if (!p) return c.redirect("/admin/products", 303);
-  return render(c, "পণ্য এডিট", "products", <ProductFormPage product={p} categories={await allCategories(c.env.DB)} />);
+  return render(c, "পণ্য এডিট", "products", <ProductFormPage product={p} categories={await allCategories(c.env.DB)} variants={await productVariants(c.env.DB, p.id)} />);
 });
 
 function slugify(s: string): string {
@@ -215,7 +215,15 @@ async function saveProduct(c: Ctx, id: number | null) {
     is_active: body.is_active ? 1 : 0,
     show_on_home: body.show_on_home ? 1 : 0,
     sort_order: toInt(body.sort_order),
+    options_json: null as string | null,
   };
+  const options = [0, 1]
+    .map((i) => ({
+      name: str(body[`opt${i}_name`], 30),
+      values: [...new Set(str(body[`opt${i}_values`], 500).split(/[,،]/).map((x) => x.trim()).filter(Boolean))].slice(0, 20),
+    }))
+    .filter((o) => o.name && o.values.length);
+  v.options_json = options.length ? JSON.stringify(options) : null;
   if (!v.slug) v.slug = slugify(v.name) || `product-${crypto.randomUUID().slice(0, 6)}`;
 
   const errors: Record<string, string> = {};
@@ -244,24 +252,43 @@ async function saveProduct(c: Ctx, id: number | null) {
     if (existing?.image) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, existing.image)).catch(() => {});
   }
 
-  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order];
+  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json];
+  let productId = id;
   if (id) {
     await db.prepare(
       `UPDATE products SET category_id=?, name=?, slug=?, price=?, compare_price=?, image=?, headline=?, short_desc=?, details_html=?,
-         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, updated_at=datetime('now') WHERE id=?`,
+         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, updated_at=datetime('now') WHERE id=?`,
     ).bind(...cols, id).run();
   } else {
-    await db.prepare(
-      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    ).bind(...cols).run();
+    const r = await db.prepare(
+      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
+    ).bind(...cols).first<{ id: number }>();
+    productId = r!.id;
   }
-  flash(c, "ok", "পণ্য সেভ হয়েছে।");
-  return c.redirect("/admin/products", 303);
+  await syncVariants(db, productId!, options);
+  flash(c, "ok", options.length ? "পণ্য সেভ হয়েছে। নিচে ভ্যারিয়েন্টের দাম/স্টক ঠিক করে নিন।" : "পণ্য সেভ হয়েছে।");
+  return c.redirect(options.length ? `/admin/products/${productId}/edit` : "/admin/products", 303);
 }
 
 admin.post("/products", (c) => saveProduct(c, null));
 admin.post("/products/:id{[0-9]+}", (c) => saveProduct(c, toInt(c.req.param("id"))));
+
+admin.post("/products/:id{[0-9]+}/variants", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const body = await c.req.parseBody();
+  const variants = await productVariants(c.env.DB, id);
+  if (variants.length) {
+    await c.env.DB.batch(variants.map((vr) => {
+      const raw = str(body[`price_${vr.id}`], 10);
+      const price = raw === "" ? null : Math.max(0, toInt(raw));
+      return c.env.DB.prepare("UPDATE product_variants SET price = ?, active = ? WHERE id = ? AND product_id = ?")
+        .bind(price, body[`active_${vr.id}`] ? 1 : 0, vr.id, id);
+    }));
+  }
+  flash(c, "ok", "ভ্যারিয়েন্ট সেভ হয়েছে।");
+  return c.redirect(`/admin/products/${id}/edit`, 303);
+});
 
 admin.post("/products/:id{[0-9]+}/toggle", async (c) => {
   await c.env.DB.prepare("UPDATE products SET is_active = 1 - is_active, updated_at = datetime('now') WHERE id = ?").bind(toInt(c.req.param("id"))).run();

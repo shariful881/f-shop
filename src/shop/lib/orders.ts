@@ -43,6 +43,8 @@ export type OrderItem = {
   product_name: string;
   price: number;
   qty: number;
+  variant_id?: number | null;
+  variant_label?: string | null;
 };
 
 export type NewOrder = {
@@ -83,9 +85,9 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
     ...products.map((p) =>
       db
         .prepare(
-          "INSERT INTO order_items (order_id, product_id, product_name, price, qty) VALUES ((SELECT id FROM orders WHERE order_no = ?), ?, ?, ?, 1)",
+          "INSERT INTO order_items (order_id, product_id, product_name, price, qty, variant_id, variant_label) VALUES ((SELECT id FROM orders WHERE order_no = ?), ?, ?, ?, 1, ?, ?)",
         )
-        .bind(tmp, p.id, p.name, p.price),
+        .bind(tmp, p.id, p.name, p.price, p.variant_id ?? null, p.variant_label ?? null),
     ),
     db.prepare("UPDATE orders SET order_no = 'FS-' || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(tmp),
   ];
