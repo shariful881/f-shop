@@ -492,25 +492,16 @@ const CfgField = ({ f, cfg }: { f: Field; cfg: Cfg }) => {
   }
 };
 
-export const ThemeCustomizePage = ({ s, theme, cfg }: { s: Settings; theme: ThemeKey; cfg: Cfg }) => {
-  const active = (s.theme || "classic") as ThemeKey;
+export const ThemeCustomizePage = ({ theme, cfg }: { s: Settings; theme: ThemeKey; cfg: Cfg }) => {
   return (
     <>
       <Tabs active="customize" />
-      <div class="cz-themes">
-        {(Object.entries(THEMES) as [ThemeKey, { name: string }][]).map(([k, t]) => (
-          <a href={`/admin/settings/customize?theme=${k}`} class={k === theme ? "active" : ""}>
-            {t.name}{k === active && <em>চালু</em>}
-          </a>
-        ))}
-      </div>
       <p class="sa-muted cz-note">
-        প্রতিটা থিমের সেটিংস আলাদা সেভ হয়। এখন <b>{THEMES[theme].name}</b> থিমের সেটিংস বদলাচ্ছেন
-        {theme === active ? " — এটাই দোকানে চালু আছে।" : <> — এটা দোকানে চালু নেই, চালু করতে <a href="/admin/settings/appearance">থিম ও লোগো</a> থেকে বাছুন।</>}
+        এখন দোকানে চালু আছে <b>{THEMES[theme].name}</b> থিম — নিচের সেটিংস শুধু এই থিমের।
+        অন্য থিম চালু করলে সেই থিমের নিজের সেটিংস এখানে দেখাবে (<a href="/admin/settings/appearance">থিম বদলান</a>)।
         {" "}<a href="/" target="_blank">দোকান দেখুন ↗</a>
       </p>
       <form method="post" action="/admin/settings/customize" class="set-form">
-        <input type="hidden" name="theme" value={theme} />
         {GROUPS.map((g) => (
           <details class="sa-card set-section cz-group" open={g.key === "style"}>
             <summary class="set-section-head"><h2>{g.title}</h2><p class="sa-muted">{g.desc}</p></summary>

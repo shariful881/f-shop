@@ -693,19 +693,18 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
   tracking: { title: "পিক্সেল ও ট্র্যাকিং", view: (c) => <SettingsTrackingPage s={c.var.settings} /> },
 };
 
-/* থিম কাস্টমাইজ — প্রতিটা থিমের আলাদা সেটিংস */
-const themeParam = (v: unknown, s: Record<string, string>): ThemeKey => (typeof v === "string" && v in THEMES ? (v as ThemeKey) : themeOf(s));
+/* থিম কাস্টমাইজ — শুধু দোকানে চালু থিমের সেটিংস (প্রতিটা থিমের সেটিংস আলাদা সেভ থাকে) */
 admin.get("/settings/customize", (c) => {
-  const theme = themeParam(c.req.query("theme"), c.var.settings);
+  const theme = themeOf(c.var.settings);
   return render(c, "থিম কাস্টমাইজ", "settings", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} />);
 });
 admin.post("/settings/customize", async (c) => {
   const b = await c.req.parseBody();
-  const theme = themeParam(b.theme, c.var.settings);
+  const theme = themeOf(c.var.settings);
   const value = b.reset ? "" : JSON.stringify(cfgDiff(cfgFromForm(b, theme), theme));
   await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value });
   flash(c, "ok", b.reset ? `${THEMES[theme].name} থিম শুরুর সেটিংসে ফিরেছে।` : `${THEMES[theme].name} থিমের সেটিংস সেভ হয়েছে।`);
-  return c.redirect(`/admin/settings/customize?theme=${theme}`, 303);
+  return c.redirect("/admin/settings/customize", 303);
 });
 
 admin.get("/settings", (c) => render(c, SET_PAGES.general!.title, "settings", SET_PAGES.general!.view(c)));
