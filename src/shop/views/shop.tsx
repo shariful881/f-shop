@@ -14,25 +14,35 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
   const off = discountPercent(p.price, p.compare_price);
   const fmt = cfg?.badge_fmt ?? "pct";
   const orderBtn = (cfg?.card_order_btn ?? "1") === "1";
+  // পণ্যের পেজ (বিস্তারিত) নাকি সরাসরি ল্যান্ডিং পেজ
+  const href = (cfg?.product_link ?? "product") === "landing" ? `/p/${p.slug}` : `/product/${p.slug}`;
   const cartBtn = (cfg?.card_cart_btn ?? "1") === "1";
   return (
     <div class="card">
-      <a href={`/p/${p.slug}`} class="card-img">
+      <a href={href} class="card-img">
         <img src={imageUrl(p.image)} alt={p.name} loading="lazy" width="400" height="400" />
         {off > 0 && fmt !== "off" && <span class="badge">{fmt === "minus" ? `-${bn(off)}%` : `${bn(off)}% ছাড়`}</span>}
         {cfg?.free_tag === "1" && +(cfg._free_min || 0) > 0 && p.price >= +(cfg._free_min || 0) && <span class="free-tag">ফ্রি ডেলিভারি</span>}
       </a>
       <div class="card-body">
-        <a href={`/p/${p.slug}`} class="card-title">{p.name}</a>
+        <a href={href} class="card-title">{p.name}</a>
         <div class="price-row">
           <span class="price">{taka(p.price)}</span>
           {p.compare_price && p.compare_price > p.price && <del class="compare">{taka(p.compare_price)}</del>}
         </div>
         {(orderBtn || cartBtn) && (
           <div class="card-actions">
-            {orderBtn && <a href={`/p/${p.slug}#order`} class="btn btn-primary">{cfg?.card_order_text || "অর্ডার করুন"}</a>}
+            {orderBtn && (p.variant_count || cfg?.product_link === "landing" ? (
+              <a href={p.variant_count && cfg?.product_link !== "landing" ? `${href}#buy` : `/p/${p.slug}#order`} class="btn btn-primary">{cfg?.card_order_text || "অর্ডার করুন"}</a>
+            ) : (
+              <form method="post" action="/cart/add">
+                <input type="hidden" name="product_id" value={String(p.id)} />
+                <input type="hidden" name="buy_now" value="1" />
+                <button type="submit" class="btn btn-primary">{cfg?.card_order_text || "অর্ডার করুন"}</button>
+              </form>
+            ))}
             {cartBtn && (p.variant_count ? (
-              <a href={`/p/${p.slug}#order`} class="btn btn-outline">অপশন বাছুন</a>
+              <a href={`${href}#buy`} class="btn btn-outline">অপশন বাছুন</a>
             ) : (
               <form method="post" action="/cart/add" data-add-to-cart>
                 <input type="hidden" name="product_id" value={String(p.id)} />
@@ -302,7 +312,7 @@ export const CartPage = ({ products }: { products: Product[] }) => {
               <li class="cart-item">
                 <img src={imageUrl(p.image)} alt="" width="64" height="64" loading="lazy" />
                 <div class="cart-item-info">
-                  <a href={`/p/${p.slug}`}>{p.name}</a>
+                  <a href={`/product/${p.slug}`}>{p.name}</a>
                   {p.variant_label && <div class="muted">{p.variant_label}</div>}
                   <div class="price">{taka(p.price)}</div>
                 </div>

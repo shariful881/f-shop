@@ -128,8 +128,13 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     ],
   },
   {
-    key: "product", title: "পণ্যের পেজ (ল্যান্ডিং পেজ)", desc: "প্রতিটা পণ্যের পেজে অর্ডার ফর্মের নিচে বাটন, শেয়ার, সম্পর্কিত পণ্য। ল্যান্ডিং এডিটরে বানানো পেজেও লাগে।",
+    key: "product", title: "পণ্যের পেজ", desc: "পণ্যের বিস্তারিত পেজ (ছবি, দাম, কার্টে যোগ, এখনই কিনুন) আর ল্যান্ডিং পেজের বাটন, শেয়ার, সম্পর্কিত পণ্য।",
     fields: [
+      { key: "product_link", type: "select", label: "পণ্যে ক্লিক করলে কোন পেজ খুলবে", options: { product: "পণ্যের বিস্তারিত পেজ (ছবি, বিবরণ, কার্টে যোগ)", landing: "সরাসরি অর্ডারের পেজ (ল্যান্ডিং পেজ)" }, hint: "ফেসবুক অ্যাডের জন্য ল্যান্ডিং পেজের লিংক (/p/...) সবসময় আলাদা কাজ করে" },
+      { key: "pd_cart_text", type: "text", label: "\"কার্টে যোগ করুন\" বাটনের লেখা", max: 30 },
+      { key: "pd_buy_text", type: "text", label: "\"এখনই কিনুন\" বাটনের লেখা", max: 30 },
+      { key: "pd_delivery_info", type: "toggle", label: "ডেলিভারি চার্জ আর সময় দেখাবে" },
+      { key: "pd_trust", type: "toggle", label: "বিশ্বাসের ব্যাজ দেখাবে (ফুটারের ব্যাজের লেখা)" },
       { key: "pd_call", type: "toggle", label: "\"কল করুন\" বাটন" },
       { key: "pd_call_text", type: "text", label: "কল বাটনের লেখা", max: 40 },
       { key: "pd_wa", type: "toggle", label: "WhatsApp বাটন", hint: "\"দোকানের তথ্য\" ট্যাবে WhatsApp নম্বর লাগবে" },
@@ -227,6 +232,7 @@ const BASE: Cfg = {
   feature_2_icon: "cash", feature_2: "ক্যাশ অন ডেলিভারি", feature_2_sub: "পণ্য হাতে পেয়ে টাকা দিন",
   feature_3_icon: "shield", feature_3: "অরিজিনাল পণ্য", feature_3_sub: "মান যাচাই করে পাঠানো",
   popup_on: "0", popup_image: "", popup_link: "", popup_delay: "3",
+  product_link: "product", pd_cart_text: "কার্টে যোগ করুন", pd_buy_text: "এখনই কিনুন", pd_delivery_info: "1", pd_trust: "1",
   pd_call: "1", pd_call_text: "কল করে অর্ডার করুন", pd_wa: "1", pd_wa_text: "WhatsApp-এ জিজ্ঞাসা করুন", pd_msg: "0", pd_msg_text: "Messenger-এ মেসেজ দিন",
   pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4",
   card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",

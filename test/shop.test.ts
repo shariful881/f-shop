@@ -14,7 +14,7 @@ describe("হোম পেজ", () => {
     expect(html).toContain("কাঠের ওয়াল শেলফ");
     expect(html).toContain("৳১,২৫০");
     expect(html).toContain("<del"); // কাটা দাম
-    expect(html).toContain('href="/p/wooden-wall-shelf#order"');
+    expect(html).toContain('href="/product/wooden-wall-shelf"'); // কার্ড → পণ্যের বিস্তারিত পেজ
     expect(html).toContain("কার্টে যোগ");
   });
 

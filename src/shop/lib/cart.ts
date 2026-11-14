@@ -72,3 +72,9 @@ export function removeFromCart(c: Ctx, productId: number) {
 export function clearCart(c: Ctx) {
   writeCart(c, []);
 }
+
+/** "এখনই কিনুন": পণ্যটা কার্টে রাখে (আগে থাকলে বাছাই করা ভ্যারিয়েন্ট দিয়ে বদলায়) */
+export function upsertCart(c: Ctx, productId: number, variantId: number | null = null) {
+  const entries = readCartEntries(c).filter((e) => e.productId !== productId);
+  writeCart(c, [...entries, { productId, variantId }]);
+}

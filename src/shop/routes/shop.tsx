@@ -11,7 +11,9 @@ import { ADMIN_COOKIE } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
-import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
+import { addToCart, clearCart, readCart, readCartEntries, removeFromCart, upsertCart } from "../lib/cart";
+import { ProductPage } from "../views/product";
+import { parseLanding } from "../lib/landing";
 import { createOrder, getOrderByNo, orderPrefix } from "../lib/orders";
 import { checkCoupon, normalizeCode } from "../lib/coupons";
 import { deliveryCharge, minOrderAmount } from "../lib/settings";
@@ -117,6 +119,37 @@ shop.get("/p/:slug", async (c) => {
   const p = await activeProductBySlug(c.env.DB, c.req.param("slug"));
   if (!p) return notFound(c);
   return renderLanding(c, p);
+});
+
+/* ---------- পণ্যের বিস্তারিত পেজ ---------- */
+async function renderProduct(c: Ctx, p: Product, error?: string) {
+  const s = c.var.settings;
+  const cfg = themeConfig(s);
+  const variants = await productVariants(c.env.DB, p.id);
+  // ছবি: পণ্যের মূল ছবি + ল্যান্ডিং পেজের গ্যালারির ছবি (থাকলে)
+  const images = [p.image, ...(parseLanding(p.landing_json)?.sections.filter((x) => x.type === "gallery").flatMap((x) => x.data.images ?? []) ?? [])]
+    .filter((k, i, a): k is string => !!k && a.indexOf(k) === i).slice(0, 10);
+  const [rel, cat] = await Promise.all([
+    cfg.pd_related === "1" && p.category_id
+      ? c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? AND p.id != ? ORDER BY p.sort_order, p.id LIMIT ?`).bind(p.category_id, p.id, parseInt(cfg.pd_related_count || "4", 10)).all<Product>()
+      : Promise.resolve({ results: [] as Product[] }),
+    p.category_id ? c.env.DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(p.category_id).first<{ id: number; name: string }>() : Promise.resolve(null),
+  ]);
+  const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
+  return page(c,
+    <Layout title={p.meta_title || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
+      description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
+      <ProductPage p={p} images={images} variants={variants} s={s} cfg={cfg} related={rel.results} category={cat} error={error}
+        closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
+    </Layout>,
+    error ? 422 : 200,
+  );
+}
+
+shop.get("/product/:slug", async (c) => {
+  const p = await activeProductBySlug(c.env.DB, c.req.param("slug"));
+  if (!p) return notFound(c);
+  return renderProduct(c, p, c.req.query("need") === "variant" ? "সাইজ/রং বাছাই করুন" : undefined);
 });
 
 /* ---------- ক্যাটাগরি আর সার্চ ---------- */
@@ -233,12 +266,20 @@ shop.post("/cart/add", async (c) => {
   if (!product) {
     const exists = await activeProductsByIds(c.env.DB, [id]);
     if (exists[0]) {
-      // ভ্যারিয়েন্ট বাছাই করা দরকার
+      // ভ্যারিয়েন্ট বাছাই করা দরকার — পণ্যের পেজে ফেরত
+      const back = `/product/${exists[0].slug}?need=variant#buy`;
       return wantsJson(c)
-        ? c.json({ ok: false, message: "সাইজ/রং বাছাই করুন", redirect: `/p/${exists[0].slug}#order` }, 422)
-        : c.redirect(`/p/${exists[0].slug}#order`, 303);
+        ? c.json({ ok: false, message: "সাইজ/রং বাছাই করুন", redirect: back }, 422)
+        : c.redirect(back, 303);
     }
     return wantsJson(c) ? c.json({ ok: false, message: "পণ্যটি পাওয়া যায়নি" }, 404) : c.redirect("/cart", 303);
+  }
+  // এখনই কিনুন: কার্টে রেখে সরাসরি চেকআউটে
+  if (body.buy_now) {
+    const already = readCartEntries(c).some((e) => e.productId === id);
+    upsertCart(c, id, product.variant_id ?? null);
+    if (!already) trackServer(c, "AddToCart", newEventId("atc"), { ...productData([product]), content_name: product.name });
+    return c.redirect("/checkout", 303);
   }
   const added = addToCart(c, id, product.variant_id ?? null);
   const count = readCart(c).length + (added ? 1 : 0);

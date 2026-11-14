@@ -100,7 +100,7 @@ describe("কাস্টমারের দিক", () => {
     const { variants } = await setupVariants();
     const b = new Browser();
     const r0 = await b.post("/cart/add", { product_id: 1 }, { accept: "application/json" });
-    expect(await r0.json()).toMatchObject({ ok: false, redirect: "/p/wooden-wall-shelf#order" });
+    expect(await r0.json()).toMatchObject({ ok: false, redirect: "/product/wooden-wall-shelf?need=variant#buy" });
 
     const r1 = await b.post("/cart/add", { product_id: 1, variant_id: vid(variants, "M / লাল") }, { accept: "application/json" });
     expect(await r1.json()).toMatchObject({ ok: true });

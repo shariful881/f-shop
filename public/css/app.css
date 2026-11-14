@@ -476,3 +476,38 @@ main { min-height: 60vh; padding-bottom: 90px; }
 [data-bare] .px-top { bottom: 74px; }
 @media (min-width: 768px) { [data-bare] .px-top { bottom: 22px; } }
 .sticky-order.is-hidden { transform: translateY(110%); } .sticky-order { transition: transform .2s; }
+
+/* ---------- পণ্যের বিস্তারিত পেজ ---------- */
+.pp { padding-bottom: 80px; }
+.pp-main { display: grid; gap: 18px; margin-top: 12px; }
+@media (min-width: 860px) { .pp-main { grid-template-columns: 1.05fr 1fr; gap: 34px; align-items: start; } .pp-gallery { position: sticky; top: 90px; } }
+.pp-main-img { position: relative; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; aspect-ratio: 1; }
+.pp-main-img img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.pp-main-img .badge { left: auto; right: 10px; top: 10px; }
+.pp-thumbs { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; }
+.pp-thumbs button { flex: none; width: 66px; height: 66px; padding: 0; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; cursor: pointer; }
+.pp-thumbs button.on { border-color: var(--brand); }
+.pp-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+.pp-title { font-size: 1.45rem; line-height: 1.35; margin: 0 0 6px; }
+@media (min-width: 860px) { .pp-title { font-size: 1.8rem; } }
+.pp-headline { color: var(--muted); margin: 0 0 8px; }
+.pp-price { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 6px 0 10px; }
+.pp-free { display: inline-block; background: #ecfdf5; color: #065f46; font-weight: 700; border-radius: 8px; padding: 4px 10px; margin: 0 0 10px; }
+.pp-short { margin: 0 0 14px; }
+.pp-form { display: grid; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.pp-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.pp-actions .btn { width: 100%; }
+.pp-contact { display: grid; gap: 8px; margin: 14px 0; }
+@media (min-width: 600px) { .pp-contact { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
+.pp-delivery { list-style: none; margin: 14px 0; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
+.pp-delivery li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px dashed var(--line); font-size: .92rem; }
+.pp-delivery li:last-child { border-bottom: 0; }
+.pp-delivery span { color: var(--muted); }
+.pp-trust { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--brand-dark); font-weight: 600; font-size: .9rem; margin: 10px 0; }
+.pp-details { margin: 28px 0 10px; }
+.pp-details .section-title { margin-bottom: 12px; }
+.pp-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 47; background: #fff; display: grid; grid-template-columns: auto 1fr 1fr; gap: 8px; align-items: center; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 16px rgba(15,23,42,.1); transition: transform .2s; }
+.pp-sticky.is-hidden { transform: translateY(110%); }
+.pp-sticky .btn { padding: 10px 6px; font-size: .92rem; }
+.pp-sticky-price { font-weight: 800; color: var(--brand-dark); padding: 0 4px; }
+@media (min-width: 860px) { .pp-sticky { display: none; } }

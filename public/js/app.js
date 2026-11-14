@@ -244,7 +244,7 @@
 (function () {
   if (document.querySelector("[data-zoom-on]")) {
     document.addEventListener("click", function (e) {
-      var img = e.target.closest && e.target.closest(".landing-img img, .gallery-track img, .lp-gallery img");
+      var img = e.target.closest && e.target.closest(".landing-img img, .gallery-track img, .lp-gallery img, .pp-main-img img");
       if (!img) return;
       var box = document.createElement("div");
       box.className = "pd-zoom";
@@ -294,4 +294,58 @@ document.addEventListener("click", function (e) {
   new IntersectionObserver(function (es) {
     bar.classList.toggle("is-hidden", es[0].isIntersecting);
   }, { rootMargin: "0px 0px -20% 0px" }).observe(order);
+})();
+
+/* পণ্যের বিস্তারিত পেজ: গ্যালারি, সাইজ অনুযায়ী দাম, কার্টে যোগ (পেজ না বদলে), নিচের বাটন */
+(function () {
+  var D = "০১২৩৪৫৬৭৮৯";
+  function bn(s) { return String(s).replace(/[0-9]/g, function (d) { return D[d]; }); }
+  function taka(n) { return "৳" + bn(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")); }
+  function toast(msg) { var t = document.getElementById("toast"); if (!t) return; t.textContent = msg; t.classList.add("show"); setTimeout(function () { t.classList.remove("show"); }, 2500); }
+  var form = document.querySelector("[data-pp-form]");
+  var big = document.querySelector("[data-pp-big]");
+  document.querySelectorAll("[data-pp-thumb]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (big) big.src = b.dataset.ppThumb;
+      document.querySelectorAll("[data-pp-thumb]").forEach(function (x) { x.classList.toggle("on", x === b); });
+    });
+  });
+  if (!form) return;
+  var priceEl = document.querySelector("[data-pp-price]");
+  form.addEventListener("change", function () {
+    var v = form.querySelector("input[name=variant_id]:checked") || form.querySelector("select[name=variant_id] option:checked");
+    if (v && v.dataset.price && priceEl) priceEl.textContent = taka(+v.dataset.price);
+  });
+  form.addEventListener("submit", function (e) {
+    if (!e.submitter || !e.submitter.hasAttribute("data-pp-cart")) return; // এখনই কিনুন → সাধারণভাবে চেকআউটে
+    e.preventDefault();
+    var btn = e.submitter; btn.disabled = true;
+    fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" }, credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.redirect) { location.href = d.redirect; return; }
+        document.querySelectorAll("[data-cart-count]").forEach(function (el) { el.textContent = bn(d.count || 0); });
+        var side = document.querySelector("[data-side-cart]");
+        if (side) {
+          side.querySelector("[data-side-msg]").textContent = (d.ok ? "✓ " : "") + (d.message || "");
+          side.querySelector("[data-side-count]").textContent = bn(d.count || 0);
+          side.hidden = false; requestAnimationFrame(function () { side.classList.add("open"); });
+        } else toast(d.message || "");
+        if (d.ok && d.event_id && window.fshopTrack) window.fshopTrack("AddToCart", d.fb_params || {}, d.event_id);
+      })
+      .catch(function () { toast("সমস্যা হয়েছে, আবার চেষ্টা করুন"); })
+      .finally(function () { btn.disabled = false; });
+  });
+  var go = function (sel) {
+    var b = form.querySelector(sel);
+    if (!form.checkValidity()) { document.getElementById("buy").scrollIntoView({ behavior: "smooth", block: "center" }); form.reportValidity(); return; }
+    if (form.requestSubmit) form.requestSubmit(b); else b.click();
+  };
+  var sc = document.querySelector("[data-pp-sticky-cart]"), sb = document.querySelector("[data-pp-sticky-buy]");
+  if (sc) sc.addEventListener("click", function () { go("[data-pp-cart]"); });
+  if (sb) sb.addEventListener("click", function () { go("button[name=buy_now]"); });
+  var sticky = document.querySelector("[data-pp-sticky]"), actions = form.querySelector(".pp-actions");
+  if (sticky && actions && "IntersectionObserver" in window) {
+    new IntersectionObserver(function (es) { sticky.classList.toggle("is-hidden", es[0].isIntersecting); }).observe(actions);
+  }
 })();
