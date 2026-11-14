@@ -10,7 +10,8 @@ import { deliveryCharge } from "../lib/settings";
 import { clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
 import { imageUrl } from "../lib/format";
 import { page } from "../lib/render";
-import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLocks } from "../lib/order-guard";
+import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLocks, hitRateLimit, ORDER_RATE_LIMIT } from "../lib/order-guard";
+import { isUuid } from "../middleware/device";
 
 export const shop = new Hono<AppEnv>();
 
@@ -121,6 +122,11 @@ shop.post("/order", async (c) => {
     return renderCheckout(c, products, { ...form, values }, status);
   };
 
+  // ০. rate limit: একই IP থেকে মিনিটে সর্বোচ্চ ৫ বার অর্ডার সাবমিট
+  if (!(await hitRateLimit(c.env.DB, `order:${clientIp(c)}`, ORDER_RATE_LIMIT.max, ORDER_RATE_LIMIT.windowSec))) {
+    return fail({ alert: "অনেকবার চেষ্টা করা হয়েছে। এক মিনিট পরে আবার চেষ্টা করুন।" }, 429);
+  }
+
   if (!products.length) return fail({ alert: "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
 
   // ১. ইনপুট যাচাই (ফোন নম্বর নরমালাইজসহ)
@@ -198,6 +204,6 @@ export function notFound(c: Ctx) {
 
 function uniqueStrings(list: (string | null | undefined)[]): string[] {
   const out: string[] = [];
-  for (const v of list) if (v && /^[0-9a-f-]{36}$/i.test(v) && !out.includes(v.toLowerCase())) out.push(v.toLowerCase());
+  for (const v of list) if (isUuid(v) && !out.includes(v.toLowerCase())) out.push(v.toLowerCase());
   return out;
 }

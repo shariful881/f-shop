@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "./env";
 import { withSettings, sameOriginPost, securityHeaders } from "./middleware/base";
 import { shop, notFound } from "./routes/shop";
+import { device } from "./middleware/device";
 
 const app = new Hono<AppEnv>();
 
@@ -10,7 +11,7 @@ app.get("/health", async (c) => {
   return c.json({ ok: true, products: row?.n ?? 0 });
 });
 
-app.use("*", securityHeaders, withSettings, sameOriginPost);
+app.use("*", securityHeaders, withSettings, sameOriginPost, device);
 
 app.route("/", shop);
 
