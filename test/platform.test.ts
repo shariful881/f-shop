@@ -157,10 +157,10 @@ describe("সুপার অ্যাডমিন", () => {
   it("দোকানের তালিকা, খোঁজা আর ডিটেইল", async () => {
     await signup({ slug: "karim-store", shop_name: "করিম স্টোর", phone: "01898765432" }).res;
     const b = await superBrowser();
-    const list = await (await get(b, "/super")).text();
+    const list = await (await get(b, "/super/shops")).text();
     expect(list).toContain("করিম স্টোর");
     expect(list).toContain("demoshop");
-    const found = await (await get(b, "/super?q=" + encodeURIComponent("+8801898765432"))).text();
+    const found = await (await get(b, "/super/shops?q=" + encodeURIComponent("+8801898765432"))).text();
     expect(found).toContain("করিম স্টোর");
     expect(found).not.toContain("demoshop");
     const s = await shopRow("karim-store");

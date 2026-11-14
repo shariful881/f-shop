@@ -78,7 +78,7 @@ async function chargeMonth(db: D1Database, shop: BillingShop, s: PlatformSetting
 /** ট্রায়াল শেষ → চালু, আর প্রথম মাসের চার্জ */
 export async function endTrial(db: D1Database, shopId: string, s: PlatformSettings): Promise<boolean> {
   const upd = await db.prepare(
-    "UPDATE shops SET status = 'active', next_bill_at = datetime('now', '+1 month') WHERE id = ? AND status = 'trial'",
+    "UPDATE shops SET status = 'active', next_bill_at = datetime('now', '+1 month'), activated_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ? AND status = 'trial'",
   ).bind(shopId).run();
   if (!upd.meta.changes) return false;
   const shop = await billingShop(db, shopId);
@@ -116,15 +116,23 @@ export async function chargeConfirmedOrder(db: D1Database, shopId: string, order
       db.prepare("UPDATE ledger SET applied = 1, balance_after = (SELECT balance FROM shops WHERE id = ?) WHERE shop_id = ? AND type = 'trial_order' AND ref = ? AND applied = 0")
         .bind(shopId, shopId, orderNo),
     ]);
+    const counted = (res[2]!.meta.changes ?? 0) > 0;
+    if (counted) await countOrder(db, shopId);
     const after = (await billingShop(db, shopId))!;
     if (after.trial_orders_left <= 0) await endTrial(db, shopId, s);
-    return { charged: 0, trial: (res[2]!.meta.changes ?? 0) > 0 };
+    return { charged: 0, trial: counted };
   }
 
   if (shop.status === "closed") return { charged: 0, trial: false };
   const fee = num(s, "order_fee", 2);
   const applied = await applyLedger(db, shopId, "order_fee", -fee, orderNo, `অর্ডার ${orderNo}`);
+  if (applied) await countOrder(db, shopId);
   return { charged: applied ? fee : 0, trial: false };
+}
+
+/** সুপার অ্যাডমিনের পরিসংখ্যানের জন্য দোকানের কনফার্ম অর্ডারের কাউন্টার */
+async function countOrder(db: D1Database, shopId: string) {
+  await db.prepare("UPDATE shops SET confirmed_orders = confirmed_orders + 1, last_order_at = datetime('now') WHERE id = ?").bind(shopId).run();
 }
 
 /** রিচার্জ অনুমোদন */
@@ -135,6 +143,7 @@ export async function approveTopup(db: D1Database, topupId: number): Promise<{ o
   const upd = await db.prepare("UPDATE topups SET status = 'approved', decided_at = datetime('now') WHERE id = ? AND status = 'pending'").bind(topupId).run();
   if (!upd.meta.changes) return { ok: false, message: "এটা আগেই সিদ্ধান্ত হয়েছে" };
   await applyLedger(db, t.shop_id, "topup", t.amount, `topup:${t.id}`, `${t.method === "bkash" ? "bKash" : "Nagad"} ${t.trx_id}`);
+  await db.prepare("UPDATE shops SET first_topup_at = COALESCE(first_topup_at, datetime('now')) WHERE id = ?").bind(t.shop_id).run();
   return { ok: true, message: `৳${t.amount} ব্যালেন্সে যোগ হয়েছে` };
 }
 

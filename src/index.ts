@@ -57,12 +57,17 @@ export default {
   /** প্রতিদিন একবার: ট্রায়াল শেষ, মাসিক চার্জ */
   async scheduled(event: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) {
     if (event.cron === "17 0 * * *") {
-      ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)));
+      ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)).then(() => markCron(env, "cron_daily_at")));
     } else {
-      ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)));
+      ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;
+
+/** সুপার অ্যাডমিনের "সিস্টেম" কার্ডের জন্য — cron শেষ কবে চলেছে */
+async function markCron(env: WorkerEnv, key: string) {
+  await env.PLATFORM_DB.prepare("INSERT INTO platform_settings (key, value) VALUES (?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(key).run();
+}
 
 export async function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Request) {
   const headers = new Headers(request.headers);

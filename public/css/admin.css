@@ -141,3 +141,7 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .courier-form .form-grid{margin-bottom:.5rem}
 .small{font-size:.875rem}
 .panel .courier-form{border:0;padding:0;box-shadow:none;background:none}
+.banner-ann { text-align: left; padding: 10px 16px; }
+.banner-ann-info { background: #eff6ff; color: #1e3a8a; border-bottom: 1px solid #bfdbfe; }
+.banner-ann-success { background: #f0fdf4; color: #14532d; border-bottom: 1px solid #bbf7d0; }
+.banner-ann-warn { background: #fffbeb; color: #78350f; border-bottom: 1px solid #fde68a; }

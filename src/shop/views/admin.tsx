@@ -33,7 +33,7 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
   }
 };
 
-export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; children?: Child }) => (
+export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; announcements?: { id: number; title: string; body: string | null; level: string }[]; children?: Child }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -72,6 +72,9 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
         </header>
       )}
       {p.email && <StateBanner state={p.state} />}
+      {p.email && (p.announcements ?? []).map((a) => (
+        <div class={`banner banner-ann banner-ann-${a.level}`}><strong>📢 {a.title}</strong>{a.body ? <> — {a.body}</> : null}</div>
+      ))}
       <main class="wrap admin-main">
         {p.flash && <div class={`alert ${p.flash.type === "ok" ? "alert-ok" : "alert-error"}`}>{p.flash.text}</div>}
         {p.children}

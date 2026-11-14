@@ -104,6 +104,15 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     return this.createLoginToken(user!.id);
   }
 
+  /** সুপার অ্যাডমিনের সাপোর্ট লগইন: দোকানের মালিকের জন্য ৫ মিনিটের এককালীন টোকেন */
+  async ownerLoginToken(shopId: string): Promise<string | null> {
+    await this.ensureInit(shopId, false);
+    const owner = await this.db.prepare(
+      "SELECT id FROM users WHERE is_admin = 1 AND active = 1 ORDER BY CASE WHEN role = 'owner' THEN 0 ELSE 1 END, id LIMIT 1",
+    ).first<{ id: number }>();
+    return owner ? this.createLoginToken(owner.id) : null;
+  }
+
   async createLoginToken(userId: number): Promise<string> {
     const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)))]

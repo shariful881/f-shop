@@ -41,10 +41,33 @@ function takeFlash(c: Ctx): Flash {
   try { return JSON.parse(decodeURIComponent(raw)); } catch { return null; }
 }
 
-function render(c: Ctx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200) {
+/* সুপার অ্যাডমিনের ঘোষণা (সব দোকানে) — ১ মিনিট cache */
+type Announcement = { id: number; title: string; body: string | null; level: string };
+let annCache: { at: number; list: Announcement[] } | null = null;
+async function announcements(c: Ctx): Promise<Announcement[]> {
+  if (annCache && Date.now() - annCache.at < 60_000) return annCache.list;
+  try {
+    const { results } = await c.env.PLATFORM_DB.prepare(
+      "SELECT id, title, body, level FROM announcements WHERE active = 1 AND (ends_at IS NULL OR ends_at > datetime('now')) ORDER BY id DESC LIMIT 3",
+    ).all<Announcement>();
+    annCache = { at: Date.now(), list: results };
+  } catch {
+    annCache = { at: Date.now(), list: [] };
+  }
+  return annCache.list;
+}
+export const clearAnnouncementCache = () => { annCache = null; };
+
+/** দোকানের শেষ লগইন (সুপার অ্যাডমিনের "সক্রিয় দোকান" হিসাবের জন্য) */
+async function markShopLogin(c: Ctx) {
+  await c.env.PLATFORM_DB.prepare("UPDATE shops SET last_login_at = datetime('now') WHERE id = ?").bind(c.env.SHOP_ID).run().catch(() => {});
+}
+
+async function render(c: Ctx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200) {
+  const ann = await announcements(c);
   return c.html(
     "<!DOCTYPE html>" +
-      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState}>{body as any}</AdminLayout>),
+      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState} announcements={ann}>{body as any}</AdminLayout>),
     status,
   );
 }
@@ -67,6 +90,7 @@ admin.post("/login", async (c) => {
 
   const token = await createSession(c.env.DB, user.id);
   setCookie(c, ADMIN_COOKIE, token, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+  await markShopLogin(c);
   return c.redirect("/admin/orders", 303);
 });
 
@@ -81,7 +105,12 @@ admin.get("/auto-login", async (c) => {
   if (!row) return c.redirect("/admin/login", 303);
   const session = await createSession(db, row.user_id);
   setCookie(c, ADMIN_COOKIE, session, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
-  flash(c, "ok", "স্বাগতম! আপনার দোকান তৈরি হয়ে গেছে। প্রথমে সেটিংস আর পণ্য ঠিক করে নিন।");
+  if (c.req.query("support") === "1") {
+    flash(c, "ok", "সাপোর্ট টিম হিসেবে দোকানের মালিকের অ্যাকাউন্টে ঢুকেছেন। কাজ শেষে লগআউট করুন।");
+  } else {
+    await markShopLogin(c);
+    flash(c, "ok", "স্বাগতম! আপনার দোকান তৈরি হয়ে গেছে। প্রথমে সেটিংস আর পণ্য ঠিক করে নিন।");
+  }
   return c.redirect("/admin/orders", 303);
 });
 

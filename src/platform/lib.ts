@@ -3,7 +3,9 @@ import { getCookie } from "hono/cookie";
 import type { WorkerEnv } from "../worker-env";
 import { sha256Hex } from "../shop/lib/auth";
 
-export type PEnv = { Bindings: WorkerEnv; Variables: { superAdmin?: { id: number; email: string } } };
+export type SuperRole = "owner" | "admin" | "support" | "finance";
+export type SuperAdmin = { id: number; email: string; name: string | null; role: SuperRole };
+export type PEnv = { Bindings: WorkerEnv; Variables: { superAdmin?: SuperAdmin } };
 export type PCtx = Context<PEnv>;
 
 export const SUPER_COOKIE = "super_session";
@@ -59,9 +61,9 @@ export async function superFromCookie(c: PCtx) {
   const token = getCookie(c, SUPER_COOKIE);
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
   return c.env.PLATFORM_DB.prepare(
-    `SELECT a.id, a.email FROM super_sessions s JOIN super_admins a ON a.id = s.admin_id
-     WHERE s.id = ? AND s.expires_at > datetime('now')`,
-  ).bind(await sha256Hex(token)).first<{ id: number; email: string }>();
+    `SELECT a.id, a.email, a.name, a.role FROM super_sessions s JOIN super_admins a ON a.id = s.admin_id
+     WHERE s.id = ? AND s.expires_at > datetime('now') AND a.active = 1`,
+  ).bind(await sha256Hex(token)).first<SuperAdmin>();
 }
 
 export async function destroySuperSession(env: WorkerEnv, token: string | undefined) {
