@@ -198,6 +198,13 @@
     ]
    }
   ],
+  "about": "সুতোকথা — পাকিস্তানি স্টাইলের লন, এমব্রয়ডারি আর পার্টি থ্রি-পিসের অনলাইন দোকান। প্রতিটা পিস হাতে দেখে বাছাই করে পাঠানো হয়।",
+  "bullets": [
+   "নরম, আরামদায়ক কাপড় — গরমে পরার উপযোগী",
+   "রং পাকা, ধোয়ার পরও উজ্জ্বল থাকে",
+   "জামা, ওড়না আর সালোয়ারের কাপড় একসাথে (রেডিমেড ছাড়া)",
+   "ছবির সাথে রং সামান্য আলাদা হতে পারে (আলো আর স্ক্রিনের কারণে)"
+  ],
   "banner_prompts": [
    "wide website hero banner photo, folded pastel pakistani lawn three piece suits with embroidered dupatta on a wooden table with flowers, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
    "wide website hero banner photo, rack of colorful embroidered pakistani shalwar kameez in an elegant boutique, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
@@ -386,6 +393,13 @@
     "prompt": "professional e-commerce product photo, set of three minimal unbranded skincare products: cleanser tube, dropper serum, sunscreen tube arranged together, on pastel pink background with podium, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
     "variants": []
    }
+  ],
+  "about": "ত্বকমায়া — কোরিয়ান রুটিনের স্কিনকেয়ার আর চুলের যত্নের পণ্য। বাংলাদেশের গরম আর আর্দ্র আবহাওয়ার কথা ভেবে বাছাই করা।",
+  "bullets": [
+   "হালকা টেক্সচার, ত্বকে তেলতেলে ভাব রাখে না",
+   "সব ধরনের ত্বকে ব্যবহার করা যায়",
+   "প্রথমবার ব্যবহারের আগে হাতের কব্জিতে প্যাচ টেস্ট করে নিন",
+   "সিলড প্যাকেটে পাঠানো হয়"
   ],
   "banner_prompts": [
    "wide website hero banner photo, minimal skincare bottles and jars arranged on pastel pink stone podiums with soft shadows, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
@@ -576,6 +590,13 @@
     "variants": []
    }
   ],
+  "about": "খাঁটিবাড়ি — মধু, ঘি, খেজুর, বাদাম আর স্বাস্থ্যকর খাবার, সরাসরি উৎস থেকে সংগ্রহ করা। ভেজালমুক্ত খাবার ঘরে পৌঁছে দেওয়াই আমাদের কাজ।",
+  "bullets": [
+   "সরাসরি চাষি ও সংগ্রহকারীর কাছ থেকে নেওয়া",
+   "ফুড-গ্রেড বোতল/প্যাকেটে ভালোভাবে প্যাক করা",
+   "শীতে মধু জমে যাওয়া স্বাভাবিক — হালকা গরম পানিতে রাখলে গলে যায়",
+   "ঠান্ডা ও শুকনো জায়গায় রাখুন"
+  ],
   "banner_prompts": [
    "wide website hero banner photo, glass jars of golden honey with honeycomb and wooden dipper on a rustic table, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
    "wide website hero banner photo, bowls of premium dates, almonds, cashews and honey on a dark wooden table, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
@@ -764,6 +785,13 @@
     "prompt": "professional e-commerce product photo, 10 inch LED ring light with phone holder on tripod stand, on dark background, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
     "variants": []
    }
+  ],
+  "about": "গ্যাজেটপাড়া — বাজেটের মধ্যে ইয়ারবাড, স্মার্টওয়াচ, পাওয়ার ব্যাংক আর মোবাইল এক্সেসরিজ। প্রতিটা পণ্য পাঠানোর আগে চালু করে পরীক্ষা করা হয়।",
+  "bullets": [
+   "পাঠানোর আগে চালু করে পরীক্ষা করা",
+   "৭ দিনের রিপ্লেসমেন্ট সুবিধা (ফিজিক্যাল ক্ষতি ছাড়া)",
+   "সব অ্যান্ড্রয়েড ও আইফোনে চলে",
+   "বক্সের সাথে চার্জিং কেবল দেওয়া থাকে"
   ],
   "banner_prompts": [
    "wide website hero banner photo, wireless earbuds with charging case and smartwatch on a dark desk with blue neon light, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
@@ -954,6 +982,13 @@
     "variants": []
    }
   ],
+  "about": "রান্নাঘর প্লাস — রান্না আর ঘর গোছানো সহজ করার কিচেন গ্যাজেট, অর্গানাইজার আর সরঞ্জাম। দরকারি জিনিস, সাশ্রয়ী দামে।",
+  "bullets": [
+   "মজবুত ও ফুড-সেফ ম্যাটেরিয়াল",
+   "সহজে ধোয়া ও পরিষ্কার করা যায়",
+   "প্রতিদিনের রান্নায় সময় বাঁচায়",
+   "ডেলিভারির সময় পণ্য দেখে নিন"
+  ],
   "banner_prompts": [
    "wide website hero banner photo, bright modern kitchen counter with neatly arranged kitchen gadgets and fresh vegetables, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
    "wide website hero banner photo, vegetable chopper with colorful chopped vegetables on a white kitchen counter, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",
@@ -1142,6 +1177,13 @@
     "prompt": "professional e-commerce product photo, foldable baby bed with mosquito net canopy, on bright nursery room, centered, soft natural studio lighting, realistic textures, sharp focus, square 1:1, no text, no logo, no watermark, no people",
     "variants": []
    }
+  ],
+  "about": "ছোট্টসোনা — নবজাতক থেকে ছোট বাচ্চাদের জন্য নিরাপদ আর আরামের পণ্য: খাওয়ানো, পোশাক, খেলনা, গোসল আর বহনের জিনিস।",
+  "bullets": [
+   "বাচ্চার জন্য নিরাপদ, BPA-মুক্ত ম্যাটেরিয়াল",
+   "নরম ও আরামদায়ক, ত্বকে জ্বালা করে না",
+   "ব্যবহারের আগে ভালোভাবে ধুয়ে নিন",
+   "ছোট অংশ থাকলে বড়দের নজরে ব্যবহার করুন"
   ],
   "banner_prompts": [
    "wide website hero banner photo, soft pastel nursery with baby toys, folded baby clothes and a teddy bear, soft natural light, realistic, lots of empty space on the left for text, 16:6 aspect ratio, no text, no logo, no watermark",

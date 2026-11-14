@@ -410,6 +410,11 @@ shop.post("/order", async (c) => {
     return fail({ alert: "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
   }
 
+  // ডেমো দোকানে অর্ডার হয় না
+  if (c.var.settings.demo_mode === "1") {
+    return fail({ alert: "এটা ডেমো দোকান — এখানে অর্ডার নেওয়া হয় না। এই ডিজাইনে নিজের দোকান খুলতে উপরের লিংকে যান।" }, 403);
+  }
+
   // দোকানের বিলিং বকেয়া বা স্থগিত থাকলে অনলাইনে অর্ডার বন্ধ
   if (!c.var.shopState.accepting) return fail({ alert: ordersClosedMessage(c.var.settings.contact_phone || "") }, 403);
 

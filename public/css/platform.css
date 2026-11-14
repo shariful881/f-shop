@@ -154,3 +154,8 @@ body.platform { background: #f8fafc; }
 .h-support a { color: #fdba74; font-weight: 700; }
 .h-foot { background: #0b1220; color: #94a3b8; text-align: center; padding: 18px 0; font-size: .9rem; }
 body.platform main:has(.home) { padding: 0; }
+.h-demos { margin-top: 18px; }
+.h-demos p { margin: 0 0 8px; color: #a7f3d0; font-size: .95rem; }
+.h-demos div { display: flex; flex-wrap: wrap; gap: 8px; }
+.h-demos a { background: rgba(255,255,255,.12); color: #fff; padding: 6px 12px; border-radius: 999px; font-size: .9rem; text-decoration: none; border: 1px solid rgba(255,255,255,.25); }
+.h-demos a:hover { background: rgba(255,255,255,.22); }

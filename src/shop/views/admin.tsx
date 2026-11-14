@@ -347,7 +347,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
 /* ---------- পণ্য ---------- */
 export const ProductsPage = ({ products, categories }: { products: Product[]; categories: Category[] }) => (
   <>
-    <div class="detail-head"><h1>পণ্য</h1><a href="/admin/products/new" class="btn btn-primary">+ নতুন পণ্য</a></div>
+    <div class="detail-head"><h1>পণ্য</h1><div class="inline-actions"><a href="/admin/products/images" class="btn">🖼️ একসাথে ছবি</a> <a href="/admin/products/new" class="btn btn-primary">+ নতুন পণ্য</a></div></div>
     <div class="table-wrap">
       <table class="table">
         <thead><tr><th></th><th>নাম</th><th>দাম</th><th>ক্যাটাগরি</th><th>অবস্থা</th><th></th></tr></thead>
@@ -1252,3 +1252,27 @@ export const SmsPage = ({ s, logs, sent30, failed30 }: { s: Settings; logs: SmsL
     </>
   );
 };
+
+/** একসাথে অনেক ছবি — ফাইলের নাম দিয়ে পণ্যের সাথে মেলানো */
+export const BulkImagesPage = (p: { missing: { name: string; slug: string }[]; total: number; result?: { matched: string[]; unmatched: string[]; errors: string[] } }) => (
+  <section>
+    <div class="detail-head"><h1>একসাথে ছবি আপলোড</h1><a href="/admin/products" class="btn">← পণ্য</a></div>
+    {p.result && (
+      <div class="card">
+        <p><b>{bn(p.result.matched.length)}টা ছবি বসেছে।</b></p>
+        {p.result.unmatched.length > 0 && <p>মেলেনি (নাম ঠিক করে আবার দিন): {p.result.unmatched.join(", ")}</p>}
+        {p.result.errors.length > 0 && <p class="error">{p.result.errors.join(" · ")}</p>}
+      </div>
+    )}
+    <form method="post" enctype="multipart/form-data" class="card">
+      <p>ফাইলের নাম হবে পণ্যের <b>slug</b>-এর মতো, যেমন <code>sutokotha-01.jpg</code>। ব্যানারের জন্য নামের শেষে <code>-banner-1</code>, <code>-banner-2</code>, <code>-banner-3</code>, লোগোর জন্য <code>-logo</code>।</p>
+      <p>JPG, PNG বা WebP; প্রতিটা ৩ MB-এর কম; একবারে ৩০টা পর্যন্ত। আগের ছবি থাকলে নতুনটা বসবে।</p>
+      <input type="file" name="files" accept="image/jpeg,image/png,image/webp" multiple required />
+      <p><button class="btn btn-primary">আপলোড করুন</button></p>
+    </form>
+    <div class="card">
+      <h3>ছবি নেই এমন পণ্য ({bn(p.missing.length)} / {bn(p.total)})</h3>
+      {p.missing.length ? <ul>{p.missing.slice(0, 200).map((m) => <li><code>{m.slug}</code> — {m.name}</li>)}</ul> : <p>সব পণ্যের ছবি আছে ✓</p>}
+    </div>
+  </section>
+);

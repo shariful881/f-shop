@@ -10,11 +10,12 @@ import { normalizePhone } from "../shop/lib/phone";
 import { bn } from "../shop/lib/format";
 import { normalizeLanding } from "../shop/lib/landing";
 import { TEMPLATE_CATEGORIES } from "../shop/lib/landing-templates";
+import { NICHES, nicheByKey } from "../shop/lib/niches";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -482,6 +483,50 @@ function tplInput(b: Record<string, unknown>) {
   const error = !name ? "টেমপ্লেটের নাম দিন" : !json ? "JSON ঠিক নেই — এডিটরের \"JSON কপি\" থেকে পেস্ট করুন (অর্ডার ফর্ম ছাড়া অন্তত একটা সেকশন লাগবে)" : "";
   return { values, error };
 }
+
+/* ---------- ডেমো দোকান ---------- */
+superApp.get("/demos", async (c) => {
+  if (!allowed(c, "demos")) return forbidden(c);
+  const { results } = await c.env.PLATFORM_DB.prepare("SELECT id, slug, demo_niche FROM shops WHERE demo_niche IS NOT NULL").all<{ id: string; slug: string; demo_niche: string }>();
+  const ps = await platformSettings(c.env.PLATFORM_DB, true);
+  const rows: DemoRow[] = NICHES.map((n) => {
+    const sh = results.find((r) => r.demo_niche === n.key);
+    return { key: n.key, niche: n.niche, name: n.name, theme: n.theme, productCount: n.products.length, shop: sh ? { id: sh.id, slug: sh.slug } : null, link: sh ? shopUrl(c.env, sh.slug) : null };
+  });
+  return page(c, "ডেমো দোকান", "demos", <DemosPage rows={rows} support={ps.support_phone || ""} />);
+});
+
+superApp.post("/demos/:key", async (c) => {
+  if (!allowed(c, "demos")) return forbidden(c);
+  const n = nicheByKey(c.req.param("key"));
+  if (!n) return c.redirect("/super/demos", 303);
+  const db = c.env.PLATFORM_DB;
+  const ps = await platformSettings(db, true);
+  const phone = normalizePhone(ps.support_phone || "") || "";
+  let shop = await db.prepare("SELECT id, slug FROM shops WHERE demo_niche = ?").bind(n.key).first<{ id: string; slug: string }>();
+  if (!shop) {
+    let slug = n.key;
+    if (await db.prepare("SELECT 1 FROM shops WHERE slug = ?").bind(slug).first()) slug = `${n.key}-demo`;
+    if (await db.prepare("SELECT 1 FROM shops WHERE slug = ?").bind(slug).first()) {
+      flash(c, "error", `"${n.key}" ঠিকানা আগেই নেওয়া — ডেমো তৈরি হয়নি।`);
+      return c.redirect("/super/demos", 303);
+    }
+    shop = { id: crypto.randomUUID(), slug };
+    await db.prepare(
+      `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, demo_niche, niche, activated_at)
+       VALUES (?, ?, ?, 'SellxBD ডেমো', ?, ?, 'active', ?, ?, datetime('now'))`,
+    ).bind(shop.id, slug, n.name, phone, `demo+${n.key}@${c.env.PLATFORM_DOMAIN}`, n.key, n.key).run();
+  }
+  const pw = [...crypto.getRandomValues(new Uint8Array(18))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const r = await c.env.SHOP.getByName(shop.id).setupDemoShop({
+    shopId: shop.id, niche: n.key, phone, ownerEmail: `demo+${n.key}@${c.env.PLATFORM_DOMAIN}`, passwordHash: await hashPassword(pw),
+    signupUrl: `https://${c.env.PLATFORM_DOMAIN}/signup?niche=${n.key}`,
+  });
+  clearShopCache();
+  await audit(c, "demo.setup", "shop", shop.id, `${n.key}: ${r.products} পণ্য, ${r.withImage} ছবিসহ`);
+  flash(c, "ok", `${n.name} ডেমো দোকান তৈরি/আপডেট হয়েছে — ${bn(r.products)}টা পণ্য, ${bn(r.withImage)}টায় ছবি আছে।`);
+  return c.redirect("/super/demos", 303);
+});
 
 superApp.get("/templates", async (c) => {
   if (!allowed(c, "templates")) return forbidden(c);

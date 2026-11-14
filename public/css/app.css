@@ -532,3 +532,6 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .ci-remove { border: 0; background: none; color: var(--danger); text-decoration: underline; cursor: pointer; font: inherit; font-size: .88rem; padding: 2px 0; }
 .ci-more { display: block; text-align: center; margin-top: 8px; }
 .inline { display: inline; }
+/* ডেমো দোকানের বার */
+.demo-bar{background:#111827;color:#f9fafb;font-size:14px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;align-items:center;text-align:center}
+.demo-bar a{color:#fde68a;font-weight:600;text-decoration:underline}

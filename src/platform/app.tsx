@@ -12,6 +12,7 @@ import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
 import { hashPassword, verifyPassword } from "../shop/lib/auth";
 import { clearShopCache } from "./resolve";
+import { nicheByKey } from "../shop/lib/niches";
 
 /** প্ল্যাটফর্মের অ্যাপ: ourdomain.com — হোম, সাইনআপ, সুপার অ্যাডমিন */
 export const platformApp = new Hono<PEnv>();
@@ -35,16 +36,26 @@ const publicNav = (
   </>
 );
 
+async function demoLinks(c: PCtx) {
+  const { results } = await c.env.PLATFORM_DB.prepare("SELECT slug, demo_niche FROM shops WHERE demo_niche IS NOT NULL AND status = 'active'").all<{ slug: string; demo_niche: string }>();
+  return results.flatMap((r) => {
+    const n = nicheByKey(r.demo_niche);
+    return n ? [{ niche: n.niche, name: n.name, url: shopUrl(c.env, r.slug) }] : [];
+  });
+}
+
 platformApp.get("/", async (c) => {
   const s = await platformSettings(c.env.PLATFORM_DB);
   const support = /^01[3-9]\d{8}$/.test(s.support_phone || "") ? s.support_phone! : "";
   const fees = { monthly: num(s, "monthly_fee", 99), order: num(s, "order_fee", 2), staff: num(s, "staff_fee", 99), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 50), support };
-  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} /></PLayout>);
+  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>);
 });
 
 /* ---------- সাইনআপ ---------- */
-platformApp.get("/signup", (c) =>
-  html(c, <PLayout title="দোকান খুলুন" nav={publicNav}><SignupPage domain={c.env.PLATFORM_DOMAIN} /></PLayout>));
+platformApp.get("/signup", (c) => {
+  const niche = nicheByKey(c.req.query("niche"))?.key ?? "";
+  return html(c, <PLayout title="দোকান খুলুন" nav={publicNav}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} /></PLayout>);
+});
 
 /** লাইভ চেক: ঠিকানাটি খালি আছে কি না */
 platformApp.get("/signup/check", async (c) => {
@@ -64,6 +75,7 @@ platformApp.post("/signup", async (c) => {
     phone: str(b.phone, 30),
     email: str(b.email, 120).toLowerCase(),
     seed_demo: b.seed_demo ? "1" : "0",
+    niche: nicheByKey(str(b.niche, 30))?.key ?? "",
   };
   const password = typeof b.password === "string" ? b.password : "";
   const fail = (errors: Record<string, string>, alert?: string, status: 422 | 429 = 422) =>
@@ -89,9 +101,9 @@ platformApp.post("/signup", async (c) => {
   const ps = await platformSettings(c.env.PLATFORM_DB);
   try {
     await c.env.PLATFORM_DB.prepare(
-      `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left)
-       VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?)`,
-    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 14), num(ps, "trial_orders", 50)).run();
+      `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left, niche)
+       VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?, ?)`,
+    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 14), num(ps, "trial_orders", 50), values.niche || null).run();
   } catch {
     return fail({ slug: "এই ঠিকানা আগেই নেওয়া হয়েছে" });
   }
@@ -105,7 +117,18 @@ platformApp.post("/signup", async (c) => {
     ownerPhone: phone!,
     passwordHash: await hashPassword(password),
     seedDemo: values.seed_demo === "1",
+    niche: values.niche || undefined,
   });
+  // নিশের নমুনা পণ্যে ডেমো দোকানের ছবি কপি (ডেমো না থাকলে বা ভুল হলে ছবি ছাড়াই চলবে)
+  if (values.niche && values.seed_demo === "1") {
+    try {
+      const demo = await c.env.PLATFORM_DB.prepare("SELECT id FROM shops WHERE demo_niche = ?").bind(values.niche).first<{ id: string }>();
+      if (demo) {
+        const images = await c.env.SHOP.getByName(demo.id).exportNicheImages();
+        if (images.length) await c.env.SHOP.getByName(id).importNicheImages(id, images);
+      }
+    } catch (err) { console.error("niche images", err); }
+  }
   clearShopCache();
   return c.redirect(shopUrl(c.env, values.slug!, `/admin/auto-login?t=${token}`), 303);
 });

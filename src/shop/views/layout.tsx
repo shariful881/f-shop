@@ -5,7 +5,7 @@ import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "15";
+export const ASSET_VERSION = "16";
 
 export type LayoutProps = {
   title: string;
@@ -75,6 +75,12 @@ export const Layout = (p: LayoutProps) => {
     </head>
     <body class={`theme-${themeOf(p.settings)}`} data-bare={p.bare ? "1" : undefined}>
       {gtm && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${gtm}`} height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>}
+      {s.demo_mode === "1" && (
+        <div class="demo-bar">
+          <span>এটা একটা <b>ডেমো দোকান</b> — এখানে অর্ডার নেওয়া হয় না।</span>
+          {s.demo_signup_url && <a href={s.demo_signup_url}>এই ডিজাইনে নিজের দোকান খুলুন →</a>}
+        </div>
+      )}
       <StoreHeader s={s} cfg={cfg} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} pages={p.pages ?? []} />
       <main>{p.children}</main>
       <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} pages={p.pages ?? []} />

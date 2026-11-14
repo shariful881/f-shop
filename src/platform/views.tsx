@@ -1,4 +1,5 @@
 import type { Child } from "hono/jsx";
+import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
 import { bn, dhakaTime, taka } from "../shop/lib/format";
 
@@ -40,7 +41,7 @@ type HomeFees = { monthly: number; order: number; staff: number; trialDays: numb
 const Check = () => <span class="h-check" aria-hidden="true">✓</span>;
 const Cross = () => <span class="h-cross" aria-hidden="true">✕</span>;
 
-export const HomePage = ({ devMode, fees: f }: { devMode: boolean; fees: HomeFees }) => (
+export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; fees: HomeFees; demos?: { niche: string; name: string; url: string }[] }) => (
   <div class="home">
     {/* হিরো */}
     <section class="h-hero">
@@ -63,6 +64,12 @@ export const HomePage = ({ devMode, fees: f }: { devMode: boolean; fees: HomeFee
             <li>✓ পুরোটা বাংলায়</li>
           </ul>
           {devMode && <p><a href="/?shop=demoshop" class="btn h-ghost">ডেমো দোকান দেখুন</a></p>}
+          {demos.length > 0 && (
+            <div class="h-demos">
+              <p>ডেমো দোকান দেখুন:</p>
+              <div>{demos.map((d) => <a href={d.url} target="_blank" rel="noopener">{d.niche}</a>)}</div>
+            </div>
+          )}
         </div>
 
         {/* মোবাইলে দোকান দেখতে কেমন — শুধু HTML/CSS দিয়ে আঁকা */}
@@ -249,7 +256,14 @@ export const SignupPage = (p: { values?: Record<string, string>; errors?: Record
           <label class="field"><span>মোবাইল নম্বর *</span><input type="tel" name="phone" value={v.phone ?? ""} required placeholder="01XXXXXXXXX" />{e.phone && <small class="error">{e.phone}</small>}</label>
           <label class="field"><span>ইমেইল (লগইনের জন্য) *</span><input type="email" name="email" value={v.email ?? ""} required autocomplete="username" />{e.email && <small class="error">{e.email}</small>}</label>
           <label class="field"><span>পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর) *</span><input type="password" name="password" required minlength={8} autocomplete="new-password" />{e.password && <small class="error">{e.password}</small>}</label>
-          <label class="small-check"><input type="checkbox" name="seed_demo" value="1" checked={v.seed_demo !== "0"} /> নমুনা পণ্য দিয়ে শুরু করুন (পরে বন্ধ করা যাবে)</label>
+          <label class="field"><span>কী বিক্রি করবেন?</span>
+            <select name="niche">
+              <option value="">অন্য কিছু / নিজে সাজাব</option>
+              {NICHES.map((n) => <option value={n.key} selected={v.niche === n.key}>{n.niche}</option>)}
+            </select>
+            <small class="muted">বাছলে ক্যাটাগরি, থিম, রং, ডেলিভারি চার্জ আর পলিসি পেজ আগে থেকে সাজানো থাকবে।</small>
+          </label>
+          <label class="small-check"><input type="checkbox" name="seed_demo" value="1" checked={v.seed_demo !== "0"} /> নমুনা পণ্য দিয়ে শুরু করুন (পরে মুছে ফেলা যাবে)</label>
           <button class="btn btn-primary btn-block btn-lg" data-submit>দোকান তৈরি করুন</button>
         </form>
       </div>

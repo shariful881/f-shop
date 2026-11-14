@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
-import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
+import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
 import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
@@ -9,7 +9,7 @@ import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../l
 import { InvoicePage, type InvoiceData } from "../views/invoice";
 import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
-import { GA4_RE, GTM_RE, safeColor, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
+import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
 import { PagesPage, ThemeCustomizePage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
@@ -493,6 +493,42 @@ async function allCategories(db: D1Database) {
 admin.get("/products", async (c) => {
   const { results } = await c.env.DB.prepare("SELECT * FROM products ORDER BY is_active DESC, category_id, sort_order, id").all<Product>();
   return render(c, "পণ্য", "products", <ProductsPage products={results} categories={await allCategories(c.env.DB)} />);
+});
+
+
+/* ---------- একসাথে ছবি (ফাইলের নাম = পণ্যের slug) ---------- */
+async function bulkImagesView(c: Ctx, result?: { matched: string[]; unmatched: string[]; errors: string[] }) {
+  const { results } = await c.env.DB.prepare("SELECT name, slug, image FROM products ORDER BY sort_order, id").all<{ name: string; slug: string; image: string | null }>();
+  return render(c, "একসাথে ছবি", "products", <BulkImagesPage missing={results.filter((r) => !r.image)} total={results.length} result={result} />);
+}
+admin.get("/products/images", (c) => bulkImagesView(c));
+admin.post("/products/images", async (c) => {
+  const b = await c.req.parseBody({ all: true });
+  const files = ([] as unknown[]).concat(b.files ?? []).filter((f): f is File => f instanceof File && f.size > 0).slice(0, 30);
+  const result = { matched: [] as string[], unmatched: [] as string[], errors: [] as string[] };
+  for (const file of files) {
+    const ext = IMAGE_TYPES[file.type];
+    if (!ext || file.size > MAX_IMAGE) { result.errors.push(`${file.name}: JPG/PNG/WebP আর ৩ MB-এর কম হতে হবে`); continue; }
+    const stem = file.name.replace(/\.[a-z0-9]+$/i, "").trim().toLowerCase();
+    const banner = stem.match(/-banner-([123])$/);
+    const target = banner ? { setting: `banner_${banner[1]}` } : stem.endsWith("-logo") ? { setting: "logo" } : null;
+    let current: string | null = null;
+    let productId = 0;
+    if (target) current = c.var.settings[target.setting] || null;
+    else {
+      const p = await c.env.DB.prepare("SELECT id, image FROM products WHERE slug = ?").bind(stem).first<{ id: number; image: string | null }>();
+      if (!p) { result.unmatched.push(file.name); continue; }
+      productId = p.id; current = p.image;
+    }
+    const key = `${target ? target.setting.replace("_", "") : "p"}/${crypto.randomUUID()}.${ext}`;
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+    if (target) await saveSettings(c.env.DB, { [target.setting]: key });
+    else await c.env.DB.prepare("UPDATE products SET image = ?, updated_at = datetime('now') WHERE id = ?").bind(key, productId).run();
+    if (current) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, current)).catch(() => {});
+    result.matched.push(file.name);
+  }
+  if (result.matched.length) c.set("settings", { ...c.var.settings, ...(await loadSettings(c.env.DB)) });
+  return bulkImagesView(c, result);
 });
 
 admin.get("/products/new", async (c) =>

@@ -32,6 +32,7 @@ export const PERMS: Record<string, SuperRole[]> = {
   finance: ["owner", "admin", "finance"],
   announcements: ["owner", "admin"],
   templates: ["owner", "admin"],
+  demos: ["owner", "admin"],
   audit: ["owner", "admin"],
   team: ["owner"],
   settings: ["owner"],
@@ -67,6 +68,7 @@ const NAV: { key: string; href: string; icon: string; label: string; group?: str
   { key: "finance", href: "/super/finance", icon: "৳", label: "আয় ও হিসাব" },
   { key: "announcements", href: "/super/announcements", icon: "📢", label: "ঘোষণা", group: "যোগাযোগ" },
   { key: "templates", href: "/super/templates", icon: "🧩", label: "ল্যান্ডিং টেমপ্লেট" },
+  { key: "demos", href: "/super/demos", icon: "🛍️", label: "ডেমো দোকান" },
   { key: "audit", href: "/super/audit", icon: "🧾", label: "অডিট লগ", group: "নিরাপত্তা" },
   { key: "team", href: "/super/team", icon: "👥", label: "টিম" },
   { key: "settings", href: "/super/settings", icon: "⚙", label: "প্ল্যাটফর্ম সেটিংস" },
@@ -909,4 +911,27 @@ export const TemplatesPage = ({ rows, categories }: { rows: TplRow[]; categories
       )}
     </Card>
   </div>
+);
+
+export type DemoRow = { key: string; niche: string; name: string; theme: string; productCount: number; shop: { id: string; slug: string } | null; link: string | null };
+
+export const DemosPage = ({ rows, support }: { rows: DemoRow[]; support: string }) => (
+  <Card title={`ডেমো দোকান (${bn(rows.filter((r) => r.shop).length)} / ${bn(rows.length)})`}>
+    <p class="sa-muted">প্রতিটা নিশের একটা ডেমো দোকান — সাপোর্ট নম্বর {support || "(সেটিংসে বসান)"}, উপরে ডেমো বার, অর্ডার বন্ধ, বিল হয় না। "তৈরি / আপডেট" আবার চাপলে নতুন পণ্য বা পেজ যোগ হয়, আগের ছবি থাকে।
+      ছবি দিতে: "দোকানে ঢুকুন" → পণ্য → 🖼️ একসাথে ছবি (ফাইলের নাম যেমন <code>sutokotha-01.jpg</code>)। সাইনআপে এই নিশ বাছলে নতুন দোকানে এখানকার ছবি কপি হয়।</p>
+    <div class="sa-table-wrap"><table class="sa-table">
+      <thead><tr><th>নিশ</th><th>দোকান</th><th>পণ্য</th><th></th></tr></thead>
+      <tbody>{rows.map((r) => (
+        <tr>
+          <td><b>{r.niche}</b><br /><small class="sa-muted">{r.key} · থিম {r.theme}</small></td>
+          <td>{r.shop && r.link ? <a href={r.link} target="_blank">{r.name} ↗</a> : <>{r.name} <span class="sa-muted">— এখনো তৈরি হয়নি</span></>}</td>
+          <td>{bn(r.productCount)}</td>
+          <td class="sa-row">
+            <form method="post" action={`/super/demos/${r.key}`}><button class="sa-btn sa-btn-sm">{r.shop ? "আপডেট" : "তৈরি করুন"}</button></form>
+            {r.shop && <form method="post" action={`/super/shops/${r.shop.id}/impersonate`}><button class="sa-btn sa-btn-sm sa-btn-ghost">দোকানে ঢুকুন</button></form>}
+          </td>
+        </tr>
+      ))}</tbody>
+    </table></div>
+  </Card>
 );

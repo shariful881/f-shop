@@ -21,6 +21,8 @@ import m0015 from "../../migrations/shop/0015_checkout_pages.sql";
 import m0016 from "../../migrations/shop/0016_order_qty.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
+import { nicheByKey, nicheStatements } from "./lib/niches";
+import { NICHE_LOGOS } from "./data/logos";
 
 export const SHOP_MIGRATIONS: [string, string][] = [
   ["0001_init", m0001],
@@ -49,7 +51,12 @@ export type SetupInput = {
   ownerPhone: string;
   passwordHash: string;
   seedDemo: boolean;
+  /** নিশ বাছলে: ক্যাটাগরি, থিম, রং, ডেলিভারি, পেজ (+ seedDemo হলে নমুনা পণ্য) */
+  niche?: string;
 };
+
+/** ডেমো দোকান থেকে নতুন দোকানে কপি করার ছবি */
+export type NicheImage = { key: string; type: string; data: ArrayBuffer; product?: string; setting?: string };
 
 /** যেসব হেডার শুধু আমাদের Worker বসায় (বাইরে থেকে আসলে মুছে ফেলা হয়) */
 export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "x-fshop-state"];
@@ -100,7 +107,10 @@ export class ShopDO extends DurableObject<WorkerEnv> {
    */
   async setupShop(input: SetupInput): Promise<string> {
     await this.ensureInit(input.shopId, false);
-    if (input.seedDemo) {
+    const niche = nicheByKey(input.niche);
+    if (niche) {
+      await this.db.batch(nicheStatements(this.db, niche, { withProducts: input.seedDemo, phone: input.ownerPhone }) as never);
+    } else if (input.seedDemo) {
       await this.seedDemo();
       await this.db.prepare("DELETE FROM users WHERE email = 'demo@fshop.test'").run();
     }
@@ -109,11 +119,70 @@ export class ShopDO extends DurableObject<WorkerEnv> {
         .bind(input.ownerName, input.ownerEmail, input.passwordHash),
       this.db.prepare("UPDATE settings SET value = ? WHERE key = 'site_name'").bind(input.shopName),
       this.db.prepare("UPDATE settings SET value = ? WHERE key = 'contact_phone'").bind(input.ownerPhone),
-      // নতুন দোকান শুরু হয় প্রো স্টোর থিমে
-      this.db.prepare("UPDATE settings SET value = 'pro' WHERE key = 'theme'"),
+      this.db.prepare("UPDATE settings SET value = ? WHERE key = 'whatsapp' AND value = ''").bind(input.ownerPhone),
+      // নতুন দোকান শুরু হয় প্রো স্টোর থিমে (নিশ বাছলে নিশের থিম)
+      this.db.prepare("UPDATE settings SET value = ? WHERE key = 'theme'").bind(niche?.theme ?? "pro"),
     ]);
     const user = await this.db.prepare("SELECT id FROM users WHERE email = ?").bind(input.ownerEmail).first<{ id: number }>();
     return this.createLoginToken(user!.id);
+  }
+
+  /**
+   * ডেমো দোকান সাজানো/আপডেট: নিশের সব পণ্য, SellxBD-এর সাপোর্ট নম্বর, ডেমো বার, অর্ডার বন্ধ।
+   * আবার চালালে নতুন পণ্য/পেজ যোগ হয়, আগেরগুলো (আর আপলোড করা ছবি) থাকে।
+   */
+  async setupDemoShop(input: { shopId: string; niche: string; phone: string; ownerEmail: string; passwordHash: string; signupUrl: string }) {
+    const n = nicheByKey(input.niche);
+    if (!n) throw new Error("unknown niche");
+    await this.ensureInit(input.shopId, false);
+    const set = (k: string, v: string) =>
+      this.db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v);
+    await this.db.batch([
+      ...(nicheStatements(this.db, n, { withProducts: true, phone: input.phone }) as never[]),
+      set("site_name", n.name), set("contact_phone", input.phone), set("whatsapp", input.phone),
+      set("store_address", "ঢাকা, বাংলাদেশ"), set("demo_mode", "1"), set("demo_niche", n.key), set("demo_signup_url", input.signupUrl),
+      this.db.prepare("INSERT OR IGNORE INTO users (name, email, password_hash, is_admin) VALUES ('ডেমো অ্যাডমিন', ?, ?, 1)").bind(input.ownerEmail, input.passwordHash),
+    ]);
+    // লোগো (আগে না থাকলে)
+    const logo = NICHE_LOGOS[n.key];
+    const cur = await this.db.prepare("SELECT value FROM settings WHERE key = 'logo'").first<{ value: string }>();
+    if (logo && !cur?.value) {
+      const key = `logo/${n.key}.png`;
+      await new SqlImageStore(this.db).put(key, Uint8Array.from(atob(logo), (ch) => ch.charCodeAt(0)).buffer, { httpMetadata: { contentType: "image/png" } });
+      await set("logo", key).run();
+    }
+    const p = await this.db.prepare("SELECT COUNT(*) n, COALESCE(SUM(image IS NOT NULL AND image != ''), 0) img FROM products").first<{ n: number; img: number }>();
+    return { products: p?.n ?? 0, withImage: p?.img ?? 0 };
+  }
+
+  /** ডেমো দোকানের পণ্য আর ব্যানারের ছবি (নতুন দোকানে কপির জন্য) */
+  async exportNicheImages(): Promise<NicheImage[]> {
+    const store = new SqlImageStore(this.db);
+    const { results } = await this.db.prepare("SELECT slug, image FROM products WHERE image IS NOT NULL AND image != ''").all<{ slug: string; image: string }>();
+    const banners = await this.db.prepare("SELECT key, value FROM settings WHERE key IN ('banner_1', 'banner_2', 'banner_3') AND value != ''").all<{ key: string; value: string }>();
+    const out: NicheImage[] = [];
+    for (const [k, extra] of [...results.map((r) => [r.image, { product: r.slug }] as const), ...banners.results.map((b) => [b.value, { setting: b.key }] as const)]) {
+      const img = await store.get(k);
+      if (img) out.push({ key: k, type: img.type, data: img.body.slice().buffer as ArrayBuffer, ...extra });
+    }
+    return out;
+  }
+
+  /** নতুন দোকানে ডেমোর ছবি বসানো — শুধু যে পণ্যের slug মেলে আর যার ছবি নেই */
+  async importNicheImages(shopId: string, images: NicheImage[]) {
+    await this.ensureInit(shopId, false);
+    const store = new SqlImageStore(this.db);
+    for (const im of images) {
+      if (im.product) {
+        const p = await this.db.prepare("SELECT id FROM products WHERE slug = ? AND (image IS NULL OR image = '')").bind(im.product).first<{ id: number }>();
+        if (!p) continue;
+        await store.put(im.key, im.data, { httpMetadata: { contentType: im.type } });
+        await this.db.prepare("UPDATE products SET image = ? WHERE id = ?").bind(im.key, p.id).run();
+      } else if (im.setting) {
+        await store.put(im.key, im.data, { httpMetadata: { contentType: im.type } });
+        await this.db.prepare("UPDATE settings SET value = ? WHERE key = ? AND value = ''").bind(im.key, im.setting).run();
+      }
+    }
   }
 
   /** সুপার অ্যাডমিনের জন্য দোকানের সংক্ষিপ্ত হিসাব (পণ্য, অর্ডার, বিক্রি) */
