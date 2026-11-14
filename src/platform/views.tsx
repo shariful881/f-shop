@@ -12,6 +12,8 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{p.title}</title>
+      <meta name="description" content="ফেসবুক সেলারদের জন্য নিজের অনলাইন দোকান — ল্যান্ডিং পেজ, ফেক অর্ডার আটকানো, Pixel + CAPI, কুরিয়ার, SMS। চার্জ শুধু কনফার্ম অর্ডারে।" />
+      <meta name="theme-color" content="#0f766e" />
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/platform.css?v=${ASSET_VERSION}`} />
@@ -32,43 +34,198 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
   </html>
 );
 
-/* ---------- হোম (মার্কেটিং) ---------- */
-export const HomePage = ({ devMode }: { devMode: boolean }) => (
-  <>
-    <section class="hero">
-      <div class="wrap narrow center">
-        <h1>ফেসবুকে বিক্রির জন্য নিজের অনলাইন দোকান, ২ মিনিটে</h1>
-        <p class="lead">প্রতিটা পণ্যের আলাদা ল্যান্ডিং পেজ, ক্যাশ অন ডেলিভারি, ফেক অর্ডার আটকানো আর Facebook Pixel + Conversions API — সব তৈরি।</p>
-        <a href="/signup" class="btn btn-primary btn-lg">১৪ দিন ফ্রি — দোকান খুলুন</a>
-        {devMode && <p><a href="/?shop=demoshop" class="btn btn-outline">ডেমো দোকান দেখুন</a></p>}
+/* ---------- হোম (মার্কেটিং) — বাংলাদেশের ফেসবুক সেলারদের জন্য ---------- */
+type HomeFees = { monthly: number; order: number; staff: number; trialDays: number; trialOrders: number; support: string };
+
+const Check = () => <span class="h-check" aria-hidden="true">✓</span>;
+const Cross = () => <span class="h-cross" aria-hidden="true">✕</span>;
+
+export const HomePage = ({ devMode, fees: f }: { devMode: boolean; fees: HomeFees }) => (
+  <div class="home">
+    {/* হিরো */}
+    <section class="h-hero">
+      <div class="wrap h-hero-grid">
+        <div>
+          <p class="h-kicker">ফেসবুক পেজে যারা বিক্রি করেন, তাদের জন্য</p>
+          <h1>ফেক অর্ডারে আর টাকা নষ্ট নয়।<br /><span>নিজের ওয়েবসাইটে অর্ডার নিন।</span></h1>
+          <p class="h-lead">
+            প্রতিটা পণ্যের আলাদা ল্যান্ডিং পেজ, অর্ডার ম্যানেজ, কুরিয়ারে এক ক্লিকে পাঠানো, কাস্টমারকে SMS — সব এক জায়গায়।
+            চার্জ দেবেন শুধু <strong>কনফার্ম হওয়া আসল অর্ডারে</strong>।
+          </p>
+          <div class="h-cta">
+            <a href="/signup" class="btn btn-accent btn-lg">ফ্রি দোকান খুলুন →</a>
+            <a href="#how" class="btn h-ghost btn-lg">কীভাবে কাজ করে</a>
+          </div>
+          <ul class="h-chips">
+            <li>✓ {bn(f.trialDays)} দিন ফ্রি</li>
+            <li>✓ কার্ড লাগবে না</li>
+            <li>✓ bKash / Nagad</li>
+            <li>✓ পুরোটা বাংলায়</li>
+          </ul>
+          {devMode && <p><a href="/?shop=demoshop" class="btn h-ghost">ডেমো দোকান দেখুন</a></p>}
+        </div>
+
+        {/* মোবাইলে দোকান দেখতে কেমন — শুধু HTML/CSS দিয়ে আঁকা */}
+        <div class="h-phone-wrap" aria-hidden="true">
+          <div class="h-phone">
+            <div class="h-ph-bar">yourshop.sellxbd.com</div>
+            <div class="h-ph-img"></div>
+            <div class="h-ph-body">
+              <div class="h-ph-title">হাতে বানানো কাঠের শেলফ</div>
+              <div class="h-ph-price"><b>৳১,২৫০</b> <s>৳১,৬৫০</s></div>
+              <div class="h-ph-field">আপনার নাম</div>
+              <div class="h-ph-field">মোবাইল নম্বর</div>
+              <div class="h-ph-field">পুরো ঠিকানা</div>
+              <div class="h-ph-btn">অর্ডার করুন — ক্যাশ অন ডেলিভারি</div>
+            </div>
+          </div>
+          <div class="h-toast h-toast-1">🛒 নতুন অর্ডার — রহিম, মিরপুর</div>
+          <div class="h-toast h-toast-2">🛡️ ফেক অর্ডার আটকানো হয়েছে</div>
+          <div class="h-toast h-toast-3">🚚 Steadfast-এ বুক হয়েছে</div>
+        </div>
       </div>
     </section>
-    <section class="wrap features">
-      {[
-        ["🗄️", "আপনার আলাদা ডাটাবেস", "প্রতিটা দোকানের পণ্য, অর্ডার আর কাস্টমারের তথ্য সম্পূর্ণ আলাদা ডাটাবেসে থাকে। এক দোকানের তথ্য অন্য দোকানে কখনো মেশে না।"],
-        ["🛡️", "ফেক অর্ডার আটকানো", "একই নম্বর বা ডিভাইস থেকে বারবার অর্ডার বন্ধ, ফেক কাস্টমার স্থায়ী ব্লক, ভুল নম্বর নেয় না।"],
-        ["📈", "Pixel + Conversions API", "ব্রাউজার আর সার্ভার দুই দিক থেকে ইভেন্ট। Purchase যায় শুধু আপনি অর্ডার কনফার্ম করলে — অ্যাড অপটিমাইজেশন সঠিক থাকে।"],
-        ["🌐", "নিজের ডোমেইন", "নিজের ডোমেইনে দোকান চালান, অথবা ফ্রি subdomain নিন। https সবখানে।"],
-        ["⚡", "খুব দ্রুত লোড", "Cloudflare-এর সার্ভারে চলে, মোবাইলেও চোখের পলকে খোলে।"],
-        ["👥", "স্টাফ লগইন", "কর্মীদের আলাদা লগইন, কে কী দেখবে তা আপনি ঠিক করবেন।"],
-      ].map(([icon, title, text]) => (
-        <div class="feature"><div class="f-icon">{icon}</div><h3>{title}</h3><p>{text}</p></div>
-      ))}
-    </section>
-    <section class="wrap narrow pricing">
-      <h2 class="center">সহজ দাম</h2>
-      <div class="price-card">
-        <div class="price-big">৳৯৯<span>/মাস</span></div>
-        <ul>
-          <li>+ প্রতিটা <strong>কনফার্ম</strong> অর্ডারে মাত্র ৳২ (ফেক বা বাতিল অর্ডারে কোনো চার্জ নেই)</li>
-          <li>প্রতিজন অতিরিক্ত স্টাফ: ৳৯৯/মাস</li>
-          <li>১৪ দিন অথবা প্রথম ৫০টা অর্ডার সম্পূর্ণ ফ্রি</li>
-          <li>bKash / Nagad দিয়ে রিচার্জ</li>
-        </ul>
-        <a href="/signup" class="btn btn-primary btn-block btn-lg">ফ্রি ট্রায়াল শুরু করুন</a>
+
+    {/* সমস্যা */}
+    <section class="h-sec">
+      <div class="wrap">
+        <h2 class="h-title">এই সমস্যাগুলো চেনা লাগে?</h2>
+        <div class="h-pains">
+          {[
+            ["😩", "ফেক অর্ডার আর রিটার্ন", "পার্সেল পাঠালেন, কাস্টমার ফোন ধরে না। ডেলিভারি চার্জ, প্যাকেজিং — সব গচ্চা।"],
+            ["💸", "অ্যাডের খরচ বাড়ছে", "Pixel সব অর্ডারকে বিক্রি ধরে নেয়, তাই Facebook ফেক ক্রেতা খুঁজে আনে। আসল বিক্রির খরচ বাড়ে।"],
+            ["📥", "ইনবক্সে অর্ডার হারিয়ে যায়", "\"দাম কত?\" — শত শত মেসেজ। উত্তর দিতে দেরি হলেই কাস্টমার অন্য পেজে।"],
+            ["📒", "খাতা, এক্সেল আর কুরিয়ার প্যানেল", "একই ঠিকানা তিন জায়গায় লেখা। কোন অর্ডার কোথায় আছে, খুঁজতেই সময় যায়।"],
+          ].map(([i, t, d]) => (
+            <div class="h-pain"><div class="h-pain-i">{i}</div><div><h3>{t}</h3><p>{d}</p></div></div>
+          ))}
+        </div>
       </div>
     </section>
-  </>
+
+    {/* সমাধান / ফিচার */}
+    <section class="h-sec h-soft">
+      <div class="wrap">
+        <h2 class="h-title">SellxBD সব সমাধান করে দেয়</h2>
+        <p class="h-sub">ফেসবুক সেলারদের রোজকার কাজ মাথায় রেখে বানানো</p>
+        <div class="h-feats">
+          {[
+            ["🛡️", "ফেক অর্ডার আটকায়", "ভুল নম্বর নেয় না। একই নম্বর বা মোবাইল থেকে বারবার অর্ডার বন্ধ। ফেক কাস্টমার একবার ধরলে স্থায়ী ব্লক।"],
+            ["🎯", "অ্যাড খরচ কমায়", "Pixel + Conversions API দুটোই চালু। Purchase যায় শুধু আপনি কনফার্ম করলে — Facebook আসল ক্রেতা চিনতে শেখে।"],
+            ["📄", "ল্যান্ডিং পেজ বিল্ডার", "ছবি, ভিডিও, রিভিউ, অফার কাউন্টডাউন, প্রশ্নোত্তর — সাজিয়ে নিন। কোড লাগবে না।"],
+            ["🚚", "কুরিয়ারে এক ক্লিকে", "Steadfast, Pathao, RedX — নিজের অ্যাকাউন্ট যুক্ত করুন। একসাথে অনেক অর্ডার পাঠান, ট্র্যাকিং দেখুন।"],
+            ["💬", "কাস্টমারকে অটো SMS", "অর্ডার কনফার্ম আর পার্সেল পাঠানোর সাথে সাথে ট্র্যাকিং নম্বরসহ SMS — নিজের SMS গেটওয়ে দিয়ে।"],
+            ["🏷️", "কুপন আর সাইজ/রং", "ঈদ অফার, ফ্রি ডেলিভারি কুপন। প্রতিটা সাইজ বা রঙের আলাদা দাম আর স্টক।"],
+            ["📊", "বিক্রির হিসাব", "আজ, সপ্তাহ, মাসে কত অর্ডার, কত কনফার্ম, কত ফেক, কোন পণ্য বেশি চলছে — এক নজরে।"],
+            ["🌐", "নিজের ডোমেইন", "yourshop.com — নিজের নামে দোকান। না থাকলে ফ্রি subdomain। সবখানে https।"],
+            ["👥", "স্টাফ অ্যাকাউন্ট", "কেউ শুধু অর্ডার দেখবে, কেউ পণ্যও — অনুমতি আপনি ঠিক করবেন।"],
+          ].map(([i, t, d]) => (
+            <div class="h-feat"><div class="h-feat-i">{i}</div><h3>{t}</h3><p>{d}</p></div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* কীভাবে */}
+    <section class="h-sec" id="how">
+      <div class="wrap">
+        <h2 class="h-title">৩ ধাপে দোকান চালু</h2>
+        <ol class="h-steps">
+          <li><span>১</span><h3>দোকান খুলুন</h3><p>নাম আর মোবাইল নম্বর দিন। ২ মিনিটে আপনার ঠিকানা তৈরি: <code>yourshop.sellxbd.com</code></p></li>
+          <li><span>২</span><h3>পণ্য যোগ করুন</h3><p>ছবি, দাম, বিবরণ দিন। প্রতিটা পণ্যের জন্য অর্ডার ফর্মসহ ল্যান্ডিং পেজ নিজে তৈরি হয়।</p></li>
+          <li><span>৩</span><h3>লিংক দিয়ে অ্যাড চালান</h3><p>পেজের পোস্ট বা অ্যাডে লিংক দিন। অর্ডার আসবে, কনফার্ম করুন, কুরিয়ারে পাঠান।</p></li>
+        </ol>
+      </div>
+    </section>
+
+    {/* দাম */}
+    <section class="h-sec h-soft" id="price">
+      <div class="wrap">
+        <h2 class="h-title">ন্যায্য দাম — যত বিক্রি, তত খরচ</h2>
+        <p class="h-sub">ফেক বা বাতিল অর্ডারে এক টাকাও না</p>
+        <div class="h-price-grid">
+          <div class="h-price">
+            <div class="h-price-top">
+              <div class="h-big">৳{bn(f.monthly)}<small>/মাস</small></div>
+              <div class="h-plus">+ প্রতিটা কনফার্ম অর্ডারে <b>৳{bn(f.order)}</b></div>
+            </div>
+            <ul>
+              <li><Check /> সব ফিচার — কোনো লুকানো চার্জ নেই</li>
+              <li><Check /> প্রথম {bn(f.trialDays)} দিন অথবা {bn(f.trialOrders)}টা অর্ডার সম্পূর্ণ ফ্রি</li>
+              <li><Check /> bKash / Nagad দিয়ে আগে রিচার্জ, যখন খুশি</li>
+              <li><Check /> বাড়তি স্টাফ: ৳{bn(f.staff)}/মাস (মালিকের অ্যাকাউন্ট ফ্রি)</li>
+            </ul>
+            <a href="/signup" class="btn btn-accent btn-block btn-lg">ফ্রি ট্রায়াল শুরু করুন</a>
+          </div>
+          <div class="h-calc" data-monthly={String(f.monthly)} data-order={String(f.order)}>
+            <h3>আপনার মাসিক খরচ কত হবে?</h3>
+            <label for="h-orders">মাসে কয়টা অর্ডার কনফার্ম হয়?</label>
+            <input type="range" id="h-orders" min="0" max="2000" step="50" value="300" />
+            <div class="h-calc-row"><span>কনফার্ম অর্ডার</span><b data-out="orders">৩০০টা</b></div>
+            <div class="h-calc-row"><span>মাসিক চার্জ</span><b>৳{bn(f.monthly)}</b></div>
+            <div class="h-calc-row"><span>অর্ডার চার্জ</span><b data-out="ordercost">৳{bn(300 * f.order)}</b></div>
+            <div class="h-calc-total"><span>মোট</span><b data-out="total">৳{bn(f.monthly + 300 * f.order)}</b></div>
+            <p class="h-note">একটা ফেক অর্ডারের ডেলিভারি চার্জেই প্রায় এক মাসের ভাড়া চলে যায় — SellxBD সেটা আগেই আটকায়।</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* তুলনা */}
+    <section class="h-sec">
+      <div class="wrap">
+        <h2 class="h-title">অন্য উপায়ের সাথে তুলনা</h2>
+        <div class="h-compare-wrap">
+          <table class="h-compare">
+            <thead><tr><th></th><th>শুধু ফেসবুক পেজ</th><th>ডেভেলপার দিয়ে সাইট</th><th class="h-us">SellxBD</th></tr></thead>
+            <tbody>
+              <tr><td>শুরুর খরচ</td><td>৳০</td><td>হাজার হাজার টাকা</td><td class="h-us">৳০ — ফ্রি ট্রায়াল</td></tr>
+              <tr><td>চালু হতে সময়</td><td>সাথে সাথে</td><td>কয়েক সপ্তাহ</td><td class="h-us">২ মিনিট</td></tr>
+              <tr><td>ফেক অর্ডার আটকানো</td><td><Cross /></td><td>আলাদা খরচে</td><td class="h-us"><Check /></td></tr>
+              <tr><td>Pixel + CAPI ঠিকমতো</td><td><Cross /></td><td>নির্ভর করে</td><td class="h-us"><Check /></td></tr>
+              <tr><td>কুরিয়ার আর SMS</td><td>হাতে হাতে</td><td>আলাদা খরচে</td><td class="h-us"><Check /> সাথেই আছে</td></tr>
+              <tr><td>আপডেট আর মেইনটেন্যান্স</td><td>—</td><td>আপনার দায়িত্ব</td><td class="h-us"><Check /> আমাদের দায়িত্ব</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    {/* প্রশ্নোত্তর */}
+    <section class="h-sec h-soft">
+      <div class="wrap h-narrow">
+        <h2 class="h-title">সাধারণ প্রশ্ন</h2>
+        <div class="h-faq">
+          {[
+            ["কম্পিউটার বা কোডিং জানতে হবে?", "না। ফেসবুকে পোস্ট দিতে পারলেই চালাতে পারবেন। মোবাইল দিয়েই পুরো দোকান চালানো যায়।"],
+            ["ট্রায়াল শেষ হলে কী হবে?", `${bn(f.trialDays)} দিন অথবা ${bn(f.trialOrders)}টা কনফার্ম অর্ডার — যেটা আগে শেষ হয়। এরপর bKash/Nagad দিয়ে রিচার্জ করলেই চলতে থাকবে। আপনার পণ্য আর অর্ডার সব থেকে যাবে।`],
+            ["টাকা কাটে কীভাবে?", `আগে রিচার্জ করবেন, সেখান থেকে মাসে ৳${bn(f.monthly)} আর প্রতিটা কনফার্ম অর্ডারে ৳${bn(f.order)} কাটবে। ফেক বা বাতিল অর্ডারে কিছুই কাটে না। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
+            ["নিজের ডোমেইন ব্যবহার করা যাবে?", "হ্যাঁ। প্যানেলে ডোমেইন যোগ করলে আমরা দুটো নেমসার্ভার দেব, সেগুলো ডোমেইন প্যানেলে বসালেই চালু। ডোমেইন না থাকলে ফ্রি subdomain পাবেন।"],
+            ["কোন কোন কুরিয়ার আছে?", "Steadfast, Pathao আর RedX। নিজের মার্চেন্ট অ্যাকাউন্ট যুক্ত করবেন, পার্সেলের টাকা সরাসরি আপনার অ্যাকাউন্টেই আসবে।"],
+            ["আমার কাস্টমারের তথ্য কি নিরাপদ?", "প্রতিটা দোকানের তথ্য আলাদা ডাটাবেসে থাকে, অন্য কোনো দোকান দেখতে পায় না। পুরো সাইট https-এ চলে।"],
+            ["অনলাইন পেমেন্ট নেওয়া যায়?", "এখন ক্যাশ অন ডেলিভারি — বাংলাদেশে যেটা সবচেয়ে বেশি চলে। কাস্টমার পণ্য হাতে পেয়ে টাকা দেন।"],
+          ].map(([q, a]) => (
+            <details><summary>{q}</summary><p>{a}</p></details>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* শেষ ডাক */}
+    <section class="h-final">
+      <div class="wrap h-narrow center">
+        <h2>আজই নিজের অনলাইন দোকান খুলুন</h2>
+        <p>{bn(f.trialDays)} দিন ফ্রি। কার্ড লাগবে না। পছন্দ না হলে কোনো খরচ নেই।</p>
+        <a href="/signup" class="btn btn-accent btn-lg">ফ্রি দোকান খুলুন →</a>
+        {f.support && <p class="h-support">প্রশ্ন আছে? কল বা WhatsApp: <a href={`tel:${f.support}`}>{f.support}</a></p>}
+      </div>
+    </section>
+
+    <footer class="h-foot">
+      <div class="wrap">© {PLATFORM_NAME} · বাংলাদেশের অনলাইন সেলারদের জন্য</div>
+    </footer>
+    <script src={`/js/home.js?v=${ASSET_VERSION}`} defer></script>
+  </div>
 );
 
 /* ---------- সাইনআপ ---------- */

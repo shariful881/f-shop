@@ -32,12 +32,17 @@ platformApp.get("/health", async (c) => {
 
 const publicNav = (
   <>
-    <a href="/signup">দোকান খুলুন</a>
+    <a href="/#price" class="p-nav-link">দাম</a>
+    <a href="/signup" class="p-nav-cta">ফ্রি দোকান খুলুন</a>
   </>
 );
 
-platformApp.get("/", (c) =>
-  html(c, <PLayout title={`${PLATFORM_NAME} — নিজের অনলাইন দোকান`} nav={publicNav}><HomePage devMode={c.env.DEV_MODE === "1"} /></PLayout>));
+platformApp.get("/", async (c) => {
+  const s = await platformSettings(c.env.PLATFORM_DB);
+  const support = /^01[3-9]\d{8}$/.test(s.support_phone || "") ? s.support_phone! : "";
+  const fees = { monthly: num(s, "monthly_fee", 99), order: num(s, "order_fee", 2), staff: num(s, "staff_fee", 99), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 50), support };
+  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} /></PLayout>);
+});
 
 /* ---------- সাইনআপ ---------- */
 platformApp.get("/signup", (c) =>

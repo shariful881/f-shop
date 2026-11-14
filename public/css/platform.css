@@ -28,3 +28,129 @@ body.platform { background: #f8fafc; }
 .shop-active { background: #dcfce7; color: #166534; }
 .shop-suspended { background: #fee2e2; color: #991b1b; }
 .shop-closed { background: #e5e7eb; color: #374151; }
+
+/* ===== হোমপেজ ===== */
+.p-header { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.96); backdrop-filter: blur(6px); }
+.p-header .logo { color: #0f172a; font-size: 1.3rem; letter-spacing: -.01em; }
+.p-header .admin-nav { gap: 6px; align-items: center; }
+.p-nav-link { padding: 6px 8px; }
+.p-header .admin-nav a.p-nav-cta { background: #ea580c; color: #fff; padding: 8px 14px; border-radius: 999px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.home { --h-ink: #0f172a; --h-teal: #0f766e; --h-orange: #ea580c; color: var(--h-ink); }
+.home h1, .home h2, .home h3 { color: var(--h-ink); }
+.btn-accent { background: var(--h-orange); color: #fff; border-color: var(--h-orange); box-shadow: 0 6px 18px rgba(234,88,12,.28); }
+.btn-accent:hover { background: #c2410c; border-color: #c2410c; color: #fff; }
+.h-ghost { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.5); }
+.h-ghost:hover { background: rgba(255,255,255,.2); color: #fff; }
+.h-narrow { max-width: 760px; }
+
+/* হিরো */
+.h-hero { background: radial-gradient(1200px 500px at 90% -10%, #14b8a6 0%, transparent 60%), linear-gradient(160deg, #0b3b37 0%, #0f766e 55%, #115e59 100%); color: #fff; padding: 40px 0 56px; overflow: hidden; }
+.h-hero-grid { display: grid; gap: 36px; align-items: center; }
+@media (min-width: 900px) { .h-hero-grid { grid-template-columns: 1.15fr .85fr; } .h-hero { padding: 72px 0 84px; } }
+.h-kicker { display: inline-block; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); padding: 4px 12px; border-radius: 999px; font-size: .9rem; margin: 0 0 14px; color: #ccfbf1; }
+.home .h-hero h1 { color: #fff; font-size: 2rem; line-height: 1.25; margin: 0 0 14px; font-weight: 800; }
+.h-hero h1 span { color: #fdba74; }
+@media (min-width: 700px) { .home .h-hero h1 { font-size: 2.9rem; } }
+.h-lead { font-size: 1.08rem; color: #d1fae5; margin: 0 0 22px; max-width: 34em; }
+.h-lead strong { color: #fff; }
+.h-cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.h-chips { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 8px 16px; color: #a7f3d0; font-size: .95rem; }
+
+/* ফোন */
+.h-phone-wrap { position: relative; max-width: 300px; margin: 0 auto; width: 100%; }
+.h-phone { background: #fff; color: var(--h-ink); border-radius: 28px; padding: 10px; box-shadow: 0 30px 60px rgba(0,0,0,.35); border: 6px solid #0b1220; }
+.h-ph-bar { font-size: .72rem; color: #64748b; background: #f1f5f9; border-radius: 999px; padding: 4px 10px; text-align: center; margin-bottom: 8px; }
+.h-ph-img { height: 150px; border-radius: 14px; background: linear-gradient(135deg, #fde68a, #f59e0b 45%, #92400e); position: relative; }
+.h-ph-img::after { content: ""; position: absolute; inset: 30px 40px; border: 6px solid rgba(255,255,255,.75); border-top: 0; border-radius: 0 0 8px 8px; box-shadow: inset 0 -34px 0 -28px rgba(255,255,255,.75); }
+.h-ph-body { padding: 10px 4px 4px; }
+.h-ph-title { font-weight: 700; }
+.h-ph-price { margin: 2px 0 8px; } .h-ph-price b { color: var(--h-orange); font-size: 1.15rem; } .h-ph-price s { color: #94a3b8; font-size: .85rem; }
+.h-ph-field { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: .78rem; color: #94a3b8; margin-bottom: 6px; }
+.h-ph-btn { background: var(--h-orange); color: #fff; border-radius: 10px; text-align: center; font-weight: 700; padding: 9px; font-size: .85rem; }
+.h-toast { position: absolute; background: #fff; color: var(--h-ink); font-size: .82rem; font-weight: 600; padding: 8px 12px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,.25); white-space: nowrap; animation: h-float 4s ease-in-out infinite; }
+.h-toast-1 { top: 40px; left: -30px; }
+.h-toast-2 { top: 190px; right: -34px; animation-delay: 1.2s; }
+.h-toast-3 { bottom: 30px; left: -20px; animation-delay: 2.4s; }
+@media (max-width: 420px) { .h-toast-1 { left: -6px; } .h-toast-2 { right: -6px; } .h-toast-3 { left: -4px; } }
+@keyframes h-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .h-toast { animation: none; } }
+
+/* সেকশন */
+.h-sec { padding: 52px 0; }
+.h-soft { background: #f0fdfa; }
+.h-title { text-align: center; font-size: 1.6rem; line-height: 1.3; margin: 0 0 8px; font-weight: 800; }
+@media (min-width: 700px) { .h-title { font-size: 2rem; } }
+.h-sub { text-align: center; color: var(--muted); margin: 0 0 26px; }
+.h-title + .h-pains, .h-title + .h-steps, .h-title + .h-compare-wrap, .h-title + .h-faq { margin-top: 24px; }
+
+.h-pains { display: grid; gap: 12px; }
+@media (min-width: 760px) { .h-pains { grid-template-columns: 1fr 1fr; } }
+.h-pain { display: flex; gap: 14px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 14px; padding: 16px; }
+.h-pain-i { font-size: 30px; line-height: 1; }
+.h-pain h3 { margin: 0 0 4px; font-size: 1.08rem; }
+.h-pain p { margin: 0; color: #57534e; }
+
+.h-feats { display: grid; gap: 14px; }
+@media (min-width: 640px) { .h-feats { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 980px) { .h-feats { grid-template-columns: repeat(3, 1fr); } }
+.h-feat { background: #fff; border: 1px solid #ccfbf1; border-radius: 14px; padding: 18px; transition: transform .15s, box-shadow .15s; }
+.h-feat:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,118,110,.12); }
+.h-feat-i { width: 44px; height: 44px; display: grid; place-items: center; background: #ccfbf1; border-radius: 12px; font-size: 22px; }
+.h-feat h3 { margin: 10px 0 4px; font-size: 1.1rem; }
+.h-feat p { margin: 0; color: #475569; }
+
+.h-steps { list-style: none; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+@media (min-width: 760px) { .h-steps { grid-template-columns: repeat(3, 1fr); } }
+.h-steps li { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px; position: relative; }
+.h-steps span { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--h-teal); color: #fff; font-weight: 800; font-size: 1.15rem; }
+.h-steps h3 { margin: 10px 0 4px; }
+.h-steps p { margin: 0; color: #475569; }
+.h-steps code { background: #f1f5f9; padding: 1px 6px; border-radius: 6px; font-size: .85em; }
+
+/* দাম */
+.h-price-grid { display: grid; gap: 16px; align-items: start; }
+@media (min-width: 820px) { .h-price-grid { grid-template-columns: 1fr 1fr; } }
+.h-price, .h-calc { background: #fff; border-radius: 16px; padding: 22px; }
+.h-price { border: 2px solid var(--h-teal); box-shadow: 0 16px 40px rgba(15,118,110,.12); }
+.h-price-top { text-align: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 14px; margin-bottom: 10px; }
+.h-big { font-size: 3rem; font-weight: 800; color: var(--h-teal); line-height: 1.1; }
+.h-big small { font-size: 1rem; color: var(--muted); font-weight: 500; }
+.h-plus { color: #334155; } .h-plus b { color: var(--h-orange); font-size: 1.2rem; }
+.h-price ul { list-style: none; padding: 0; margin: 0 0 16px; }
+.h-price li { padding: 6px 0; display: flex; gap: 8px; }
+.h-check { color: #16a34a; font-weight: 800; }
+.h-cross { color: #dc2626; font-weight: 800; }
+.h-calc { border: 1px solid var(--line); }
+.h-calc h3 { margin: 0 0 12px; }
+.h-calc label { display: block; color: #475569; margin-bottom: 6px; }
+.h-calc input[type=range] { width: 100%; accent-color: var(--h-orange); margin: 4px 0 12px; }
+.h-calc-row, .h-calc-total { display: flex; justify-content: space-between; padding: 6px 0; }
+.h-calc-total { border-top: 2px solid var(--h-ink); margin-top: 6px; padding-top: 10px; font-size: 1.25rem; }
+.h-calc-total b { color: var(--h-orange); }
+.h-note { background: #fff7ed; border-radius: 10px; padding: 10px 12px; color: #9a3412; font-size: .92rem; margin: 14px 0 0; }
+
+/* তুলনা */
+.h-compare-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.h-compare { width: 100%; min-width: 620px; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.h-compare th, .h-compare td { padding: 12px 14px; text-align: center; border-bottom: 1px solid var(--line); }
+.h-compare td:first-child, .h-compare th:first-child { text-align: left; font-weight: 600; }
+.h-compare thead th { background: #f8fafc; font-size: .95rem; }
+.h-compare .h-us { background: #f0fdfa; color: var(--h-teal); font-weight: 700; }
+.h-compare thead .h-us { background: var(--h-teal); color: #fff; }
+.h-compare tr:last-child td { border-bottom: 0; }
+
+/* প্রশ্নোত্তর */
+.h-faq details { background: #fff; border: 1px solid #ccfbf1; border-radius: 12px; margin-bottom: 10px; padding: 0 16px; }
+.h-faq summary { cursor: pointer; padding: 14px 0; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+.h-faq summary::-webkit-details-marker { display: none; }
+.h-faq summary::after { content: "+"; color: var(--h-teal); font-size: 1.3rem; line-height: 1; }
+.h-faq details[open] summary::after { content: "–"; }
+.h-faq p { margin: 0 0 14px; color: #475569; }
+
+/* শেষ */
+.h-final { background: linear-gradient(135deg, #0f766e, #0b3b37); color: #fff; padding: 56px 0; }
+.home .h-final h2 { color: #fff; font-size: 1.8rem; margin: 0 0 8px; }
+.h-final p { color: #ccfbf1; }
+.h-support a { color: #fdba74; font-weight: 700; }
+.h-foot { background: #0b1220; color: #94a3b8; text-align: center; padding: 18px 0; font-size: .9rem; }
+body.platform main:has(.home) { padding: 0; }
