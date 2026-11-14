@@ -9,6 +9,7 @@ import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
 import { Icon } from "./icons";
+import { EmptyState, PageHead } from "./ui";
 import type { ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
@@ -133,7 +134,7 @@ export const OrdersPage = (p: {
     </form>
     {p.q && <p class="muted">"{p.q}" — সব স্ট্যাটাসে খোঁজা হয়েছে</p>}
     {p.orders.length === 0 ? (
-      <p class="empty">কোনো অর্ডার নেই</p>
+      <div class="sa-card"><EmptyState icon="receipt" title="এই তালিকায় কোনো অর্ডার নেই" text="নতুন অর্ডার এলে এখানে দেখাবে। দোকান বা ল্যান্ডিং পেজের লিংক ফেসবুকে শেয়ার করুন।" /></div>
     ) : (
       <form method="post" action="/admin/orders/bulk-courier" id="bulk-form">
       {bulk && (
@@ -880,13 +881,13 @@ export type LandingRow = { id: number; name: string; slug: string; price: number
 /** ল্যান্ডিং পেজের তালিকা */
 export const LandingListPage = ({ rows }: { rows: LandingRow[] }) => (
   <>
-    <div class="page-head">
-      <h1>ল্যান্ডিং পেজ</h1>
-      <a href="/admin/landing/new" class="btn btn-primary">+ নতুন ল্যান্ডিং পেজ</a>
-    </div>
-    <p class="muted">রেডিমেড টেমপ্লেট বেছে নিন, তারপর কোন পণ্যের পেজ হবে সেটা ঠিক করুন। দাম, ছবি আর ভ্যারিয়েন্ট সবসময় পণ্য থেকেই আসে।</p>
+    <PageHead title="ল্যান্ডিং পেজ"
+      desc="রেডিমেড টেমপ্লেট বেছে নিন, তারপর কোন পণ্যের পেজ হবে সেটা ঠিক করুন। দাম, ছবি আর ভ্যারিয়েন্ট সবসময় পণ্য থেকেই আসে।"
+      actions={<a href="/admin/landing/new" class="btn btn-primary"><Icon name="plus" size="sm" /> নতুন ল্যান্ডিং পেজ</a>} />
     {rows.length === 0 ? (
-      <div class="empty-box"><p>এখনো কোনো ল্যান্ডিং পেজ বানানো হয়নি।</p><a href="/admin/landing/new" class="btn btn-primary">টেমপ্লেট বেছে নিন</a></div>
+      <div class="sa-card"><EmptyState icon="layout-template" title="এখনো কোনো ল্যান্ডিং পেজ নেই"
+        text="একটা টেমপ্লেট বেছে নিন — কয়েক মিনিটে বিজ্ঞাপনের জন্য পেজ তৈরি।"
+        action={<a href="/admin/landing/new" class="btn btn-primary">টেমপ্লেট বেছে নিন</a>} /></div>
     ) : (
       <table class="table">
         <thead><tr><th>পণ্য</th><th>দাম</th><th></th></tr></thead>
