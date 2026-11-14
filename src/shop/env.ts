@@ -21,6 +21,8 @@ export type Variables = {
   settings: Record<string, string>;
   admin?: { id: number; email: string; name: string; role: import("./lib/auth").Role };
   shopState: ShopState;
+  /** প্রো থিমের ক্যাটাগরি মেনু */
+  navCats?: { id: number; name: string }[];
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

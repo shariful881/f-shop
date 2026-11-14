@@ -190,3 +190,22 @@
     });
   });
 })();
+
+/* প্রো থিম: ব্যানার স্লাইডার (৫ সেকেন্ডে বদলায়, আঙুলে সরানো যায়) */
+(function () {
+  var slider = document.querySelector("[data-slider]");
+  if (!slider) return;
+  var track = slider.querySelector(".px-slides");
+  var dots = slider.querySelectorAll("[data-dot]");
+  var n = track.children.length;
+  if (n < 2) return;
+  function idx() { return Math.round(track.scrollLeft / track.clientWidth); }
+  function go(i) { track.scrollTo({ left: ((i + n) % n) * track.clientWidth, behavior: "smooth" }); }
+  track.addEventListener("scroll", function () {
+    var i = idx();
+    dots.forEach(function (d, k) { d.classList.toggle("on", k === i); });
+  }, { passive: true });
+  dots.forEach(function (d) { d.addEventListener("click", function () { go(+d.dataset.dot); }); });
+  var t = setInterval(function () { go(idx() + 1); }, 5000);
+  track.addEventListener("touchstart", function () { clearInterval(t); }, { passive: true });
+})();

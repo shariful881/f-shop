@@ -329,6 +329,19 @@ export const SettingsAppearancePage = ({ s }: { s: Settings }) => (
         <F label="মূল রং (হেডার, দাম)"><input type="color" name="brand_color" value={s.brand_color || "#0f766e"} /></F>
         <F label="বাটনের রং"><input type="color" name="accent_color" value={s.accent_color || "#ea580c"} /></F>
       </Section>
+      <Section title="হোমপেজ (প্রো স্টোর থিম)" desc="উপরের ঘোষণার লাইন আর বড় ব্যানার। ব্যানার না দিলে সরাসরি ক্যাটাগরি আর পণ্য দেখাবে।">
+        <F label="উপরের ঘোষণা" hint="ফাঁকা রাখলে ফ্রি ডেলিভারি বা ক্যাশ অন ডেলিভারির কথা দেখাবে" wide>
+          <input type="text" name="announcement" value={s.announcement ?? ""} maxlength={120} placeholder="যেমন: ঈদ অফার — সব পণ্যে ১০% ছাড়!" />
+        </F>
+        {([1, 2, 3] as const).map((n) => (
+          <>
+            <ImageField name={`banner_${n}`} label={`ব্যানার ${n}`} current={s[`banner_${n}`]} hint="চওড়া ছবি, যেমন ১২০০×৪৫০ (৮:৩)। JPG/WebP, ২ MB পর্যন্ত।" />
+            <F label={`ব্যানার ${n}-এ ক্লিক করলে যাবে`} hint="ঐচ্ছিক — যেমন /p/product-slug বা /c/2">
+              <input type="text" name={`banner_${n}_link`} value={s[`banner_${n}_link`] ?? ""} maxlength={200} placeholder="/p/..." />
+            </F>
+          </>
+        ))}
+      </Section>
     </SettingsForm>
   </>
 );

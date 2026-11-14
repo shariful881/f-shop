@@ -16,6 +16,7 @@ import m0010 from "../../migrations/shop/0010_sms.sql";
 import m0011 from "../../migrations/shop/0011_images.sql";
 import m0012 from "../../migrations/shop/0012_store_settings.sql";
 import m0013 from "../../migrations/shop/0013_my_templates.sql";
+import m0014 from "../../migrations/shop/0014_pro_theme.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 
@@ -33,6 +34,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0011_images", m0011],
   ["0012_store_settings", m0012],
   ["0013_my_templates", m0013],
+  ["0014_pro_theme", m0014],
 ];
 
 export type SetupInput = {
@@ -103,6 +105,8 @@ export class ShopDO extends DurableObject<WorkerEnv> {
         .bind(input.ownerName, input.ownerEmail, input.passwordHash),
       this.db.prepare("UPDATE settings SET value = ? WHERE key = 'site_name'").bind(input.shopName),
       this.db.prepare("UPDATE settings SET value = ? WHERE key = 'contact_phone'").bind(input.ownerPhone),
+      // নতুন দোকান শুরু হয় প্রো স্টোর থিমে
+      this.db.prepare("UPDATE settings SET value = 'pro' WHERE key = 'theme'"),
     ]);
     const user = await this.db.prepare("SELECT id FROM users WHERE email = ?").bind(input.ownerEmail).first<{ id: number }>();
     return this.createLoginToken(user!.id);

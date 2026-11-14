@@ -700,7 +700,7 @@ admin.get("/settings/:section{[a-z]+}", (c) => {
 });
 
 /** ছবি আপলোড (লোগো, ফেভিকন, শেয়ার ইমেজ) — সফল হলে নতুন key, ভুল হলে error */
-async function settingImage(c: Ctx, b: Record<string, unknown>, key: "logo" | "favicon" | "seo_image", maxBytes: number): Promise<{ value?: string; error?: string }> {
+async function settingImage(c: Ctx, b: Record<string, unknown>, key: "logo" | "favicon" | "seo_image" | "banner_1" | "banner_2" | "banner_3", maxBytes: number): Promise<{ value?: string; error?: string }> {
   const file = b[key];
   const current = c.var.settings[key];
   if (file instanceof File && file.size > 0) {
@@ -729,7 +729,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
   const text: [string, number][] = [
     ["contact_phone", 30], ["store_email", 120], ["store_address", 300], ["whatsapp", 20], ["fb_test_event_code", 50],
     ["seo_title", 100], ["seo_description", 300], ["thanks_message", 500], ["order_form_title", 100],
-    ["delivery_time_inside", 60], ["delivery_time_outside", 60],
+    ["delivery_time_inside", 60], ["delivery_time_outside", 60], ["announcement", 120],
   ];
   for (const [k, max] of text) if (has(k)) v[k] = str(b[k], max);
   if (has("site_name")) v.site_name = str(b.site_name, 100) || c.var.settings.site_name || "আমার দোকান";
@@ -743,6 +743,10 @@ async function saveSettingsForm(c: Ctx, section: string) {
   if (has("theme")) v.theme = typeof b.theme === "string" && b.theme in THEMES ? b.theme : (c.var.settings.theme || "classic");
   if (has("brand_color")) v.brand_color = safeColor(str(b.brand_color, 7), c.var.settings.brand_color || "#0f766e");
   if (has("accent_color")) v.accent_color = safeColor(str(b.accent_color, 7), c.var.settings.accent_color || "#ea580c");
+  for (const n of [1, 2, 3]) {
+    const k = `banner_${n}_link`;
+    if (has(k)) { const u = str(b[k], 200); v[k] = /^(\/[^/\s][^\s]*|https:\/\/[^\s]+)$/.test(u) ? u : ""; }
+  }
   if (section === "checkout") v.show_note = b.show_note ? "1" : "0";
   if (section === "seo") v.seo_noindex = b.seo_noindex ? "1" : "0";
 
@@ -752,7 +756,8 @@ async function saveSettingsForm(c: Ctx, section: string) {
   else if (b.clear_token) v.fb_capi_token = "";
 
   // ছবি
-  for (const [key, max] of [["logo", 1024 * 1024], ["favicon", 512 * 1024], ["seo_image", 2 * 1024 * 1024]] as const) {
+  for (const [key, max] of [["logo", 1024 * 1024], ["favicon", 512 * 1024], ["seo_image", 2 * 1024 * 1024],
+    ["banner_1", 2 * 1024 * 1024], ["banner_2", 2 * 1024 * 1024], ["banner_3", 2 * 1024 * 1024]] as const) {
     const r = await settingImage(c, b, key, max);
     if (r.error) {
       flash(c, "error", r.error);

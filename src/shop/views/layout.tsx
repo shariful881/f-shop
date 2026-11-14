@@ -2,8 +2,9 @@ import type { Child } from "hono/jsx";
 import type { Settings } from "../lib/settings";
 import { bn, imageUrl } from "../lib/format";
 import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
+import { ProBottom, ProFooter, ProHeader, type NavCat } from "./pro";
 
-export const ASSET_VERSION = "7";
+export const ASSET_VERSION = "8";
 
 export type LayoutProps = {
   title: string;
@@ -14,6 +15,12 @@ export type LayoutProps = {
   head?: Child;
   bodyEnd?: Child;
   children?: Child;
+  /** প্রো থিম: ক্যাটাগরি মেনু */
+  nav?: NavCat[];
+  /** প্রো থিম: ল্যান্ডিং/চেকআউটে নিচের মেনু লুকানো (অর্ডার বাটনের জায়গা) */
+  bare?: boolean;
+  /** সার্চ বক্সে আগের লেখা */
+  q?: string;
 };
 
 /** Google Analytics 4, Google Tag Manager, TikTok Pixel — দোকানদার আইডি দিলে */
@@ -38,6 +45,7 @@ export const Layout = (p: LayoutProps) => {
   const description = p.description || s.seo_description || undefined;
   const ogImage = p.ogImage || (s.seo_image ? imageUrl(s.seo_image) : undefined);
   const gtm = GTM_RE.test(s.gtm_id || "") ? s.gtm_id : "";
+  const pro = themeOf(s) === "pro";
   return (
   <html lang="bn">
     <head>
@@ -60,8 +68,9 @@ export const Layout = (p: LayoutProps) => {
       <script src={`/js/device.js?v=${ASSET_VERSION}`}></script>
       {p.head}
     </head>
-    <body class={`theme-${themeOf(p.settings)}`}>
+    <body class={`theme-${themeOf(p.settings)}`} data-bare={p.bare ? "1" : undefined}>
       {gtm && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${gtm}`} height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>}
+      {pro ? <ProHeader s={s} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} /> : (
       <header class="site-header">
         <div class="wrap header-inner">
           <a href="/" class="logo">
@@ -72,7 +81,9 @@ export const Layout = (p: LayoutProps) => {
           </a>
         </div>
       </header>
+      )}
       <main>{p.children}</main>
+      {pro ? <><ProFooter s={s} nav={p.nav ?? []} /><ProBottom s={s} cartCount={p.cartCount ?? 0} bare={p.bare} /></> : (
       <footer class="site-footer">
         <div class="wrap">
           <p>যেকোনো প্রয়োজনে কল করুন: <a href={`tel:${p.settings.contact_phone}`}>{bn(p.settings.contact_phone || "")}</a></p>
@@ -87,6 +98,7 @@ export const Layout = (p: LayoutProps) => {
           <p class="muted">ক্যাশ অন ডেলিভারি • পণ্য হাতে পেয়ে টাকা দিন</p>
         </div>
       </footer>
+      )}
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <script src={`/js/app.js?v=${ASSET_VERSION}`} defer></script>
       {p.bodyEnd}

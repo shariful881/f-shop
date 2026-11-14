@@ -1,0 +1,150 @@
+/* থিম: প্রো স্টোর — বাংলাদেশের বড় ই-কমার্স সাইটের মতো পরিষ্কার, মোবাইল-ফার্স্ট */
+body.theme-pro { background: #f5f6f8; }
+.theme-pro main { padding-bottom: 24px; min-height: 50vh; }
+.px-only-desktop { display: none !important; }
+@media (min-width: 900px) {
+  .px-only-desktop { display: flex !important; }
+  .px-only-mobile { display: none !important; }
+}
+
+/* উপরের ঘোষণা */
+.px-topbar { background: var(--brand-dark); color: #fff; font-size: .85rem; }
+.px-topbar-in { display: flex; justify-content: center; align-items: center; gap: 16px; min-height: 34px; text-align: center; }
+.px-hotline { color: #fff; text-decoration: none; font-weight: 600; display: none; align-items: center; gap: 4px; white-space: nowrap; }
+@media (min-width: 900px) { .px-topbar-in { justify-content: space-between; } .px-hotline { display: inline-flex; } }
+
+/* হেডার */
+.px-header { background: #fff; position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 0 #e5e7eb, 0 4px 14px rgba(15,23,42,.04); }
+.px-header-in { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+.px-logo { display: flex; align-items: center; text-decoration: none; color: var(--brand-dark); font-weight: 800; font-size: 1.3rem; margin-right: auto; }
+.px-logo img { height: 40px; width: auto; max-width: 170px; object-fit: contain; }
+@media (max-width: 899px) { .px-logo { margin: 0 auto; } }
+.px-search-wrap { flex: 1; max-width: 560px; margin: 0 auto; }
+.px-search { display: flex; width: 100%; background: #f1f5f9; border: 1.5px solid #e2e8f0; border-radius: 999px; overflow: hidden; transition: border-color .15s; }
+.px-search:focus-within { border-color: var(--brand); background: #fff; }
+.px-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; padding: 9px 16px; outline: none; }
+.px-search button { border: 0; background: var(--brand); color: #fff; padding: 0 16px; cursor: pointer; display: grid; place-items: center; }
+.px-search-mobile { padding-bottom: 10px; }
+.px-actions { display: flex; align-items: center; gap: 14px; }
+.px-icon-btn { display: inline-grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; color: #1f2937; text-decoration: none; cursor: pointer; position: relative; background: none; border: 0; }
+.px-icon-btn:hover { background: #f1f5f9; }
+.px-cart-count { position: absolute; top: 2px; right: 0; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: .72rem; font-weight: 700; display: grid; place-items: center; line-height: 1; }
+.px-call { align-items: center; gap: 8px; text-decoration: none; color: #1f2937; }
+.px-call svg { color: var(--brand); }
+.px-call span { display: grid; line-height: 1.2; }
+.px-call small { color: var(--muted); font-size: .75rem; }
+.px-nav { border-top: 1px solid #eef0f3; }
+.px-nav-in { gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.px-nav a { padding: 10px 12px; color: #334155; text-decoration: none; font-weight: 600; font-size: .95rem; white-space: nowrap; border-bottom: 2px solid transparent; }
+.px-nav a:hover { color: var(--brand); border-bottom-color: var(--brand); }
+
+/* মোবাইলের পাশের মেনু */
+.px-drawer-toggle { position: absolute; opacity: 0; pointer-events: none; }
+.px-drawer { position: fixed; top: 0; bottom: 0; left: 0; width: min(300px, 84vw); background: #fff; z-index: 70; transform: translateX(-102%); transition: transform .22s ease, visibility .22s; visibility: hidden; overflow-y: auto; display: flex; flex-direction: column; }
+.px-drawer a { padding: 13px 18px; border-bottom: 1px solid #f1f5f9; color: #1f2937; text-decoration: none; font-weight: 600; }
+.px-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 18px; background: var(--brand); color: #fff; }
+.px-drawer-head .px-icon-btn { color: #fff; }
+.px-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 65; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.px-drawer-toggle:checked ~ .px-drawer { transform: none; visibility: visible; box-shadow: 4px 0 30px rgba(0,0,0,.15); }
+.px-drawer-toggle:checked ~ .px-scrim { opacity: 1; pointer-events: auto; }
+
+/* ব্যানার স্লাইডার */
+.px-slider { position: relative; margin-top: 14px; border-radius: 16px; overflow: hidden; background: #e2e8f0; }
+.px-slides { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.px-slides::-webkit-scrollbar { display: none; }
+.px-slide { flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 8 / 3; }
+.px-slide img, .px-slide a { width: 100%; height: 100%; object-fit: cover; display: block; }
+.px-dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
+.px-dots button { width: 8px; height: 8px; border-radius: 999px; border: 0; background: rgba(255,255,255,.6); padding: 0; cursor: pointer; transition: width .2s; }
+.px-dots button.on { width: 22px; background: #fff; }
+
+/* সেকশন */
+.px-section { margin: 26px 0; }
+.px-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.px-section-head h2 { margin: 0; font-size: 1.3rem; color: #0f172a; position: relative; padding-bottom: 6px; }
+.px-section-head h2::after { content: ""; position: absolute; left: 0; bottom: 0; width: 42px; height: 3px; border-radius: 3px; background: var(--accent); }
+.px-more { font-weight: 700; font-size: .92rem; text-decoration: none; color: var(--brand); white-space: nowrap; }
+
+/* ক্যাটাগরি টাইল */
+.px-cats { display: grid; grid-auto-flow: column; grid-auto-columns: 92px; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.px-cats::-webkit-scrollbar { display: none; }
+@media (min-width: 900px) { .px-cats { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
+.px-cat { display: grid; justify-items: center; gap: 6px; text-decoration: none; color: #1f2937; text-align: center; }
+.px-cat-img { width: 84px; height: 84px; border-radius: 50%; overflow: hidden; background: #fff; border: 2px solid #eef0f3; transition: border-color .15s, transform .15s; }
+.px-cat:hover .px-cat-img { border-color: var(--brand); transform: translateY(-2px); }
+.px-cat-img img { width: 100%; height: 100%; object-fit: cover; }
+.px-cat-name { font-size: .85rem; font-weight: 600; line-height: 1.3; }
+
+/* পণ্যের কার্ড */
+.theme-pro .px-grid { gap: 10px; }
+@media (min-width: 700px) { .theme-pro .px-grid { gap: 16px; } }
+@media (min-width: 1000px) { .theme-pro .px-grid { grid-template-columns: repeat(4, 1fr); } }
+.theme-pro .card { border: 1px solid #eef0f3; border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: box-shadow .18s, transform .18s; }
+.theme-pro .card:hover { box-shadow: 0 10px 24px rgba(15,23,42,.10); transform: translateY(-2px); }
+.theme-pro .card-img { background: #fff; padding: 8px; }
+.theme-pro .card-img img { object-fit: contain; border-radius: 10px; }
+.theme-pro .badge { left: auto; right: 8px; top: 8px; background: #ef4444; font-weight: 700; font-size: .75rem; padding: 2px 8px; border-radius: 6px; }
+.theme-pro .card-body { padding: 4px 10px 10px; gap: 4px; }
+.theme-pro .card-title { font-size: .92rem; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em; }
+.theme-pro .price { color: var(--brand); font-size: 1.05rem; font-weight: 800; }
+.theme-pro .compare { font-size: .85rem; }
+.theme-pro .card-actions { grid-template-columns: 1fr; gap: 6px; margin-top: 6px; }
+.theme-pro .card-actions .btn { border-radius: 999px; font-size: .88rem; padding: 8px 6px; }
+.theme-pro .card-actions .btn-primary { background: var(--brand); }
+.theme-pro .card-actions .btn-primary:hover { background: var(--brand-dark); }
+.theme-pro .card-actions .btn-outline { border-width: 1.5px; }
+@media (min-width: 700px) { .theme-pro .card-actions { grid-template-columns: 1fr 1fr; } }
+
+/* তালিকা পেজ (ক্যাটাগরি/সার্চ) */
+.px-listing { padding-top: 6px; }
+.px-crumbs { font-size: .85rem; color: var(--muted); margin-top: 14px; }
+.px-crumbs a { color: var(--muted); text-decoration: none; }
+.px-search-page { max-width: 520px; margin: 0 0 14px; background: #fff; }
+.px-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px; scrollbar-width: none; }
+.px-chip { white-space: nowrap; padding: 6px 14px; border-radius: 999px; background: #fff; border: 1.5px solid #e2e8f0; color: #334155; text-decoration: none; font-weight: 600; font-size: .88rem; }
+.px-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.px-listing .page-title small { font-weight: 500; }
+
+/* ফুটার */
+.px-footer { background: #0f172a; color: #cbd5e1; margin-top: 30px; }
+.px-trust-strip { background: #fff; color: #1f2937; border-top: 1px solid #eef0f3; }
+.px-trust-in { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding-top: 18px; padding-bottom: 18px; }
+@media (min-width: 900px) { .px-trust-in { grid-template-columns: repeat(4, 1fr); } }
+.px-trust-in > div { display: flex; gap: 10px; align-items: center; }
+.px-trust-in svg { flex: none; color: var(--brand); width: 34px; height: 34px; padding: 6px; border-radius: 10px; background: color-mix(in srgb, var(--brand) 10%, #fff); }
+.px-trust-in span { display: grid; line-height: 1.3; }
+.px-trust-in b { font-size: .9rem; }
+.px-trust-in small { color: var(--muted); font-size: .78rem; }
+.px-footer-grid { display: grid; gap: 22px; padding-top: 28px; padding-bottom: 24px; grid-template-columns: 1fr 1fr; }
+.px-footer-grid > div:first-child { grid-column: 1 / -1; }
+@media (min-width: 900px) { .px-footer-grid { grid-template-columns: 2fr 1fr 1fr 1.4fr; } .px-footer-grid > div:first-child { grid-column: auto; } }
+.px-footer h4 { color: #fff; margin: 0 0 10px; font-size: 1rem; }
+.px-footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: .92rem; }
+.px-footer a { color: #cbd5e1; text-decoration: none; }
+.px-footer a:hover { color: #fff; }
+.px-footer p { font-size: .9rem; margin: 8px 0; }
+.px-footer-logo { display: inline-flex; color: #fff !important; font-weight: 800; font-size: 1.3rem; }
+.px-footer-logo img { height: 40px; width: auto; background: #fff; border-radius: 8px; padding: 4px 8px; }
+.px-copy { border-top: 1px solid #1e293b; font-size: .82rem; padding: 14px 0 84px; color: #94a3b8; text-align: center; }
+@media (min-width: 900px) { .px-copy { padding-bottom: 14px; } }
+[data-bare] .px-copy { padding-bottom: 70px; }
+
+/* মোবাইলের নিচের মেনু */
+.px-bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; background: #fff; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #e5e7eb; box-shadow: 0 -4px 16px rgba(15,23,42,.06); padding-bottom: env(safe-area-inset-bottom); }
+.px-bottom a, .px-bottom label { display: grid; justify-items: center; gap: 2px; padding: 7px 0 6px; color: #475569; text-decoration: none; font-size: .72rem; font-weight: 600; cursor: pointer; position: relative; }
+.px-bottom a:active, .px-bottom label:active { color: var(--brand); }
+.px-bottom-cart i { position: absolute; top: 3px; left: 54%; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: #fff; font-style: normal; font-size: .66rem; display: grid; place-items: center; }
+@media (min-width: 900px) { .px-bottom { display: none; } }
+
+/* WhatsApp বাটন */
+.px-wa { position: fixed; right: 14px; bottom: 76px; z-index: 46; width: 52px; height: 52px; border-radius: 50%; background: #25d366; color: #fff; display: grid; place-items: center; box-shadow: 0 6px 18px rgba(37,211,102,.45); }
+.px-wa-up { bottom: 74px; }
+@media (min-width: 900px) { .px-wa, .px-wa-up { bottom: 22px; } }
+
+/* ল্যান্ডিং, কার্ট, চেকআউট — থিমের সাথে মিল */
+.theme-pro .btn { border-radius: 12px; }
+.theme-pro .order-section { border-radius: 16px; border-color: var(--brand); box-shadow: 0 8px 26px rgba(15,23,42,.06); }
+.theme-pro .details, .theme-pro .cart-item, .theme-pro .lp-box { border-color: #eef0f3; border-radius: 14px; }
+.theme-pro .page-title { color: #0f172a; }
+.theme-pro .toast { bottom: 140px; }
+.theme-pro .px-search-page { display: none; }

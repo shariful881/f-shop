@@ -3,6 +3,8 @@ import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
 import { CartPage, CheckoutPage, HomePage, LandingPage, NotFoundPage, ThanksPage, type FormState } from "../views/shop";
+import { ListingPage, ProHome } from "../views/pro";
+import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
 import { createOrder, getOrderByNo } from "../lib/orders";
@@ -17,6 +19,19 @@ import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLo
 import { isUuid } from "../middleware/device";
 
 export const shop = new Hono<AppEnv>();
+
+/* প্রো থিমে হেডারের ক্যাটাগরি মেনু (যেসব ক্যাটাগরিতে চালু পণ্য আছে) */
+shop.use("*", async (c, next) => {
+  if (c.req.method === "GET" && themeOf(c.var.settings) === "pro") c.set("navCats", await navCategories(c.env.DB));
+  await next();
+});
+
+async function navCategories(db: D1Database) {
+  const { results } = await db.prepare(
+    "SELECT c.id, c.name FROM categories c WHERE EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.id AND p.is_active = 1) ORDER BY c.sort_order, c.id LIMIT 30",
+  ).all<{ id: number; name: string }>();
+  return results;
+}
 
 /* ---------- Facebook ট্র্যাকিং ---------- */
 type TrackEvent = BrowserEvent & { serverAlreadySent?: boolean };
@@ -47,8 +62,8 @@ shop.get("/", async (c) => {
   const sections = await homeSections(c.env.DB);
   const s = c.var.settings;
   return page(c,
-    <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)}>
-      <HomePage sections={sections} />
+    <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
+      {themeOf(s) === "pro" ? <ProHome s={s} sections={sections} /> : <HomePage sections={sections} />}
     </Layout>,
   );
 });
@@ -59,7 +74,7 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
   const variants = await productVariants(c.env.DB, p.id);
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
-    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head}
+    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <LandingPage p={p} variants={variants} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
@@ -71,6 +86,36 @@ shop.get("/p/:slug", async (c) => {
   const p = await activeProductBySlug(c.env.DB, c.req.param("slug"));
   if (!p) return notFound(c);
   return renderLanding(c, p);
+});
+
+/* ---------- ক্যাটাগরি আর সার্চ ---------- */
+const LISTING_SQL = "SELECT p.*, (SELECT COUNT(*) FROM product_variants v WHERE v.product_id = p.id AND v.active = 1) AS variant_count FROM products p WHERE p.is_active = 1";
+
+shop.get("/c/:id{[0-9]+}", async (c) => {
+  const cat = await c.env.DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(toInt(c.req.param("id"))).first<{ id: number; name: string }>();
+  if (!cat) return notFound(c);
+  const { results } = await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? ORDER BY p.sort_order, p.id LIMIT 200`).bind(cat.id).all<Product>();
+  const s = c.var.settings;
+  return page(c,
+    <Layout title={`${cat.name} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
+      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} />
+    </Layout>,
+  );
+});
+
+shop.get("/search", async (c) => {
+  const q = str(c.req.query("q"), 60);
+  let results: Product[] = [];
+  if (q) {
+    const like = `%${q.replace(/[%_\\]/g, (m) => "\\" + m)}%`;
+    results = (await c.env.DB.prepare(`${LISTING_SQL} AND (p.name LIKE ? ESCAPE '\\' OR p.headline LIKE ? ESCAPE '\\') ORDER BY p.sort_order, p.id LIMIT 60`).bind(like, like).all<Product>()).results;
+  }
+  const s = c.var.settings;
+  return page(c,
+    <Layout title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} q={q}>
+      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} />
+    </Layout>,
+  );
 });
 
 /* ---------- কার্ট ---------- */
@@ -119,7 +164,7 @@ shop.get("/cart", async (c) => {
   const products = await cartLines(c.env.DB, readCartEntries(c));
   const s = c.var.settings;
   return page(c,
-    <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)}>
+    <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)} nav={c.var.navCats}>
       <CartPage products={products} />
     </Layout>,
   );
@@ -129,7 +174,7 @@ function renderCheckout(c: Ctx, products: Product[], form?: FormState, status: 2
   const s = c.var.settings;
   const head = pixel(c, [{ name: "InitiateCheckout", id: newEventId("ic"), params: productData(products) }]);
   return page(c,
-    <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head}>
+    <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head} nav={c.var.navCats} bare>
       <CheckoutPage products={products} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
@@ -325,7 +370,7 @@ shop.get("/thanks", async (c) => {
     },
   }]);
   return page(c,
-    <Layout title="ধন্যবাদ" settings={s} cartCount={readCart(c).length} head={head}>
+    <Layout title="ধন্যবাদ" settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats}>
       <ThanksPage order={data.order} items={data.items} settings={s} />
     </Layout>,
   );
@@ -336,7 +381,7 @@ export const ordersClosedMessage = (contact: string) =>
 
 export function notFound(c: Ctx) {
   const s = c.var.settings;
-  return page(c, <Layout title="পাওয়া যায়নি" settings={s}><NotFoundPage /></Layout>, 404);
+  return page(c, <Layout title="পাওয়া যায়নি" settings={s} nav={c.var.navCats}><NotFoundPage /></Layout>, 404);
 }
 
 function uniqueStrings(list: (string | null | undefined)[]): string[] {
