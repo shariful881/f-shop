@@ -1,0 +1,29 @@
+# main-এ push করলে: টেস্ট চলবে, সব পাস করলে Cloudflare-এ লাইভ হবে
+# (CLOUDFLARE_API_TOKEN আর CLOUDFLARE_ACCOUNT_ID secret না থাকলে শুধু টেস্ট চলবে)
+name: Test & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: ডাটাবেস migrate + Cloudflare-এ ডিপ্লয়
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        run: npm run deploy
