@@ -28,6 +28,8 @@ export const PERMS: Record<string, SuperRole[]> = {
   "shop.edit": ["owner", "admin"],
   "shop.adjust": ["owner", "admin", "finance"],
   "shop.impersonate": ["owner", "admin", "support"],
+  support: ["owner", "admin", "support"],
+  "support.settings": ["owner", "admin"],
   topups: ["owner", "admin", "finance"],
   finance: ["owner", "admin", "finance"],
   announcements: ["owner", "admin"],
@@ -64,6 +66,7 @@ export function ago(utc: string | null | undefined): string {
 const NAV: { key: string; href: string; icon: string; label: string; group?: string }[] = [
   { key: "dashboard", href: "/super", icon: "▦", label: "ড্যাশবোর্ড" },
   { key: "shops", href: "/super/shops", icon: "🏪", label: "দোকান" },
+  { key: "support", href: "/super/support", icon: "🛟", label: "সাপোর্ট" },
   { key: "topups", href: "/super/topups", icon: "💳", label: "রিচার্জ" },
   { key: "finance", href: "/super/finance", icon: "৳", label: "আয় ও হিসাব" },
   { key: "announcements", href: "/super/announcements", icon: "📢", label: "ঘোষণা", group: "যোগাযোগ" },
@@ -80,6 +83,7 @@ export const SuperShell = (p: {
   admin: SuperAdmin;
   flash?: SFlash;
   pendingTopups?: number;
+  openSupport?: number;
   actions?: Child;
   children?: Child;
 }) => (
@@ -91,6 +95,7 @@ export const SuperShell = (p: {
       <title>{p.title} — {PLATFORM_NAME} কন্ট্রোল</title>
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/super.css?v=${ASSET_VERSION}`} />
+      {can(p.admin.role, "support") && <link rel="stylesheet" href={`/css/support.css?v=${ASSET_VERSION}`} />}
     </head>
     <body class="sa">
       <input type="checkbox" id="sa-nav-toggle" class="sa-nav-toggle" aria-label="মেনু" />
@@ -103,6 +108,7 @@ export const SuperShell = (p: {
               <a href={n.href} class={p.active === n.key ? "active" : ""}>
                 <span class="sa-ico">{n.icon}</span>{n.label}
                 {n.key === "topups" && (p.pendingTopups ?? 0) > 0 && <span class="sa-badge">{bn(p.pendingTopups!)}</span>}
+                {n.key === "support" && <span class="sa-badge" data-sx-nav-badge hidden={!p.openSupport}>{p.openSupport ? bn(p.openSupport) : ""}</span>}
               </a>
             </>
           ))}
@@ -131,6 +137,7 @@ export const SuperShell = (p: {
         </main>
       </div>
       <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
+      {can(p.admin.role, "support") && <script src={`/js/support.js?v=${ASSET_VERSION}`} defer data-sx-agent="1"></script>}
     </body>
   </html>
 );

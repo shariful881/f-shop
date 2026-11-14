@@ -6,6 +6,7 @@ import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
 
 export { ShopDO } from "./shop/shop-do";
+export { SupportHub } from "./support-hub";
 
 /**
  * সব রিকোয়েস্ট প্রথমে এখানে আসে। ডোমেইন দেখে ঠিক করে:

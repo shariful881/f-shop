@@ -4,6 +4,7 @@ declare global {
   namespace Cloudflare {
     interface Env {
       PLATFORM_DB: D1Database;
+      SUPPORT: DurableObjectNamespace<import("../src/support-hub").SupportHub>;
       SHOP: DurableObjectNamespace<import("../src/shop/shop-do").ShopDO>;
       PLATFORM_DOMAIN: string;
       DEV_MODE?: string;

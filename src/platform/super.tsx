@@ -17,6 +17,7 @@ import type { NicheImage } from "../shop/shop-do";
 const DEMO_IMAGE_BASE = "https://raw.githubusercontent.com/shariful881/f-shop/main/demo/images";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
+import { registerSuperSupport } from "./support-routes";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
   AccountPage, AnnouncementsPage, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
@@ -57,10 +58,12 @@ function flash(c: PCtx, type: "ok" | "error", text: string) {
 }
 
 async function page(c: PCtx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200, actions?: unknown) {
-  const pending = await c.env.PLATFORM_DB.prepare("SELECT COUNT(*) n FROM topups WHERE status = 'pending'").first<{ n: number }>();
+  const pending = await c.env.PLATFORM_DB.prepare(
+    "SELECT (SELECT COUNT(*) FROM topups WHERE status = 'pending') n, (SELECT COUNT(*) FROM support_tickets WHERE status = 'open') s",
+  ).first<{ n: number; s: number }>();
   return c.html(
     "<!DOCTYPE html>" +
-      String(<SuperShell title={title} active={active} admin={me(c)} flash={takeFlash(c)} pendingTopups={pending?.n ?? 0} actions={actions as any}>{body as any}</SuperShell>),
+      String(<SuperShell title={title} active={active} admin={me(c)} flash={takeFlash(c)} pendingTopups={pending?.n ?? 0} openSupport={pending?.s ?? 0} actions={actions as any}>{body as any}</SuperShell>),
     status,
   );
 }
@@ -721,3 +724,6 @@ superApp.post("/settings", async (c) => {
   flash(c, "ok", "সেটিংস সেভ হয়েছে।");
   return c.redirect("/super/settings", 303);
 });
+
+/* ---------- সাপোর্ট (টিকেট + লাইভ চ্যাট) ---------- */
+registerSuperSupport(superApp, { page, flash, allowed, forbidden, audit });

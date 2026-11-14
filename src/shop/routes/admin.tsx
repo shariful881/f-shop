@@ -31,6 +31,7 @@ import { clearShopCache } from "../../platform/resolve";
 import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
+import { registerSupport } from "./support";
 
 export const admin = new Hono<AppEnv>();
 
@@ -1351,3 +1352,6 @@ admin.get("/reports", async (c) => {
   const r = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
   return render(c, "রিপোর্ট", "reports", <ReportsPage r={await buildReport(c.env.DB, r)} />);
 });
+
+/* ---------- সাপোর্ট (টিকেট + লাইভ চ্যাট) ---------- */
+registerSupport(admin, render, flash);
