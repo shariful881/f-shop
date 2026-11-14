@@ -4,6 +4,7 @@ import { withSettings, sameOriginPost, securityHeaders } from "./middleware/base
 import { shop, notFound } from "./routes/shop";
 import { device } from "./middleware/device";
 import { admin } from "./routes/admin";
+import { fbCookies } from "./middleware/fb-cookies";
 
 const app = new Hono<AppEnv>();
 
@@ -13,6 +14,8 @@ app.get("/health", async (c) => {
 });
 
 app.use("*", securityHeaders, withSettings, sameOriginPost, device);
+
+app.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : fbCookies(c, next)));
 
 app.route("/admin", admin);
 app.route("/", shop);

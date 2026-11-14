@@ -323,7 +323,7 @@ admin.post("/settings", async (c) => {
     delivery_outside: String(Math.max(0, toInt(b.delivery_outside))),
     fb_pixel_id: str(b.fb_pixel_id, 30).replace(/\D/g, ""),
     fb_test_event_code: str(b.fb_test_event_code, 50),
-    fb_graph_version: /^v\d+\.\d+$/.test(str(b.fb_graph_version, 10)) ? str(b.fb_graph_version, 10) : "v24.0",
+    fb_graph_version: /^v\d+\.\d+$/.test(str(b.fb_graph_version, 10)) ? str(b.fb_graph_version, 10) : "v26.0",
   };
   // টোকেন: ফাঁকা রাখলে আগেরটাই থাকে
   const token = str(b.fb_capi_token, 1000);

@@ -68,12 +68,12 @@ export const OrderForm = (p: {
   const outside = deliveryCharge(p.settings, "outside");
   return (
     <form method="post" action="/order" class="order-form" id="order-form" data-order-form
-      data-subtotal={String(p.subtotal)} data-inside={String(inside)} data-outside={String(outside)} novalidate>
+      data-subtotal={String(p.subtotal)} data-inside={String(inside)} data-outside={String(outside)}
+      data-source={p.source} data-product-id={p.productId ? String(p.productId) : ""} novalidate>
       {p.form?.alert && <div class="alert alert-error" role="alert">{p.form.alert}</div>}
       <input type="hidden" name="source" value={p.source} />
       {p.productId && <input type="hidden" name="product_id" value={String(p.productId)} />}
       <input type="hidden" name="did_ls" value="" data-did-ls />
-      <input type="hidden" name="ic_event_id" value="" data-ic-event-id />
 
       <label class="field">
         <span>আপনার নাম *</span>

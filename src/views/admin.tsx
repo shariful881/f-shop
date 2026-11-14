@@ -397,7 +397,7 @@ export const SettingsPage = ({ s }: { s: Settings }) => (
       <h2>Facebook (Pixel + Conversions API)</h2>
       <div class="form-grid">
         <label class="field"><span>Pixel ID</span><input type="text" name="fb_pixel_id" value={s.fb_pixel_id} inputmode="numeric" pattern="[0-9]*" /></label>
-        <label class="field"><span>Graph API ভার্সন</span><input type="text" name="fb_graph_version" value={s.fb_graph_version} placeholder="v24.0" pattern="v[0-9]+\.[0-9]+" /></label>
+        <label class="field"><span>Graph API ভার্সন</span><input type="text" name="fb_graph_version" value={s.fb_graph_version} placeholder="v26.0" pattern="v[0-9]+\.[0-9]+" /></label>
         <label class="field">
           <span>CAPI Access Token {s.fb_capi_token ? "(সেট করা আছে — ফাঁকা রাখলে আগেরটাই থাকবে)" : "(সেট করা নেই)"}</span>
           <input type="password" name="fb_capi_token" value="" autocomplete="new-password" placeholder={s.fb_capi_token ? "••••••••••••" : ""} />

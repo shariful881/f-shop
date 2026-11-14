@@ -214,7 +214,7 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
     const a = await adminBrowser();
     const base = {
       site_name: "আমার দোকান", contact_phone: "01811111111", delivery_inside: 60, delivery_outside: 120,
-      fb_pixel_id: "123456", fb_capi_token: "SECRET_TOKEN", fb_test_event_code: "", fb_graph_version: "v24.0",
+      fb_pixel_id: "", fb_capi_token: "SECRET_TOKEN", fb_test_event_code: "", fb_graph_version: "v26.0",
     };
     await a.post("/admin/settings", base);
     await a.post("/admin/settings", { ...base, fb_capi_token: "" });

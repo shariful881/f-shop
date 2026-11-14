@@ -10,17 +10,43 @@ import { deliveryCharge } from "../lib/settings";
 import { clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
 import { imageUrl } from "../lib/format";
 import { page } from "../lib/render";
+import { newEventId, trackServer, type CustomData } from "../lib/capi";
+import { PixelHead, type BrowserEvent } from "../views/pixel";
 import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLocks, hitRateLimit, ORDER_RATE_LIMIT } from "../lib/order-guard";
 import { isUuid } from "../middleware/device";
 
 export const shop = new Hono<AppEnv>();
+
+/* ---------- Facebook ট্র্যাকিং ---------- */
+type TrackEvent = BrowserEvent & { serverAlreadySent?: boolean };
+
+/**
+ * পেজের Pixel কোড বানায়: PageView + পেজের নিজস্ব ইভেন্ট।
+ * প্রতিটার জন্য একই event_id দিয়ে সার্ভার থেকেও (CAPI) পাঠায়, রেসপন্সের পরে।
+ */
+function pixel(c: Ctx, events: TrackEvent[] = []) {
+  const all: TrackEvent[] = [{ name: "PageView", id: newEventId("pv") }, ...events];
+  for (const e of all) if (!e.serverAlreadySent) trackServer(c, e.name, e.id, e.params);
+  return <PixelHead settings={c.var.settings} deviceId={c.var.deviceId} events={all.map(({ serverAlreadySent, ...e }) => e)} />;
+}
+
+function productData(products: Product[]): CustomData {
+  return {
+    content_type: "product",
+    content_ids: products.map((p) => String(p.id)),
+    contents: products.map((p) => ({ id: String(p.id), quantity: 1, item_price: p.price })),
+    num_items: products.length,
+    value: products.reduce((sum, p) => sum + p.price, 0),
+    currency: "BDT",
+  };
+}
 
 /* ---------- হোম ---------- */
 shop.get("/", async (c) => {
   const sections = await homeSections(c.env.DB);
   const s = c.var.settings;
   return page(c,
-    <Layout title={s.site_name || "F-Shop"} settings={s} cartCount={readCart(c).length}>
+    <Layout title={s.site_name || "F-Shop"} settings={s} cartCount={readCart(c).length} head={pixel(c)}>
       <HomePage sections={sections} />
     </Layout>,
   );
@@ -29,8 +55,9 @@ shop.get("/", async (c) => {
 /* ---------- ল্যান্ডিং পেজ ---------- */
 function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 | 422 | 429 | 403 = 200) {
   const s = c.var.settings;
+  const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
-    <Layout title={p.headline || p.name} settings={s} cartCount={readCart(c).length}
+    <Layout title={p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head}
       description={p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <LandingPage p={p} settings={s} form={form} />
     </Layout>,
@@ -54,11 +81,19 @@ shop.post("/cart/add", async (c) => {
   }
   const added = addToCart(c, id);
   const count = readCart(c).length + (added ? 1 : 0);
+  let eventId: string | null = null;
+  const fbParams = { ...productData([product]), content_name: product.name };
+  if (added) {
+    eventId = newEventId("atc");
+    trackServer(c, "AddToCart", eventId, fbParams);
+  }
   if (wantsJson(c)) {
     return c.json({
       ok: added,
       message: added ? "কার্টে যোগ হয়েছে" : "এই পণ্যটি আগেই কার্টে আছে",
       count,
+      event_id: eventId,
+      fb_params: fbParams,
     });
   }
   return c.redirect("/cart", 303);
@@ -74,7 +109,7 @@ shop.get("/cart", async (c) => {
   const products = await activeProductsByIds(c.env.DB, readCart(c));
   const s = c.var.settings;
   return page(c,
-    <Layout title="কার্ট" settings={s} cartCount={products.length}>
+    <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)}>
       <CartPage products={products} />
     </Layout>,
   );
@@ -82,8 +117,9 @@ shop.get("/cart", async (c) => {
 
 function renderCheckout(c: Ctx, products: Product[], form?: FormState, status: 200 | 422 | 429 | 403 = 200) {
   const s = c.var.settings;
+  const head = pixel(c, [{ name: "InitiateCheckout", id: newEventId("ic"), params: productData(products) }]);
   return page(c,
-    <Layout title="চেকআউট" settings={s} cartCount={products.length}>
+    <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head}>
       <CheckoutPage products={products} settings={s} form={form} />
     </Layout>,
     status,
@@ -163,6 +199,10 @@ shop.post("/order", async (c) => {
       sourceUrl: (c.req.header("referer") || publicUrl(c)).slice(0, 1000),
     }, products);
 
+    // Lead: সার্ভার এখন (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
+    // (Purchase এখানে কখনো যায় না — শুধু অ্যাডমিন কনফার্ম করলে)
+    trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: products.reduce((x, p) => x + p.price, 0) + deliveryCharge(s, v.area) });
+
     if (source === "cart") clearCart(c);
     setCookie(c, "lo", order.order_no, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 });
     return c.redirect("/thanks", 303);
@@ -171,14 +211,40 @@ shop.post("/order", async (c) => {
   }
 });
 
+/* ---------- InitiateCheckout: ল্যান্ডিং ফর্মে প্রথম ফোকাস ---------- */
+shop.post("/t/ic", async (c) => {
+  const body = await c.req.parseBody();
+  const eventId = str(body.event_id, 80);
+  if (!/^ic_[A-Za-z0-9-]{8,64}$/.test(eventId)) return c.body(null, 204);
+  if (!(await hitRateLimit(c.env.DB, `track:${clientIp(c)}`, 30, 60))) return c.body(null, 204);
+  const [p] = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
+  if (p) trackServer(c, "InitiateCheckout", eventId, productData([p]));
+  return c.body(null, 204);
+});
+
 /* ---------- ধন্যবাদ ---------- */
 shop.get("/thanks", async (c) => {
   const no = getCookie(c, "lo");
   const data = no ? await getOrderByNo(c.env.DB, no) : null;
   if (!data) return c.redirect("/", 303);
   const s = c.var.settings;
+  const o = data.order;
+  const head = pixel(c, [{
+    name: "Lead",
+    id: `lead_${o.order_no}`,
+    once: true,
+    serverAlreadySent: true,
+    params: {
+      content_type: "product",
+      content_ids: data.items.map((i) => String(i.product_id ?? i.id)),
+      contents: data.items.map((i) => ({ id: String(i.product_id ?? i.id), quantity: 1, item_price: i.price })),
+      num_items: data.items.length,
+      value: o.total,
+      currency: "BDT",
+    },
+  }]);
   return page(c,
-    <Layout title="ধন্যবাদ" settings={s} cartCount={readCart(c).length}>
+    <Layout title="ধন্যবাদ" settings={s} cartCount={readCart(c).length} head={head}>
       <ThanksPage order={data.order} items={data.items} settings={s} />
     </Layout>,
   );

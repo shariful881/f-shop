@@ -120,4 +120,4 @@ INSERT INTO settings (key, value) VALUES
   ('fb_pixel_id', ''),
   ('fb_capi_token', ''),
   ('fb_test_event_code', ''),
-  ('fb_graph_version', 'v24.0');
+  ('fb_graph_version', 'v26.0');

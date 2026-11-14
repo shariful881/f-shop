@@ -57,6 +57,28 @@
     }
     form.addEventListener("change", update);
 
+    // InitiateCheckout: ল্যান্ডিং ফর্মে প্রথমবার ফোকাস করলে (ব্রাউজার + সার্ভার, একই event_id)
+    // চেকআউট পেজে এটা পেজ খোলার সময়ই যায়
+    if (form.dataset.source === "landing") {
+      var icSent = false;
+      form.addEventListener("focusin", function () {
+        if (icSent) return;
+        icSent = true;
+        var id = "ic_" + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+        if (window.fshopTrack) {
+          window.fshopTrack("InitiateCheckout", {
+            content_type: "product", content_ids: [form.dataset.productId],
+            contents: [{ id: form.dataset.productId, quantity: 1, item_price: subtotal }],
+            num_items: 1, value: subtotal, currency: "BDT",
+          }, id);
+        }
+        var fd = new FormData();
+        fd.append("event_id", id);
+        fd.append("product_id", form.dataset.productId || "");
+        fetch("/t/ic", { method: "POST", body: fd, credentials: "same-origin", keepalive: true }).catch(function () {});
+      });
+    }
+
     form.addEventListener("submit", function (e) {
       var phone = form.querySelector("input[name=phone]");
       var digits = (phone.value || "")
