@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { adminBrowser, Browser, DB, resetDb, shopDb, shopStub } from "./helpers";
 import { hashPassword } from "../src/shop/lib/auth";
 import { clearSettingsCache } from "../src/platform/billing";
@@ -29,7 +29,21 @@ function signup(over: Record<string, string>) {
   } as RequestInit);
 }
 
+let ghFiles: Record<string, Uint8Array> = {};
+const ghHits: string[] = [];
+afterEach(() => vi.restoreAllMocks());
 beforeEach(async () => {
+  ghFiles = {}; ghHits.length = 0;
+  const real = globalThis.fetch;
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input: any, init?: any) => {
+    const url = String(input instanceof Request ? input.url : input);
+    if (url.startsWith("https://raw.githubusercontent.com/")) {
+      ghHits.push(url);
+      const f = ghFiles[url.split("/").pop()!];
+      return f ? new Response(f, { headers: { "content-type": "image/jpeg" } }) : new Response("nai", { status: 404 });
+    }
+    return real(input, init);
+  });
   await resetDb();
   await pdb().prepare("DELETE FROM shops WHERE demo_niche IS NOT NULL OR niche IS NOT NULL").run();
   clearShopCache();
@@ -145,6 +159,22 @@ describe("ডেমো দোকান", () => {
     expect(await setting(s.id, "banner_1")).toBe("banner1/b.png");
     const img = await new Browser().fetch("/img/p/honey.png", { base: "https://modhushop.ourdomain.com" } as RequestInit);
     expect(img.status).toBe(200);
+  });
+});
+
+describe("ডেমোর আঁকা ছবি repo থেকে", () => {
+  it("তৈরি/আপডেটের সময় যেসব ছবি নেই সেগুলো demo/images থেকে বসে; আবার চাপলে আর আনে না", async () => {
+    ghFiles = { "gadgetpara-01.jpg": PNG, "gadgetpara-banner-1.jpg": PNG };
+    const b = await superB();
+    await spost(b, "/super/demos/gadgetpara");
+    expect(ghHits.length).toBe(23); // ২০ পণ্য + ৩ ব্যানার
+    expect(ghHits[0]).toBe("https://raw.githubusercontent.com/shariful881/f-shop/main/demo/images/gadgetpara-01.jpg");
+    const s = (await pdb().prepare("SELECT id FROM shops WHERE demo_niche = 'gadgetpara'").first<{ id: string }>())!;
+    expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'gadgetpara-01'").first()) as any).image).toBe("p/gadgetpara-01.jpg");
+    expect(await setting(s.id, "banner_1")).toBe("banner1/gadgetpara-banner-1.jpg");
+    ghHits.length = 0;
+    await spost(b, "/super/demos/gadgetpara");
+    expect(ghHits.length).toBe(21); // শুধু যেগুলো এখনো নেই
   });
 });
 

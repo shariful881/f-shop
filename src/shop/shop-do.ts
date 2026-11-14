@@ -155,6 +155,13 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     return { products: p?.n ?? 0, withImage: p?.img ?? 0 };
   }
 
+  /** কোন নিশ-পণ্য আর ব্যানারে এখনো ছবি নেই (ডেমোতে ছবি বসানোর জন্য) */
+  async missingNicheImages(): Promise<{ products: string[]; banners: string[] }> {
+    const p = await this.db.prepare("SELECT slug FROM products WHERE image IS NULL OR image = ''").all<{ slug: string }>();
+    const b = await this.db.prepare("SELECT key FROM settings WHERE key IN ('banner_1', 'banner_2', 'banner_3') AND value = ''").all<{ key: string }>();
+    return { products: p.results.map((r) => r.slug), banners: b.results.map((r) => r.key) };
+  }
+
   /** ডেমো দোকানের পণ্য আর ব্যানারের ছবি (নতুন দোকানে কপির জন্য) */
   async exportNicheImages(): Promise<NicheImage[]> {
     const store = new SqlImageStore(this.db);

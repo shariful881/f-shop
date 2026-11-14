@@ -11,6 +11,10 @@ import { bn } from "../shop/lib/format";
 import { normalizeLanding } from "../shop/lib/landing";
 import { TEMPLATE_CATEGORIES } from "../shop/lib/landing-templates";
 import { NICHES, nicheByKey } from "../shop/lib/niches";
+import type { NicheImage } from "../shop/shop-do";
+
+/** ডেমো দোকানের আঁকা ছবি (demo/draw.py) — public repo থেকে */
+const DEMO_IMAGE_BASE = "https://raw.githubusercontent.com/shariful881/f-shop/main/demo/images";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
@@ -522,9 +526,26 @@ superApp.post("/demos/:key", async (c) => {
     shopId: shop.id, niche: n.key, phone, ownerEmail: `demo+${n.key}@${c.env.PLATFORM_DOMAIN}`, passwordHash: await hashPassword(pw),
     signupUrl: `https://${c.env.PLATFORM_DOMAIN}/signup?niche=${n.key}`,
   });
+  // repo-র demo/images থেকে যেসব ছবি নেই সেগুলো বসানো
+  const stub = c.env.SHOP.getByName(shop.id);
+  const miss = await stub.missingNicheImages();
+  const want: { file: string; product?: string; setting?: string }[] = [
+    ...miss.products.filter((sl) => sl.startsWith(`${n.key}-`)).map((sl) => ({ file: `${sl}.jpg`, product: sl })),
+    ...miss.banners.map((k) => ({ file: `${n.key}-banner-${k.slice(-1)}.jpg`, setting: k })),
+  ];
+  const images: NicheImage[] = [];
+  for (const w of want) {
+    try {
+      const res = await fetch(`${DEMO_IMAGE_BASE}/${w.file}`);
+      if (!res.ok) continue;
+      const key = `${w.setting ? w.setting.replace("_", "") : "p"}/${w.file}`;
+      images.push({ key, type: "image/jpeg", data: await res.arrayBuffer(), product: w.product, setting: w.setting });
+    } catch { /* ছবি না পেলে বাদ */ }
+  }
+  if (images.length) await stub.importNicheImages(shop.id, images);
   clearShopCache();
-  await audit(c, "demo.setup", "shop", shop.id, `${n.key}: ${r.products} পণ্য, ${r.withImage} ছবিসহ`);
-  flash(c, "ok", `${n.name} ডেমো দোকান তৈরি/আপডেট হয়েছে — ${bn(r.products)}টা পণ্য, ${bn(r.withImage)}টায় ছবি আছে।`);
+  await audit(c, "demo.setup", "shop", shop.id, `${n.key}: ${r.products} পণ্য, ${images.length} নতুন ছবি`);
+  flash(c, "ok", `${n.name} ডেমো দোকান তৈরি/আপডেট হয়েছে — ${bn(r.products)}টা পণ্য, ${bn(images.length)}টা নতুন ছবি বসেছে।`);
   return c.redirect("/super/demos", 303);
 });
 
