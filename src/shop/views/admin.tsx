@@ -857,34 +857,161 @@ export const CouponsPage = (p: { coupons: CouponRow[]; errors?: Record<string, s
 };
 
 /* ---------- ল্যান্ডিং পেজ বিল্ডার ---------- */
-export const LandingBuilderPage = (p: { product: Product; landingJson: string; labels: Record<string, string>; custom: boolean }) => (
+export type LandingRow = { id: number; name: string; slug: string; price: number; image: string | null; is_active: number; updated_at: string | null };
+
+/** ল্যান্ডিং পেজের তালিকা */
+export const LandingListPage = ({ rows }: { rows: LandingRow[] }) => (
   <>
-    <p><a href={`/admin/products/${p.product.id}/edit`}>← পণ্য এডিট</a></p>
-    <h1>ল্যান্ডিং পেজ: {p.product.name}</h1>
-    <p class="muted">
-      সেকশন সাজান, ↑↓ দিয়ে ক্রম বদলান, দরকার না হলে বন্ধ রাখুন। "প্রিভিউ" নতুন ট্যাবে দেখাবে (সেভ হবে না)।
-      {" "}<a href={`/p/${p.product.slug}`} target="_blank">লাইভ পেজ ↗</a>
-    </p>
-    <div id="builder" data-landing={p.landingJson} data-labels={JSON.stringify(p.labels)}>
-      <div id="sections"></div>
-      <div class="b-add">
-        <select id="new-type">
-          {Object.entries(p.labels).filter(([k]) => k !== "order_form").map(([k, l]) => <option value={k}>{l}</option>)}
-        </select>
-        <button type="button" class="btn btn-outline" id="add-section">+ সেকশন যোগ করুন</button>
-      </div>
-      <form method="post" id="builder-form" action={`/admin/products/${p.product.id}/landing`}
-        data-save={`/admin/products/${p.product.id}/landing`} data-preview={`/admin/products/${p.product.id}/landing/preview`} class="b-toolbar">
-        <input type="hidden" name="landing_json" id="landing-json" />
-        <button class="btn btn-primary">সেভ করুন</button>
-        <button type="button" class="btn btn-outline" id="preview-btn">প্রিভিউ</button>
-      </form>
-      {p.custom && (
-        <form method="post" action={`/admin/products/${p.product.id}/landing/reset`} data-confirm="বিল্ডারের সাজানো সব বাদ দিয়ে সাধারণ ল্যান্ডিং পেজে ফিরবেন?">
-          <button class="btn-link danger">সাধারণ ল্যান্ডিং পেজে ফিরুন</button>
-        </form>
-      )}
+    <div class="page-head">
+      <h1>ল্যান্ডিং পেজ</h1>
+      <a href="/admin/landing/new" class="btn btn-primary">+ নতুন ল্যান্ডিং পেজ</a>
     </div>
+    <p class="muted">রেডিমেড টেমপ্লেট বেছে নিন, তারপর কোন পণ্যের পেজ হবে সেটা ঠিক করুন। দাম, ছবি আর ভ্যারিয়েন্ট সবসময় পণ্য থেকেই আসে।</p>
+    {rows.length === 0 ? (
+      <div class="empty-box"><p>এখনো কোনো ল্যান্ডিং পেজ বানানো হয়নি।</p><a href="/admin/landing/new" class="btn btn-primary">টেমপ্লেট বেছে নিন</a></div>
+    ) : (
+      <table class="table">
+        <thead><tr><th>পণ্য</th><th>দাম</th><th></th></tr></thead>
+        <tbody>{rows.map((r) => (
+          <tr>
+            <td><div class="lp-row-prod">{r.image && <img src={imageUrl(r.image)} alt="" width="40" height="40" />}<span><strong>{r.name}</strong>{!r.is_active && <span class="pill">বন্ধ</span>}<br /><small class="muted">/p/{r.slug}</small></span></div></td>
+            <td>{taka(r.price)}</td>
+            <td class="right nowrap">
+              <a href={`/admin/products/${r.id}/landing`} class="btn btn-outline btn-sm">এডিট</a>{" "}
+              <a href={`/p/${r.slug}`} target="_blank" class="btn-link">দেখুন ↗</a>
+            </td>
+          </tr>
+        ))}</tbody>
+      </table>
+    )}
+  </>
+);
+
+type TplCard = { ref: string; name: string; category?: string; description?: string | null; blocks: { type: string; bg: string; fg: string; btn: string }[]; deleteUrl?: string };
+
+const TplThumb = ({ blocks }: { blocks: TplCard["blocks"] }) => (
+  <div class="tpl-thumb" aria-hidden="true">
+    {blocks.map((b) => (
+      <div class={`tpl-b tpl-b-${b.type}`} style={`background:${b.bg};color:${b.fg}`}>
+        {b.type === "hero" ? <><i class="tpl-line w70" /><i class="tpl-line w40" /><i class="tpl-btn" style={`background:${b.btn}`} /></>
+          : b.type === "gallery" ? <i class="tpl-img" />
+          : b.type === "order_form" ? <><i class="tpl-input" /><i class="tpl-input" /><i class="tpl-btn" style={`background:${b.btn}`} /></>
+          : <><i class="tpl-line w60" /><i class="tpl-line w80" /></>}
+      </div>
+    ))}
+  </div>
+);
+
+/** টেমপ্লেট গ্যালারি: টেমপ্লেট + পণ্য বাছাই */
+export const TemplateGalleryPage = (p: { tab: "sellx" | "mine"; cards: TplCard[]; products: { id: number; name: string; has: boolean }[]; productId: number; mineCount: number }) => {
+  const cats = [...new Set(p.cards.map((c) => c.category).filter(Boolean))] as string[];
+  return (
+    <>
+      <p><a href="/admin/landing">← ল্যান্ডিং পেজ</a></p>
+      <h1>টেমপ্লেট বেছে নিন</h1>
+      <div class="tabs">
+        <a href={`/admin/landing/new?tab=sellx${p.productId ? `&product=${p.productId}` : ""}`} class={p.tab === "sellx" ? "tab active" : "tab"}>SellxBD টেমপ্লেট</a>
+        <a href={`/admin/landing/new?tab=mine${p.productId ? `&product=${p.productId}` : ""}`} class={p.tab === "mine" ? "tab active" : "tab"}>আমার টেমপ্লেট <span class="tab-count">{bn(p.mineCount)}</span></a>
+      </div>
+      {p.products.length === 0 ? (
+        <div class="alert alert-error">আগে একটা পণ্য যোগ করুন, তারপর ল্যান্ডিং পেজ বানান। <a href="/admin/products/new">পণ্য যোগ করুন</a></div>
+      ) : p.cards.length === 0 ? (
+        <div class="empty-box"><p>{p.tab === "mine" ? "এখনো কোনো টেমপ্লেট সেভ করেননি। এডিটরে \"টেমপ্লেট হিসেবে রাখুন\" চাপলে এখানে আসবে।" : "এখনো কোনো টেমপ্লেট নেই।"}</p></div>
+      ) : (
+        <>
+          {cats.length > 1 && (
+            <div class="tpl-filter" id="tpl-filter">
+              <button type="button" class="chip active" data-cat="">সব</button>
+              {cats.map((c) => <button type="button" class="chip" data-cat={c}>{c}</button>)}
+            </div>
+          )}
+          <div class="tpl-grid">
+            {p.cards.map((t) => (
+              <div class="tpl-card" data-cat={t.category ?? ""}>
+                <TplThumb blocks={t.blocks} />
+                <div class="tpl-info">
+                  <strong>{t.name}</strong>
+                  {t.category && <span class="pill">{t.category}</span>}
+                  {t.description && <p class="muted small">{t.description}</p>}
+                </div>
+                <form method="post" action="/admin/landing/new" class="tpl-use">
+                  <input type="hidden" name="template" value={t.ref} />
+                  <label class="field"><span>কোন পণ্যের পেজ?</span>
+                    <select name="product_id" required>
+                      <option value="">— পণ্য বাছাই করুন —</option>
+                      {p.products.map((x) => <option value={String(x.id)} selected={x.id === p.productId}>{x.name}{x.has ? " (আগের পেজ বদলে যাবে)" : ""}</option>)}
+                    </select>
+                  </label>
+                  <button class="btn btn-primary btn-block">এই টেমপ্লেট নিন</button>
+                </form>
+                {t.deleteUrl && (
+                  <form method="post" action={t.deleteUrl} data-confirm={`"${t.name}" টেমপ্লেটটি মুছবেন? (যেসব পেজ বানানো হয়ে গেছে সেগুলো থাকবে)`}>
+                    <button class="btn-link danger small">মুছুন</button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <script src={`/js/builder.js?v=${ASSET_VERSION}`} defer></script>
+    </>
+  );
+};
+
+/** লাইভ এডিটর */
+export const LandingBuilderPage = (p: { product: Product; landingJson: string; labels: Record<string, string>; custom: boolean; products: { id: number; name: string; has: boolean }[]; fonts: Record<string, string> }) => (
+  <>
+    <div class="lb-top">
+      <a href="/admin/landing" class="btn-link">← ল্যান্ডিং পেজ</a>
+      <h1>ল্যান্ডিং পেজ এডিটর</h1>
+      <form method="post" action={`/admin/products/${p.product.id}/landing/move`} class="lb-product" id="move-form"
+        data-msg="এই ডিজাইনটা বাছাই করা পণ্যে সরে যাবে (এখনকার পরিবর্তনসহ)। ওই পণ্যে আগের কোনো পেজ থাকলে সেটা বদলে যাবে। চালিয়ে যাবেন?">
+        <input type="hidden" name="landing_json" />
+        <label>পণ্য:
+          <select name="to" id="lb-product">
+            {p.products.map((x) => <option value={String(x.id)} selected={x.id === p.product.id}>{x.name}{x.has && x.id !== p.product.id ? " (পেজ আছে)" : ""}</option>)}
+          </select>
+        </label>
+        <button class="btn btn-outline btn-sm" id="lb-move" hidden>বদলান</button>
+      </form>
+    </div>
+    <p class="muted small lb-hint">প্রিভিউতে যেকোনো সেকশনে ক্লিক করুন — পাশে সেটার এডিট খুলে যাবে। দাম, ছবি আর ভ্যারিয়েন্ট বদলাতে <a href={`/admin/products/${p.product.id}/edit`}>পণ্য এডিট</a> করুন।</p>
+    <div id="builder" class="lb" data-landing={p.landingJson} data-labels={JSON.stringify(p.labels)} data-fonts={JSON.stringify(p.fonts)}
+      data-preview={`/admin/products/${p.product.id}/landing/preview`} data-template={`/admin/products/${p.product.id}/landing/save-template`}>
+      <aside class="lb-panel" id="lb-panel">
+        <div class="lb-panel-head"><strong>এডিট</strong><button type="button" class="btn-link" id="lb-close">✕ বন্ধ</button></div>
+        <div id="page-style"></div>
+        <div id="sections"></div>
+        <div class="b-add">
+          <select id="new-type">
+            {Object.entries(p.labels).filter(([k]) => k !== "order_form").map(([k, l]) => <option value={k}>{l}</option>)}
+          </select>
+          <button type="button" class="btn btn-outline" id="add-section">+ সেকশন</button>
+        </div>
+      </aside>
+      <div class="lb-preview">
+        <div class="lb-devices">
+          <button type="button" class="chip active" data-device="mobile">📱 মোবাইল</button>
+          <button type="button" class="chip" data-device="desktop">🖥 ডেস্কটপ</button>
+          <span class="muted small" id="lb-status"></span>
+        </div>
+        <div class="lb-frame-wrap mobile" id="lb-frame-wrap"><iframe id="lb-frame" title="প্রিভিউ"></iframe></div>
+      </div>
+    </div>
+    <form method="post" id="builder-form" action={`/admin/products/${p.product.id}/landing`} class="b-toolbar lb-bar">
+      <input type="hidden" name="landing_json" id="landing-json" />
+      <button class="btn btn-primary">সেভ করুন</button>
+      <button type="button" class="btn btn-outline lb-only-mobile" id="lb-open">✎ এডিট</button>
+      <button type="button" class="btn btn-outline" id="save-template">টেমপ্লেট হিসেবে রাখুন</button>
+      <a href={`/p/${p.product.slug}`} target="_blank" class="btn-link">লাইভ পেজ ↗</a>
+      <button type="button" class="btn-link" id="copy-json" title="সুপার অ্যাডমিনে নতুন টেমপ্লেট বানাতে">JSON কপি</button>
+    </form>
+    {p.custom && (
+      <form method="post" action={`/admin/products/${p.product.id}/landing/reset`} data-confirm="বিল্ডারের সাজানো সব বাদ দিয়ে সাধারণ ল্যান্ডিং পেজে ফিরবেন?">
+        <button class="btn-link danger">সাধারণ ল্যান্ডিং পেজে ফিরুন</button>
+      </form>
+    )}
     <script src={`/js/builder.js?v=${ASSET_VERSION}`} defer></script>
   </>
 );

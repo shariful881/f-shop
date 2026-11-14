@@ -8,11 +8,13 @@ import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { hashPassword, verifyPassword } from "../shop/lib/auth";
 import { normalizePhone } from "../shop/lib/phone";
 import { bn } from "../shop/lib/format";
+import { normalizeLanding } from "../shop/lib/landing";
+import { TEMPLATE_CATEGORIES } from "../shop/lib/landing-templates";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -465,6 +467,74 @@ superApp.post("/announcements/:id/toggle", async (c) => {
   await c.env.PLATFORM_DB.prepare("UPDATE announcements SET active = 1 - active WHERE id = ?").bind(id).run();
   await audit(c, "announcement.toggle", "announcement", String(id));
   return c.redirect("/super/announcements", 303);
+});
+
+/* ---------- ল্যান্ডিং টেমপ্লেট ---------- */
+function tplInput(b: Record<string, unknown>) {
+  const name = str(b.name, 80);
+  const category = TEMPLATE_CATEGORIES.includes(String(b.category)) ? String(b.category) : "অন্যান্য";
+  let json: string | null = null;
+  try {
+    const l = normalizeLanding(JSON.parse(String(b.json ?? "")));
+    if (l.sections.length > 1) json = JSON.stringify(l);
+  } catch { /* ভুল JSON */ }
+  const values = { name, category, description: str(b.description, 160) || null, sort_order: toInt(b.sort_order, 0), json: json ?? String(b.json ?? "").slice(0, 100_000) };
+  const error = !name ? "টেমপ্লেটের নাম দিন" : !json ? "JSON ঠিক নেই — এডিটরের \"JSON কপি\" থেকে পেস্ট করুন (অর্ডার ফর্ম ছাড়া অন্তত একটা সেকশন লাগবে)" : "";
+  return { values, error };
+}
+
+superApp.get("/templates", async (c) => {
+  if (!allowed(c, "templates")) return forbidden(c);
+  const { results } = await c.env.PLATFORM_DB.prepare("SELECT * FROM landing_templates ORDER BY sort_order, id").all<TplRow>();
+  return page(c, "ল্যান্ডিং টেমপ্লেট", "templates", <TemplatesPage rows={results} categories={TEMPLATE_CATEGORIES} />);
+});
+
+superApp.post("/templates", async (c) => {
+  if (!allowed(c, "templates")) return forbidden(c);
+  const { values: v, error } = tplInput(await c.req.parseBody());
+  if (error) return page(c, "নতুন টেমপ্লেট", "templates", <div class="sa-card"><TemplateForm t={v} categories={TEMPLATE_CATEGORIES} error={error} /></div>, 422);
+  const row = await c.env.PLATFORM_DB.prepare("INSERT INTO landing_templates (name, category, description, json, sort_order) VALUES (?, ?, ?, ?, ?) RETURNING id")
+    .bind(v.name, v.category, v.description, v.json, v.sort_order).first<{ id: number }>();
+  await audit(c, "template.create", "template", String(row?.id ?? ""), v.name);
+  flash(c, "ok", "টেমপ্লেট যোগ হয়েছে — এখন সব দোকানের গ্যালারিতে দেখাবে।");
+  return c.redirect("/super/templates", 303);
+});
+
+superApp.get("/templates/:id{[0-9]+}", async (c) => {
+  if (!allowed(c, "templates")) return forbidden(c);
+  const t = await c.env.PLATFORM_DB.prepare("SELECT * FROM landing_templates WHERE id = ?").bind(toInt(c.req.param("id"))).first<TplRow>();
+  if (!t) return c.redirect("/super/templates", 303);
+  return page(c, `টেমপ্লেট: ${t.name}`, "templates",
+    <div class="sa-card"><p><a href="/super/templates">← সব টেমপ্লেট</a></p><TemplateForm t={{ ...t, json: JSON.stringify(JSON.parse(t.json), null, 2) }} categories={TEMPLATE_CATEGORIES} /></div>);
+});
+
+superApp.post("/templates/:id{[0-9]+}", async (c) => {
+  if (!allowed(c, "templates")) return forbidden(c);
+  const id = toInt(c.req.param("id"));
+  const { values: v, error } = tplInput(await c.req.parseBody());
+  if (error) return page(c, "টেমপ্লেট এডিট", "templates", <div class="sa-card"><TemplateForm t={{ ...v, id }} categories={TEMPLATE_CATEGORIES} error={error} /></div>, 422);
+  await c.env.PLATFORM_DB.prepare("UPDATE landing_templates SET name=?, category=?, description=?, json=?, sort_order=?, updated_at=datetime('now') WHERE id=?")
+    .bind(v.name, v.category, v.description, v.json, v.sort_order, id).run();
+  await audit(c, "template.update", "template", String(id), v.name);
+  flash(c, "ok", "টেমপ্লেট সেভ হয়েছে।");
+  return c.redirect("/super/templates", 303);
+});
+
+superApp.post("/templates/:id{[0-9]+}/toggle", async (c) => {
+  if (!allowed(c, "templates")) return forbidden(c);
+  const id = toInt(c.req.param("id"));
+  await c.env.PLATFORM_DB.prepare("UPDATE landing_templates SET active = 1 - active, updated_at=datetime('now') WHERE id = ?").bind(id).run();
+  await audit(c, "template.toggle", "template", String(id));
+  return c.redirect("/super/templates", 303);
+});
+
+superApp.post("/templates/:id{[0-9]+}/delete", async (c) => {
+  if (!allowed(c, "templates")) return forbidden(c);
+  const id = toInt(c.req.param("id"));
+  await c.env.PLATFORM_DB.prepare("DELETE FROM landing_templates WHERE id = ?").bind(id).run();
+  await audit(c, "template.delete", "template", String(id));
+  flash(c, "ok", "টেমপ্লেট মুছে ফেলা হয়েছে।");
+  return c.redirect("/super/templates", 303);
 });
 
 /* ---------- অডিট লগ ---------- */

@@ -22,11 +22,30 @@ export const SECTION_LABEL: Record<SectionType, string> = {
   order_form: "অর্ডার ফর্ম",
 };
 
+/** বাংলা ফন্ট (Google Fonts) — শুধু বাছাই করা ফন্টটাই লোড হয় */
+export const FONTS: Record<string, { label: string; family: string; query: string }> = {
+  hind: { label: "Hind Siliguri", family: "'Hind Siliguri'", query: "Hind+Siliguri:wght@400;600;700" },
+  noto: { label: "Noto Sans Bengali", family: "'Noto Sans Bengali'", query: "Noto+Sans+Bengali:wght@400;600;700" },
+  baloo: { label: "Baloo Da 2", family: "'Baloo Da 2'", query: "Baloo+Da+2:wght@400;600;700" },
+  anek: { label: "Anek Bangla", family: "'Anek Bangla'", query: "Anek+Bangla:wght@400;600;700" },
+  tiro: { label: "Tiro Bangla", family: "'Tiro Bangla'", query: "Tiro+Bangla" },
+};
+export const SIZES = { sm: "ছোট", md: "মাঝারি", lg: "বড়" } as const;
+export const ALIGNS = { "": "ডিফল্ট", left: "বাঁয়ে", center: "মাঝে" } as const;
+
+/** সেকশনের ডিজাইন — সব ঐচ্ছিক, ফাঁকা মানে থিমের রং/ফন্ট */
+export type SectionStyle = {
+  bg?: string; color?: string; btn_bg?: string; btn_color?: string;
+  font?: string; size?: keyof typeof SIZES; align?: "left" | "center";
+};
+export type PageStyle = { font?: string };
+
 export type Review = { name: string; rating: number; text: string; image: string };
 export type Section = {
   id: string;
   type: SectionType;
   enabled: boolean;
+  style?: SectionStyle;
   data: {
     headline?: string; subheadline?: string; show_price?: boolean; button_text?: string;
     title?: string; images?: string[]; youtube_url?: string; html?: string;
@@ -34,7 +53,42 @@ export type Section = {
     mode?: "fixed" | "evergreen"; ends_at?: string; minutes?: number;
   };
 };
-export type Landing = { sections: Section[] };
+export type Landing = { sections: Section[]; style?: PageStyle };
+
+const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : "");
+const font = (v: unknown) => (typeof v === "string" && FONTS[v] ? v : "");
+
+export function normalizeStyle(input: unknown): SectionStyle | undefined {
+  const o = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const st: SectionStyle = {};
+  for (const k of ["bg", "color", "btn_bg", "btn_color"] as const) { const c = hex(o[k]); if (c) st[k] = c; }
+  const f = font(o.font); if (f) st.font = f;
+  if (o.size === "sm" || o.size === "lg") st.size = o.size;
+  if (o.align === "left" || o.align === "center") st.align = o.align;
+  return Object.keys(st).length ? st : undefined;
+}
+
+/** নিরাপদ inline style (শুধু যাচাই করা মান) */
+export function styleAttr(st: SectionStyle | undefined): string {
+  if (!st) return "";
+  const out: string[] = [];
+  if (st.bg) out.push(`--lp-bg:${st.bg}`);
+  if (st.color) out.push(`--lp-fg:${st.color}`);
+  if (st.btn_bg) out.push(`--lp-btn:${st.btn_bg}`);
+  if (st.btn_color) out.push(`--lp-btn-fg:${st.btn_color}`);
+  if (st.font && FONTS[st.font]) out.push(`font-family:${FONTS[st.font]!.family},sans-serif`);
+  if (st.align) out.push(`text-align:${st.align}`);
+  return out.join(";");
+}
+
+/** পেজে যত ফন্ট লাগবে তার Google Fonts লিংক (না লাগলে null) */
+export function fontsHref(l: Landing): string | null {
+  const keys = new Set<string>();
+  if (l.style?.font) keys.add(l.style.font);
+  for (const x of l.sections) if (x.enabled && x.style?.font) keys.add(x.style.font);
+  const q = [...keys].filter((k) => FONTS[k]).map((k) => `family=${FONTS[k]!.query}`);
+  return q.length ? `https://fonts.googleapis.com/css2?${q.join("&")}&display=swap` : null;
+}
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const imgKey = (v: unknown) => {
@@ -102,13 +156,21 @@ export function normalizeLanding(input: unknown): Landing {
         data.title = s(d.title, 200) || "অর্ডার করতে নিচের ফর্মটি পূরণ করুন";
         break;
     }
-    sections.push({ id: s(it.id, 40) || crypto.randomUUID().slice(0, 8), type, enabled: it.enabled !== false, data });
+    const style = normalizeStyle(it.style);
+    sections.push({ id: s(it.id, 40).replace(/[^a-z0-9_-]/gi, "") || crypto.randomUUID().slice(0, 8), type, enabled: it.enabled !== false, data, ...(style ? { style } : {}) });
   }
   // অর্ডার ফর্ম সবসময় থাকবে, একবারই, আর চালু
   const forms = sections.filter((x) => x.type === "order_form");
   if (!forms.length) sections.push({ id: "order", type: "order_form", enabled: true, data: { title: "অর্ডার করতে নিচের ফর্মটি পূরণ করুন" } });
+  const ids = new Set<string>();
+  for (const x of sections) {
+    while (ids.has(x.id)) x.id = `${x.id.slice(0, 30)}-${crypto.randomUUID().slice(0, 4)}`;
+    ids.add(x.id);
+  }
   let seen = false;
+  const pf = font((input as { style?: { font?: unknown } } | null)?.style?.font);
   return {
+    ...(pf ? { style: { font: pf } } : {}),
     sections: sections
       .filter((x) => (x.type === "order_form" ? (seen ? false : (seen = true)) : true))
       .map((x) => (x.type === "order_form" ? { ...x, enabled: true } : x)),

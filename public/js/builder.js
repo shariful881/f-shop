@@ -1,13 +1,32 @@
 /* ল্যান্ডিং পেজ বিল্ডার (অ্যাডমিন) — সাধারণ JS, কোনো framework নয় */
 (function () {
   "use strict";
+  // টেমপ্লেট গ্যালারি: ক্যাটাগরি ফিল্টার
+  var filter = document.getElementById("tpl-filter");
+  if (filter) {
+    filter.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-cat]");
+      if (!b) return;
+      filter.querySelectorAll(".chip").forEach(function (x) { x.classList.toggle("active", x === b); });
+      document.querySelectorAll(".tpl-card").forEach(function (card) {
+        card.hidden = !!b.dataset.cat && card.dataset.cat !== b.dataset.cat;
+      });
+    });
+  }
+
   var root = document.getElementById("builder");
   if (!root) return;
   var state = JSON.parse(root.dataset.landing);
   var LABEL = JSON.parse(root.dataset.labels);
+  var FONTS = JSON.parse(root.dataset.fonts || "{}");
   var list = document.getElementById("sections");
   var form = document.getElementById("builder-form");
   var hidden = document.getElementById("landing-json");
+  var frame = document.getElementById("lb-frame");
+  var panel = document.getElementById("lb-panel");
+  var statusEl = document.getElementById("lb-status");
+  var openId = null;
+  var dirty = false;
 
   function el(tag, attrs, children) {
     var e = document.createElement(tag);
@@ -85,13 +104,14 @@
         };
         drawG();
         box.appendChild(g);
-        box.appendChild(field("ছবি যোগ করুন", upload(function (k) { d.images.push(k); drawG(); })));
+        if (!d.images.length) box.appendChild(el("p", { class: "muted small", text: "ফাঁকা থাকলে পণ্যের ছবি দেখাবে (পণ্য এডিট থেকে বদলান)।" }));
+        box.appendChild(field("আলাদা ছবি যোগ করুন (ঐচ্ছিক)", upload(function (k) { d.images.push(k); drawG(); })));
         break;
       case "video":
-        box.appendChild(field("YouTube লিংক", text(d, "youtube_url", "https://youtu.be/...", 300)));
+        box.appendChild(field("YouTube লিংক", text(d, "youtube_url", "ফাঁকা থাকলে পণ্যের ভিডিও", 300)));
         break;
       case "text":
-        box.appendChild(field("লেখা (HTML চলবে: <b>, <h3>, <ul><li> ...)", area(d, "html", "", 8)));
+        box.appendChild(field("লেখা (HTML চলবে: <b>, <h3>, <ul><li> ...)", area(d, "html", "ফাঁকা থাকলে পণ্যের বিস্তারিত দেখাবে", 8)));
         break;
       case "benefits":
       case "trust":
@@ -161,46 +181,218 @@
     return box;
   }
 
+
+  /* ---------- ডিজাইন: রং, ফন্ট, সাইজ ---------- */
+  function colorField(obj, key, label) {
+    var wrap = el("div", { class: "lb-color" });
+    function draw() {
+      wrap.innerHTML = "";
+      var inp = el("input", { type: "color", value: obj[key] || "#ffffff", oninput: function (e) { obj[key] = e.target.value; changed(); drawLabel(); } });
+      var lab = el("span", { class: "lb-color-val" });
+      function drawLabel() { lab.textContent = obj[key] ? obj[key] : "ডিফল্ট"; }
+      drawLabel();
+      wrap.appendChild(el("span", { class: "lb-color-name", text: label }));
+      wrap.appendChild(inp);
+      wrap.appendChild(lab);
+      wrap.appendChild(el("button", { type: "button", class: "btn-link small", text: "রিসেট", title: "থিমের রঙে ফিরুন", onclick: function () { delete obj[key]; draw(); changed(); } }));
+    }
+    draw();
+    return wrap;
+  }
+  function selectField(obj, key, label, options) {
+    var sel = el("select", { onchange: function (e) { if (e.target.value) obj[key] = e.target.value; else delete obj[key]; changed(); } });
+    Object.keys(options).forEach(function (k) {
+      var o = el("option", { value: k, text: options[k] });
+      if ((obj[key] || "") === k) o.selected = true;
+      sel.appendChild(o);
+    });
+    return field(label, sel);
+  }
+  function fontOptions(def) {
+    var o = { "": def };
+    Object.keys(FONTS).forEach(function (k) { o[k] = FONTS[k]; });
+    return o;
+  }
+  function designBox(sec) {
+    sec.style = sec.style || {};
+    var st = sec.style;
+    var hasBtn = ["hero", "order_form", "benefits", "countdown"].indexOf(sec.type) >= 0;
+    var box = el("details", { class: "lb-design" }, [el("summary", { text: "🎨 ডিজাইন — রং, ফন্ট, সাইজ" })]);
+    var grid = el("div", { class: "lb-design-grid" });
+    grid.appendChild(colorField(st, "bg", "ব্যাকগ্রাউন্ড"));
+    grid.appendChild(colorField(st, "color", "লেখার রং"));
+    if (hasBtn) {
+      grid.appendChild(colorField(st, "btn_bg", sec.type === "benefits" ? "টিক চিহ্নের রং" : sec.type === "countdown" ? "টাইমারের রং" : "বাটনের রং"));
+      grid.appendChild(colorField(st, "btn_color", sec.type === "countdown" ? "টাইমারের লেখা" : "বাটনের লেখা"));
+    }
+    grid.appendChild(selectField(st, "font", "ফন্ট", fontOptions("পেজের ফন্ট")));
+    grid.appendChild(selectField(st, "size", "লেখার সাইজ", { "": "মাঝারি", sm: "ছোট", lg: "বড়" }));
+    grid.appendChild(selectField(st, "align", "লেখা সাজানো", { "": "ডিফল্ট", left: "বাঁয়ে", center: "মাঝে" }));
+    box.appendChild(grid);
+    return box;
+  }
+  function drawPageStyle() {
+    var host = document.getElementById("page-style");
+    state.style = state.style || {};
+    host.innerHTML = "";
+    host.appendChild(el("div", { class: "b-section lb-page" }, [
+      el("div", { class: "b-head" }, [el("strong", { text: "পুরো পেজ" })]),
+      el("div", { class: "b-body" }, [selectField(state.style, "font", "পেজের ফন্ট", fontOptions("থিমের ফন্ট"))]),
+    ]));
+  }
+
+  /* ---------- সেকশনের তালিকা (ড্রপডাউন/অ্যাকর্ডিয়ন) ---------- */
   function move(i, dir) {
     var j = i + dir;
     if (j < 0 || j >= state.sections.length) return;
     var t = state.sections[i]; state.sections[i] = state.sections[j]; state.sections[j] = t;
     drawSections();
+    changed();
   }
 
   function drawSections() {
     list.innerHTML = "";
     state.sections.forEach(function (sec, i) {
       var isForm = sec.type === "order_form";
-      var head = el("div", { class: "b-head" }, [
-        el("strong", { text: (i + 1) + ". " + LABEL[sec.type] }),
+      var open = sec.id === openId;
+      var head = el("div", { class: "b-head lb-head", onclick: function (e) {
+        if (e.target.closest("button, input, label")) return;
+        openSection(open ? null : sec.id, true);
+      } }, [
+        el("strong", { text: (open ? "▾ " : "▸ ") + (i + 1) + ". " + LABEL[sec.type] }),
         el("span", { class: "b-actions" }, [
-          isForm ? null : el("label", { class: "small-check" }, [el("input", { type: "checkbox", checked: sec.enabled !== false, onchange: function (e) { sec.enabled = e.target.checked; card.classList.toggle("off", !e.target.checked); } }), " চালু"]),
+          isForm ? null : el("label", { class: "small-check", title: "চালু/বন্ধ" }, [el("input", { type: "checkbox", checked: sec.enabled !== false, onchange: function (e) { sec.enabled = e.target.checked; card.classList.toggle("off", !e.target.checked); changed(); } }), " চালু"]),
           el("button", { type: "button", class: "btn btn-outline btn-sm", text: "↑", title: "উপরে", onclick: function () { move(i, -1); } }),
           el("button", { type: "button", class: "btn btn-outline btn-sm", text: "↓", title: "নিচে", onclick: function () { move(i, 1); } }),
-          isForm ? null : el("button", { type: "button", class: "btn-link danger", text: "মুছুন", onclick: function () { if (confirm("সেকশনটি মুছবেন?")) { state.sections.splice(i, 1); drawSections(); } } }),
+          isForm ? null : el("button", { type: "button", class: "btn-link danger", text: "মুছুন", onclick: function () { if (confirm("সেকশনটি মুছবেন?")) { state.sections.splice(i, 1); drawSections(); changed(); } } }),
         ]),
       ]);
-      var card = el("div", { class: "b-section" + (sec.enabled === false ? " off" : "") }, [head, editor(sec)]);
+      var card = el("div", { class: "b-section" + (sec.enabled === false ? " off" : "") + (open ? " open" : ""), "data-id": sec.id }, [head]);
+      if (open) {
+        var body = editor(sec);
+        body.appendChild(designBox(sec));
+        card.appendChild(body);
+      }
       list.appendChild(card);
     });
   }
+
+  function openSection(id, fromPanel) {
+    openId = id;
+    drawSections();
+    highlight();
+    if (!id) return;
+    var card = list.querySelector('[data-id="' + id + '"]');
+    if (card && !fromPanel) card.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (fromPanel) scrollPreviewTo(id);
+  }
+
+  /* ---------- লাইভ প্রিভিউ ---------- */
+  var timer = null, seq = 0, pendingScroll = null;
+  function changed() {
+    dirty = true;
+    clearTimeout(timer);
+    timer = setTimeout(refresh, 400);
+  }
+  function refresh() {
+    var my = ++seq;
+    var fd = new FormData();
+    fd.append("landing_json", JSON.stringify(state));
+    fd.append("editor", "1");
+    if (statusEl) statusEl.textContent = "আপডেট হচ্ছে…";
+    fetch(root.dataset.preview, { method: "POST", body: fd, credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function (html) {
+        if (my !== seq) return;
+        var doc = frame.contentDocument;
+        pendingScroll = doc && doc.scrollingElement ? doc.scrollingElement.scrollTop : 0;
+        frame.srcdoc = html;
+        if (statusEl) statusEl.textContent = dirty ? "সেভ হয়নি" : "";
+      })
+      .catch(function () { if (statusEl) statusEl.textContent = "প্রিভিউ আপডেট হয়নি"; });
+  }
+  frame.addEventListener("load", function () {
+    var doc = frame.contentDocument;
+    if (!doc) return;
+    if (pendingScroll && doc.scrollingElement) doc.scrollingElement.scrollTop = pendingScroll;
+    // প্রিভিউতে লিংক/ফর্ম কাজ করবে না — ক্লিক মানে সেকশন বাছাই
+    doc.addEventListener("click", function (e) {
+      e.preventDefault();
+      var sec = e.target.closest && e.target.closest("[data-sec]");
+      if (!sec) return;
+      openSection(sec.getAttribute("data-sec"), false);
+      root.classList.add("panel-open");
+    }, true);
+    doc.addEventListener("submit", function (e) { e.preventDefault(); }, true);
+    highlight();
+  });
+  function highlight() {
+    var doc = frame.contentDocument;
+    if (!doc) return;
+    doc.querySelectorAll("[data-sec]").forEach(function (x) { x.classList.toggle("lb-sel", x.getAttribute("data-sec") === openId); });
+  }
+  function scrollPreviewTo(id) {
+    var doc = frame.contentDocument;
+    var x = doc && doc.querySelector('[data-sec="' + id + '"]');
+    if (x) x.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  // প্যানেলের যেকোনো লেখা/বাছাই বদলালে প্রিভিউ আপডেট
+  panel.addEventListener("input", changed);
+  panel.addEventListener("change", changed);
+
+  document.querySelectorAll("[data-device]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("[data-device]").forEach(function (x) { x.classList.toggle("active", x === b); });
+      document.getElementById("lb-frame-wrap").className = "lb-frame-wrap " + b.dataset.device;
+    });
+  });
+  document.getElementById("lb-open").addEventListener("click", function () { root.classList.add("panel-open"); });
+  document.getElementById("lb-close").addEventListener("click", function () { root.classList.remove("panel-open"); });
 
   document.getElementById("add-section").addEventListener("click", function () {
     var type = document.getElementById("new-type").value;
     var sec = { id: Math.random().toString(36).slice(2, 10), type: type, enabled: true, data: {} };
     var formIdx = state.sections.findIndex(function (s) { return s.type === "order_form"; });
     state.sections.splice(formIdx < 0 ? state.sections.length : formIdx, 0, sec);
-    drawSections();
-    list.children[formIdx < 0 ? list.children.length - 1 : formIdx].scrollIntoView({ behavior: "smooth", block: "center" });
+    openSection(sec.id, true);
+    changed();
   });
 
-  form.addEventListener("submit", function () { hidden.value = JSON.stringify(state); });
-  document.getElementById("preview-btn").addEventListener("click", function () {
-    hidden.value = JSON.stringify(state);
-    form.action = form.dataset.preview; form.target = "_blank"; form.submit();
-    form.action = form.dataset.save; form.target = "";
+  /* ---------- সেভ, টেমপ্লেট, পণ্য বদল ---------- */
+  form.addEventListener("submit", function () { hidden.value = JSON.stringify(state); dirty = false; });
+  window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+  document.getElementById("save-template").addEventListener("click", function () {
+    var name = prompt("টেমপ্লেটের নাম দিন (শুধু আপনার তালিকায় থাকবে):");
+    if (!name || !name.trim()) return;
+    var fd = new FormData();
+    fd.append("name", name.trim());
+    fd.append("landing_json", JSON.stringify(state));
+    fetch(root.dataset.template, { method: "POST", body: fd, credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { alert(d.message || "রাখা হয়েছে"); })
+      .catch(function () { alert("রাখা যায়নি, আবার চেষ্টা করুন"); });
   });
 
+  document.getElementById("copy-json").addEventListener("click", function () {
+    var txt = JSON.stringify(state);
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { alert("JSON কপি হয়েছে"); }, function () { prompt("কপি করুন:", txt); });
+    else prompt("কপি করুন:", txt);
+  });
+
+  var moveForm = document.getElementById("move-form");
+  var productSel = document.getElementById("lb-product");
+  var startProduct = productSel.value;
+  productSel.addEventListener("change", function () {
+    if (productSel.value === startProduct) return;
+    if (!confirm(moveForm.dataset.msg)) { productSel.value = startProduct; return; }
+    moveForm.querySelector('[name="landing_json"]').value = JSON.stringify(state);
+    dirty = false;
+    moveForm.submit();
+  });
+
+  drawPageStyle();
   drawSections();
+  refresh();
+  dirty = false;
 })();

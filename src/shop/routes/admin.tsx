@@ -14,9 +14,10 @@ import { SettingsAppearancePage, SettingsCheckoutPage, SettingsDeliveryPage, Set
 import { bn, youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
-import { CouponsPage, LandingBuilderPage, ReportsPage, type CouponRow } from "../views/admin";
+import { CouponsPage, LandingBuilderPage, LandingListPage, ReportsPage, TemplateGalleryPage, type CouponRow, type LandingRow } from "../views/admin";
 import { buildReport, resolveRange } from "../lib/reports";
-import { defaultLanding, normalizeLanding, parseLanding, SECTION_LABEL } from "../lib/landing";
+import { defaultLanding, FONTS, normalizeLanding, parseLanding, SECTION_LABEL } from "../lib/landing";
+import { loadTemplate, MAX_MY_TEMPLATES, myTemplates, platformTemplates, thumbBlocks } from "../lib/landing-templates";
 import { Layout } from "../views/layout";
 import { BuiltLanding } from "../views/landing";
 import { normalizeCode } from "../lib/coupons";
@@ -1052,12 +1053,88 @@ async function productById(c: Ctx, id: number) {
   return c.env.DB.prepare("SELECT * FROM products WHERE id = ?").bind(id).first<Product>();
 }
 
+async function productChoices(c: Ctx) {
+  const { results } = await c.env.DB.prepare("SELECT id, name, landing_json IS NOT NULL AS has FROM products ORDER BY sort_order, id DESC LIMIT 500")
+    .all<{ id: number; name: string; has: number }>();
+  return results.map((r) => ({ id: r.id, name: r.name, has: !!r.has }));
+}
+const FONT_LABELS = Object.fromEntries(Object.entries(FONTS).map(([k, v]) => [k, v.label]));
+
+/* ---------- ল্যান্ডিং পেজ: তালিকা, টেমপ্লেট গ্যালারি ---------- */
+admin.get("/landing", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, name, slug, price, image, is_active, updated_at FROM products WHERE landing_json IS NOT NULL ORDER BY updated_at DESC, id DESC",
+  ).all<LandingRow>();
+  return render(c, "ল্যান্ডিং পেজ", "landing", <LandingListPage rows={results} />);
+});
+
+admin.get("/landing/new", async (c) => {
+  const tab = c.req.query("tab") === "mine" ? "mine" : "sellx";
+  const mine = await myTemplates(c.env.DB);
+  const cards = tab === "mine"
+    ? mine.map((t) => ({ ref: `m:${t.id}`, name: t.name, blocks: thumbBlocks(t.json), deleteUrl: `/admin/landing/my-templates/${t.id}/delete` }))
+    : (await platformTemplates(c.env.PLATFORM_DB)).map((t) => ({ ref: `p:${t.id}`, name: t.name, category: t.category, description: t.description, blocks: thumbBlocks(t.json) }));
+  return render(c, "টেমপ্লেট বেছে নিন", "landing",
+    <TemplateGalleryPage tab={tab} cards={cards} products={await productChoices(c)} productId={toInt(c.req.query("product"))} mineCount={mine.length} />);
+});
+
+admin.post("/landing/new", async (c) => {
+  const b = await c.req.parseBody();
+  const p = await productById(c, toInt(b.product_id));
+  const tpl = await loadTemplate(c.env.PLATFORM_DB, c.env.DB, String(b.template ?? ""));
+  if (!p || !tpl) {
+    flash(c, "error", !p ? "পণ্য বাছাই করুন" : "টেমপ্লেটটি পাওয়া যায়নি");
+    return c.redirect("/admin/landing/new", 303);
+  }
+  await c.env.DB.prepare("UPDATE products SET landing_json = ?, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(tpl), p.id).run();
+  flash(c, "ok", "টেমপ্লেট বসানো হয়েছে — এখন সাজিয়ে সেভ করুন।");
+  return c.redirect(`/admin/products/${p.id}/landing`, 303);
+});
+
+admin.post("/landing/my-templates/:id{[0-9]+}/delete", async (c) => {
+  await c.env.DB.prepare("DELETE FROM my_templates WHERE id = ?").bind(toInt(c.req.param("id"))).run();
+  flash(c, "ok", "টেমপ্লেট মুছে ফেলা হয়েছে।");
+  return c.redirect("/admin/landing/new?tab=mine", 303);
+});
+
 admin.get("/products/:id{[0-9]+}/landing", async (c) => {
   const p = await productById(c, toInt(c.req.param("id")));
   if (!p) return c.redirect("/admin/products", 303);
   const landing = parseLanding(p.landing_json) ?? defaultLanding(p);
-  return render(c, "ল্যান্ডিং পেজ", "products",
-    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} />);
+  return render(c, "ল্যান্ডিং পেজ", "landing",
+    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} products={await productChoices(c)} fonts={FONT_LABELS} />);
+});
+
+/** ডিজাইনটা অন্য পণ্যে সরানো (এখনকার পরিবর্তনসহ) */
+admin.post("/products/:id{[0-9]+}/landing/move", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const b = await c.req.parseBody();
+  const to = await productById(c, toInt(b.to));
+  const landing = landingFromBody(b.landing_json);
+  if (!to || !landing) {
+    flash(c, "error", "পণ্য বদলানো যায়নি");
+    return c.redirect(`/admin/products/${id}/landing`, 303);
+  }
+  if (to.id !== id) {
+    await c.env.DB.batch([
+      c.env.DB.prepare("UPDATE products SET landing_json = ?, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(landing), to.id),
+      c.env.DB.prepare("UPDATE products SET landing_json = NULL WHERE id = ?").bind(id),
+    ]);
+    flash(c, "ok", `ল্যান্ডিং পেজ এখন "${to.name}" পণ্যের।`);
+  }
+  return c.redirect(`/admin/products/${to.id}/landing`, 303);
+});
+
+/** এডিটর থেকে "আমার টেমপ্লেট"-এ রাখা */
+admin.post("/products/:id{[0-9]+}/landing/save-template", async (c) => {
+  const b = await c.req.parseBody();
+  const name = str(b.name, 80);
+  const landing = landingFromBody(b.landing_json);
+  if (!name || !landing) return c.json({ message: "টেমপ্লেটের নাম দিন" }, 400);
+  const n = await c.env.DB.prepare("SELECT COUNT(*) n FROM my_templates").first<{ n: number }>();
+  if ((n?.n ?? 0) >= MAX_MY_TEMPLATES) return c.json({ message: `সর্বোচ্চ ${MAX_MY_TEMPLATES}টা টেমপ্লেট রাখা যায় — পুরনো কিছু মুছে দিন` }, 400);
+  await c.env.DB.prepare("INSERT INTO my_templates (name, json) VALUES (?, ?)").bind(name, JSON.stringify(landing)).run();
+  return c.json({ ok: true, message: `"${name}" আপনার টেমপ্লেটে রাখা হয়েছে।` });
 });
 
 function landingFromBody(raw: unknown) {
@@ -1082,17 +1159,23 @@ admin.post("/products/:id{[0-9]+}/landing", async (c) => {
 
 admin.post("/products/:id{[0-9]+}/landing/preview", async (c) => {
   const p = await productById(c, toInt(c.req.param("id")));
-  const landing = landingFromBody((await c.req.parseBody()).landing_json);
+  const body = await c.req.parseBody();
+  const landing = landingFromBody(body.landing_json);
   if (!p || !landing) return c.text("প্রিভিউ করা যায়নি", 400);
+  const editor = body.editor === "1";
   const s = c.var.settings;
   c.header("Cache-Control", "no-store");
   return c.html("<!DOCTYPE html>" + String(
-    <Layout title={`প্রিভিউ — ${p.name}`} settings={s}>
-      <div class="banner banner-warn">প্রিভিউ — এখনো সেভ হয়নি</div>
-      <BuiltLanding p={p} landing={landing} variants={await productVariants(c.env.DB, p.id)} settings={s} />
+    <Layout title={`প্রিভিউ — ${p.name}`} settings={s} head={editor ? <style>{EDITOR_CSS}</style> : undefined}>
+      {!editor && <div class="banner banner-warn">প্রিভিউ — এখনো সেভ হয়নি</div>}
+      <BuiltLanding p={p} landing={landing} variants={await productVariants(c.env.DB, p.id)} settings={s} editor={editor} />
     </Layout>,
   ));
 });
+
+/** এডিটরের প্রিভিউতে সেকশনের উপর মাউস/বাছাইয়ের দাগ */
+const EDITOR_CSS = "[data-sec]{position:relative;cursor:pointer}[data-sec]:hover{outline:2px dashed #3b82f6;outline-offset:-2px}"
+  + "[data-sec].lb-sel{outline:3px solid #2563eb;outline-offset:-3px}.sticky-order{display:none}";
 
 admin.post("/products/:id{[0-9]+}/landing/reset", async (c) => {
   const id = toInt(c.req.param("id"));

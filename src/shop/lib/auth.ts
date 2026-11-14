@@ -93,6 +93,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 export const SECTION_ROLES: Record<string, Role[]> = {
   orders: ["owner", "manager", "orders"],
   products: ["owner", "manager"],
+  landing: ["owner", "manager"],
   "upload-image": ["owner", "manager"],
   categories: ["owner", "manager"],
   blacklist: ["owner", "manager"],

@@ -3,7 +3,7 @@ import type { Settings } from "../lib/settings";
 import { bn, imageUrl } from "../lib/format";
 import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 
-export const ASSET_VERSION = "6";
+export const ASSET_VERSION = "7";
 
 export type LayoutProps = {
   title: string;

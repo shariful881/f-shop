@@ -148,3 +148,86 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 
 .banner-support { background: #0b1220; color: #e2e8f0; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: center; }
 .banner-support .btn-link { color: #5eead4; font-weight: 700; }
+
+/* ---------- ল্যান্ডিং পেজ: তালিকা ও টেমপ্লেট গ্যালারি ---------- */
+.page-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.empty-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: var(--radius); padding: 24px; text-align: center; }
+.lp-row-prod { display: flex; gap: 10px; align-items: center; }
+.lp-row-prod img { border-radius: 6px; object-fit: cover; }
+.nowrap { white-space: nowrap; }
+.chip { font: inherit; font-size: .88rem; border: 1.5px solid #cbd5e1; background: #fff; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.tpl-filter { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin: 14px 0; }
+.tpl-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: grid; gap: 8px; align-content: start; }
+.tpl-card[hidden] { display: none; }
+.tpl-info strong { margin-right: 6px; }
+.tpl-info p { margin: 4px 0 0; }
+.tpl-use { display: grid; gap: 8px; }
+.tpl-use select { font: inherit; padding: 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; width: 100%; }
+.tpl-thumb { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; height: 200px; display: flex; flex-direction: column; }
+.tpl-b { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 4px 10px; border-bottom: 1px solid rgba(0,0,0,.05); min-height: 18px; }
+.tpl-b-hero { flex: 2; }
+.tpl-b-gallery { flex: 2; }
+.tpl-b-order_form { flex: 2; }
+.tpl-line { display: block; height: 5px; border-radius: 3px; background: currentColor; opacity: .55; }
+.w40 { width: 40%; } .w60 { width: 60%; } .w70 { width: 70%; } .w80 { width: 80%; }
+.tpl-btn { display: block; width: 45%; height: 9px; border-radius: 4px; margin-top: 2px; }
+.tpl-img { display: block; width: 46%; height: 34px; border-radius: 4px; background: #cbd5e1; }
+.tpl-input { display: block; width: 70%; height: 6px; border-radius: 3px; background: #e2e8f0; border: 1px solid #cbd5e1; }
+
+/* ---------- লাইভ এডিটর ---------- */
+.lb-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lb-top h1 { margin: 6px 0; font-size: 1.3rem; flex: 1; }
+.lb-product select { font: inherit; padding: 6px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; max-width: 260px; margin-left: 6px; }
+.lb-hint { margin: 4px 0 10px; }
+.lb { display: grid; grid-template-columns: 380px 1fr; gap: 14px; align-items: start; }
+.lb-panel { max-height: calc(100vh - 150px); overflow: auto; position: sticky; top: 10px; padding-right: 4px; }
+.lb-panel-head { display: none; }
+.lb-head { cursor: pointer; user-select: none; }
+.b-section.open { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+.lb-page .b-head { cursor: default; }
+.lb-design { border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+.lb-design summary { cursor: pointer; font-weight: 600; }
+.lb-design-grid { display: grid; gap: 8px; margin-top: 8px; }
+.lb-color { display: flex; align-items: center; gap: 8px; }
+.lb-color-name { flex: 1; font-size: .92rem; }
+.lb-color input[type=color] { width: 40px; height: 32px; padding: 0; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
+.lb-color-val { font-size: .8rem; color: #64748b; min-width: 62px; }
+.lb-preview { position: sticky; top: 10px; }
+.lb-devices { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.lb-frame-wrap { background: #e2e8f0; border-radius: 14px; padding: 10px; display: flex; justify-content: center; }
+.lb-frame-wrap iframe { border: 0; background: #fff; border-radius: 10px; height: calc(100vh - 200px); min-height: 480px; width: 100%; }
+.lb-frame-wrap.mobile iframe { width: 390px; max-width: 100%; }
+.lb-only-mobile { display: none; }
+.lb-bar { margin-top: 12px; }
+@media (max-width: 900px) {
+  .lb { grid-template-columns: 1fr; }
+  .lb-preview { position: static; }
+  .lb-devices { display: none; }
+  .lb-frame-wrap { padding: 0; background: none; }
+  .lb-frame-wrap iframe, .lb-frame-wrap.mobile iframe { width: 100%; height: calc(100vh - 230px); border: 1px solid var(--line); }
+  .lb-panel { position: fixed; left: 0; right: 0; bottom: 0; top: auto; max-height: 62vh; background: #f1f5f9; z-index: 50;
+    border-radius: 16px 16px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.2); padding: 0 12px 70px; transform: translateY(105%); transition: transform .2s; }
+  .lb.panel-open .lb-panel { transform: none; }
+  .lb-panel-head { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #f1f5f9; padding: 10px 0; z-index: 1; }
+  .lb-only-mobile { display: inline-flex; }
+  .lb-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; padding: 8px 12px; margin: 0; }
+}
+.lb .b-section { scroll-margin-top: 52px; }
+@media (max-width: 900px) {
+  .lb-top { gap: 6px; }
+  .lb-top h1 { display: none; }
+  .lb-product { flex: 1; display: flex; justify-content: flex-end; }
+  .lb-product select { max-width: 200px; }
+  .lb-hint { display: none; }
+  .lb-bar { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; }
+  .lb-bar #copy-json { display: none; }
+  .lb-frame-wrap iframe, .lb-frame-wrap.mobile iframe { height: calc(100vh - 170px); }
+}
+/* নতুন সাইডবার লেআউটে উপরের হেডারের নিচে থাকবে */
+@media (min-width: 901px) {
+  .lb-panel, .lb-preview { top: 76px; }
+  .lb-panel { max-height: calc(100vh - 170px); }
+  .lb-frame-wrap iframe { height: calc(100vh - 250px); }
+}

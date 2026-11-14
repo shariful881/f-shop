@@ -1,11 +1,12 @@
-import type { Landing, Section } from "../lib/landing";
+import { FONTS, fontsHref, styleAttr, type Landing, type Section } from "../lib/landing";
 import type { Product, Variant } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
 import { OrderForm, type FormState } from "./shop";
+import { sanitizeHtml } from "../lib/sanitize";
 
 /** বিল্ডার দিয়ে বানানো ল্যান্ডিং পেজ — সেকশন ক্রম অনুযায়ী */
-export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Variant[]; settings: Settings; form?: FormState; closed?: string }) => {
+export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Variant[]; settings: Settings; form?: FormState; closed?: string; editor?: boolean }) => {
   const prod = p.p;
   const off = discountPercent(prod.price, prod.compare_price);
   const priceRow = (
@@ -41,7 +42,7 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
         );
       }
       case "video": {
-        const yt = youtubeId(d.youtube_url);
+        const yt = youtubeId(d.youtube_url || prod.youtube_url || "");
         if (!yt) return null;
         return (
           <div class="video" data-yt={yt}>
@@ -53,7 +54,8 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
         );
       }
       case "text":
-        return d.html ? <div class="details" dangerouslySetInnerHTML={{ __html: d.html }} /> : null;
+        // ফাঁকা থাকলে পণ্যের বিস্তারিত (পণ্য স্টোরেজ থেকে)
+        return d.html || prod.details_html ? <div class="details" dangerouslySetInnerHTML={{ __html: d.html || sanitizeHtml(prod.details_html || "") }} /> : null;
       case "benefits":
         return d.items?.length ? (
           <section class="lp-box lp-benefits">
@@ -118,11 +120,24 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
     }
   };
 
-  return (
-    <div class="landing built">
-      <div class="wrap narrow">
-        {p.landing.sections.filter((x) => x.enabled).map(render)}
+  const pageFont = p.landing.style?.font && FONTS[p.landing.style.font];
+  // এডিটরে বন্ধ সেকশনও দেখায় না, কিন্তু খালি সেকশন ক্লিক করার জন্য একটা জায়গা রাখে
+  const wrapSec = (sec: Section) => {
+    const inner = render(sec);
+    if (!inner && !p.editor) return null;
+    const st = sec.style;
+    const cls = ["lp-sec", `lp-sec-${sec.type}`, st?.bg ? "lp-has-bg" : "", st?.color ? "lp-has-fg" : "", st?.btn_bg ? "lp-has-btn" : "", st?.size ? `lp-size-${st.size}` : ""].filter(Boolean).join(" ");
+    return (
+      <div class={cls} style={styleAttr(st) || undefined} data-sec={p.editor ? sec.id : undefined}>
+        <div class="wrap narrow">{inner ?? <p class="lp-empty">এই সেকশনে এখনো কিছু নেই — ক্লিক করে এডিট করুন</p>}</div>
       </div>
+    );
+  };
+
+  return (
+    <div class="landing built" style={pageFont ? `font-family:${pageFont.family},sans-serif` : undefined}>
+      {fontsHref(p.landing) && <><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" /><link rel="stylesheet" href={fontsHref(p.landing)!} /></>}
+      {p.landing.sections.filter((x) => x.enabled).map(wrapSec)}
       <a href="#order" class="sticky-order">অর্ডার করুন — {taka(prod.price)}</a>
     </div>
   );

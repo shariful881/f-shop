@@ -31,6 +31,7 @@ export const PERMS: Record<string, SuperRole[]> = {
   topups: ["owner", "admin", "finance"],
   finance: ["owner", "admin", "finance"],
   announcements: ["owner", "admin"],
+  templates: ["owner", "admin"],
   audit: ["owner", "admin"],
   team: ["owner"],
   settings: ["owner"],
@@ -65,6 +66,7 @@ const NAV: { key: string; href: string; icon: string; label: string; group?: str
   { key: "topups", href: "/super/topups", icon: "💳", label: "রিচার্জ" },
   { key: "finance", href: "/super/finance", icon: "৳", label: "আয় ও হিসাব" },
   { key: "announcements", href: "/super/announcements", icon: "📢", label: "ঘোষণা", group: "যোগাযোগ" },
+  { key: "templates", href: "/super/templates", icon: "🧩", label: "ল্যান্ডিং টেমপ্লেট" },
   { key: "audit", href: "/super/audit", icon: "🧾", label: "অডিট লগ", group: "নিরাপত্তা" },
   { key: "team", href: "/super/team", icon: "👥", label: "টিম" },
   { key: "settings", href: "/super/settings", icon: "⚙", label: "প্ল্যাটফর্ম সেটিংস" },
@@ -862,4 +864,49 @@ export const SettingsPage = ({ s }: { s: Record<string, string> }) => (
       <button class="sa-btn sa-btn-block">সেটিংস সেভ করুন</button>
     </Card>
   </form>
+);
+
+/* ---------- ল্যান্ডিং টেমপ্লেট (সব দোকানে ফ্রি) ---------- */
+export type TplRow = { id: number; name: string; category: string; description: string | null; json: string; active: number; sort_order: number; updated_at: string };
+
+export const TemplateForm = ({ t, categories, error }: { t?: Partial<TplRow>; categories: string[]; error?: string }) => (
+  <form method="post" action={t?.id ? `/super/templates/${t.id}` : "/super/templates"} class="sa-form">
+    {error && <div class="sa-alert sa-alert-err">{error}</div>}
+    <label>নাম</label><input type="text" name="name" required maxlength={80} value={t?.name ?? ""} placeholder="যেমন: ঈদ অফার" />
+    <label>ক্যাটাগরি</label>
+    <select name="category">{categories.map((c) => <option value={c} selected={c === (t?.category ?? "সাধারণ")}>{c}</option>)}</select>
+    <label>ছোট বিবরণ</label><input type="text" name="description" maxlength={160} value={t?.description ?? ""} placeholder="কোন ধরনের পণ্যের জন্য" />
+    <label>ক্রম (ছোট সংখ্যা আগে দেখাবে)</label><input type="number" name="sort_order" value={String(t?.sort_order ?? 0)} />
+    <label>ডিজাইন JSON</label>
+    <textarea name="json" rows={12} required placeholder='{"sections":[...]}' style="font-family:monospace;font-size:.8rem">{t?.json ?? ""}</textarea>
+    <p class="sa-muted small">যেকোনো দোকানের ল্যান্ডিং এডিটরে ডিজাইন সাজিয়ে "JSON কপি" চাপুন, তারপর এখানে পেস্ট করুন। ছবি টেমপ্লেটে রাখবেন না — দোকানদারের পণ্যের ছবি নিজে থেকেই বসবে।</p>
+    <button class="sa-btn">{t?.id ? "সেভ করুন" : "টেমপ্লেট যোগ করুন"}</button>
+  </form>
+);
+
+export const TemplatesPage = ({ rows, categories }: { rows: TplRow[]; categories: string[] }) => (
+  <div class="sa-grid-1-2">
+    <Card title="নতুন টেমপ্লেট"><TemplateForm categories={categories} /></Card>
+    <Card title={`সব টেমপ্লেট (${bn(rows.length)})`}>
+      <p class="sa-muted">সব দোকানদার বিনা খরচে ব্যবহার করতে পারবে। বন্ধ করলে গ্যালারিতে আর দেখাবে না, তবে যেসব পেজ আগে বানানো হয়েছে সেগুলো থাকবে।</p>
+      {rows.length === 0 ? <Empty text="এখনো কোনো টেমপ্লেট নেই" /> : (
+        <div class="sa-table-wrap"><table class="sa-table">
+          <thead><tr><th>#</th><th>নাম</th><th>ক্যাটাগরি</th><th>অবস্থা</th><th></th></tr></thead>
+          <tbody>{rows.map((t) => (
+            <tr>
+              <td>{bn(t.sort_order)}</td>
+              <td><b>{t.name}</b>{t.description && <><br /><small class="sa-muted">{t.description}</small></>}</td>
+              <td>{t.category}</td>
+              <td>{t.active ? <span class="sa-pill sa-st-active">চালু</span> : <span class="sa-pill sa-st-closed">বন্ধ</span>}</td>
+              <td class="sa-row">
+                <a href={`/super/templates/${t.id}`} class="sa-btn sa-btn-sm sa-btn-ghost">এডিট</a>
+                <form method="post" action={`/super/templates/${t.id}/toggle`}><button class="sa-btn sa-btn-sm sa-btn-ghost">{t.active ? "বন্ধ" : "চালু"}</button></form>
+                <form method="post" action={`/super/templates/${t.id}/delete`} data-confirm={`"${t.name}" টেমপ্লেট পুরোপুরি মুছবেন?`}><button class="sa-btn sa-btn-sm sa-btn-ghost">মুছুন</button></form>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      )}
+    </Card>
+  </div>
 );

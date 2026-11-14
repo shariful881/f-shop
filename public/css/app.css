@@ -190,3 +190,22 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .order-form-title { margin: 0 0 10px; font-size: 1.15rem; text-align: center; }
 .free-delivery-note { background: #ecfdf5; color: #065f46; border-radius: 8px; padding: 8px 10px; font-weight: 600; text-align: center; margin: 0 0 12px; }
 .thanks-message { white-space: pre-line; }
+
+/* ল্যান্ডিং সেকশনের ডিজাইন (বিল্ডারের রং/ফন্ট/সাইজ) */
+.landing.built { padding-bottom: 8px; }
+.lp-sec { --lp-fg: inherit; }
+.lp-sec.lp-has-bg { background: var(--lp-bg); padding: 18px 0; }
+.lp-sec.lp-has-fg, .lp-sec.lp-has-fg h1, .lp-sec.lp-has-fg h2, .lp-sec.lp-has-fg .lead, .lp-sec.lp-has-fg .muted { color: var(--lp-fg); }
+.lp-sec.lp-has-bg > .wrap > :first-child { margin-top: 0; }
+.lp-sec.lp-has-bg > .wrap > :last-child { margin-bottom: 0; }
+.lp-sec.lp-has-btn .btn-primary { background: var(--lp-btn); border-color: var(--lp-btn); color: var(--lp-btn-fg, #fff); }
+.lp-sec.lp-has-btn .lp-benefits li::before { background: var(--lp-btn); color: var(--lp-btn-fg, #fff); }
+.lp-sec-countdown.lp-has-btn .lp-countdown { background: var(--lp-btn); color: var(--lp-btn-fg, #fff); }
+.lp-sec.lp-size-sm { font-size: .9rem; }
+.lp-sec.lp-size-sm .landing-title { font-size: 1.35rem; }
+.lp-sec.lp-size-lg { font-size: 1.12rem; }
+.lp-sec.lp-size-lg .landing-title { font-size: 2rem; }
+@media (min-width: 700px) { .lp-sec.lp-size-lg .landing-title { font-size: 2.6rem; } }
+.lp-sec[style*="text-align:left"] .landing-price, .lp-sec[style*="text-align:left"] .trust-items { justify-content: flex-start; }
+.lp-sec[style*="text-align:left"] .center { text-align: left; }
+.lp-empty { border: 2px dashed #cbd5e1; border-radius: 10px; padding: 14px; text-align: center; color: #64748b; margin: 10px 0; }

@@ -15,6 +15,7 @@ import m0009 from "../../migrations/shop/0009_courier.sql";
 import m0010 from "../../migrations/shop/0010_sms.sql";
 import m0011 from "../../migrations/shop/0011_images.sql";
 import m0012 from "../../migrations/shop/0012_store_settings.sql";
+import m0013 from "../../migrations/shop/0013_my_templates.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 
@@ -31,6 +32,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0010_sms", m0010],
   ["0011_images", m0011],
   ["0012_store_settings", m0012],
+  ["0013_my_templates", m0013],
 ];
 
 export type SetupInput = {
