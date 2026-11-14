@@ -128,7 +128,7 @@ export async function resendSms(db: D1Database, s: Settings, logId: number) {
 
 /** সেটিংস পেজ থেকে টেস্ট SMS */
 export async function testSms(db: D1Database, s: Settings, phone: string) {
-  const text = `${s.site_name || "F-Shop"}: টেস্ট SMS — গেটওয়ে ঠিকঠাক কাজ করছে।`;
+  const text = `${s.site_name || "SellxBD"}: টেস্ট SMS — গেটওয়ে ঠিকঠাক কাজ করছে।`;
   const r = await sendSms(s, phone, text);
   await db.prepare("INSERT INTO sms_logs (order_id, event, phone, message, status, response) VALUES (NULL, 'test', ?, ?, ?, ?)").bind(phone, text, r.ok ? "sent" : "failed", r.response).run();
   return r;

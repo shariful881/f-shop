@@ -9,25 +9,26 @@ import { THEMES, type Settings, type ThemeKey } from "../lib/settings";
 import { GROUPS, HOME_SECTIONS, type Cfg, type Field } from "../lib/theme-config";
 import { ASSET_VERSION } from "./layout";
 import { ChatWidget } from "./support";
+import { Icon, type IconName } from "./icons";
 
 /* ---------- সাইডবার লেআউট ---------- */
-const NAV: { key: string; href: string; icon: string; label: string; group?: string }[] = [
-  { key: "dashboard", href: "/admin", icon: "▦", label: "ড্যাশবোর্ড" },
-  { key: "orders", href: "/admin/orders", icon: "🧾", label: "অর্ডার", group: "বিক্রি" },
-  { key: "coupons", href: "/admin/coupons", icon: "🏷️", label: "কুপন" },
-  { key: "blacklist", href: "/admin/blacklist", icon: "🛡️", label: "ফেক/ব্লক তালিকা" },
-  { key: "reports", href: "/admin/reports", icon: "📊", label: "রিপোর্ট" },
-  { key: "products", href: "/admin/products", icon: "📦", label: "পণ্য", group: "ক্যাটালগ" },
-  { key: "landing", href: "/admin/landing", icon: "🧩", label: "ল্যান্ডিং পেজ" },
-  { key: "categories", href: "/admin/categories", icon: "🗂️", label: "ক্যাটাগরি" },
-  { key: "pages", href: "/admin/pages", icon: "📄", label: "পেজ" },
-  { key: "settings", href: "/admin/settings", icon: "⚙", label: "দোকানের সেটিংস", group: "সেটআপ" },
-  { key: "courier", href: "/admin/courier", icon: "🚚", label: "কুরিয়ার" },
-  { key: "sms", href: "/admin/sms", icon: "💬", label: "SMS" },
-  { key: "domains", href: "/admin/domain", icon: "🌐", label: "ডোমেইন" },
-  { key: "staff", href: "/admin/staff", icon: "👥", label: "স্টাফ", group: "অ্যাকাউন্ট" },
-  { key: "billing", href: "/admin/billing", icon: "💳", label: "বিলিং ও রিচার্জ" },
-  { key: "support", href: "/admin/support", icon: "🛟", label: "সাপোর্ট", group: "সাহায্য" },
+const NAV: { key: string; href: string; icon: IconName; label: string; group?: string }[] = [
+  { key: "dashboard", href: "/admin", icon: "layout-dashboard", label: "ড্যাশবোর্ড" },
+  { key: "orders", href: "/admin/orders", icon: "receipt", label: "অর্ডার", group: "বিক্রি" },
+  { key: "coupons", href: "/admin/coupons", icon: "ticket", label: "কুপন" },
+  { key: "blacklist", href: "/admin/blacklist", icon: "shield-alert", label: "ফেক/ব্লক তালিকা" },
+  { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
+  { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "ক্যাটালগ" },
+  { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
+  { key: "categories", href: "/admin/categories", icon: "folder", label: "ক্যাটাগরি" },
+  { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
+  { key: "settings", href: "/admin/settings", icon: "settings", label: "দোকানের সেটিংস", group: "সেটআপ" },
+  { key: "courier", href: "/admin/courier", icon: "truck", label: "কুরিয়ার" },
+  { key: "sms", href: "/admin/sms", icon: "message-square", label: "SMS" },
+  { key: "domains", href: "/admin/domain", icon: "globe", label: "ডোমেইন" },
+  { key: "staff", href: "/admin/staff", icon: "users", label: "স্টাফ", group: "অ্যাকাউন্ট" },
+  { key: "billing", href: "/admin/billing", icon: "credit-card", label: "বিলিং ও রিচার্জ" },
+  { key: "support", href: "/admin/support", icon: "life-buoy", label: "সাপোর্ট", group: "সাহায্য" },
 ];
 
 export const ShopShell = (p: {
@@ -52,6 +53,9 @@ export const ShopShell = (p: {
         <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/super.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/support.css?v=${ASSET_VERSION}`} />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" />
+        <link rel="stylesheet" href={`/css/ui.css?v=${ASSET_VERSION}`} />
         {s.favicon ? <link rel="icon" href={imageUrl(s.favicon)} /> : s.logo ? <link rel="icon" href={imageUrl(s.logo)} /> : null}
       </head>
       <body class="sa admin shop-admin">
@@ -66,7 +70,7 @@ export const ShopShell = (p: {
               <>
                 {n.group && (i === 0 || arr[i - 1]!.group !== n.group) && <div class="sa-nav-group">{n.group}</div>}
                 <a href={n.href} class={p.active === n.key ? "active" : ""}>
-                  <span class="sa-ico">{n.icon}</span>{n.label}
+                  <Icon name={n.icon} />{n.label}
                   {n.key === "orders" && (p.newOrders ?? 0) > 0 && <span class="sa-badge">{bn(p.newOrders!)}</span>}
                   {n.key === "support" && <span class="sa-badge" data-sx-nav-badge hidden></span>}
                 </a>
@@ -78,17 +82,17 @@ export const ShopShell = (p: {
               <span class="sa-avatar">{p.email.slice(0, 1).toUpperCase()}</span>
               <span><b>{p.email}</b><small>{ROLE_LABEL[p.role]}</small></span>
             </div>
-            <form method="post" action="/admin/logout"><button class="sa-logout" title="লগআউট" aria-label="লগআউট">⏻</button></form>
+            <form method="post" action="/admin/logout"><button class="sa-logout" title="লগআউট" aria-label="লগআউট"><Icon name="log-out" /></button></form>
           </div>
         </aside>
         <label for="sa-nav-toggle" class="sa-scrim" aria-hidden="true"></label>
         <div class="sa-main">
           {p.top}
           <header class="sa-top">
-            <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু">☰</label>
+            <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু"><Icon name="menu" size="lg" /></label>
             <h1>{p.title}</h1>
             <div class="sa-top-actions">
-              <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm">🏪 দোকান দেখুন ↗</a>
+              <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="store" size="sm" /> দোকান দেখুন <Icon name="external-link" size="sm" /></a>
             </div>
           </header>
           <main class="sa-content admin-main">{p.children}</main>
@@ -170,14 +174,14 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
       {d.setup.length > 0 && done < d.setup.length && canAccess(role, "settings") && (
         <section class="sa-card setup-card">
           <div class="sa-card-head">
-            <h2>🚀 দোকান সেটআপ — {bn(done)}/{bn(d.setup.length)} শেষ</h2>
+            <h2><Icon name="rocket" /> দোকান সেটআপ — {bn(done)}/{bn(d.setup.length)} শেষ</h2>
             <span class="sa-muted">সব ধাপ শেষ করলে দোকান পুরোপুরি তৈরি</span>
           </div>
           <div class="setup-bar"><span style={`width:${(done / d.setup.length) * 100}%`}></span></div>
           <ul class="setup-list">
             {d.setup.map((x) => (
               <li class={x.done ? "done" : ""}>
-                <span class="setup-tick">{x.done ? "✓" : ""}</span>
+                <span class="setup-tick">{x.done ? <Icon name="check" size="sm" /> : ""}</span>
                 <div><b>{x.label}</b><small>{x.desc}</small></div>
                 {!x.done && <a href={x.href} class="sa-btn sa-btn-sm sa-btn-ghost">এখনই করুন →</a>}
               </li>
@@ -206,10 +210,10 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
           </div>
           <p class="sa-muted">ফেসবুক পোস্ট, অ্যাড আর বায়োতে এই লিংক দিন। প্রতিটা পণ্যের আলাদা ল্যান্ডিং পেজ লিংক পণ্যের পাতায় পাবেন।</p>
           <div class="quick-actions">
-            {canAccess(role, "products") && <a href="/admin/products/new" class="sa-btn sa-btn-ghost">➕ নতুন পণ্য</a>}
-            {canAccess(role, "coupons") && <a href="/admin/coupons" class="sa-btn sa-btn-ghost">🏷️ কুপন</a>}
-            {canAccess(role, "settings") && <a href="/admin/settings/tracking" class="sa-btn sa-btn-ghost">📈 পিক্সেল</a>}
-            <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost">🏪 দোকান</a>
+            {canAccess(role, "products") && <a href="/admin/products/new" class="sa-btn sa-btn-ghost"><Icon name="plus" size="sm" /> নতুন পণ্য</a>}
+            {canAccess(role, "coupons") && <a href="/admin/coupons" class="sa-btn sa-btn-ghost"><Icon name="ticket" size="sm" /> কুপন</a>}
+            {canAccess(role, "settings") && <a href="/admin/settings/tracking" class="sa-btn sa-btn-ghost"><Icon name="trending-up" size="sm" /> পিক্সেল</a>}
+            <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost"><Icon name="store" size="sm" /> দোকান</a>
           </div>
           <div class="mini-stats">
             <div><small>পণ্য ({n0(d.products.active)}টা চালু)</small><b>{n0(d.products.total)}টা</b></div>
@@ -248,21 +252,21 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
 };
 
 /* ---------- সেটিংস কেন্দ্র ---------- */
-export const SETTINGS_TABS: { key: string; href: string; label: string; icon: string }[] = [
-  { key: "general", href: "/admin/settings", label: "দোকানের তথ্য", icon: "🏪" },
-  { key: "appearance", href: "/admin/settings/appearance", label: "থিম ও লোগো", icon: "🎨" },
-  { key: "customize", href: "/admin/settings/customize", label: "থিম কাস্টমাইজ", icon: "🛠️" },
-  { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি", icon: "🚚" },
-  { key: "checkout", href: "/admin/settings/checkout", label: "অর্ডার ফর্ম", icon: "🧾" },
-  { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "🔍" },
-  { key: "tracking", href: "/admin/settings/tracking", label: "পিক্সেল ও ট্র্যাকিং", icon: "📈" },
-  { key: "courier", href: "/admin/courier", label: "কুরিয়ার", icon: "📦" },
-  { key: "sms", href: "/admin/sms", label: "SMS", icon: "💬" },
-  { key: "domain", href: "/admin/domain", label: "ডোমেইন", icon: "🌐" },
+export const SETTINGS_TABS: { key: string; href: string; label: string; icon: IconName }[] = [
+  { key: "general", href: "/admin/settings", label: "দোকানের তথ্য", icon: "store" },
+  { key: "appearance", href: "/admin/settings/appearance", label: "থিম ও লোগো", icon: "palette" },
+  { key: "customize", href: "/admin/settings/customize", label: "থিম কাস্টমাইজ", icon: "sliders-horizontal" },
+  { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি", icon: "truck" },
+  { key: "checkout", href: "/admin/settings/checkout", label: "অর্ডার ফর্ম", icon: "receipt" },
+  { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "search" },
+  { key: "tracking", href: "/admin/settings/tracking", label: "পিক্সেল ও ট্র্যাকিং", icon: "trending-up" },
+  { key: "courier", href: "/admin/courier", label: "কুরিয়ার", icon: "package" },
+  { key: "sms", href: "/admin/sms", label: "SMS", icon: "message-square" },
+  { key: "domain", href: "/admin/domain", label: "ডোমেইন", icon: "globe" },
 ];
 
 const Tabs = ({ active }: { active: string }) => (
-  <nav class="set-tabs">{SETTINGS_TABS.map((t) => <a href={t.href} class={active === t.key ? "active" : ""}><span>{t.icon}</span>{t.label}</a>)}</nav>
+  <nav class="set-tabs">{SETTINGS_TABS.map((t) => <a href={t.href} class={active === t.key ? "active" : ""}><Icon name={t.icon} size="sm" />{t.label}</a>)}</nav>
 );
 
 const Section = (p: { title: string; desc?: Child; children?: Child }) => (

@@ -8,6 +8,7 @@ import { THEMES, type Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
+import { Icon } from "./icons";
 import type { ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
@@ -22,13 +23,13 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
   if (!state) return null;
   switch (state.reason) {
     case "trial":
-      return <div class="banner banner-info">🎁 ফ্রি ট্রায়াল চলছে: {dhakaTime(state.trial_ends_at).split(",")[0]} পর্যন্ত অথবা আরও {bn(state.trial_orders_left)}টা কনফার্ম অর্ডার। <a href="/admin/billing">বিস্তারিত</a></div>;
+      return <div class="banner banner-info"><Icon name="gift" size="sm" /> ফ্রি ট্রায়াল চলছে: {dhakaTime(state.trial_ends_at).split(",")[0]} পর্যন্ত অথবা আরও {bn(state.trial_orders_left)}টা কনফার্ম অর্ডার। <a href="/admin/billing">বিস্তারিত</a></div>;
     case "low_balance":
-      return <div class="banner banner-warn">⚠️ ব্যালেন্স {taka(state.balance)}। {dhakaTime(state.grace_ends_at)} এর মধ্যে রিচার্জ না করলে দোকানে নতুন অর্ডার নেওয়া বন্ধ হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
+      return <div class="banner banner-warn"><Icon name="triangle-alert" size="sm" /> ব্যালেন্স {taka(state.balance)}। {dhakaTime(state.grace_ends_at)} এর মধ্যে রিচার্জ না করলে দোকানে নতুন অর্ডার নেওয়া বন্ধ হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
     case "blocked_balance":
-      return <div class="banner banner-bad">⛔ ব্যালেন্স {taka(state.balance)} — দোকানে নতুন অর্ডার নেওয়া বন্ধ আছে। রিচার্জ করলে সাথে সাথে চালু হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
+      return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> ব্যালেন্স {taka(state.balance)} — দোকানে নতুন অর্ডার নেওয়া বন্ধ আছে। রিচার্জ করলে সাথে সাথে চালু হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
     case "suspended":
-      return <div class="banner banner-bad">⛔ দোকানটি সাময়িকভাবে স্থগিত করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।</div>;
+      return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> দোকানটি সাময়িকভাবে স্থগিত করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।</div>;
     default:
       return null;
   }
@@ -41,13 +42,13 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
         top={<>
           {p.support && (
             <div class="banner banner-support">
-              🔑 <strong>সাপোর্ট মোড</strong> — সুপার অ্যাডমিন হিসেবে {p.settings.site_name || "এই দোকানের"} প্যানেল দেখছেন। সব কাজ মালিকের মতোই হবে।
+              <Icon name="key-round" size="sm" /> <strong>সাপোর্ট মোড</strong> — সুপার অ্যাডমিন হিসেবে {p.settings.site_name || "এই দোকানের"} প্যানেল দেখছেন। সব কাজ মালিকের মতোই হবে।
               <form method="post" action="/admin/logout" class="inline"><button class="btn-link">বের হয়ে সুপার অ্যাডমিনে ফিরুন →</button></form>
             </div>
           )}
           <StateBanner state={p.state} />
           {(p.announcements ?? []).map((a) => (
-            <div class={`banner banner-ann banner-ann-${a.level}`}><strong>📢 {a.title}</strong>{a.body ? <> — {a.body}</> : null}</div>
+            <div class={`banner banner-ann banner-ann-${a.level}`}><Icon name="megaphone" size="sm" /><strong>{a.title}</strong>{a.body ? <> — {a.body}</> : null}</div>
           ))}
         </>}>
         {p.flash && <div class={`alert ${p.flash.type === "ok" ? "alert-ok" : "alert-error"}`}>{p.flash.text}</div>}
@@ -64,6 +65,9 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
         <title>{p.title} — অ্যাডমিন</title>
         <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" />
+        <link rel="stylesheet" href={`/css/ui.css?v=${ASSET_VERSION}`} />
       </head>
       <body class="admin admin-login">
         <main class="wrap admin-main">
@@ -78,7 +82,9 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
 /* ---------- লগইন ---------- */
 export const LoginPage = ({ error, email }: { error?: string; email?: string }) => (
   <div class="login-box">
+    <div class="login-brand"><span class="mark">S</span>SellxBD</div>
     <h1>অ্যাডমিন লগইন</h1>
+    <p class="muted small" style="text-align:center;margin:0">আপনার দোকানের প্যানেলে ঢুকুন</p>
     {error && <div class="alert alert-error">{error}</div>}
     <form method="post" action="/admin/login" class="order-form">
       <label class="field"><span>ইমেইল</span><input type="email" name="email" value={email ?? ""} required autocomplete="username" /></label>
@@ -141,7 +147,7 @@ export const OrdersPage = (p: {
               <button class="btn btn-primary" data-confirm="বাছাই করা অর্ডারগুলো কুরিয়ারে পাঠাবেন?">বাছাই করা অর্ডার কুরিয়ারে পাঠান</button>
             </>
           )}
-          <button class="btn btn-outline" formaction="/admin/orders/invoices" formmethod="get" formtarget="_blank">🖨️ ইনভয়েস প্রিন্ট</button>
+          <button class="btn btn-outline" formaction="/admin/orders/invoices" formmethod="get" formtarget="_blank"><Icon name="printer" size="sm" /> ইনভয়েস প্রিন্ট</button>
           <button class="btn btn-outline" formaction="/admin/orders/invoices?size=sticker" formmethod="get" formtarget="_blank" name="size" value="sticker">🏷️ স্টিকার প্রিন্ট</button>
         </div>
       )}
@@ -252,8 +258,8 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
           </form>
         ))}
         {TRANSITIONS[o.status].length === 0 && <span class="muted">এই অর্ডারের স্ট্যাটাস আর বদলানো যাবে না।</span>}
-        <a href={`/admin/orders/${o.id}/invoice`} target="_blank" class="btn btn-outline">🖨️ ইনভয়েস</a>
-        <a href={`/admin/orders/${o.id}/invoice?size=sticker`} target="_blank" class="btn btn-outline">🏷️ স্টিকার</a>
+        <a href={`/admin/orders/${o.id}/invoice`} target="_blank" class="btn btn-outline"><Icon name="printer" size="sm" /> ইনভয়েস</a>
+        <a href={`/admin/orders/${o.id}/invoice?size=sticker`} target="_blank" class="btn btn-outline"><Icon name="tag" size="sm" /> স্টিকার</a>
       </div>
 
       <div class="panels">
@@ -347,7 +353,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
 /* ---------- পণ্য ---------- */
 export const ProductsPage = ({ products, categories }: { products: Product[]; categories: Category[] }) => (
   <>
-    <div class="detail-head"><h1>পণ্য</h1><div class="inline-actions"><a href="/admin/products/images" class="btn">🖼️ একসাথে ছবি</a> <a href="/admin/products/new" class="btn btn-primary">+ নতুন পণ্য</a></div></div>
+    <div class="detail-head"><h1>পণ্য</h1><div class="inline-actions"><a href="/admin/products/images" class="btn"><Icon name="image" size="sm" /> একসাথে ছবি</a> <a href="/admin/products/new" class="btn btn-primary">+ নতুন পণ্য</a></div></div>
     <div class="table-wrap">
       <table class="table">
         <thead><tr><th></th><th>নাম</th><th>দাম</th><th>ক্যাটাগরি</th><th>অবস্থা</th><th></th></tr></thead>
@@ -411,7 +417,7 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
         <label class="field"><span>বিস্তারিত কনটেন্ট (HTML)</span><textarea name="details_html" rows={10} class="mono">{v.details_html ?? ""}</textarea></label>
         <label class="field"><span>YouTube লিংক (ঐচ্ছিক)</span><input type="url" name="youtube_url" value={v.youtube_url ?? ""} placeholder="https://youtu.be/..." />{e.youtube_url && <small class="error">{e.youtube_url}</small>}</label>
         <fieldset class="seo-box" data-seo-box>
-          <legend>🔍 সার্চ ইঞ্জিন (SEO) — ঐচ্ছিক</legend>
+          <legend><Icon name="search" size="sm" /> সার্চ ইঞ্জিন (SEO) — ঐচ্ছিক</legend>
           <p class="muted">ফাঁকা রাখলে পণ্যের নাম আর ছোট বর্ণনা ব্যবহার হবে। Google-এ আর Facebook-এ শেয়ার করলে এগুলো দেখায়।</p>
           <label class="field"><span>মেটা টাইটেল <small data-count-for="meta_title"></small></span><input type="text" name="meta_title" value={v.meta_title ?? ""} maxlength={100} data-count="60" placeholder={v.name ?? ""} /></label>
           <label class="field"><span>মেটা ডেসক্রিপশন <small data-count-for="meta_description"></small></span><textarea name="meta_description" rows={2} maxlength={300} data-count="155">{v.meta_description ?? ""}</textarea></label>
@@ -992,7 +998,7 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
     <div id="builder" class="lb" data-landing={p.landingJson} data-labels={JSON.stringify(p.labels)} data-fonts={JSON.stringify(p.fonts)}
       data-preview={`/admin/products/${p.product.id}/landing/preview`} data-template={`/admin/products/${p.product.id}/landing/save-template`}>
       <aside class="lb-panel" id="lb-panel">
-        <div class="lb-panel-head"><strong>এডিট</strong><button type="button" class="btn-link" id="lb-close">✕ বন্ধ</button></div>
+        <div class="lb-panel-head"><strong>এডিট</strong><button type="button" class="btn-link" id="lb-close"><Icon name="x" size="sm" /> বন্ধ</button></div>
         <div id="page-style"></div>
         <div id="sections"></div>
         <div class="b-add">
@@ -1004,8 +1010,8 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
       </aside>
       <div class="lb-preview">
         <div class="lb-devices">
-          <button type="button" class="chip active" data-device="mobile">📱 মোবাইল</button>
-          <button type="button" class="chip" data-device="desktop">🖥 ডেস্কটপ</button>
+          <button type="button" class="chip active" data-device="mobile">মোবাইল</button>
+          <button type="button" class="chip" data-device="desktop">ডেস্কটপ</button>
           <span class="muted small" id="lb-status"></span>
         </div>
         <div class="lb-frame-wrap mobile" id="lb-frame-wrap"><iframe id="lb-frame" title="প্রিভিউ"></iframe></div>
@@ -1014,7 +1020,7 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
     <form method="post" id="builder-form" action={`/admin/products/${p.product.id}/landing`} class="b-toolbar lb-bar">
       <input type="hidden" name="landing_json" id="landing-json" />
       <button class="btn btn-primary">সেভ করুন</button>
-      <button type="button" class="btn btn-outline lb-only-mobile" id="lb-open">✎ এডিট</button>
+      <button type="button" class="btn btn-outline lb-only-mobile" id="lb-open"><Icon name="pencil" size="sm" /> এডিট</button>
       <button type="button" class="btn btn-outline" id="save-template">টেমপ্লেট হিসেবে রাখুন</button>
       <a href={`/p/${p.product.slug}`} target="_blank" class="btn-link">লাইভ পেজ ↗</a>
       <button type="button" class="btn-link" id="copy-json" title="সুপার অ্যাডমিনে নতুন টেমপ্লেট বানাতে">JSON কপি</button>

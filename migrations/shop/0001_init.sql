@@ -1,4 +1,4 @@
--- F-Shop প্রথম migration: সব টেবিল
+-- SellxBD প্রথম migration: সব টেবিল
 -- সময় সব UTC-তে রাখা হয় ('YYYY-MM-DD HH:MM:SS'), দেখানোর সময় Asia/Dhaka-তে রূপান্তর হয়
 
 CREATE TABLE users (
@@ -113,7 +113,7 @@ CREATE TABLE rate_limits (
 
 -- ডিফল্ট সেটিংস
 INSERT INTO settings (key, value) VALUES
-  ('site_name', 'F-Shop'),
+  ('site_name', 'আমার দোকান'),
   ('contact_phone', '01700000000'),
   ('delivery_inside', '70'),
   ('delivery_outside', '130'),

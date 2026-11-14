@@ -1,0 +1,234 @@
+/* =====================================================================
+   SellxBD অ্যাডমিন ডিজাইন সিস্টেম — সব অ্যাডমিন পেজের এক ভাষা
+   (সবশেষে লোড হয়; app.css / admin.css / super.css-এর পুরনো ক্লাসগুলোকে
+   একই টোকেনে বেঁধে দেয়। শুধু body.admin-এর ভেতরে কাজ করে — দোকানের
+   ক্রেতা-পাশে কোনো প্রভাব নেই।)
+   ===================================================================== */
+
+body.admin {
+  /* রং — ব্র্যান্ড টিল (বাংলাদেশের বড় ব্র্যান্ডগুলো কমলা/ম্যাজেন্টা/লাল; টিল আলাদা আর ভরসার) */
+  --c-brand: #0f766e;
+  --c-brand-600: #0b5f58;
+  --c-brand-100: #ccfbf1;
+  --c-brand-50: #f0fdfa;
+  --c-ink: #0f172a;
+  --c-text: #334155;
+  --c-mute: #64748b;
+  --c-line: #e2e8f0;
+  --c-line-strong: #cbd5e1;
+  --c-bg: #f5f7fa;
+  --c-card: #ffffff;
+  --c-ok: #15803d;      --c-ok-bg: #dcfce7;
+  --c-warn: #b45309;    --c-warn-bg: #fef3c7;
+  --c-danger: #dc2626;  --c-danger-bg: #fee2e2;
+  --c-info: #0369a1;    --c-info-bg: #e0f2fe;
+  --c-attn: #ea580c;    /* শুধু নোটিফিকেশন ব্যাজে */
+
+  /* টাইপোগ্রাফি */
+  --font: "Hind Siliguri", "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-xs: .78rem; --fs-sm: .875rem; --fs: .95rem; --fs-lg: 1.1rem; --fs-xl: 1.3rem;
+
+  /* জায়গা, কোণা, ছায়া */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  --r-sm: 8px; --r: 10px; --r-lg: 14px; --r-pill: 999px;
+  --sh-sm: 0 1px 2px rgba(15, 23, 42, .05);
+  --sh: 0 4px 16px rgba(15, 23, 42, .07);
+  --ring: 0 0 0 3px rgba(15, 118, 110, .18);
+  --h-ctl: 40px;
+
+  /* পুরনো ভ্যারিয়েবলগুলো নতুন টোকেনে */
+  --brand: var(--c-brand); --brand-dark: var(--c-brand-600);
+  --accent: var(--c-brand); --accent-dark: var(--c-brand-600);
+  --text: var(--c-text); --muted: var(--c-mute); --line: var(--c-line);
+  --bg: var(--c-bg); --card: var(--c-card); --danger: var(--c-danger); --radius: var(--r-lg);
+  --sa-bg: var(--c-bg); --sa-ink: var(--c-ink); --sa-mute: var(--c-mute); --sa-line: var(--c-line);
+  --sa-brand: var(--c-brand); --sa-accent: var(--c-attn); --sa-up: var(--c-ok); --sa-down: var(--c-danger); --sa-warn: var(--c-warn);
+
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+}
+body.admin h1, body.admin h2, body.admin h3 { color: var(--c-ink); font-weight: 700; letter-spacing: -.005em; }
+body.admin a { color: var(--c-brand); }
+body.admin ::selection { background: var(--c-brand-100); }
+
+/* ---------- আইকন ---------- */
+.ic { width: 18px; height: 18px; flex: none; display: inline-block; vertical-align: -3px;
+  stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ic-sm { width: 15px; height: 15px; vertical-align: -2px; }
+.ic-lg { width: 22px; height: 22px; }
+
+/* ---------- বাটন (btn আর sa-btn দুটোই একই চেহারা) ---------- */
+body.admin .btn, body.admin .sa-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--h-ctl); padding: 0 16px; border-radius: var(--r);
+  border: 1px solid transparent; font: inherit; font-size: var(--fs); font-weight: 600; line-height: 1.2;
+  text-decoration: none !important; cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s, box-shadow .15s, color .15s;
+}
+body.admin .btn:focus-visible, body.admin .sa-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+/* প্রধান কাজ */
+body.admin .btn-primary, body.admin .sa-btn, body.admin .sa-btn-accent {
+  background: var(--c-brand); border-color: var(--c-brand); color: #fff !important;
+}
+body.admin .btn-primary:hover, body.admin .sa-btn:hover, body.admin .sa-btn-accent:hover { background: var(--c-brand-600); border-color: var(--c-brand-600); }
+/* দ্বিতীয় সারির কাজ */
+body.admin .btn-outline, body.admin .sa-btn-ghost, body.admin .btn:not(.btn-primary):not(.btn-danger):not(.btn-outline) {
+  background: #fff; border-color: var(--c-line-strong); color: var(--c-ink) !important;
+}
+body.admin .btn-outline:hover, body.admin .sa-btn-ghost:hover, body.admin .btn:not(.btn-primary):not(.btn-danger):not(.btn-outline):hover {
+  background: #f8fafc; border-color: #94a3b8;
+}
+/* বিপদ */
+body.admin .btn-danger, body.admin .sa-btn-danger { background: #fff; border-color: #fecaca; color: var(--c-danger) !important; }
+body.admin .btn-danger:hover, body.admin .sa-btn-danger:hover { background: var(--c-danger-bg); border-color: #fca5a5; }
+/* মাপ */
+body.admin .btn-sm, body.admin .sa-btn-sm { min-height: 32px; padding: 0 12px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
+body.admin .btn-lg { min-height: 48px; padding: 0 22px; font-size: var(--fs-lg); }
+body.admin .btn-block, body.admin .sa-btn-block { display: flex; width: 100%; }
+body.admin .btn[disabled], body.admin .sa-btn[disabled] { opacity: .55; cursor: not-allowed; }
+body.admin .btn-link { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 4px 2px;
+  color: var(--c-brand); font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+body.admin .btn-link:hover { text-decoration: underline; }
+
+/* ---------- ফর্ম ---------- */
+body.admin .field > span, body.admin .set-field { color: var(--c-ink); font-size: var(--fs-sm); font-weight: 600; }
+body.admin .field input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),
+body.admin .field textarea, body.admin .field select,
+body.admin .set-field input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),
+body.admin .set-field textarea, body.admin .set-field select,
+body.admin .search input, body.admin .row-form input, body.admin .row-form select, body.admin .sa-search input,
+body.admin .input {
+  width: 100%; min-height: var(--h-ctl); padding: 8px 12px;
+  border: 1px solid var(--c-line-strong); border-radius: var(--r); background: #fff;
+  font: inherit; font-size: var(--fs); color: var(--c-ink);
+  transition: border-color .15s, box-shadow .15s;
+}
+body.admin .field textarea, body.admin .set-field textarea { min-height: 90px; line-height: 1.55; }
+body.admin .field input:focus, body.admin .field textarea:focus, body.admin .field select:focus,
+body.admin .set-field input:focus, body.admin .set-field textarea:focus, body.admin .set-field select:focus,
+body.admin .search input:focus, body.admin .row-form input:focus, body.admin .input:focus {
+  outline: none; border-color: var(--c-brand); box-shadow: var(--ring);
+}
+body.admin input::placeholder, body.admin textarea::placeholder { color: #94a3b8; }
+body.admin input[type=checkbox], body.admin input[type=radio] { accent-color: var(--c-brand); width: 16px; height: 16px; }
+body.admin input[type=file] { font: inherit; font-size: var(--fs-sm); color: var(--c-mute); }
+body.admin input[type=file]::file-selector-button {
+  margin-right: 10px; min-height: 34px; padding: 0 14px; border: 1px solid var(--c-line-strong); border-radius: var(--r-sm);
+  background: #fff; color: var(--c-ink); font: inherit; font-weight: 600; cursor: pointer;
+}
+body.admin input[type=file]::file-selector-button:hover { background: #f8fafc; }
+body.admin .field small, body.admin .hint { color: var(--c-mute); font-size: var(--fs-xs); font-weight: 400; }
+body.admin fieldset { border: 1px solid var(--c-line); border-radius: var(--r-lg); padding: var(--sp-4); }
+body.admin legend { padding: 0 6px; font-weight: 700; color: var(--c-ink); }
+
+/* ---------- কার্ড / প্যানেল ---------- */
+body.admin .sa-card, body.admin .panel, body.admin .card, body.admin .admin-form:not(.set-form), body.admin .set-form > .sa-card {
+  background: var(--c-card); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--sh-sm);
+}
+body.admin .panel, body.admin .card { padding: var(--sp-4) var(--sp-5); }
+body.admin .admin-form:not(.set-form) { padding: var(--sp-5); }
+body.admin .sa-card-head h2, body.admin .panel > h2:first-child { font-size: 1rem; margin: 0 0 var(--sp-3); }
+
+/* ---------- টেবিল ---------- */
+body.admin .table-wrap { background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-lg); overflow-x: auto; box-shadow: var(--sh-sm); }
+body.admin .table, body.admin .sa-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+body.admin .table th, body.admin .sa-table th {
+  background: #f8fafc; color: var(--c-mute); font-size: var(--fs-xs); font-weight: 600; text-transform: none; letter-spacing: 0;
+  text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--c-line); white-space: nowrap;
+}
+body.admin .table td, body.admin .sa-table td { padding: 11px 12px; border-bottom: 1px solid #eef2f6; vertical-align: middle; color: var(--c-text); }
+body.admin .table tr:last-child td, body.admin .sa-table tr:last-child td { border-bottom: 0; }
+body.admin .table tbody tr:hover td, body.admin .sa-table tr:hover td { background: #fafcfd; }
+
+/* ---------- ব্যাজ / পিল / স্ট্যাটাস ---------- */
+body.admin .pill, body.admin .sa-pill, body.admin .badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: var(--r-pill);
+  font-size: var(--fs-xs); font-weight: 600; line-height: 1.5; background: #f1f5f9; color: var(--c-text); white-space: nowrap;
+}
+body.admin .pill-ok, body.admin .badge-ok { background: var(--c-ok-bg); color: var(--c-ok); }
+body.admin .pill-bad, body.admin .badge-bad { background: var(--c-danger-bg); color: var(--c-danger); }
+body.admin .badge-warn { background: var(--c-warn-bg); color: var(--c-warn); }
+body.admin .badge-info { background: var(--c-info-bg); color: var(--c-info); }
+body.admin .sa-badge { background: var(--c-attn); }
+
+/* ---------- ট্যাব ---------- */
+body.admin .tab, body.admin .set-tabs a {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  min-height: 36px; padding: 0 14px; border-radius: var(--r); border: 1px solid var(--c-line);
+  background: #fff; color: var(--c-text) !important; font-weight: 600; font-size: var(--fs-sm); text-decoration: none !important;
+}
+body.admin .tab:hover, body.admin .set-tabs a:hover { border-color: var(--c-line-strong); color: var(--c-ink) !important; }
+body.admin .tab.active, body.admin .set-tabs a.active { background: var(--c-brand-50); border-color: var(--c-brand); color: var(--c-brand) !important; }
+body.admin .tab-count { background: #f1f5f9; color: var(--c-text); font-size: var(--fs-xs); min-width: 22px; border-radius: var(--r-pill); padding: 0 6px; }
+body.admin .tab.active .tab-count { background: var(--c-brand); color: #fff; }
+
+/* ---------- অ্যালার্ট / ব্যানার ---------- */
+body.admin .alert { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r); border: 1px solid; font-size: var(--fs-sm); margin: 0 0 var(--sp-4); }
+body.admin .alert-ok { background: #f0fdf4; border-color: #bbf7d0; color: #14532d; }
+body.admin .alert-error { background: #fef2f2; border-color: #fecaca; color: #7f1d1d; }
+body.admin p.error, body.admin div.error { padding: 10px 12px; border: 1px solid #fecaca; border-radius: var(--r); }
+
+/* ---------- খালি অবস্থা ---------- */
+body.admin .empty, body.admin .empty-box, body.admin .sa-empty { text-align: center; color: var(--c-mute); }
+body.admin .empty-box { padding: 40px 20px; border: 1px dashed var(--c-line-strong); border-radius: var(--r-lg); background: #fff; }
+.empty-state { text-align: center; padding: 44px 20px; color: var(--c-mute); }
+.empty-state .ic { width: 40px; height: 40px; color: #94a3b8; stroke-width: 1.5; margin-bottom: 8px; }
+.empty-state h3 { margin: 0 0 4px; font-size: 1.02rem; color: var(--c-ink); }
+.empty-state p { margin: 0 0 14px; font-size: var(--fs-sm); }
+
+/* ---------- পেজের মাথা ---------- */
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 var(--sp-4); }
+.page-head p { margin: 2px 0 0; color: var(--c-mute); font-size: var(--fs-sm); max-width: 680px; }
+.page-head .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+body.admin .muted, body.admin .sa-muted, body.admin .small { color: var(--c-mute); }
+body.admin .small { font-size: var(--fs-sm); }
+
+/* =====================================================================
+   শেল: সাইডবার, উপরের বার
+   ===================================================================== */
+body.admin .sa-side { background: #0b1220; width: 252px; }
+body.admin .sa-main { margin-left: 252px; }
+@media (max-width: 960px) { body.admin .sa-main { margin-left: 0; } }
+body.admin .sa-brand { padding: 18px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.06); }
+body.admin .sa-logo { background: var(--c-brand); border-radius: 10px; font-size: 1rem; }
+body.admin .sa-shop-logo { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; background: #fff; }
+body.admin .sa-brand > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+body.admin .sa-nav { padding: 8px 10px 12px; min-height: 0; scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+body.admin .sa-nav a { gap: 11px; padding: 8px 12px; margin: 1px 0; border-radius: var(--r-sm); font-size: var(--fs-sm); color: #cbd5e1; }
+body.admin .sa-nav a .ic { color: #94a3b8; }
+body.admin .sa-nav a:hover .ic, body.admin .sa-nav a.active .ic { color: #5eead4; }
+body.admin .sa-nav a.active { background: rgba(20, 184, 166, .14); box-shadow: inset 3px 0 0 #2dd4bf; color: #fff; }
+body.admin .sa-nav-group { font-size: .68rem; letter-spacing: .06em; color: #64748b; padding: 16px 12px 4px; font-weight: 600; }
+body.admin .sa-ico { display: inline-flex; width: auto; }
+body.admin .sa-me { flex: none; background: #0b1220; }
+body.admin .sa-logout { display: inline-flex; }
+body.admin .sa-top { padding: 12px 24px; min-height: 60px; }
+body.admin .sa-top h1 { font-size: var(--fs-lg); font-weight: 700; }
+body.admin .sa-top-actions { margin-left: auto; display: flex; gap: 8px; }
+body.admin .sa-burger { display: none; align-items: center; color: var(--c-ink); }
+@media (max-width: 960px) { body.admin .sa-burger { display: inline-flex; } body.admin .sa-top { padding: 10px 14px; } }
+body.admin .sa-content { padding: 24px 24px 56px; max-width: 1280px; }
+@media (max-width: 960px) { body.admin .sa-content { padding: 16px 12px 48px; } }
+/* পেজের ভেতরে নিজের শিরোনাম থাকলে উপরের বারেরটা লুকাই — একই লেখা দুইবার নয় */
+body.admin .sa-main:has(.sa-content h1) .sa-top h1 { visibility: hidden; }
+body.admin .sa-content h1 { font-size: var(--fs-xl); margin: 0 0 var(--sp-4); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; line-height: 1.3; }
+body.admin .detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 var(--sp-4); }
+body.admin .detail-head h1 { margin: 0; }
+body.admin .inline-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ব্যানার (ট্রায়াল, ঘোষণা) */
+body.admin .banner { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;
+  padding: 9px 16px; font-size: var(--fs-sm); text-align: center; border-bottom: 1px solid rgba(15, 23, 42, .06); }
+
+/* লগইন পেজ */
+body.admin-login { min-height: 100vh; display: grid; place-items: center; background: linear-gradient(180deg, #f0fdfa, var(--c-bg) 40%); }
+body.admin-login .admin-main { width: 100%; padding: 24px 16px; }
+body.admin-login .login-box { max-width: 400px; margin: 0 auto; padding: 28px; border-radius: var(--r-lg); box-shadow: var(--sh); border: 1px solid var(--c-line); }
+body.admin-login .login-box h1 { font-size: var(--fs-xl); margin: 0 0 4px; text-align: center; }
+body.admin-login .login-brand { display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 800; color: var(--c-ink); margin-bottom: 18px; font-size: 1.15rem; }
+body.admin-login .login-brand span.mark { width: 34px; height: 34px; border-radius: 10px; background: var(--c-brand); color: #fff; display: grid; place-items: center; }
+body.admin-login .order-form { display: grid; gap: 14px; margin-top: 16px; }

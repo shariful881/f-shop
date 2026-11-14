@@ -1,4 +1,4 @@
-/* F-Shop — সাধারণ JS (কোনো framework নয়) */
+/* SellxBD — সাধারণ JS (কোনো framework নয়) */
 (function () {
   "use strict";
   var bnDigits = "০১২৩৪৫৬৭৮৯";

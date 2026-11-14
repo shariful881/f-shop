@@ -85,7 +85,7 @@ describe("প্রতিটা দোকানের ডাটা সম্প�
     expect((await DB.prepare("SELECT COUNT(*) n FROM orders").first())!.n).toBe(1);
     expect((await dbB.prepare("SELECT COUNT(*) n FROM orders").first())!.n).toBe(0);
     expect((await dbB.prepare("SELECT COUNT(*) n FROM blacklist_entries").first())!.n).toBe(0);
-    expect((await dbB.prepare("SELECT value FROM settings WHERE key='site_name'").first())!.value).toBe("F-Shop");
+    expect((await dbB.prepare("SELECT value FROM settings WHERE key='site_name'").first())!.value).toBe("আমার দোকান");
 
     // A-তে পেন্ডিং অর্ডার থাকলেও B-তে একই নম্বরে অর্ডার দেওয়া যায় (নিয়মগুলো দোকানভিত্তিক)
     const b = new Browser();

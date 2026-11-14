@@ -90,7 +90,7 @@ describe("অর্ডারে SMS", () => {
     await settle();
     const o = (await lastOrder())!;
     const msg = new URL(smsCalls()[0]!.url).searchParams.get("message");
-    expect(msg).toBe(`প্রিয় রহিম উদ্দিন, অর্ডার ${o.order_no} কনফার্ম। মোট 1320 টাকা - F-Shop`);
+    expect(msg).toBe(`প্রিয় রহিম উদ্দিন, অর্ডার ${o.order_no} কনফার্ম। মোট 1320 টাকা - আমার দোকান`);
     expect((await logs())[0]).toMatchObject({ order_id: id, event: "confirmed", status: "sent", phone: "01712345678" });
     // সফল SMS "আবার পাঠান" দিয়ে দ্বিতীয়বার যায় না
     await a.post(`/admin/orders/sms/${(await logs())[0].id}/resend`, {});
