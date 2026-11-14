@@ -410,13 +410,25 @@ export const BlacklistPage = ({ rows, q }: { rows: BlacklistRow[]; q: string }) 
 export const SettingsPage = ({ s }: { s: Settings }) => (
   <>
     <h1>সেটিংস</h1>
-    <form method="post" action="/admin/settings" class="admin-form">
+    <form method="post" action="/admin/settings" class="admin-form" enctype="multipart/form-data">
       <h2>সাধারণ</h2>
       <div class="form-grid">
         <label class="field"><span>সাইটের নাম</span><input type="text" name="site_name" value={s.site_name} required /></label>
         <label class="field"><span>যোগাযোগ নম্বর</span><input type="text" name="contact_phone" value={s.contact_phone} required /></label>
         <label class="field"><span>ডেলিভারি চার্জ — ঢাকার ভিতরে (৳)</span><input type="number" min="0" name="delivery_inside" value={s.delivery_inside} required /></label>
         <label class="field"><span>ডেলিভারি চার্জ — ঢাকার বাইরে (৳)</span><input type="number" min="0" name="delivery_outside" value={s.delivery_outside} required /></label>
+      </div>
+      <h2>লোগো আর রং</h2>
+      <div class="form-grid">
+        <label class="field"><span>লোগো (PNG/JPG/WebP, ১ MB পর্যন্ত — ফাঁকা রাখলে আগেরটা থাকবে)</span>
+          {s.logo && <img src={imageUrl(s.logo)} height="40" class="logo-preview" alt="" />}
+          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
+          {s.logo && <label class="small-check"><input type="checkbox" name="remove_logo" value="1" /> লোগো সরান</label>}
+        </label>
+        <div class="field color-fields">
+          <label><span>মূল রং (হেডার, দাম)</span><input type="color" name="brand_color" value={s.brand_color || "#0f766e"} /></label>
+          <label><span>বাটনের রং</span><input type="color" name="accent_color" value={s.accent_color || "#ea580c"} /></label>
+        </div>
       </div>
       <h2>Facebook (Pixel + Conversions API)</h2>
       <div class="form-grid">

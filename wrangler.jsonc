@@ -17,6 +17,12 @@
     "CF_ACCOUNT_ID": ""
   },
 
+  // মূল ডোমেইন কিনে Cloudflare-এ যোগ করার পর নিচের // মুছে দিন (README ধাপ ৫)
+  // "routes": [
+  //   { "pattern": "ourdomain.com/*", "zone_name": "ourdomain.com" },
+  //   { "pattern": "*.ourdomain.com/*", "zone_name": "ourdomain.com" }
+  // ],
+
   // মূল ডাটাবেস: দোকানের তালিকা, ডোমেইন, বিলিং
   // লাইভ করার আগে Cloudflare-এ D1 বানিয়ে database_id বদলাবেন (README দেখুন)
   "d1_databases": [

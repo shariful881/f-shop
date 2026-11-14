@@ -9,7 +9,27 @@ export const SETTING_KEYS = [
   "fb_capi_token",
   "fb_test_event_code",
   "fb_graph_version",
+  "logo",
+  "brand_color",
+  "accent_color",
 ] as const;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+export const safeColor = (v: string | undefined, def: string) => (v && HEX.test(v) ? v.toLowerCase() : def);
+
+/** রং একটু গাঢ় করা (hover/শিরোনামের জন্য) */
+export function darken(hex: string, f = 0.8): string {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => Math.round(x * f).toString(16).padStart(2, "0"));
+  return `#${c.join("")}`;
+}
+
+/** দোকানের রং দিয়ে CSS ভেরিয়েবল */
+export function themeCss(s: Settings): string {
+  const brand = safeColor(s.brand_color, "#0f766e");
+  const accent = safeColor(s.accent_color, "#ea580c");
+  return `:root{--brand:${brand};--brand-dark:${darken(brand)};--accent:${accent};--accent-dark:${darken(accent, 0.85)}}`;
+}
 
 export async function loadSettings(db: D1Database): Promise<Settings> {
   const { results } = await db.prepare("SELECT key, value FROM settings").all<{ key: string; value: string | null }>();

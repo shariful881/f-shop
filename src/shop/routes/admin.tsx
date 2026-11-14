@@ -8,7 +8,7 @@ import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
 import type { Category, Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
-import { saveSettings } from "../lib/settings";
+import { safeColor, saveSettings } from "../lib/settings";
 import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
@@ -352,6 +352,26 @@ admin.post("/settings", async (c) => {
     fb_test_event_code: str(b.fb_test_event_code, 50),
     fb_graph_version: /^v\d+\.\d+$/.test(str(b.fb_graph_version, 10)) ? str(b.fb_graph_version, 10) : "v26.0",
   };
+  values.brand_color = safeColor(str(b.brand_color, 7), c.var.settings.brand_color || "#0f766e");
+  values.accent_color = safeColor(str(b.accent_color, 7), c.var.settings.accent_color || "#ea580c");
+
+  // লোগো
+  const logo = b.logo;
+  if (logo instanceof File && logo.size > 0) {
+    const ext = IMAGE_TYPES[logo.type];
+    if (!ext || logo.size > 1024 * 1024) {
+      flash(c, "error", "লোগো PNG/JPG/WebP আর ১ MB-এর কম হতে হবে");
+      return c.redirect("/admin/settings", 303);
+    }
+    const key = `logo/${crypto.randomUUID()}.${ext}`;
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await logo.arrayBuffer(), { httpMetadata: { contentType: logo.type } });
+    if (c.var.settings.logo) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, c.var.settings.logo)).catch(() => {});
+    values.logo = key;
+  } else if (b.remove_logo && c.var.settings.logo) {
+    await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, c.var.settings.logo)).catch(() => {});
+    values.logo = "";
+  }
+
   // টোকেন: ফাঁকা রাখলে আগেরটাই থাকে
   const token = str(b.fb_capi_token, 1000);
   if (token) values.fb_capi_token = token;

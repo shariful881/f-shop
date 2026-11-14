@@ -29,7 +29,8 @@ main { min-height: 60vh; padding-bottom: 90px; }
 /* হেডার */
 .site-header { background: var(--brand); color: #fff; position: sticky; top: 0; z-index: 20; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
-.logo { color: #fff; font-weight: 700; font-size: 1.25rem; text-decoration: none; }
+.logo { color: #fff; font-weight: 700; font-size: 1.25rem; text-decoration: none; display: flex; align-items: center; }
+.logo-img { height: 36px; width: auto; max-width: 180px; object-fit: contain; }
 .cart-link { color: #fff; text-decoration: none; font-weight: 600; }
 .cart-count { background: var(--accent); border-radius: 999px; padding: 0 8px; margin-left: 2px; }
 
@@ -39,7 +40,7 @@ main { min-height: 60vh; padding-bottom: 90px; }
   font: inherit; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; line-height: 1.3;
 }
 .btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: #c2410c; }
+.btn-primary:hover { background: var(--accent-dark, #c2410c); }
 .btn-outline { background: #fff; color: var(--brand); border-color: var(--brand); }
 .btn-block { display: block; width: 100%; }
 .btn-lg { padding: 14px 18px; font-size: 1.1rem; }

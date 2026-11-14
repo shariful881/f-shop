@@ -1,6 +1,7 @@
 import type { Child } from "hono/jsx";
 import type { Settings } from "../lib/settings";
-import { bn } from "../lib/format";
+import { bn, imageUrl } from "../lib/format";
+import { themeCss } from "../lib/settings";
 
 export const ASSET_VERSION = "1";
 
@@ -25,15 +26,18 @@ export const Layout = (p: LayoutProps) => (
       <meta property="og:title" content={p.title} />
       {p.description && <meta property="og:description" content={p.description} />}
       {p.ogImage && <meta property="og:image" content={p.ogImage} />}
-      <meta name="theme-color" content="#0f766e" />
+      <meta name="theme-color" content={p.settings.brand_color || "#0f766e"} />
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
+      <style dangerouslySetInnerHTML={{ __html: themeCss(p.settings) }} />
       <script src={`/js/device.js?v=${ASSET_VERSION}`}></script>
       {p.head}
     </head>
     <body>
       <header class="site-header">
         <div class="wrap header-inner">
-          <a href="/" class="logo">{p.settings.site_name || "F-Shop"}</a>
+          <a href="/" class="logo">
+            {p.settings.logo ? <img src={imageUrl(p.settings.logo)} alt={p.settings.site_name || ""} class="logo-img" height="36" /> : (p.settings.site_name || "F-Shop")}
+          </a>
           <a href="/cart" class="cart-link" aria-label="কার্ট">
             🛒 কার্ট <span class="cart-count" data-cart-count>{bn(p.cartCount ?? 0)}</span>
           </a>
