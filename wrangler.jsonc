@@ -1,0 +1,35 @@
+{
+  // F-Shop — Cloudflare Workers কনফিগ
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "f-shop",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // public/ ফোল্ডারের CSS/JS/ছবি সরাসরি পরিবেশন হবে
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // ডাটাবেস (লোকালে এটা .wrangler/ ফোল্ডারে একটা SQLite ফাইল)
+  // লাইভ করার আগে Cloudflare-এ D1 বানিয়ে নিচের database_id বদলাবেন (README দেখুন)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "f-shop-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // পণ্যের ছবি রাখার জায়গা
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "f-shop-images"
+    }
+  ],
+
+  "observability": { "enabled": true }
+}

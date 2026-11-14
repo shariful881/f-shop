@@ -1,0 +1,42 @@
+{
+  "name": "f-shop",
+  "version": "1.0.0",
+  "description": "F-Shop — ল্যান্ডিং-পেজভিত্তিক ই-কমার্স (Hono + Cloudflare Workers + D1)",
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0 --port 8000",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "wrangler d1 migrations apply DB --local",
+    "db:seed": "wrangler d1 execute DB --local --file=scripts/seed-demo.sql",
+    "db:reset": "rm -rf .wrangler/state && npm run db:migrate && npm run db:seed",
+    "admin:create": "node scripts/admin-create.mjs",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shariful881/f-shop.git"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/shariful881/f-shop/issues"
+  },
+  "homepage": "https://github.com/shariful881/f-shop#readme",
+  "dependencies": {
+    "hono": "^4.13.18"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.8.2",
+    "@cloudflare/workers-types": "^5.20261114.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.162.0"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}
