@@ -39,8 +39,8 @@ export async function agentsOnline(env: Env): Promise<number> {
 
 /* ---------- অফিস সময় ---------- */
 export function withinHours(s: Record<string, string>, now = new Date()): boolean {
-  const start = s.support_hours_start || "10:00";
-  const end = s.support_hours_end || "22:00";
+  const start = s.support_hours_start || "00:00";
+  const end = s.support_hours_end || "00:00";
   if (start === end) return true; // ২৪ ঘণ্টা
   const dhaka = new Date(now.getTime() + 6 * 3600e3);
   const m = dhaka.getUTCHours() * 60 + dhaka.getUTCMinutes();
@@ -55,8 +55,8 @@ export function hoursText(s: Record<string, string>): string {
     const part = (h || 0) < 12 ? "সকাল" : (h || 0) < 17 ? "দুপুর" : (h || 0) < 19 ? "বিকাল" : "রাত";
     return `${part} ${bn(hh)}${m ? `:${bn(String(m).padStart(2, "0"))}` : ""}টা`;
   };
-  if ((s.support_hours_start || "10:00") === (s.support_hours_end || "22:00")) return "২৪ ঘণ্টা";
-  return `${f(s.support_hours_start || "10:00")} থেকে ${f(s.support_hours_end || "22:00")}`;
+  if ((s.support_hours_start || "00:00") === (s.support_hours_end || "00:00")) return "২৪ ঘণ্টা";
+  return `${f(s.support_hours_start || "00:00")} থেকে ${f(s.support_hours_end || "00:00")}`;
 }
 
 /* ---------- Telegram নোটিফিকেশন ---------- */

@@ -153,8 +153,8 @@ export function registerSuperSupport(app: Hono<PEnv>, h: Helpers) {
     const b = await c.req.parseBody();
     const time = (v: unknown, d: string) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(str(v, 5)) ? str(v, 5) : d);
     const values: [string, string][] = [
-      ["support_hours_start", time(b.support_hours_start, "10:00")],
-      ["support_hours_end", time(b.support_hours_end, "22:00")],
+      ["support_hours_start", time(b.support_hours_start, "00:00")],
+      ["support_hours_end", time(b.support_hours_end, "00:00")],
       ["telegram_chat_id", b.telegram_clear ? "" : str(b.telegram_chat_id, 40).replace(/[^\d-]/g, "")],
     ];
     const token = str(b.telegram_bot_token, 120);

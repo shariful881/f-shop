@@ -247,10 +247,10 @@ export const SupportSettingsPage = (p: { s: Record<string, string> }) => {
     <form method="post" action="/super/support/settings" class="sa-card sx-form sx-narrow">
       <div class="sa-card-head"><h2>⚙ সাপোর্ট সেটিংস</h2></div>
       <h3>অফিস সময় (বাংলাদেশ সময়)</h3>
-      <p class="sx-muted">এই সময়ের বাইরে দোকানদার চ্যাট করলে অটো-উত্তর যাবে আর মেসেজ টিকেট হিসেবে জমা থাকবে। শুরু আর শেষ একই দিলে ২৪ ঘণ্টা।</p>
+      <p class="sx-muted">এই সময়ের বাইরে দোকানদার চ্যাট করলে অটো-উত্তর যাবে আর মেসেজ টিকেট হিসেবে জমা থাকবে। শুরু আর শেষ একই দিলে ২৪ ঘণ্টা খোলা (এখনকার নিয়ম)। ২৪ ঘণ্টায় টিমের কেউ অনলাইনে না থাকলে "সবাই ব্যস্ত" অটো-উত্তর যায়।</p>
       <div class="sx-grid2">
-        <label class="field">শুরু<input type="time" name="support_hours_start" value={p.s.support_hours_start || "10:00"} required /></label>
-        <label class="field">শেষ<input type="time" name="support_hours_end" value={p.s.support_hours_end || "22:00"} required /></label>
+        <label class="field">শুরু<input type="time" name="support_hours_start" value={p.s.support_hours_start || "00:00"} required /></label>
+        <label class="field">শেষ<input type="time" name="support_hours_end" value={p.s.support_hours_end || "00:00"} required /></label>
       </div>
       <h3>Telegram নোটিফিকেশন</h3>
       <p class="sx-muted">
