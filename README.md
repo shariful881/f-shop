@@ -91,54 +91,31 @@ npm test
 
 ## ৫. Cloudflare-এ লাইভ করা
 
-### ধাপ ১: Cloudflare অ্যাকাউন্ট আর Workers Paid প্ল্যান
-[dash.cloudflare.com](https://dash.cloudflare.com)-এ অ্যাকাউন্ট খুলুন → **Workers & Pages** → **Plans** → **Workers Paid** (মাসে $৫ থেকে)। ফ্রি প্ল্যানে মোট স্টোরেজ আর দৈনিক রিকোয়েস্টের সীমা অনেক কম, SaaS-এর জন্য যথেষ্ট নয়।
+> ✅ **এখন লাইভ:** https://sellxbd.com — Cloudflare **ফ্রি প্ল্যানে** চলছে (খরচ ৳০, শুধু ডোমেইনের দাম)।
+> `main`-এ push করলেই টেস্ট চলে, সব পাস হলে নিজে থেকে লাইভ আপডেট হয়।
 
-### ধাপ ২: মূল ডোমেইন
-ডোমেইন কিনে Cloudflare-এ যোগ করুন (**Add a domain** → Cloudflare-এর দুটো নেমসার্ভার ডোমেইন কোম্পানির প্যানেলে বসান)। স্ট্যাটাস **Active** হওয়া পর্যন্ত অপেক্ষা করুন।
+### যা সেটআপ করা আছে
+- **ডোমেইন:** `sellxbd.com` Cloudflare-এ Active। DNS-এ `sellxbd.com` আর `*.sellxbd.com` (AAAA `100::`, proxied) — ডিপ্লয়ের সময় `scripts/ensure-dns.mjs` না থাকলে নিজে বানায়
+- **মূল ডাটাবেস (D1):** `f-shop-platform` — id `wrangler.jsonc`-এ। টেবিল ডিপ্লয়ের সময় নিজে তৈরি/আপডেট হয়
+- **ছবি:** R2 লাগে না — প্রতিটা দোকানের নিজের ডাটাবেসে থাকে (১MB-এর টুকরোয়), Cloudflare edge cache থেকে পরিবেশন হয়
+- **পাসওয়ার্ড হ্যাশ:** PBKDF2 ২০,০০০ বার — ফ্রি প্ল্যানের ১০ms CPU সীমার মধ্যে (লগইনে ভুল চেষ্টার সীমাও আছে)
+- **GitHub secret:** `CLOUDFLARE_API_TOKEN` (টোকেনের নাম "SellxBD deploy (GitHub)")। একই টোকেন Worker-এ `CF_API_TOKEN` হিসেবেও বসে (দোকানদারের নিজের ডোমেইন ফিচারের জন্য)
 
-তারপর **DNS** → **Add record**:
-- Type `AAAA`, Name `@`, Content `100::`, Proxy চালু (কমলা মেঘ)
-- Type `AAAA`, Name `*`, Content `100::`, Proxy চালু
+### ফ্রি প্ল্যানের সীমা (বড় হলে Workers Paid $৫/মাস নেবেন)
+- দিনে ১,০০,০০০ রিকোয়েস্ট (ছবি edge cache থেকে গেলে গোনা হয় না)
+- একবারে বাল্ক কুরিয়ারে সর্বোচ্চ ২০টা অর্ডার
+- Durable Objects (দোকানের ডাটাবেস) মোট ৫GB
 
-(এগুলো শুধু ট্রাফিক Worker-এ পাঠানোর জন্য। `*` থাকায় সব দোকানের subdomain চলবে।)
+Paid প্ল্যান নিলে কোড বদলাতে হবে না।
 
-### ধাপ ৩: মূল ডাটাবেস (D1) আর ছবির জায়গা (R2)
-1. **Storage & Databases → D1** → **Create** → নাম `f-shop-platform` → **Database ID** কপি করুন
-2. **R2** → **Create bucket** → নাম `f-shop-images` (প্রথমবার Cloudflare কার্ড চাইতে পারে, ফ্রি সীমার মধ্যে টাকা কাটে না)
+### টোকেন নষ্ট/ফাঁস হলে
+Cloudflare → My Profile → API Tokens → "SellxBD deploy (GitHub)" → **Roll** → নতুন টোকেন কপি করে GitHub → Settings → Secrets and variables → Actions → `CLOUDFLARE_API_TOKEN` → ✏️ → **Secret** ঘরে পেস্ট (নামের ঘরে নয়!) → Actions থেকে **Run workflow**।
 
-### ধাপ ৪: `wrangler.jsonc` ঠিক করা
-GitHub-এ `wrangler.jsonc` → ✏️ এডিট:
-- `"PLATFORM_DOMAIN": "ourdomain.com"` → আপনার ডোমেইন
-- `"CF_ACCOUNT_ID": ""` → আপনার Account ID (ড্যাশবোর্ডের হোম পেজে অ্যাকাউন্টের নামের পাশে)
-- `"database_id": "00000000-..."` → ধাপ ৩-এর Database ID
-- `"routes"` অংশের সামনের `//` মুছে দিন, আর `ourdomain.com`-এর জায়গায় আপনার ডোমেইন লিখুন
+> **লাইভে টেস্ট মোড বন্ধ থাকে।** লাইভে `?shop=` কাজ করে না, শুধু আসল ডোমেইন/subdomain দিয়ে দোকান খোলে।
 
-**Commit changes** চাপুন।
-
-### ধাপ ৫: ডিপ্লয়ের টোকেন (GitHub-এর জন্য)
-1. প্রোফাইল → **My Profile** → **API Tokens** → **Create Token** → **Edit Cloudflare Workers** টেমপ্লেট
-2. **+ Add more** → `Account` · `D1` · `Edit`
-3. Account Resources: আপনার অ্যাকাউন্ট · Zone Resources: All zones → **Create Token** → কপি করুন
-4. GitHub repo → **Settings** → **Secrets and variables** → **Actions** → দুটো secret:
-   - `CLOUDFLARE_API_TOKEN` = এই টোকেন
-   - `CLOUDFLARE_ACCOUNT_ID` = Account ID
-
-### ধাপ ৬: লাইভ
-repo → **Actions** → **Test & Deploy** → **Run workflow** (অথবা যেকোনো কিছু push করুন)। টেস্ট পাস হলে মূল ডাটাবেসের টেবিল তৈরি হবে আর সাইট লাইভ হবে। `https://আপনার-ডোমেইন` খুলে দেখুন।
-
-> **লাইভে টেস্ট মোড বন্ধ থাকে।** `.dev.vars` GitHub-এ যায় না, তাই লাইভে `?shop=` কাজ করে না, শুধু আসল ডোমেইন/subdomain দিয়ে দোকান খোলে।
-
-### ধাপ ৭: লাইভে সুপার অ্যাডমিন বানানো
-Codespace-এর টার্মিনালে:
-
-```bash
-export CLOUDFLARE_API_TOKEN=ধাপ৫-এর_টোকেন
-export CLOUDFLARE_ACCOUNT_ID=আপনার_account_id
-npm run super:create -- আপনার@ইমেইল.com --remote
-```
-
-তারপর `https://আপনার-ডোমেইন/super` → **সেটিংস**-এ bKash/Nagad/সাপোর্ট নম্বর বসান।
+### সুপার অ্যাডমিন
+লগইন: https://sellxbd.com/super — তারপর **সেটিংস**-এ bKash/Nagad/সাপোর্ট নম্বর বসান।
+পাসওয়ার্ড বদলাতে বা নতুন সুপার অ্যাডমিন: Codespace-এ `CLOUDFLARE_API_TOKEN=টোকেন npm run super:create -- ইমেইল --remote`
 
 ---
 
