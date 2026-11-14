@@ -1,0 +1,75 @@
+/**
+ * পাসওয়ার্ড hash (PBKDF2-SHA256) আর অ্যাডমিন সেশন।
+ * hash-এর ফরম্যাট: pbkdf2_sha256$<iterations>$<salt base64>$<hash base64>
+ * scripts/admin-create.mjs একই ফরম্যাটে Node দিয়ে hash বানায়।
+ */
+const enc = new TextEncoder();
+
+function b64(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+function unb64(s: string): Uint8Array {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<ArrayBuffer> {
+  const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
+}
+
+export async function hashPassword(password: string, iterations = 100_000): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2(password, salt, iterations);
+  return `pbkdf2_sha256$${iterations}$${b64(salt)}$${b64(hash)}`;
+}
+
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const [algo, iter, salt, hash] = stored.split("$");
+  if (algo !== "pbkdf2_sha256" || !iter || !salt || !hash) return false;
+  const iterations = parseInt(iter, 10);
+  if (!(iterations > 0 && iterations <= 100_000)) return false;
+  const actual = new Uint8Array(await pbkdf2(password, unb64(salt), iterations));
+  const expected = unb64(hash);
+  if (actual.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < actual.length; i++) diff |= actual[i]! ^ expected[i]!;
+  return diff === 0;
+}
+
+export async function sha256Hex(input: string): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", enc.encode(input));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export const SESSION_DAYS = 7;
+
+export async function createSession(db: D1Database, userId: number): Promise<string> {
+  const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  await db
+    .prepare(`INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, datetime('now', '+${SESSION_DAYS} days'))`)
+    .bind(await sha256Hex(token), userId)
+    .run();
+  return token;
+}
+
+export async function sessionUser(db: D1Database, token: string | undefined) {
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
+  return db
+    .prepare(
+      `SELECT u.id, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id
+       WHERE s.id = ? AND s.expires_at > datetime('now') AND u.is_admin = 1`,
+    )
+    .bind(await sha256Hex(token))
+    .first<{ id: number; email: string; name: string }>();
+}
+
+export async function destroySession(db: D1Database, token: string | undefined) {
+  if (!token) return;
+  await db.prepare("DELETE FROM sessions WHERE id = ?").bind(await sha256Hex(token)).run();
+}

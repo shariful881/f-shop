@@ -99,3 +99,20 @@ export async function countOrders(): Promise<number> {
 export async function lastOrder() {
   return env.DB.prepare("SELECT * FROM orders ORDER BY id DESC LIMIT 1").first<Record<string, any>>();
 }
+
+import { hashPassword } from "../src/lib/auth";
+
+/** টেস্টের জন্য অ্যাডমিন বানায় আর লগইন করা একটা ব্রাউজার ফেরত দেয় */
+export async function adminBrowser(email = "admin@test.com", password = "pass12345") {
+  const hash = await hashPassword(password, 1000);
+  await env.DB.prepare("INSERT OR REPLACE INTO users (name,email,password_hash,is_admin) VALUES ('Admin',?,?,1)").bind(email, hash).run();
+  const b = new Browser();
+  const res = await b.post("/admin/login", { email, password });
+  if (res.status !== 303) throw new Error("admin login failed: " + res.status);
+  return b;
+}
+
+/** অ্যাডমিন হিসেবে অর্ডারের স্ট্যাটাস বদলায় */
+export async function setStatus(adminB: Browser, orderId: number, status: string) {
+  return adminB.post(`/admin/orders/${orderId}/status`, { status });
+}

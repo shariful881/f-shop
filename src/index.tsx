@@ -3,6 +3,7 @@ import type { AppEnv } from "./env";
 import { withSettings, sameOriginPost, securityHeaders } from "./middleware/base";
 import { shop, notFound } from "./routes/shop";
 import { device } from "./middleware/device";
+import { admin } from "./routes/admin";
 
 const app = new Hono<AppEnv>();
 
@@ -13,6 +14,7 @@ app.get("/health", async (c) => {
 
 app.use("*", securityHeaders, withSettings, sameOriginPost, device);
 
+app.route("/admin", admin);
 app.route("/", shop);
 
 app.notFound((c) => notFound(c));
