@@ -72,18 +72,19 @@ export function registerSuperSupport(app: Hono<PEnv>, h: Helpers) {
            SUM(created_at >= datetime('now','-30 days') AND rating IS NOT NULL) rated
          FROM support_tickets`,
       ).bind(me(c).id),
-      db(c).prepare("SELECT SUM(status = 'pending') waiting FROM support_tickets"),
+      db(c).prepare(
+        "SELECT SUM(status = 'pending') waiting, SUM(channel = 'chat' AND status IN ('open','pending')) chat, SUM(channel = 'ticket' AND status IN ('open','pending')) ticket FROM support_tickets",
+      ),
     ]);
     const mm = (m!.results[0] ?? {}) as Record<string, number | null>;
     const metrics: Metrics = {
       open: mm.open ?? 0, unassigned: mm.unassigned ?? 0, mine: mm.mine ?? 0, urgent: mm.urgent ?? 0, frt: mm.frt ?? null,
       resolved7: mm.resolved7 ?? 0, csat: mm.csat ?? null, rated: mm.rated ?? 0, online: await agentsOnline(c.env),
     };
-    const tabCounts: Record<string, number> = {
-      open: metrics.open, mine: metrics.mine, unassigned: metrics.unassigned, waiting: ((counts!.results[0] ?? {}) as { waiting: number | null }).waiting ?? 0,
-    };
+    const cc = (counts!.results[0] ?? {}) as { waiting: number | null; chat: number | null; ticket: number | null };
+    const tabCounts: Record<string, number> = { open: metrics.open, mine: metrics.mine, unassigned: metrics.unassigned, waiting: cc.waiting ?? 0 };
     return h.page(c, "সাপোর্ট", "support",
-      <InboxPage rows={rows!.results as InboxRow[]} m={metrics} view={view} q={q} channel={channel} counts={tabCounts} />, 200,
+      <InboxPage rows={rows!.results as InboxRow[]} m={metrics} view={view} q={q} channel={channel} counts={tabCounts} chCounts={{ chat: cc.chat ?? 0, ticket: cc.ticket ?? 0 }} />, 200,
       <>
         <a href="/super/support/canned" class="sa-btn sa-btn-ghost sa-btn-sm">⚡ তৈরি উত্তর</a>
         {h.allowed(c, "support.settings") && <a href="/super/support/settings" class="sa-btn sa-btn-ghost sa-btn-sm">⚙ সেটিংস</a>}

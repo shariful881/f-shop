@@ -288,3 +288,32 @@ describe("রিয়েল-টাইম (WebSocket)", () => {
     expect(anon.status).not.toBe(101);
   });
 });
+
+describe("উইজেটের দুই ভাগ", () => {
+  it("উইজেট থেকে টিকেট (ajax) জমা হয়, টিকেটের তালিকায় শুধু টিকেট — চ্যাট নয়", async () => {
+    const a = await adminBrowser();
+    const html = await (await a.fetch("/admin")).text();
+    expect(html).toContain('data-sx-tab="chat"');
+    expect(html).toContain('data-sx-tab="ticket"');
+
+    const bad = new FormData(); bad.append("subject", "x"); bad.append("body", "y");
+    const r0 = await a.fetch("/admin/support/new", { method: "POST", body: bad, headers: { "x-sx-ajax": "1" } });
+    expect(r0.status).toBe(422);
+    expect((await r0.json<any>()).error).toContain("বিষয়");
+
+    const fd = new FormData(); fd.append("subject", "পেমেন্ট আটকে আছে"); fd.append("body", "রিচার্জ করেছি কিন্তু ব্যালেন্সে আসেনি");
+    const r = await a.fetch("/admin/support/new", { method: "POST", body: fd, headers: { "x-sx-ajax": "1" } });
+    const j = await r.json<any>();
+    expect(j.url).toBe(`/admin/support/${j.id}`);
+    await a.fetch("/admin/support/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: "চ্যাটের মেসেজ" }) });
+
+    const list = await (await a.fetch("/admin/support/tickets.json")).json<any>();
+    expect(list.tickets.map((t: any) => t.subject)).toEqual(["পেমেন্ট আটকে আছে"]);
+    expect(list.tickets[0].status_label).toBe("উত্তরের অপেক্ষায়");
+
+    const s = await agent();
+    const chats = await (await sget(s, "/super/support?channel=chat")).text();
+    expect(chats).toContain("চ্যাটের মেসেজ");
+    expect(chats).not.toContain("পেমেন্ট আটকে আছে");
+  });
+});

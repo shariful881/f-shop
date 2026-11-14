@@ -183,7 +183,9 @@
     var panel = $(".sx-panel", wg), log = $("[data-sx-log]", wg), form = $("[data-sx-chat-form]", wg);
     var input = $("textarea", form), fabBadge = $(".sx-fab-badge", wg), navBadge = $("[data-sx-nav-badge]");
     var wTyping = $("[data-sx-typing-ind]", wg);
-    var chatId = null, unread = 0, chatUnread = 0, loaded = false;
+    var bChat = $("[data-sx-badge-chat]", wg), bTicket = $("[data-sx-badge-ticket]", wg);
+    var tkList = $("[data-sx-tk-list]", wg), tkItems = $("[data-sx-tk-items]", wg), tkForm = $("[data-sx-tk-form]", wg), tkErr = $("[data-sx-tk-err]", wg);
+    var chatId = null, unread = 0, chatUnread = 0, ticketUnread = 0, loaded = false, tab = "chat";
     var state = { online: false, within: true, hours: "" };
 
     function setPresence() {
@@ -193,28 +195,76 @@
         t.textContent = onl ? "টিম অনলাইনে — সাধারণত কয়েক মিনিটে উত্তর" : (state.within ? "টিম এই মুহূর্তে ব্যস্ত — মেসেজ রেখে যান" : "অফলাইন · সাপোর্ট: " + state.hours);
       });
     }
+    function badge(node, n) { if (node) { node.hidden = !n; node.textContent = bn(n); } }
     function setBadges() {
-      if (fabBadge) { fabBadge.hidden = !chatUnread; fabBadge.textContent = bn(chatUnread); }
-      if (navBadge) { navBadge.hidden = !unread; navBadge.textContent = bn(unread); }
+      badge(fabBadge, chatUnread + ticketUnread);
+      badge(navBadge, unread);
+      badge(bChat, chatUnread);
+      badge(bTicket, ticketUnread);
     }
     function load() {
       return json(BASE + "/chat").then(function (r) {
         state.online = r.online && r.within; state.within = r.within; state.hours = r.hours;
-        chatId = r.ticketId; unread = r.unread || 0; chatUnread = r.chatUnread || 0;
+        chatId = r.ticketId; unread = r.unread || 0; chatUnread = r.chatUnread || 0; ticketUnread = r.ticketUnread || 0;
         (r.messages || []).forEach(function (m) { append(log, m); });
         loaded = true; setPresence(); setBadges();
       }).catch(function () {});
     }
-    function open() {
+
+    /* ---- দুই ভাগ: ট্যাব ---- */
+    function showTab(name) {
+      tab = name;
+      $$("[data-sx-tab]", wg).forEach(function (b) { var on = b.dataset.sxTab === name; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+      $$("[data-sx-pane]", wg).forEach(function (p) { p.hidden = p.dataset.sxPane !== name; });
+      if (name === "chat") {
+        scrollEnd(log); input.focus();
+        if (chatId && chatUnread) { unread = Math.max(0, unread - chatUnread); chatUnread = 0; setBadges(); markRead(chatId); }
+      } else { showList(); loadTickets(); }
+    }
+    $$("[data-sx-tab]", wg).forEach(function (b) { b.addEventListener("click", function () { showTab(b.dataset.sxTab); }); });
+
+    /* ---- টিকেট ভাগ ---- */
+    function showList() { tkForm.hidden = true; tkList.hidden = false; }
+    function showForm() { tkList.hidden = true; tkForm.hidden = false; tkErr.hidden = true; $('input[name="subject"]', tkForm).focus(); }
+    $("[data-sx-tk-new]", wg).addEventListener("click", showForm);
+    $("[data-sx-tk-back]", wg).addEventListener("click", showList);
+    function loadTickets() {
+      json(BASE + "/tickets.json").then(function (r) {
+        tkItems.textContent = "";
+        if (!r.tickets || !r.tickets.length) { tkItems.appendChild(el("div", "sx-muted sx-tk-empty", "এখনো কোনো টিকেট নেই।")); return; }
+        r.tickets.forEach(function (t) {
+          var a = el("a", "sx-tk-item" + (t.shop_unread ? " unread" : "")); a.href = BASE + "/" + t.id;
+          var top = el("div", "sx-tk-top");
+          top.appendChild(el("b", null, t.subject));
+          top.appendChild(el("span", "sx-st sx-st-" + t.status, t.status_label));
+          a.appendChild(top);
+          a.appendChild(el("div", "sx-tk-prev", (t.last_sender === "team" ? "সাপোর্ট: " : "") + (t.last_preview || "")));
+          a.appendChild(el("small", null, "#" + bn(t.id) + " · " + time(t.last_message_at) + (t.shop_unread ? " · " + bn(t.shop_unread) + "টা নতুন উত্তর" : "")));
+          tkItems.appendChild(a);
+        });
+      }).catch(function () {});
+    }
+    tkForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var btn = $("button.sa-btn", tkForm); btn.disabled = true; tkErr.hidden = true;
+      json(BASE + "/new", { method: "POST", body: new FormData(tkForm) }).then(function (r) {
+        tkForm.reset(); showList(); loadTickets();
+        toast("টিকেট #" + bn(r.id) + " জমা হয়েছে", "উত্তর এলে এখানে আর মেনুতে দেখাবে", r.url);
+      }).catch(function (err) { tkErr.textContent = err.message; tkErr.hidden = false; }).then(function () { btn.disabled = false; });
+    });
+
+    /* ---- খোলা/বন্ধ ---- */
+    function open(which) {
       panel.hidden = false; wg.classList.add("open");
-      var go = function () { scrollEnd(log); input.focus(); if (chatId && chatUnread) { unread = Math.max(0, unread - chatUnread); chatUnread = 0; setBadges(); markRead(chatId); } };
+      var go = function () { showTab(which || (ticketUnread && !chatUnread ? "ticket" : tab)); };
       loaded ? go() : load().then(go);
     }
     function close() { panel.hidden = true; wg.classList.remove("open"); }
-    $$("[data-sx-open]").forEach(function (b) { b.addEventListener("click", function () { panel.hidden ? open() : close(); }); });
+    $$("[data-sx-open]").forEach(function (b) { b.addEventListener("click", function () { panel.hidden ? open(b.dataset.sxOpen || null) : close(); }); });
     $$("[data-sx-close]", wg).forEach(function (b) { b.addEventListener("click", close); });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !panel.hidden) close(); });
 
+    /* ---- চ্যাট ভাগ ---- */
     input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit")); } });
     input.addEventListener("input", function () { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 120) + "px"; });
     typingSender(input, function () { return chatId; });
@@ -230,6 +280,7 @@
       }).catch(function (err) { toast("পাঠানো যায়নি", err.message); }).then(function () { btn.disabled = false; input.focus(); });
     });
 
+    var chatVisible = function () { return !panel.hidden && tab === "chat" && !document.hidden; };
     on(function (d) {
       if (d.type === "hello" || d.type === "presence") { state.online = d.agentsOnline > 0 && state.within; setPresence(); return; }
       if (d.type === "typing" && d.from === "agent" && d.ticketId === chatId) { typingShow(wTyping, log); return; }
@@ -241,13 +292,14 @@
             if (wTyping) wTyping.hidden = true;
             if (end) scrollEnd(log);
             if (m.sender === "team") {
-              if (panel.hidden || document.hidden) { chatUnread++; unread++; setBadges(); ding(); titleFlash("💬 সাপোর্টের উত্তর"); if (panel.hidden) toast("সাপোর্টের উত্তর", m.body.slice(0, 90)); }
+              if (!chatVisible()) { chatUnread++; unread++; setBadges(); ding(); titleFlash("💬 সাপোর্টের উত্তর"); if (panel.hidden) toast("💬 লাইভ চ্যাটে উত্তর", m.body.slice(0, 90)); }
               else markRead(chatId);
             }
           }
         } else if (m.sender === "team" && d.ticketId !== threadId) {
-          unread++; setBadges(); ding(); titleFlash("🎫 টিকেটের উত্তর");
-          toast("টিকেট #" + bn(d.ticketId) + "-এ উত্তর এসেছে", m.body.slice(0, 90), BASE + "/" + d.ticketId);
+          ticketUnread++; unread++; setBadges(); ding(); titleFlash("🎫 টিকেটের উত্তর");
+          toast("🎫 টিকেট #" + bn(d.ticketId) + "-এ উত্তর এসেছে", m.body.slice(0, 90), BASE + "/" + d.ticketId);
+          if (!panel.hidden && tab === "ticket") loadTickets();
         }
       }
     });
@@ -257,7 +309,7 @@
       json(BASE + "/" + chatId + "/messages?after=" + (log.dataset.last || 0)).then(function (r) {
         var end = nearEnd(log);
         (r.messages || []).forEach(function (m) {
-          if (append(log, m, wTyping) && m.sender === "team" && panel.hidden) { chatUnread++; unread++; ding(); }
+          if (append(log, m, wTyping) && m.sender === "team" && !chatVisible()) { chatUnread++; unread++; ding(); }
         });
         setBadges(); if (end) scrollEnd(log);
       }).catch(function () {});
@@ -268,7 +320,8 @@
 
     load();
     connect();
-    if (location.hash === "#chat") open();
+    if (location.hash === "#chat") open("chat");
+    if (location.hash === "#ticket") open("ticket");
     return;
   }
 

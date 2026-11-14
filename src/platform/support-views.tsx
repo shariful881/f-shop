@@ -30,7 +30,7 @@ export function dur(min: number | null): string {
   return `${bn(Math.round(h / 24))} দিন`;
 }
 
-export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: string; channel: string; counts: Record<string, number> }) => {
+export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: string; channel: string; counts: Record<string, number>; chCounts: { chat: number; ticket: number } }) => {
   const qs = (o: Record<string, string>) => {
     const u = new URLSearchParams({ view: p.view, ...(p.q ? { q: p.q } : {}), ...(p.channel ? { channel: p.channel } : {}), ...o });
     for (const [k, v] of [...u]) if (!v) u.delete(k);
@@ -47,6 +47,12 @@ export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: st
         <Kpi label="টিম অনলাইনে" value={bn(p.m.online)} sub="এই পেজ খোলা থাকলে আপনিও অনলাইন" />
       </div>
 
+      <nav class="sx-channels">
+        <a href={qs({ channel: "" })} class={!p.channel ? "active" : ""}>সব কথোপকথন</a>
+        <a href={qs({ channel: "chat" })} class={p.channel === "chat" ? "active" : ""}>💬 লাইভ চ্যাট{p.chCounts.chat > 0 && <span class="sa-badge">{bn(p.chCounts.chat)}</span>}</a>
+        <a href={qs({ channel: "ticket" })} class={p.channel === "ticket" ? "active" : ""}>🎫 সাপোর্ট টিকেট{p.chCounts.ticket > 0 && <span class="sa-badge">{bn(p.chCounts.ticket)}</span>}</a>
+      </nav>
+
       <div class="sa-card">
         <div class="sx-toolbar">
           <nav class="sa-chips">
@@ -56,11 +62,7 @@ export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: st
           </nav>
           <form method="get" action="/super/support" class="sx-filter">
             <input type="hidden" name="view" value={p.view} />
-            <select name="channel" onchange="this.form.submit()">
-              <option value="">সব মাধ্যম</option>
-              <option value="chat" selected={p.channel === "chat"}>💬 লাইভ চ্যাট</option>
-              <option value="ticket" selected={p.channel === "ticket"}>🎫 টিকেট</option>
-            </select>
+            {p.channel && <input type="hidden" name="channel" value={p.channel} />}
             <input type="search" name="q" value={p.q} placeholder="বিষয়, দোকান বা #নম্বর…" />
           </form>
         </div>
