@@ -6,25 +6,18 @@ import { device } from "./middleware/device";
 import { admin } from "./routes/admin";
 import { fbCookies } from "./middleware/fb-cookies";
 
-const app = new Hono<AppEnv>();
+/** একটা দোকানের পুরো অ্যাপ — প্রতিটা দোকানের Durable Object-এর ভিতরে চলে */
+export const shopApp = new Hono<AppEnv>();
 
-app.get("/health", async (c) => {
-  const row = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM products").first<{ n: number }>();
-  return c.json({ ok: true, products: row?.n ?? 0 });
-});
+shopApp.use("*", securityHeaders, withSettings, sameOriginPost, device);
+shopApp.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : fbCookies(c, next)));
 
-app.use("*", securityHeaders, withSettings, sameOriginPost, device);
+shopApp.route("/admin", admin);
+shopApp.route("/", shop);
 
-app.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : fbCookies(c, next)));
+shopApp.notFound((c) => notFound(c));
 
-app.route("/admin", admin);
-app.route("/", shop);
-
-app.notFound((c) => notFound(c));
-
-app.onError((err, c) => {
+shopApp.onError((err, c) => {
   console.error(err);
   return c.text("দুঃখিত, একটা সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করুন।", 500);
 });
-
-export default app;

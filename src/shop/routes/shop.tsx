@@ -250,19 +250,6 @@ shop.get("/thanks", async (c) => {
   );
 });
 
-/* ---------- ছবি (R2 থেকে) ---------- */
-shop.get("/img/:key{.+}", async (c) => {
-  const key = c.req.param("key");
-  if (key === "placeholder.svg") return c.env.ASSETS.fetch(new URL("/img/placeholder.svg", c.req.url));
-  const obj = await c.env.IMAGES.get(key);
-  if (!obj) return c.notFound();
-  const headers = new Headers();
-  obj.writeHttpMetadata(headers);
-  headers.set("etag", obj.httpEtag);
-  headers.set("Cache-Control", "public, max-age=31536000, immutable");
-  return new Response(obj.body, { headers });
-});
-
 export function notFound(c: Ctx) {
   const s = c.var.settings;
   return page(c, <Layout title="পাওয়া যায়নি" settings={s}><NotFoundPage /></Layout>, 404);

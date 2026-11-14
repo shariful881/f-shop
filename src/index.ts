@@ -1,0 +1,68 @@
+import type { WorkerEnv } from "./worker-env";
+import { resolveHost, type ShopRow } from "./platform/resolve";
+import { platformApp, unknownHostPage } from "./platform/app";
+import { INTERNAL_HEADERS } from "./shop/shop-do";
+import { imageStorageKey } from "./shop/env";
+
+export { ShopDO } from "./shop/shop-do";
+
+/**
+ * সব রিকোয়েস্ট প্রথমে এখানে আসে। ডোমেইন দেখে ঠিক করে:
+ * প্ল্যাটফর্ম (সাইনআপ/সুপার অ্যাডমিন) নাকি কোনো দোকান — দোকান হলে সেই দোকানের নিজস্ব Durable Object-এ পাঠায়।
+ */
+export default {
+  async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+
+    // লোকাল/Codespaces: ?shop=slug দিয়ে যেকোনো দোকান খোলা (লাইভে বন্ধ)
+    if (env.DEV_MODE === "1" && url.searchParams.has("shop")) {
+      const slug = (url.searchParams.get("shop") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
+      url.searchParams.delete("shop");
+      const headers = new Headers({ location: url.pathname + url.search });
+      headers.append("set-cookie", slug ? `dev_shop=${slug}; Path=/; SameSite=Lax` : "dev_shop=; Path=/; Max-Age=0");
+      return new Response(null, { status: 302, headers });
+    }
+
+    let host = url.hostname;
+    if (env.DEV_MODE === "1") {
+      const devShop = /(?:^|;\s*)dev_shop=([a-z0-9-]+)/.exec(request.headers.get("cookie") || "")?.[1];
+      // dev_shop কুকি থাকলে সেই দোকান, না থাকলে localhost/Codespaces-এর ঠিকানায় প্ল্যাটফর্ম
+      if (devShop) host = `${devShop}.${env.PLATFORM_DOMAIN}`;
+      else if (/^(localhost|127\.0\.0\.1)$|\.app\.github\.dev$/.test(host)) host = env.PLATFORM_DOMAIN;
+    }
+
+    const target = await resolveHost(env, host);
+    if (target.kind === "platform") return platformApp.fetch(request, env, ctx);
+    if (target.kind === "unknown") return unknownHostPage();
+
+    const shop = target.shop;
+
+    // পণ্যের ছবি: R2-তে প্রতিটা দোকানের আলাদা ফোল্ডার থেকে
+    if (url.pathname.startsWith("/img/") && request.method === "GET") {
+      return serveImage(env, shop, url.pathname.slice(5));
+    }
+
+    return forwardToShop(env, shop, request);
+  },
+} satisfies ExportedHandler<WorkerEnv>;
+
+export function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Request) {
+  const headers = new Headers(request.headers);
+  for (const h of INTERNAL_HEADERS) headers.delete(h); // বাইরে থেকে কেউ এগুলো পাঠাতে পারবে না
+  headers.set("x-fshop-id", shop.id);
+  headers.set("x-fshop-slug", shop.slug);
+  if (shop.seed_demo) headers.set("x-fshop-seed", "1");
+  const stub = env.SHOP.getByName(shop.id);
+  return stub.fetch(new Request(request, { headers }));
+}
+
+async function serveImage(env: WorkerEnv, shop: ShopRow, key: string) {
+  if (!/^[a-z0-9/_.-]+$/i.test(key) || key.includes("..")) return new Response("not found", { status: 404 });
+  const obj = await env.IMAGES.get(imageStorageKey(shop.id, key));
+  if (!obj) return new Response("not found", { status: 404 });
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set("etag", obj.httpEtag);
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  return new Response(obj.body, { headers });
+}

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { adminBrowser, Browser, countOrders, lastOrder, resetDb, setStatus } from "./helpers";
-import { hashPassword } from "../src/lib/auth";
+import { adminBrowser, Browser, countOrders, lastOrder, resetDb, setStatus, DB } from "./helpers";
+import { hashPassword } from "../src/shop/lib/auth";
 
 beforeEach(resetDb);
 
@@ -12,7 +12,7 @@ async function orderAs(b: Browser, phone = "01712345678") {
 }
 
 async function status(id: number) {
-  return (await env.DB.prepare("SELECT status FROM orders WHERE id=?").bind(id).first<{ status: string }>())!.status;
+  return (await DB.prepare("SELECT status FROM orders WHERE id=?").bind(id).first<{ status: string }>())!.status;
 }
 
 describe("অ্যাডমিন লগইন", () => {
@@ -23,7 +23,7 @@ describe("অ্যাডমিন লগইন", () => {
   });
 
   it("is_admin না হলে লগইন হয় না", async () => {
-    await env.DB.prepare("INSERT INTO users (email,password_hash,is_admin) VALUES ('u@test.com',?,0)").bind(await hashPassword("pass12345", 1000)).run();
+    await DB.prepare("INSERT INTO users (email,password_hash,is_admin) VALUES ('u@test.com',?,0)").bind(await hashPassword("pass12345", 1000)).run();
     const res = await new Browser().post("/admin/login", { email: "u@test.com", password: "pass12345" });
     expect(res.status).toBe(422);
   });
@@ -65,7 +65,7 @@ describe("অর্ডার তালিকা", () => {
     const a = await adminBrowser();
     const b = new Browser("203.0.113.5");
     const o1 = await orderAs(b);
-    await env.DB.prepare("UPDATE orders SET status='confirmed'").run();
+    await DB.prepare("UPDATE orders SET status='confirmed'").run();
     const o2 = await orderAs(b);
     const html = await (await a.get(`/admin/orders/${o2.id}`)).text();
     expect(html).toContain("রহিম উদ্দিন");
@@ -82,7 +82,7 @@ describe("স্ট্যাটাস বদলের নিয়ম", () => {
     const o = await orderAs(new Browser());
     await setStatus(a, o.id, "confirmed");
     expect(await status(o.id)).toBe("confirmed");
-    const row = await env.DB.prepare("SELECT confirmed_at FROM orders WHERE id=?").bind(o.id).first<{ confirmed_at: string }>();
+    const row = await DB.prepare("SELECT confirmed_at FROM orders WHERE id=?").bind(o.id).first<{ confirmed_at: string }>();
     expect(row!.confirmed_at).toBeTruthy();
     await setStatus(a, o.id, "shipped");
     expect(await status(o.id)).toBe("shipped");
@@ -103,7 +103,7 @@ describe("স্ট্যাটাস বদলের নিয়ম", () => {
   ])("%s → %s বদলানো যায় না", async (from, to) => {
     const a = await adminBrowser();
     const o = await orderAs(new Browser());
-    await env.DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(from, o.id).run();
+    await DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(from, o.id).run();
     await setStatus(a, o.id, to);
     expect(await status(o.id)).toBe(from);
   });
@@ -123,7 +123,7 @@ describe("নিয়ম ৪: ফেক বা বাতিল = স্থা�
     const o = await orderAs(b, "01712345678");
     await setStatus(a, o.id, to);
 
-    const { results } = await env.DB.prepare("SELECT type, value, reason, order_id FROM blacklist_entries ORDER BY type").all();
+    const { results } = await DB.prepare("SELECT type, value, reason, order_id FROM blacklist_entries ORDER BY type").all();
     expect(results).toEqual([
       { type: "device", value: b.cookies.get("did"), reason: to, order_id: o.id },
       { type: "phone", value: "01712345678", reason: to, order_id: o.id },
@@ -143,7 +143,7 @@ describe("নিয়ম ৪: ফেক বা বাতিল = স্থা�
     await setStatus(a, o.id, "fake");
     expect((await b.order()).status).toBe(403);
 
-    const { results } = await env.DB.prepare("SELECT id FROM blacklist_entries").all<{ id: number }>();
+    const { results } = await DB.prepare("SELECT id FROM blacklist_entries").all<{ id: number }>();
     for (const r of results) await a.post(`/admin/blacklist/${r.id}/delete`, {});
     expect((await b.order()).status).toBe(303);
   });
@@ -151,7 +151,7 @@ describe("নিয়ম ৪: ফেক বা বাতিল = স্থা�
   it("অ্যাডমিন নিজে নম্বর ব্লক করতে পারে (যেকোনো ফরম্যাটে)", async () => {
     const a = await adminBrowser();
     await a.post("/admin/blacklist", { phone: "+৮৮০১৫১১১১১১১১" });
-    const row = await env.DB.prepare("SELECT type, value, reason FROM blacklist_entries").first();
+    const row = await DB.prepare("SELECT type, value, reason FROM blacklist_entries").first();
     expect(row).toEqual({ type: "phone", value: "01511111111", reason: "manual" });
     expect((await new Browser().order({ phone: "01511111111" })).status).toBe(403);
     const html = await (await a.get("/admin/blacklist?q=01511")).text();
@@ -173,7 +173,7 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
     const res = await a.fetch("/admin/products", { method: "POST", body: fd });
     expect(res.status).toBe(303);
 
-    const p = await env.DB.prepare("SELECT * FROM products WHERE slug='test-lamp'").first<Record<string, any>>();
+    const p = await DB.prepare("SELECT * FROM products WHERE slug='test-lamp'").first<Record<string, any>>();
     expect(p).toMatchObject({ name: "Test Lamp", price: 999, compare_price: 1200, category_id: 1, is_active: 1 });
     expect(p!.image).toMatch(/^p\/.+\.jpg$/);
     const img = await new Browser().get("/img/" + p!.image);
@@ -186,7 +186,7 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
 
     await a.post(`/admin/products/${p!.id}/toggle`, {});
     expect((await new Browser().get("/p/test-lamp")).status).toBe(404);
-    const still = await env.DB.prepare("SELECT COUNT(*) n FROM products WHERE id=?").bind(p!.id).first<{ n: number }>();
+    const still = await DB.prepare("SELECT COUNT(*) n FROM products WHERE id=?").bind(p!.id).first<{ n: number }>();
     expect(still!.n).toBe(1);
   });
 
@@ -200,13 +200,13 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
   it("ক্যাটাগরি যোগ, নাম/ক্রম বদল, মোছা (পণ্য মোছে না)", async () => {
     const a = await adminBrowser();
     await a.post("/admin/categories", { name: "অফার", sort_order: 0 });
-    const cat = await env.DB.prepare("SELECT id FROM categories WHERE name='অফার'").first<{ id: number }>();
+    const cat = await DB.prepare("SELECT id FROM categories WHERE name='অফার'").first<{ id: number }>();
     expect(cat).toBeTruthy();
     await a.post(`/admin/categories/1`, { name: "ডেকোর", sort_order: 9 });
-    expect(await env.DB.prepare("SELECT name, sort_order FROM categories WHERE id=1").first()).toEqual({ name: "ডেকোর", sort_order: 9 });
+    expect(await DB.prepare("SELECT name, sort_order FROM categories WHERE id=1").first()).toEqual({ name: "ডেকোর", sort_order: 9 });
     await a.post(`/admin/categories/1/delete`, {});
-    expect(await env.DB.prepare("SELECT id FROM categories WHERE id=1").first()).toBeNull();
-    const orphan = await env.DB.prepare("SELECT COUNT(*) n FROM products WHERE id IN (1,2) AND category_id IS NULL").first<{ n: number }>();
+    expect(await DB.prepare("SELECT id FROM categories WHERE id=1").first()).toBeNull();
+    const orphan = await DB.prepare("SELECT COUNT(*) n FROM products WHERE id IN (1,2) AND category_id IS NULL").first<{ n: number }>();
     expect(orphan!.n).toBe(2);
   });
 
@@ -218,7 +218,7 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
     };
     await a.post("/admin/settings", base);
     await a.post("/admin/settings", { ...base, fb_capi_token: "" });
-    const tok = await env.DB.prepare("SELECT value FROM settings WHERE key='fb_capi_token'").first<{ value: string }>();
+    const tok = await DB.prepare("SELECT value FROM settings WHERE key='fb_capi_token'").first<{ value: string }>();
     expect(tok!.value).toBe("SECRET_TOKEN");
     const page = await (await a.get("/admin/settings")).text();
     expect(page).not.toContain("SECRET_TOKEN"); // টোকেন পেজে দেখায় না
@@ -231,7 +231,7 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
 
 describe("সময় Asia/Dhaka টাইমজোনে", () => {
   it("UTC সময় +৬ ঘণ্টা করে দেখায়", async () => {
-    const { dhakaTime } = await import("../src/lib/format");
+    const { dhakaTime } = await import("../src/shop/lib/format");
     expect(dhakaTime("2026-11-14 03:30:00")).toBe("14/11/2026, 09:30 am");
   });
 });

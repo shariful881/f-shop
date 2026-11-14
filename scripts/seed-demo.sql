@@ -23,3 +23,7 @@ VALUES
    'শক্ত কাঠের চপিং বোর্ড, ছুরির দাগ সহজে পড়ে না।',
    '<p>ফুড-সেফ তেলে ফিনিশ করা। মাপ: ১২x৮ ইঞ্চি।</p>',
    NULL, 1, 1, 1);
+
+-- ডেমো দোকানের মালিক (শুধু লোকাল টেস্টের জন্য): demo@fshop.test / demo12345
+INSERT OR IGNORE INTO users (name, email, password_hash, is_admin) VALUES
+  ('ডেমো মালিক', 'demo@fshop.test', 'pbkdf2_sha256$100000$uF3anFm2RPDRh0w9VDt8SA==$KqXmsQSme3UiGUeRj3tXiuXKkugkmhBTSOI3DNe81iU=', 1);

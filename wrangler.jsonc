@@ -1,35 +1,41 @@
 {
-  // F-Shop — Cloudflare Workers কনফিগ
+  // F-Shop SaaS — Cloudflare Workers কনফিগ
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "f-shop",
-  "main": "src/index.tsx",
+  "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // public/ ফোল্ডারের CSS/JS/ছবি সরাসরি পরিবেশন হবে
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS"
+  // public/ ফোল্ডারের CSS/JS/ছবি সরাসরি পরিবেশন হবে (সব দোকানের জন্য একই)
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  "vars": {
+    // SaaS-এর মূল ডোমেইন — কেনার পর এখানে বসাবেন
+    "PLATFORM_DOMAIN": "ourdomain.com"
   },
 
-  // ডাটাবেস (লোকালে এটা .wrangler/ ফোল্ডারে একটা SQLite ফাইল)
-  // লাইভ করার আগে Cloudflare-এ D1 বানিয়ে নিচের database_id বদলাবেন (README দেখুন)
+  // মূল ডাটাবেস: দোকানের তালিকা, ডোমেইন, বিলিং
+  // লাইভ করার আগে Cloudflare-এ D1 বানিয়ে database_id বদলাবেন (README দেখুন)
   "d1_databases": [
     {
-      "binding": "DB",
-      "database_name": "f-shop-db",
+      "binding": "PLATFORM_DB",
+      "database_name": "f-shop-platform",
       "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "migrations"
+      "migrations_dir": "migrations/platform"
     }
   ],
 
-  // পণ্যের ছবি রাখার জায়গা
-  "r2_buckets": [
-    {
-      "binding": "IMAGES",
-      "bucket_name": "f-shop-images"
-    }
-  ],
+  // প্রতিটা দোকান = একটা Durable Object = দোকানের নিজস্ব আলাদা SQLite ডাটাবেস
+  "durable_objects": {
+    "bindings": [{ "name": "SHOP", "class_name": "ShopDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShopDO"] }],
+
+  // পণ্যের ছবি (প্রতিটা দোকানের আলাদা ফোল্ডার: shops/<দোকানের আইডি>/...)
+  "r2_buckets": [{ "binding": "IMAGES", "bucket_name": "f-shop-images" }],
+
+  // .sql ফাইল কোডে টেক্সট হিসেবে আনা (দোকানের migration)
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
 
   "observability": { "enabled": true }
 }

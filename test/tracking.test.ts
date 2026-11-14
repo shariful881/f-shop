@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { adminBrowser, Browser, lastOrder, resetDb, setStatus } from "./helpers";
-import { sha256Hex } from "../src/lib/auth";
+import { adminBrowser, Browser, lastOrder, resetDb, setStatus, DB } from "./helpers";
+import { sha256Hex } from "../src/shop/lib/auth";
 
 type Captured = { url: string; body: any };
 let calls: Captured[] = [];
@@ -9,10 +9,10 @@ let fbReply: () => Response;
 
 beforeEach(async () => {
   await resetDb();
-  await env.DB.batch([
-    env.DB.prepare("UPDATE settings SET value='1234567890' WHERE key='fb_pixel_id'"),
-    env.DB.prepare("UPDATE settings SET value='TOKEN_ABC' WHERE key='fb_capi_token'"),
-    env.DB.prepare("UPDATE settings SET value='TEST999' WHERE key='fb_test_event_code'"),
+  await DB.batch([
+    DB.prepare("UPDATE settings SET value='1234567890' WHERE key='fb_pixel_id'"),
+    DB.prepare("UPDATE settings SET value='TOKEN_ABC' WHERE key='fb_capi_token'"),
+    DB.prepare("UPDATE settings SET value='TEST999' WHERE key='fb_test_event_code'"),
   ]);
   calls = [];
   fbReply = () => new Response(JSON.stringify({ events_received: 1, fbtrace_id: "x" }), { status: 200 });
@@ -115,7 +115,7 @@ describe("ব্রাউজার + সার্ভার ইভেন্ট, �
   });
 
   it("Pixel ID না থাকলে Pixel কোড লোড হয় না, CAPI-ও যায় না", async () => {
-    await env.DB.prepare("UPDATE settings SET value='' WHERE key='fb_pixel_id'").run();
+    await DB.prepare("UPDATE settings SET value='' WHERE key='fb_pixel_id'").run();
     const html = await (await new Browser().get("/p/wooden-wall-shelf")).text();
     expect(html).not.toContain("fbevents.js");
     await settle();
@@ -233,7 +233,7 @@ describe("Purchase ইভেন্ট", () => {
   });
 
   it("Pixel/টোকেন সেট না থাকলে 'যায়নি' দেখায়, কারণ সেভ হয়", async () => {
-    await env.DB.prepare("UPDATE settings SET value='' WHERE key='fb_capi_token'").run();
+    await DB.prepare("UPDATE settings SET value='' WHERE key='fb_capi_token'").run();
     const { o } = await placeOrder();
     const a = await adminBrowser();
     await setStatus(a, o.id, "confirmed");

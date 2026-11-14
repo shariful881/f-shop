@@ -7,7 +7,7 @@
   },
 
   // প্রথমবার: প্যাকেজ ইনস্টল, ডাটাবেস টেবিল বানানো, নমুনা পণ্য বসানো
-  "postCreateCommand": "npm install && npm run db:migrate && npm run db:seed",
+  "postCreateCommand": "npm install && cp -n .dev.vars.example .dev.vars && npm run db:migrate && npm run db:seed",
 
   // প্রতিবার Codespace চালু হলে: port 8000 পাবলিক করা আর সাইট চালু করা
   "postStartCommand": "gh codespace ports visibility 8000:public -c $CODESPACE_NAME || true",

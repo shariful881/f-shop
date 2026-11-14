@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import type { AppEnv, Ctx } from "../env";
+import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, SettingsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
 import { createSession, destroySession, verifyPassword } from "../lib/auth";
@@ -213,8 +213,8 @@ async function saveProduct(c: Ctx, id: number | null) {
 
   if (file instanceof File && file.size > 0) {
     imageKey = `p/${crypto.randomUUID()}.${IMAGE_TYPES[file.type]}`;
-    await c.env.IMAGES.put(imageKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    if (existing?.image) await c.env.IMAGES.delete(existing.image).catch(() => {});
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, imageKey), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+    if (existing?.image) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, existing.image)).catch(() => {});
   }
 
   const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order];

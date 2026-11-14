@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Browser, countOrders, lastOrder, resetDb } from "./helpers";
+import { Browser, countOrders, lastOrder, resetDb, DB } from "./helpers";
 
 beforeEach(resetDb);
 
@@ -19,14 +19,14 @@ describe("হোম পেজ", () => {
   });
 
   it("অ্যাডমিনের ঠিক করা ক্রমে ক্যাটাগরি দেখায়", async () => {
-    await env.DB.prepare("UPDATE categories SET sort_order = CASE id WHEN 1 THEN 5 ELSE 1 END").run();
+    await DB.prepare("UPDATE categories SET sort_order = CASE id WHEN 1 THEN 5 ELSE 1 END").run();
     const html = await (await new Browser().get("/")).text();
     expect(html.indexOf("রান্নাঘর")).toBeLessThan(html.indexOf("ঘর সাজানো"));
   });
 
   it("বন্ধ বা হোমে-না-দেখানো পণ্য দেখায় না", async () => {
-    await env.DB.prepare("UPDATE products SET is_active = 0 WHERE id = 1").run();
-    await env.DB.prepare("UPDATE products SET show_on_home = 0 WHERE id = 2").run();
+    await DB.prepare("UPDATE products SET is_active = 0 WHERE id = 1").run();
+    await DB.prepare("UPDATE products SET show_on_home = 0 WHERE id = 2").run();
     const html = await (await new Browser().get("/")).text();
     expect(html).not.toContain("কাঠের ওয়াল শেলফ");
     expect(html).not.toContain("হাতে বানানো ফটো ফ্রেম");
@@ -46,13 +46,13 @@ describe("ল্যান্ডিং পেজ", () => {
   });
 
   it("YouTube লিংক থাকলে ভিডিও দেখায়", async () => {
-    await env.DB.prepare("UPDATE products SET youtube_url='https://youtu.be/abcdefghijk' WHERE id=1").run();
+    await DB.prepare("UPDATE products SET youtube_url='https://youtu.be/abcdefghijk' WHERE id=1").run();
     const html = await (await new Browser().get("/p/wooden-wall-shelf")).text();
     expect(html).toContain('data-yt="abcdefghijk"');
   });
 
   it("বন্ধ পণ্যের পেজ ৪০৪", async () => {
-    await env.DB.prepare("UPDATE products SET is_active = 0 WHERE id = 1").run();
+    await DB.prepare("UPDATE products SET is_active = 0 WHERE id = 1").run();
     expect((await new Browser().get("/p/wooden-wall-shelf")).status).toBe(404);
     expect((await new Browser().get("/p/nai")).status).toBe(404);
   });
@@ -80,7 +80,7 @@ describe("কার্ট আর অর্ডার", () => {
     expect(o!.delivery_charge).toBe(130);
     expect(o!.total).toBe(1250 + 690 + 130);
     expect(o!.status).toBe("new");
-    const items = await env.DB.prepare("SELECT * FROM order_items WHERE order_id=?").bind(o!.id).all();
+    const items = await DB.prepare("SELECT * FROM order_items WHERE order_id=?").bind(o!.id).all();
     expect(items.results).toHaveLength(2);
 
     // কার্ট খালি হয়েছে, ধন্যবাদ পেজে অর্ডার নম্বর আর সারাংশ
@@ -97,7 +97,7 @@ describe("কার্ট আর অর্ডার", () => {
     expect(res.status).toBe(303);
     const o = await lastOrder();
     expect(o!.total).toBe(690 + 70);
-    const items = await env.DB.prepare("SELECT product_id FROM order_items WHERE order_id=?").bind(o!.id).all();
+    const items = await DB.prepare("SELECT product_id FROM order_items WHERE order_id=?").bind(o!.id).all();
     expect(items.results).toEqual([{ product_id: 3 }]);
   });
 
@@ -110,7 +110,7 @@ describe("কার্ট আর অর্ডার", () => {
   });
 
   it("বন্ধ পণ্যের অর্ডার হয় না", async () => {
-    await env.DB.prepare("UPDATE products SET is_active = 0 WHERE id = 1").run();
+    await DB.prepare("UPDATE products SET is_active = 0 WHERE id = 1").run();
     await new Browser().order();
     expect(await countOrders()).toBe(0);
   });

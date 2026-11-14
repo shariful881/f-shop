@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { normalizePhone } from "../src/lib/phone";
-import { Browser, countOrders, lastOrder, resetDb } from "./helpers";
+import { normalizePhone } from "../src/shop/lib/phone";
+import { Browser, countOrders, lastOrder, resetDb, DB } from "./helpers";
 
 beforeEach(resetDb);
 
@@ -57,7 +57,7 @@ describe("নিয়ম ২: কার্টে একটা পণ্য স�
     b.cookies.set("cart", "1,1,1,3,3");
     await b.post("/order", { source: "cart", name: "করিম", phone: "01812345678", address: "চট্টগ্রাম সদর", area: "inside" });
     const o = await lastOrder();
-    const { results } = await env.DB.prepare("SELECT product_id, qty FROM order_items WHERE order_id=? ORDER BY product_id").bind(o!.id).all();
+    const { results } = await DB.prepare("SELECT product_id, qty FROM order_items WHERE order_id=? ORDER BY product_id").bind(o!.id).all();
     expect(results).toEqual([{ product_id: 1, qty: 1 }, { product_id: 3, qty: 1 }]);
     expect(o!.subtotal).toBe(1250 + 690);
   });
@@ -104,7 +104,7 @@ describe("নিয়ম ৩: আগের অর্ডার কনফার�
     const b = new Browser();
     await b.order({ phone: "01712345678" });
     expect((await b.order({ phone: "01712345678" })).status).toBe(403);
-    await env.DB.prepare("UPDATE orders SET status='confirmed'").run();
+    await DB.prepare("UPDATE orders SET status='confirmed'").run();
     expect((await b.order({ phone: "01712345678" })).status).toBe(303);
     expect(await countOrders()).toBe(2);
   });
@@ -112,7 +112,7 @@ describe("নিয়ম ৩: আগের অর্ডার কনফার�
 
 describe("নিয়ম ৪: ব্ল্যাকলিস্টের নম্বর/ডিভাইস অর্ডার দিতে পারে না", () => {
   it("ব্লক করা নম্বর (যেকোনোভাবে লিখলেও)", async () => {
-    await env.DB.prepare("INSERT INTO blacklist_entries (type,value,reason) VALUES ('phone','01712345678','manual')").run();
+    await DB.prepare("INSERT INTO blacklist_entries (type,value,reason) VALUES ('phone','01712345678','manual')").run();
     const res = await new Browser().order({ phone: "8801712345678" });
     expect(res.status).toBe(403);
     expect(await res.text()).toContain("অর্ডার নেওয়া সম্ভব হচ্ছে না");
@@ -122,7 +122,7 @@ describe("নিয়ম ৪: ব্ল্যাকলিস্টের নম
   it("ব্লক করা ডিভাইস, নতুন নম্বর দিলেও", async () => {
     const b = new Browser();
     await b.get("/");
-    await env.DB.prepare("INSERT INTO blacklist_entries (type,value,reason) VALUES ('device',?,'fake')").bind(b.cookies.get("did")).run();
+    await DB.prepare("INSERT INTO blacklist_entries (type,value,reason) VALUES ('device',?,'fake')").bind(b.cookies.get("did")).run();
     expect((await b.order({ phone: "01611111111" })).status).toBe(403);
     expect(await countOrders()).toBe(0);
   });
