@@ -4,7 +4,7 @@
  * সব মান সার্ভারে যাচাই হয়; CSS-এ শুধু যাচাই করা মান বসে।
  */
 import { FONTS } from "./landing";
-import { themeOf, type Settings, type ThemeKey } from "./settings";
+import { freeDeliveryMin, themeOf, type Settings, type ThemeKey } from "./settings";
 
 export type Cfg = Record<string, string>;
 
@@ -16,16 +16,28 @@ export type Field =
   | { key: string; type: "text"; label: string; max: number; placeholder?: string; hint?: string; wide?: boolean }
   | { key: string; type: "textarea"; label: string; max: number; hint?: string }
   | { key: string; type: "url"; label: string; placeholder?: string; hint?: string }
-  | { key: string; type: "order"; label: string; hint?: string };
+  | { key: string; type: "order"; label: string; hint?: string }
+  | { key: string; type: "choice"; label: string; options: Opt; preview: string; hint?: string }
+  | { key: string; type: "products"; label: string; hint?: string }
+  | { key: string; type: "image"; label: string; hint?: string };
 
 export const HOME_SECTIONS: Record<string, string> = {
   banner: "ব্যানার স্লাইডার",
+  features: "ফিচার বক্স (৩টা সুবিধা)",
   categories: "ক্যাটাগরি টাইল",
-  offers: "অফার চলছে",
+  offers: "অফার চলছে (ছাড়ের পণ্য নিজে থেকে)",
+  offer1: "অফার সেকশন ১ (নিজে বাছাই করা পণ্য)",
+  latest: "নতুন পণ্য",
+  midbanner: "মাঝের ব্যানার",
+  offer2: "অফার সেকশন ২",
+  video: "ভিডিও",
   products: "ক্যাটাগরি অনুযায়ী পণ্য",
+  offer3: "অফার সেকশন ৩",
   trust: "বিশ্বাসের ব্যাজ",
   text: "নিজের লেখা (শিরোনাম + বিবরণ)",
 };
+
+export const ICONS: Opt = { truck: "🚚 ডেলিভারি", cash: "💵 টাকা", shield: "🛡️ নিরাপদ", refresh: "🔄 রিটার্ন", gift: "🎁 উপহার", star: "⭐ সেরা মান", clock: "⏰ দ্রুত", phone: "📞 সাপোর্ট", leaf: "🌿 প্রাকৃতিক" };
 
 const fontOpts: Opt = { "": "থিমের ডিফল্ট", ...Object.fromEntries(Object.entries(FONTS).map(([k, v]) => [k, v.label])) };
 
@@ -40,6 +52,8 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "c_topbar_text", type: "color", label: "ঘোষণা বারের লেখা" },
       { key: "c_btn", type: "color", label: "অর্ডার বাটনের রং" },
       { key: "c_btn_text", type: "color", label: "অর্ডার বাটনের লেখা" },
+      { key: "c_cart", type: "color", label: "কার্ট বাটনের রং" },
+      { key: "c_cart_text", type: "color", label: "কার্ট বাটনের লেখা" },
       { key: "c_price", type: "color", label: "দামের রং" },
       { key: "c_badge", type: "color", label: "ছাড়ের ব্যাজের রং" },
       { key: "c_footer_bg", type: "color", label: "ফুটারের ব্যাকগ্রাউন্ড" },
@@ -55,6 +69,8 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
   {
     key: "header", title: "হেডার, মেনু আর ঘোষণা বার", desc: "দোকানের একদম উপরের অংশ।",
     fields: [
+      { key: "header_layout", type: "choice", label: "হেডারের ডিজাইন", preview: "header", options: { standard: "লোগো বাঁয়ে, বড় সার্চ", center: "লোগো মাঝে", inline: "এক সারিতে মেনু", colored: "রঙিন সরু হেডার" } },
+      { key: "cart_icon", type: "choice", label: "কার্টের আইকন", preview: "cart", options: { cart: "ট্রলি", bag: "ব্যাগ", basket: "ঝুড়ি" } },
       { key: "topbar", type: "toggle", label: "উপরে ঘোষণা বার দেখাবে" },
       { key: "announcement", type: "text", label: "ঘোষণার লেখা", max: 120, wide: true, placeholder: "যেমন: ঈদ অফার — সব পণ্যে ১০% ছাড়!", hint: "ফাঁকা রাখলে ফ্রি ডেলিভারি বা ক্যাশ অন ডেলিভারির কথা দেখাবে" },
       { key: "topbar_hotline", type: "toggle", label: "ঘোষণা বারে হটলাইন নম্বর" },
@@ -72,12 +88,42 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "title_categories", type: "text", label: "ক্যাটাগরি সেকশনের শিরোনাম", max: 60 },
       { key: "cat_style", type: "select", label: "ক্যাটাগরি টাইলের আকার", options: { circle: "গোল", square: "চারকোনা" } },
       { key: "title_offers", type: "text", label: "অফার সেকশনের শিরোনাম", max: 60 },
-      { key: "per_row_mobile", type: "select", label: "মোবাইলে এক সারিতে পণ্য", options: { "1": "১টা", "2": "২টা" } },
-      { key: "per_row_desktop", type: "select", label: "কম্পিউটারে এক সারিতে পণ্য", options: { "3": "৩টা", "4": "৪টা", "5": "৫টা" } },
+      { key: "per_row_mobile", type: "select", label: "মোবাইলে এক সারিতে পণ্য", options: { "1": "১টা", "2": "২টা", "3": "৩টা" } },
+      { key: "per_row_tablet", type: "select", label: "ট্যাবলেটে এক সারিতে পণ্য", options: { "2": "২টা", "3": "৩টা", "4": "৪টা" } },
+      { key: "per_row_desktop", type: "select", label: "কম্পিউটারে এক সারিতে পণ্য", options: { "3": "৩টা", "4": "৪টা", "5": "৫টা", "6": "৬টা" } },
       { key: "per_section", type: "select", label: "প্রতি ক্যাটাগরিতে কয়টা পণ্য দেখাবে", options: { "4": "৪টা", "8": "৮টা", "12": "১২টা", "0": "সব" } },
       { key: "show_more", type: "toggle", label: "\"সব দেখুন\" লিংক" },
       { key: "text_title", type: "text", label: "নিজের লেখার শিরোনাম", max: 100, placeholder: "যেমন: আমাদের সম্পর্কে" },
       { key: "text_body", type: "textarea", label: "নিজের লেখার বিবরণ", max: 1000 },
+    ],
+  },
+  {
+    key: "sections", title: "হোমপেজের বাড়তি সেকশন", desc: "নতুন পণ্য, নিজে বাছাই করা অফার, মাঝের ব্যানার, ভিডিও, ফিচার বক্স। চালু করতে উপরের \"সেকশন সাজানো\"-তে টিক দিন।",
+    fields: [
+      { key: "latest_title", type: "text", label: "নতুন পণ্যের শিরোনাম", max: 60 },
+      { key: "latest_count", type: "select", label: "কয়টা নতুন পণ্য", options: { "4": "৪টা", "8": "৮টা", "12": "১২টা" } },
+      { key: "offer1_title", type: "text", label: "অফার সেকশন ১-এর শিরোনাম", max: 60 },
+      { key: "offer1_products", type: "products", label: "অফার সেকশন ১-এর পণ্য" },
+      { key: "offer2_title", type: "text", label: "অফার সেকশন ২-এর শিরোনাম", max: 60 },
+      { key: "offer2_products", type: "products", label: "অফার সেকশন ২-এর পণ্য" },
+      { key: "offer3_title", type: "text", label: "অফার সেকশন ৩-এর শিরোনাম", max: 60 },
+      { key: "offer3_products", type: "products", label: "অফার সেকশন ৩-এর পণ্য" },
+      { key: "mid_banner", type: "image", label: "মাঝের ব্যানারের ছবি", hint: "চওড়া ছবি, যেমন ১২০০×৩০০। JPG/WebP, ২ MB পর্যন্ত।" },
+      { key: "mid_banner_link", type: "text", label: "মাঝের ব্যানারে ক্লিক করলে যাবে", max: 200, placeholder: "/p/... বা /c/..." },
+      { key: "video_title", type: "text", label: "ভিডিও সেকশনের শিরোনাম", max: 60 },
+      { key: "video_url", type: "url", label: "YouTube ভিডিওর লিংক", placeholder: "https://youtu.be/..." },
+      { key: "feature_1_icon", type: "select", label: "ফিচার ১-এর আইকন", options: ICONS }, { key: "feature_1", type: "text", label: "ফিচার ১", max: 40 }, { key: "feature_1_sub", type: "text", label: "ফিচার ১-এর নিচের লেখা", max: 60 },
+      { key: "feature_2_icon", type: "select", label: "ফিচার ২-এর আইকন", options: ICONS }, { key: "feature_2", type: "text", label: "ফিচার ২", max: 40 }, { key: "feature_2_sub", type: "text", label: "ফিচার ২-এর নিচের লেখা", max: 60 },
+      { key: "feature_3_icon", type: "select", label: "ফিচার ৩-এর আইকন", options: ICONS }, { key: "feature_3", type: "text", label: "ফিচার ৩", max: 40 }, { key: "feature_3_sub", type: "text", label: "ফিচার ৩-এর নিচের লেখা", max: 60 },
+    ],
+  },
+  {
+    key: "popup", title: "অফারের পপআপ", desc: "দোকানে ঢুকলে একটা অফারের ছবি ভেসে উঠবে। কাস্টমার বন্ধ করলে সেদিন আর দেখাবে না।",
+    fields: [
+      { key: "popup_on", type: "toggle", label: "পপআপ চালু" },
+      { key: "popup_image", type: "image", label: "পপআপের ছবি", hint: "যেমন ৮০০×৮০০ বা ৮০০×১০০০। JPG/WebP, ২ MB পর্যন্ত।" },
+      { key: "popup_link", type: "text", label: "ছবিতে ক্লিক করলে যাবে", max: 200, placeholder: "/p/... বা /c/..." },
+      { key: "popup_delay", type: "select", label: "কত সেকেন্ড পরে দেখাবে", options: { "0": "সাথে সাথে", "3": "৩ সেকেন্ড", "5": "৫ সেকেন্ড", "10": "১০ সেকেন্ড" } },
     ],
   },
   {
@@ -87,6 +133,9 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "card_order_text", type: "text", label: "অর্ডার বাটনের লেখা", max: 30 },
       { key: "card_cart_btn", type: "toggle", label: "\"কার্টে যোগ\" বাটন" },
       { key: "card_cart_text", type: "text", label: "কার্ট বাটনের লেখা", max: 30 },
+      { key: "img_ratio", type: "select", label: "ছবির আকার (অনুপাত)", options: { "1/1": "বর্গাকার ১:১", "4/5": "লম্বা ৪:৫ (পোশাকের জন্য)", "3/4": "লম্বা ৩:৪", "4/3": "চওড়া ৪:৩", "16/9": "চওড়া ১৬:৯" } },
+      { key: "free_tag", type: "toggle", label: "\"ফ্রি ডেলিভারি\" ট্যাগ", hint: "ডেলিভারি সেটিংসে ফ্রি ডেলিভারির টাকা দেওয়া থাকলে, তার বেশি দামের পণ্যে দেখাবে" },
+      { key: "list_sort", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে \"সাজান\" (দাম কম-বেশি, নতুন)" },
       { key: "img_fit", type: "select", label: "ছবি কীভাবে বসবে", options: { cover: "পুরো বক্স ভরে (কিছুটা কাটা যেতে পারে)", contain: "পুরো ছবি দেখাবে" } },
       { key: "badge_fmt", type: "select", label: "ছাড়ের ব্যাজ", options: { pct: "২৪% ছাড়", minus: "-২৪%", off: "দেখাবে না" } },
     ],
@@ -94,7 +143,7 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
   {
     key: "footer", title: "ফুটার আর বিশ্বাসের ব্যাজ", desc: "পেজের একদম নিচের অংশ।",
     fields: [
-      { key: "footer_style", type: "select", label: "ফুটারের ধরন", options: { simple: "সাধারণ (এক লাইনে যোগাযোগ)", full: "বড় (৪ কলাম)" } },
+      { key: "footer_style", type: "choice", label: "ফুটারের ডিজাইন", preview: "footer", options: { simple: "সাধারণ", full: "বড় (৪ কলাম)", center: "মাঝখানে সাজানো" } },
       { key: "footer_trust", type: "toggle", label: "ফুটারের উপরে বিশ্বাসের ব্যাজ" },
       { key: "footer_about", type: "textarea", label: "দোকান সম্পর্কে ছোট লেখা", max: 300, hint: "ফাঁকা রাখলে SEO ডেসক্রিপশন দেখাবে" },
       { key: "trust_1", type: "text", label: "ব্যাজ ১", max: 40 }, { key: "trust_1_sub", type: "text", label: "ব্যাজ ১-এর নিচের লেখা", max: 60 },
@@ -114,6 +163,16 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "float_call", type: "toggle", label: "কল বাটন" },
       { key: "float_messenger", type: "url", label: "Messenger লিংক (দিলে বাটন দেখাবে)", placeholder: "https://m.me/yourpage" },
       { key: "bottom_nav", type: "toggle", label: "মোবাইলে নিচের মেনু (হোম, ক্যাটাগরি, কার্ট, কল)" },
+      { key: "back_top", type: "toggle", label: "\"উপরে যান\" বাটন" },
+    ],
+  },
+  {
+    key: "other", title: "অন্যান্য", desc: "দোকান সাময়িক বন্ধ রাখা আর ছোটখাটো সেটিং।",
+    fields: [
+      { key: "coming_soon", type: "toggle", label: "দোকান সাময়িক বন্ধ (Coming Soon)", hint: "কাস্টমার শুধু নিচের লেখা দেখবে। আপনি অ্যাডমিনে লগইন থাকলে দোকান দেখতে পাবেন। ল্যান্ডিং পেজ খোলা থাকে।" },
+      { key: "coming_soon_text", type: "textarea", label: "বন্ধ থাকার সময়ের লেখা", max: 300 },
+      { key: "breadcrumbs", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে উপরে পথ দেখানো (হোম › ...)" },
+      { key: "track_link", type: "toggle", label: "\"অর্ডার ট্র্যাক করুন\" লিংক (মেনু আর ফুটারে)" },
     ],
   },
 ];
@@ -128,19 +187,28 @@ const TRUST_DEFAULTS: Cfg = {
 const BASE: Cfg = {
   font_body: "", font_heading: "", font_size: "md", btn_shape: "rounded", radius: "sm", card_style: "border",
   topbar: "0", announcement: "", topbar_hotline: "1", header_search: "0", header_nav: "0", header_call: "0", header_sticky: "1", logo_size: "md",
-  home_order: "banner,categories,offers,products,trust,text", sec_banner: "1", sec_categories: "0", sec_offers: "0", sec_products: "1", sec_trust: "0", sec_text: "0",
+  home_order: Object.keys(HOME_SECTIONS).join(","), sec_banner: "1", sec_categories: "0", sec_offers: "0", sec_products: "1", sec_trust: "0", sec_text: "0",
   title_categories: "ক্যাটাগরি", cat_style: "circle", title_offers: "🔥 অফার চলছে",
   per_row_mobile: "2", per_row_desktop: "4", per_section: "0", show_more: "1", text_title: "", text_body: "",
   card_order_btn: "1", card_order_text: "অর্ডার করুন", card_cart_btn: "1", card_cart_text: "কার্টে যোগ", img_fit: "cover", badge_fmt: "pct",
   footer_style: "simple", footer_trust: "0", footer_about: "", social_instagram: "", social_youtube: "", social_tiktok: "", footer_copy: "",
-  float_whatsapp: "0", float_call: "0", float_messenger: "", bottom_nav: "0",
+  float_whatsapp: "0", float_call: "0", float_messenger: "", bottom_nav: "0", back_top: "1",
+  header_layout: "colored", cart_icon: "cart", per_row_tablet: "3", img_ratio: "1/1", free_tag: "1", list_sort: "1",
+  sec_features: "0", sec_offer1: "0", sec_latest: "0", sec_midbanner: "0", sec_offer2: "0", sec_video: "0", sec_offer3: "0",
+  latest_title: "নতুন পণ্য", latest_count: "8", offer1_title: "বিশেষ অফার", offer1_products: "", offer2_title: "সেরা বিক্রি", offer2_products: "", offer3_title: "আপনার জন্য", offer3_products: "",
+  mid_banner: "", mid_banner_link: "", video_title: "ভিডিওতে দেখুন", video_url: "",
+  feature_1_icon: "truck", feature_1: "দ্রুত ডেলিভারি", feature_1_sub: "সারাদেশে হোম ডেলিভারি",
+  feature_2_icon: "cash", feature_2: "ক্যাশ অন ডেলিভারি", feature_2_sub: "পণ্য হাতে পেয়ে টাকা দিন",
+  feature_3_icon: "shield", feature_3: "অরিজিনাল পণ্য", feature_3_sub: "মান যাচাই করে পাঠানো",
+  popup_on: "0", popup_image: "", popup_link: "", popup_delay: "3",
+  coming_soon: "0", coming_soon_text: "আমাদের দোকান খুব শীঘ্রই আসছে। অর্ডার করতে কল করুন।", breadcrumbs: "1", track_link: "1",
   ...TRUST_DEFAULTS,
 };
 
 /** প্রতিটা থিমের শুরুর সেটিংস */
 export const THEME_DEFAULTS: Record<ThemeKey, Cfg> = {
   pro: {
-    ...BASE, btn_shape: "pill", radius: "lg", card_style: "shadow",
+    ...BASE, header_layout: "standard", cart_icon: "cart", btn_shape: "pill", radius: "lg", card_style: "shadow", sec_latest: "1",
     topbar: "1", header_search: "1", header_nav: "1", header_call: "1",
     sec_categories: "1", sec_offers: "1", per_section: "8", img_fit: "contain", badge_fmt: "minus",
     footer_style: "full", footer_trust: "1", float_whatsapp: "1", bottom_nav: "1",
@@ -159,8 +227,10 @@ export function themeConfig(s: Settings, theme: ThemeKey = themeOf(s)): Cfg {
   let saved: Record<string, unknown> = {};
   try { saved = JSON.parse(s[`theme_cfg_${theme}`] || "{}"); } catch { /* ভাঙা JSON */ }
   const cfg = clean({ ...def, ...(saved && typeof saved === "object" ? saved : {}) }, def);
+  for (const k of ["mid_banner_link", "popup_link"]) if (!/^(\/[^/\s][^\s"'<>]*|https:\/\/[^\s"'<>]+)$/.test(cfg[k] || "")) cfg[k] = "";
   // পুরনো "ঘোষণা" সেটিং (থিম কাস্টমাইজের আগে)
   if (!cfg.announcement && s.announcement) cfg.announcement = s.announcement;
+  cfg._free_min = String(freeDeliveryMin(s));
   return cfg;
 }
 
@@ -176,6 +246,9 @@ function clean(input: Record<string, unknown>, def: Cfg): Cfg {
       case "toggle": out[f.key] = v === "1" ? "1" : "0"; break;
       case "text": case "textarea": out[f.key] = v.slice(0, f.max); break;
       case "url": out[f.key] = URL_RE.test(v) && v.length <= 200 ? v : ""; break;
+      case "choice": out[f.key] = v in f.options ? v : def[f.key] ?? ""; break;
+      case "products": out[f.key] = [...new Set(v.split(",").map((x) => parseInt(x, 10)).filter((n) => n > 0))].slice(0, 24).join(","); break;
+      case "image": out[f.key] = /^[a-z0-9_]+\/[a-z0-9-]+\.(jpg|png|webp)$/i.test(v) ? v : ""; break;
       case "order": {
         const keys = v.split(",").filter((k) => k in HOME_SECTIONS);
         const all = [...new Set([...keys, ...Object.keys(HOME_SECTIONS)])];
@@ -193,6 +266,7 @@ export function cfgFromForm(body: Record<string, unknown>, theme: ThemeKey): Cfg
   const input: Record<string, unknown> = {};
   for (const g of GROUPS) for (const f of g.fields) {
     if (f.type === "toggle") input[f.key] = body[f.key] ? "1" : "0";
+    else if (f.type === "products") input[f.key] = Array.isArray(body[f.key]) ? (body[f.key] as unknown[]).join(",") : body[f.key] ?? "";
     else if (f.type === "color") input[f.key] = body[`${f.key}_on`] ? body[f.key] : "";
     else if (f.type === "order") {
       input.home_order = body.home_order;
@@ -242,9 +316,15 @@ export function cfgCss(cfg: Cfg): string {
   r.push(`.logo-img,.px-logo img{height:${lh}px}`);
   if (c("header_sticky") === "0") r.push(".site-header,.px-header{position:static}");
   if (c("cat_style") === "square") r.push(".px-cat-img{border-radius:16px}");
-  const m = c("per_row_mobile") === "1" ? 1 : 2;
-  const d = Math.min(5, Math.max(3, parseInt(c("per_row_desktop") || "4", 10)));
-  r.push(`.grid,.theme-pro .px-grid{grid-template-columns:repeat(${m},1fr)}@media(min-width:700px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(3,1fr)}}@media(min-width:1000px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${d},1fr)}}`);
+  const m = Math.min(3, Math.max(1, parseInt(c("per_row_mobile") || "2", 10)));
+  const t = Math.min(4, Math.max(2, parseInt(c("per_row_tablet") || "3", 10)));
+  const d = Math.min(6, Math.max(3, parseInt(c("per_row_desktop") || "4", 10)));
+  r.push(`.grid,.theme-pro .px-grid{grid-template-columns:repeat(${m},1fr)}@media(min-width:700px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${t},1fr)}}@media(min-width:1000px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${d},1fr)}}`);
+  if (m === 3) r.push("@media(max-width:699px){.card-actions .btn{font-size:.78rem;padding:6px 4px}.card-title{font-size:.85rem}}");
+  const ratio = { "1/1": "1/1", "4/5": "4/5", "3/4": "3/4", "4/3": "4/3", "16/9": "16/9" }[c("img_ratio") as "1/1"] ?? "1/1";
+  r.push(`.card-img{aspect-ratio:${ratio}}.card-img img{width:100%;height:100%}`);
+  if (c("c_cart")) r.push(`.card-actions .btn-outline{background:${c("c_cart")};border-color:${c("c_cart")};color:${c("c_cart_text") || "#fff"}}`);
+  else if (c("c_cart_text")) r.push(`.card-actions .btn-outline{color:${c("c_cart_text")}}`);
   if (c("card_order_btn") !== "1" || c("card_cart_btn") !== "1") r.push("@media(min-width:700px){.theme-pro .card-actions{grid-template-columns:1fr}}");
   return r.join("");
 }

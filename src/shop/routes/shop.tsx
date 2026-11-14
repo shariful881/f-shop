@@ -3,7 +3,9 @@ import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
 import { CartPage, CheckoutPage, HomePage, LandingPage, NotFoundPage, ThanksPage, type FormState } from "../views/shop";
-import { ListingPage, StoreHome } from "../views/pro";
+import { ComingSoonPage, ListingPage, SORTS, StoreHome, TrackPage } from "../views/pro";
+import { normalizePhone } from "../lib/phone";
+import { ADMIN_COOKIE } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
@@ -23,7 +25,16 @@ export const shop = new Hono<AppEnv>();
 
 /* প্রো থিমে হেডারের ক্যাটাগরি মেনু (যেসব ক্যাটাগরিতে চালু পণ্য আছে) */
 shop.use("*", async (c, next) => {
-  if (c.req.method === "GET") c.set("navCats", await navCategories(c.env.DB));
+  if (c.req.method === "GET") {
+    // দোকান সাময়িক বন্ধ: ল্যান্ডিং পেজ, অর্ডার, ধন্যবাদ, ট্র্যাকিং খোলা; অ্যাডমিন লগইন থাকলে সব দেখা যায়
+    const cfg = themeConfig(c.var.settings);
+    const p = c.req.path;
+    if (cfg.coming_soon === "1" && !getCookie(c, ADMIN_COOKIE) && (p === "/" || /^\/(c|search|cart|checkout)(\/|$)/.test(p))) {
+      c.header("X-Robots-Tag", "noindex");
+      return page(c, <ComingSoonPage s={c.var.settings} cfg={cfg} />);
+    }
+    c.set("navCats", await navCategories(c.env.DB));
+  }
   await next();
 });
 
@@ -62,9 +73,21 @@ function productData(products: Product[]): CustomData {
 shop.get("/", async (c) => {
   const sections = await homeSections(c.env.DB);
   const s = c.var.settings;
+  const cfg = themeConfig(s);
+  const on = (k: string) => cfg[`sec_${k}`] === "1";
+  // নিজে বাছাই করা অফারের পণ্য আর নতুন পণ্য
+  const ids = [1, 2, 3].filter((n) => on(`offer${n}`)).flatMap((n) => (cfg[`offer${n}_products`] || "").split(",")).map((x) => parseInt(x, 10)).filter((n) => n > 0);
+  const picked = new Map<number, Product>();
+  if (ids.length) {
+    const { results } = await c.env.DB.prepare(`${LISTING_SQL} AND p.id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all<Product>();
+    for (const p of results) picked.set(p.id, p);
+  }
+  const latest = on("latest")
+    ? (await c.env.DB.prepare(`${LISTING_SQL} ORDER BY p.id DESC LIMIT ?`).bind(Math.min(12, parseInt(cfg.latest_count || "8", 10))).all<Product>()).results
+    : [];
   return page(c,
     <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
-      <StoreHome s={s} cfg={themeConfig(s)} sections={sections} />
+      <StoreHome s={s} cfg={cfg} sections={sections} picked={picked} latest={latest} />
     </Layout>,
   );
 });
@@ -90,31 +113,58 @@ shop.get("/p/:slug", async (c) => {
 });
 
 /* ---------- ক্যাটাগরি আর সার্চ ---------- */
+const ORDER_SQL: Record<string, string> = { "": "p.sort_order, p.id", new: "p.id DESC", price_asc: "p.price, p.id", price_desc: "p.price DESC, p.id", name: "p.name, p.id" };
+const sortKey = (v: unknown) => (typeof v === "string" && v in SORTS ? v : "");
 const LISTING_SQL = "SELECT p.*, (SELECT COUNT(*) FROM product_variants v WHERE v.product_id = p.id AND v.active = 1) AS variant_count FROM products p WHERE p.is_active = 1";
 
 shop.get("/c/:id{[0-9]+}", async (c) => {
   const cat = await c.env.DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(toInt(c.req.param("id"))).first<{ id: number; name: string }>();
   if (!cat) return notFound(c);
-  const { results } = await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? ORDER BY p.sort_order, p.id LIMIT 200`).bind(cat.id).all<Product>();
+  const sort = sortKey(c.req.query("sort"));
+  const { results } = await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? ORDER BY ${ORDER_SQL[sort]} LIMIT 200`).bind(cat.id).all<Product>();
   const s = c.var.settings;
   return page(c,
     <Layout title={`${cat.name} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats}>
-      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} cfg={themeConfig(s)} />
+      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} cfg={themeConfig(s)} sort={sort} />
     </Layout>,
   );
 });
 
 shop.get("/search", async (c) => {
   const q = str(c.req.query("q"), 60);
+  const sort = sortKey(c.req.query("sort"));
   let results: Product[] = [];
   if (q) {
     const like = `%${q.replace(/[%_\\]/g, (m) => "\\" + m)}%`;
-    results = (await c.env.DB.prepare(`${LISTING_SQL} AND (p.name LIKE ? ESCAPE '\\' OR p.headline LIKE ? ESCAPE '\\') ORDER BY p.sort_order, p.id LIMIT 60`).bind(like, like).all<Product>()).results;
+    results = (await c.env.DB.prepare(`${LISTING_SQL} AND (p.name LIKE ? ESCAPE '\\' OR p.headline LIKE ? ESCAPE '\\') ORDER BY ${ORDER_SQL[sort]} LIMIT 60`).bind(like, like).all<Product>()).results;
   }
   const s = c.var.settings;
   return page(c,
     <Layout title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} q={q}>
-      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} cfg={themeConfig(s)} />
+      <ListingPage title={q ? `"${q}" খোঁজার ফল` : "পণ্য খুঁজুন"} products={results} q={q} nav={c.var.navCats ?? []} cfg={themeConfig(s)} sort={sort} />
+    </Layout>,
+  );
+});
+
+/* ---------- অর্ডার ট্র্যাকিং (অর্ডার নম্বর + মোবাইল নম্বর মিললে) ---------- */
+shop.get("/track", async (c) => {
+  const s = c.var.settings;
+  const no = str(c.req.query("order"), 30).toUpperCase();
+  const phone = normalizePhone(str(c.req.query("phone"), 20));
+  let result: Awaited<ReturnType<typeof getOrderByNo>> = null;
+  let error = "";
+  if (no || c.req.query("phone")) {
+    if (!(await hitRateLimit(c.env.DB, `track:${clientIp(c)}`, 20, 600))) error = "অনেকবার চেষ্টা করেছেন, কিছুক্ষণ পরে আবার চেষ্টা করুন।";
+    else {
+      const data = no ? await getOrderByNo(c.env.DB, no) : null;
+      if (data && phone && data.order.phone === phone) result = data;
+      else error = "এই অর্ডার নম্বর আর মোবাইল নম্বরে কোনো অর্ডার পাওয়া যায়নি।";
+    }
+  }
+  c.header("X-Robots-Tag", "noindex");
+  return page(c,
+    <Layout title="অর্ডার ট্র্যাক করুন" settings={s} cartCount={readCart(c).length} nav={c.var.navCats}>
+      <TrackPage s={s} order={result} error={error} values={{ order: no, phone: str(c.req.query("phone"), 20) }} />
     </Layout>,
   );
 });

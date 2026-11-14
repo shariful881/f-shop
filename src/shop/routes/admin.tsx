@@ -9,7 +9,7 @@ import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
 import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
-import { cfgDiff, cfgFromForm, themeConfig } from "../lib/theme-config";
+import { cfgDiff, cfgFromForm, GROUPS, themeConfig } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
 import { ThemeCustomizePage, SettingsAppearancePage, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, youtubeId } from "../lib/format";
@@ -694,13 +694,30 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
 };
 
 /* থিম কাস্টমাইজ — শুধু দোকানে চালু থিমের সেটিংস (প্রতিটা থিমের সেটিংস আলাদা সেভ থাকে) */
-admin.get("/settings/customize", (c) => {
+admin.get("/settings/customize", async (c) => {
   const theme = themeOf(c.var.settings);
-  return render(c, "থিম কাস্টমাইজ", "settings", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} />);
+  const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
+  return render(c, "থিম কাস্টমাইজ", "settings", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} />);
 });
 admin.post("/settings/customize", async (c) => {
-  const b = await c.req.parseBody();
+  const b = await c.req.parseBody({ all: true }) as Record<string, unknown>;
+  // একই নামের একাধিক মান শুধু পণ্যের তালিকায় থাকে; বাকিগুলোর প্রথমটা
+  for (const [k, val] of Object.entries(b)) if (Array.isArray(val) && !k.endsWith("_products")) b[k] = val[0];
   const theme = themeOf(c.var.settings);
+  // ছবি (মাঝের ব্যানার, পপআপ)
+  for (const f of GROUPS.flatMap((g) => g.fields).filter((f) => f.type === "image")) {
+    const file = b[`cfgimg_${f.key}`];
+    if (file instanceof File && file.size > 0) {
+      const ext = IMAGE_TYPES[file.type];
+      if (!ext || file.size > 2 * 1024 * 1024) {
+        flash(c, "error", "ছবি PNG/JPG/WebP আর ২ MB-এর কম হতে হবে");
+        return c.redirect("/admin/settings/customize", 303);
+      }
+      const key = `theme/${crypto.randomUUID()}.${ext}`;
+      await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+      b[f.key] = key;
+    } else if (b[`remove_${f.key}`]) b[f.key] = "";
+  }
   const value = b.reset ? "" : JSON.stringify(cfgDiff(cfgFromForm(b, theme), theme));
   await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value });
   flash(c, "ok", b.reset ? `${THEMES[theme].name} থিম শুরুর সেটিংসে ফিরেছে।` : `${THEMES[theme].name} থিমের সেটিংস সেভ হয়েছে।`);

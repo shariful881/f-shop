@@ -372,7 +372,7 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
         <label class="set-check"><input type="checkbox" name="show_note" value="1" checked={s.show_note !== "0"} /> ফর্মে "নোট" ঘর দেখাবে</label>
       </Section>
       <Section title="ধন্যবাদ পেজ" desc="অর্ডার দেওয়ার পর কাস্টমার যে লেখা দেখবেন">
-        <F label="ধন্যবাদ বার্তা" hint="ফাঁকা রাখলে: আমাদের প্রতিনিধি শীঘ্রই কল করে অর্ডারটি কনফার্ম করবেন।" wide>
+        <F label="ধন্যবাদ বার্তা" hint="এগুলো লিখলে নিজে থেকে বসবে: {name} নাম, {order_no} অর্ডার নম্বর, {total} মোট টাকা, {phone} মোবাইল, {shop} দোকানের নাম। ফাঁকা রাখলে: আমাদের প্রতিনিধি শীঘ্রই কল করে অর্ডারটি কনফার্ম করবেন।" wide>
           <textarea name="thanks_message" rows={3} maxlength={500}>{s.thanks_message ?? ""}</textarea>
         </F>
       </Section>
@@ -449,9 +449,62 @@ export const ROLE_TEXT = ROLE_LABEL;
 
 
 /* ---------- থিম কাস্টমাইজ (প্রতিটা থিমের আলাদা সেটিংস) ---------- */
-const CfgField = ({ f, cfg }: { f: Field; cfg: Cfg }) => {
+/* ছবি দেখে বাছাইয়ের ছোট নকশা */
+const ChoicePreview = ({ kind, k }: { kind: string; k: string }) => {
+  if (kind === "cart") {
+    const d = { cart: "M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6M9.5 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM17.5 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2", basket: "M3 10h18l-2 10H5zM8 10l4-6 4 6M9 14v3M15 14v3" }[k as "cart"];
+    return <span class="cz-pv cz-pv-cart"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d={d} /></svg></span>;
+  }
+  return <span class={`cz-pv cz-pv-${kind} cz-pv-${kind}-${k}`}><i class="a" /><i class="b" /><i class="c" /><i class="d" /></span>;
+};
+
+const CfgField = ({ f, cfg, products }: { f: Field; cfg: Cfg; products: { id: number; name: string }[] }) => {
   const v = cfg[f.key] ?? "";
   switch (f.type) {
+    case "choice":
+      return (
+        <div class="set-field wide">
+          <span>{f.label}</span>
+          <div class={`cz-choices cz-choices-${f.preview}`}>
+            {Object.entries(f.options).map(([k, l]) => (
+              <label class="cz-choice">
+                <input type="radio" name={f.key} value={k} checked={k === v} />
+                <ChoicePreview kind={f.preview} k={k} />
+                <small>{l}</small>
+              </label>
+            ))}
+          </div>
+          {f.hint && <small>{f.hint}</small>}
+        </div>
+      );
+    case "products": {
+      const chosen = new Set(v.split(",").filter(Boolean));
+      return (
+        <div class="set-field wide">
+          <span>{f.label} <em class="sa-muted">({chosen.size}টা বাছাই)</em></span>
+          {products.length === 0 ? <small>আগে পণ্য যোগ করুন</small> : (
+            <div class="cz-products">
+              {products.map((p) => <label class="small-check"><input type="checkbox" name={f.key} value={String(p.id)} checked={chosen.has(String(p.id))} /> {p.name}</label>)}
+            </div>
+          )}
+          <input type="hidden" name={`${f.key}__present`} value="1" />
+          {f.hint && <small>{f.hint}</small>}
+        </div>
+      );
+    }
+    case "image":
+      return (
+        <F label={f.label} hint={f.hint}>
+          <div class="img-field">
+            {v ? <img src={imageUrl(v)} alt="" /> : <span class="img-empty">ছবি নেই</span>}
+            <div>
+              <input type="file" name={`cfgimg_${f.key}`} accept="image/png,image/jpeg,image/webp" />
+              <input type="hidden" name={f.key} value={v} />
+              {v && <label class="small-check"><input type="checkbox" name={`remove_${f.key}`} value="1" /> সরিয়ে দিন</label>}
+            </div>
+          </div>
+        </F>
+      );
     case "color":
       return (
         <F label={f.label} hint={f.hint}>
@@ -492,7 +545,7 @@ const CfgField = ({ f, cfg }: { f: Field; cfg: Cfg }) => {
   }
 };
 
-export const ThemeCustomizePage = ({ theme, cfg }: { s: Settings; theme: ThemeKey; cfg: Cfg }) => {
+export const ThemeCustomizePage = ({ theme, cfg, products }: { s: Settings; theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[] }) => {
   return (
     <>
       <Tabs active="customize" />
@@ -501,11 +554,11 @@ export const ThemeCustomizePage = ({ theme, cfg }: { s: Settings; theme: ThemeKe
         অন্য থিম চালু করলে সেই থিমের নিজের সেটিংস এখানে দেখাবে (<a href="/admin/settings/appearance">থিম বদলান</a>)।
         {" "}<a href="/" target="_blank">দোকান দেখুন ↗</a>
       </p>
-      <form method="post" action="/admin/settings/customize" class="set-form">
+      <form method="post" action="/admin/settings/customize" class="set-form" enctype="multipart/form-data">
         {GROUPS.map((g) => (
-          <details class="sa-card set-section cz-group" open={g.key === "style"}>
+          <details class="sa-card set-section cz-group" open={g.key === "style"} id={`cz-${g.key}`}>
             <summary class="set-section-head"><h2>{g.title}</h2><p class="sa-muted">{g.desc}</p></summary>
-            <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={cfg} />)}</div>
+            <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={cfg} products={products} />)}</div>
           </details>
         ))}
         <div class="set-save">

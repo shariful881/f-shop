@@ -8,7 +8,8 @@ import type { HomeSection, Product } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import { freeDeliveryMin, themeOf } from "../lib/settings";
 import { homeOrder, type Cfg } from "../lib/theme-config";
-import { bn, imageUrl, taka } from "../lib/format";
+import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
+import { AREA_LABEL, STATUS_LABEL, type Order, type OrderItem } from "../lib/orders";
 import { ProductCard } from "./shop";
 
 export type NavCat = { id: number; name: string };
@@ -28,6 +29,14 @@ export const I = {
   shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4",
   refresh: "M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4",
   close: "M6 6l12 12M18 6L6 18",
+  bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2",
+  basket: "M3 10h18l-2 10H5zM8 10l4-6 4 6M9 14v3M15 14v3",
+  gift: "M4 10h16v10H4zM3 7h18v3H3zM12 7v13M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0",
+  star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
+  leaf: "M5 19c0-8 6-14 15-14 0 9-6 15-14 15M5 19l7-7",
+  up: "M12 19V5M5 12l7-7 7 7",
+  track: "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 11h5",
 };
 export const Icon = ({ name, size = 22 }: { name: keyof typeof I; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -38,6 +47,8 @@ export const Icon = ({ name, size = 22 }: { name: keyof typeof I; size?: number 
 const phoneHref = (s: Settings) => `tel:${(s.contact_phone || "").replace(/[^\d+]/g, "")}`;
 export const waHref = (s: Settings) => (s.whatsapp ? `https://wa.me/88${s.whatsapp.replace(/\D/g, "").replace(/^88/, "")}` : "");
 const on = (cfg: Cfg, k: string) => cfg[k] === "1";
+const cartIco = (cfg: Cfg): keyof typeof I => (cfg.cart_icon === "bag" ? "bag" : cfg.cart_icon === "basket" ? "basket" : "cart");
+const safeLink = (l?: string) => (l && /^(\/[^/]|https:\/\/)/.test(l) ? l : undefined);
 
 const SearchBox = ({ q }: { q?: string }) => (
   <form action="/search" method="get" class="px-search" role="search">
@@ -61,7 +72,7 @@ const TopBar = ({ s, cfg }: { s: Settings; cfg: Cfg }) => {
   );
 };
 
-const Drawer = ({ s, nav }: { s: Settings; nav: NavCat[] }) => (
+const Drawer = ({ s, nav, cfg }: { s: Settings; nav: NavCat[]; cfg: Cfg }) => (
   <>
     <aside class="px-drawer" aria-label="মেনু">
       <div class="px-drawer-head">
@@ -72,76 +83,117 @@ const Drawer = ({ s, nav }: { s: Settings; nav: NavCat[] }) => (
       {nav.map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
       <a href="/search">পণ্য খুঁজুন</a>
       <a href="/cart">কার্ট</a>
+      {on(cfg, "track_link") && <a href="/track">অর্ডার ট্র্যাক করুন</a>}
       {s.contact_phone && <a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a>}
     </aside>
     <label for="px-drawer" class="px-scrim" aria-hidden="true"></label>
   </>
 );
 
-const NavRow = ({ nav }: { nav: NavCat[] }) => (
+const NavRow = ({ nav, center }: { nav: NavCat[]; center?: boolean }) => (
   <nav class="px-nav px-only-desktop" aria-label="ক্যাটাগরি">
-    <div class="wrap px-nav-in">
+    <div class={`wrap px-nav-in ${center ? "center" : ""}`}>
       <a href="/">হোম</a>
       {nav.map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
     </div>
   </nav>
 );
 
-/* ---------- হেডার ---------- */
+/* ---------- হেডার (৪টা ডিজাইন, যেকোনো থিমে) ---------- */
 export const StoreHeader = ({ s, cfg, cartCount, nav, q }: { s: Settings; cfg: Cfg; cartCount: number; nav: NavCat[]; q?: string }) => {
+  const layout = cfg.header_layout || (themeOf(s) === "pro" ? "standard" : "colored");
   const showNav = on(cfg, "header_nav") && nav.length > 0;
+  const search = on(cfg, "header_search");
   const logo = s.logo ? <img src={imageUrl(s.logo)} alt={s.site_name || ""} class="logo-img" height="40" /> : <span>{s.site_name || "দোকান"}</span>;
-  const menuBtn = (showNav || on(cfg, "header_search")) && <label for="px-drawer" class="px-icon-btn px-only-mobile" aria-label="মেনু"><Icon name="menu" /></label>;
-
-  if (themeOf(s) === "pro") {
-    return (
-      <>
-        <TopBar s={s} cfg={cfg} />
-        <input type="checkbox" id="px-drawer" class="px-drawer-toggle" aria-hidden="true" />
-        <header class="px-header">
-          <div class="wrap px-header-in">
-            {menuBtn}
-            <a href="/" class="px-logo">{logo}</a>
-            {on(cfg, "header_search") && <div class="px-only-desktop px-search-wrap"><SearchBox q={q} /></div>}
-            <div class="px-actions">
-              {on(cfg, "header_call") && s.contact_phone && (
-                <a href={phoneHref(s)} class="px-call px-only-desktop">
-                  <Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{bn(s.contact_phone)}</b></span>
-                </a>
-              )}
-              <a href="/cart" class="px-icon-btn px-cart" aria-label="কার্ট">
-                <Icon name="cart" /><span class="px-cart-count" data-cart-count>{bn(cartCount)}</span>
-              </a>
-            </div>
-          </div>
-          {on(cfg, "header_search") && <div class="wrap px-only-mobile px-search-mobile"><SearchBox q={q} /></div>}
-          {showNav && <NavRow nav={nav} />}
-        </header>
-        <Drawer s={s} nav={nav} />
-      </>
-    );
-  }
-
-  // ক্লাসিক, মিনিমাল, বোল্ড: রঙিন সরু হেডার
-  return (
+  const menuBtn = (showNav || search || on(cfg, "track_link")) && <label for="px-drawer" class="px-icon-btn px-only-mobile" aria-label="মেনু"><Icon name="menu" /></label>;
+  const cart = (
+    <a href="/cart" class="px-icon-btn px-cart" aria-label="কার্ট">
+      <Icon name={cartIco(cfg)} /><span class="px-cart-count" data-cart-count>{bn(cartCount)}</span>
+    </a>
+  );
+  const call = on(cfg, "header_call") && s.contact_phone && (
+    <a href={phoneHref(s)} class="px-call px-only-desktop">
+      <Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{bn(s.contact_phone)}</b></span>
+    </a>
+  );
+  const shell = (header: Child) => (
     <>
       <TopBar s={s} cfg={cfg} />
       <input type="checkbox" id="px-drawer" class="px-drawer-toggle" aria-hidden="true" />
+      {header}
+      <Drawer s={s} nav={nav} cfg={cfg} />
+    </>
+  );
+
+  if (layout === "colored") {
+    return shell(
       <header class="site-header">
         <div class="wrap header-inner">
           {menuBtn}
           <a href="/" class="logo">{logo}</a>
-          {on(cfg, "header_search") && <div class="px-only-desktop px-search-wrap"><SearchBox q={q} /></div>}
+          {search && <div class="px-only-desktop px-search-wrap"><SearchBox q={q} /></div>}
           {on(cfg, "header_call") && s.contact_phone && <a href={phoneHref(s)} class="px-call px-only-desktop"><Icon name="phone" size={18} /> {bn(s.contact_phone)}</a>}
           <a href="/cart" class="cart-link" aria-label="কার্ট">
-            🛒 কার্ট <span class="cart-count" data-cart-count>{bn(cartCount)}</span>
+            <Icon name={cartIco(cfg)} size={20} /> কার্ট <span class="cart-count" data-cart-count>{bn(cartCount)}</span>
           </a>
         </div>
-        {on(cfg, "header_search") && <div class="wrap px-only-mobile px-search-mobile"><SearchBox q={q} /></div>}
+        {search && <div class="wrap px-only-mobile px-search-mobile"><SearchBox q={q} /></div>}
         {showNav && <NavRow nav={nav} />}
-      </header>
-      <Drawer s={s} nav={nav} />
-    </>
+      </header>,
+    );
+  }
+
+  if (layout === "inline") {
+    return shell(
+      <header class="px-header px-h-inline">
+        <div class="wrap px-header-in">
+          {menuBtn}
+          <a href="/" class="px-logo">{logo}</a>
+          {showNav && (
+            <nav class="px-inline-nav px-only-desktop" aria-label="ক্যাটাগরি">
+              <a href="/">হোম</a>
+              {nav.slice(0, 7).map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
+            </nav>
+          )}
+          <div class="px-actions">
+            {search && <a href="/search" class="px-icon-btn" aria-label="খুঁজুন"><Icon name="search" /></a>}
+            {call}
+            {cart}
+          </div>
+        </div>
+      </header>,
+    );
+  }
+
+  if (layout === "center") {
+    return shell(
+      <header class="px-header px-h-center">
+        <div class="wrap px-header-in">
+          <div class="px-h-side">
+            {menuBtn}
+            {search && <div class="px-only-desktop px-search-wrap"><SearchBox q={q} /></div>}
+          </div>
+          <a href="/" class="px-logo">{logo}</a>
+          <div class="px-h-side px-h-right">{call}{cart}</div>
+        </div>
+        {search && <div class="wrap px-only-mobile px-search-mobile"><SearchBox q={q} /></div>}
+        {showNav && <NavRow nav={nav} center />}
+      </header>,
+    );
+  }
+
+  // standard: লোগো বাঁয়ে, বড় সার্চ
+  return shell(
+    <header class="px-header">
+      <div class="wrap px-header-in">
+        {menuBtn}
+        <a href="/" class="px-logo">{logo}</a>
+        {search && <div class="px-only-desktop px-search-wrap"><SearchBox q={q} /></div>}
+        <div class="px-actions">{call}{cart}</div>
+      </div>
+      {search && <div class="wrap px-only-mobile px-search-mobile"><SearchBox q={q} /></div>}
+      {showNav && <NavRow nav={nav} />}
+    </header>,
   );
 };
 
@@ -166,6 +218,35 @@ export const StoreFooter = ({ s, cfg, nav }: { s: Settings; cfg: Cfg; nav: NavCa
   const socials = ([["Facebook", fb], ["Instagram", cfg.social_instagram], ["YouTube", cfg.social_youtube], ["TikTok", cfg.social_tiktok]] as const).filter(([, u]) => u);
   const trust = on(cfg, "footer_trust") && <TrustStrip cfg={cfg} />;
 
+  const track = on(cfg, "track_link");
+  if (cfg.footer_style === "center") {
+    return (
+      <>
+        {trust}
+        <footer class="px-footer px-footer-center">
+          <div class="wrap">
+            <a href="/" class="px-footer-logo">{s.logo ? <img src={imageUrl(s.logo)} alt={s.site_name || ""} height="40" /> : s.site_name}</a>
+            {(cfg.footer_about || s.seo_description) && <p class="px-fc-about">{cfg.footer_about || s.seo_description}</p>}
+            <nav class="px-fc-links">
+              <a href="/">হোম</a>
+              {nav.slice(0, 6).map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
+              <a href="/cart">কার্ট</a>
+              {track && <a href="/track">অর্ডার ট্র্যাক</a>}
+            </nav>
+            <p class="px-fc-contact">
+              {s.contact_phone && <a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a>}
+              {wa && <a href={wa} target="_blank" rel="noopener">💬 WhatsApp</a>}
+              {s.store_email && <a href={`mailto:${s.store_email}`}>✉️ {s.store_email}</a>}
+            </p>
+            {s.store_address && <p class="px-fc-addr">📍 {s.store_address}</p>}
+            {socials.length > 0 && <p class="px-socials center">{socials.map(([n, u]) => <a href={u} target="_blank" rel="noopener">{n}</a>)}</p>}
+          </div>
+          <div class="px-copy"><div class="wrap">{cfg.footer_copy || `© ${s.site_name || ""} · ক্যাশ অন ডেলিভারি · সারাদেশে হোম ডেলিভারি`}</div></div>
+        </footer>
+      </>
+    );
+  }
+
   if (cfg.footer_style !== "full") {
     return (
       <>
@@ -175,6 +256,7 @@ export const StoreFooter = ({ s, cfg, nav }: { s: Settings; cfg: Cfg; nav: NavCa
             {s.contact_phone && <p>যেকোনো প্রয়োজনে কল করুন: <a href={phoneHref(s)}>{bn(s.contact_phone)}</a></p>}
             {(wa || s.store_email || socials.length > 0) && (
               <p class="footer-links">
+                {track && <a href="/track">অর্ডার ট্র্যাক</a>}
                 {wa && <a href={wa} target="_blank" rel="noopener">WhatsApp</a>}
                 {socials.map(([n, u]) => <a href={u} target="_blank" rel="noopener">{n === "Facebook" ? "Facebook পেজ" : n}</a>)}
                 {s.store_email && <a href={`mailto:${s.store_email}`}>{s.store_email}</a>}
@@ -210,6 +292,7 @@ export const StoreFooter = ({ s, cfg, nav }: { s: Settings; cfg: Cfg; nav: NavCa
               <li><a href="/">সব পণ্য</a></li>
               <li><a href="/cart">আমার কার্ট</a></li>
               <li><a href="/search">পণ্য খুঁজুন</a></li>
+              {track && <li><a href="/track">অর্ডার ট্র্যাক করুন</a></li>}
             </ul>
           </div>
           <div>
@@ -236,6 +319,7 @@ export const StoreFloating = ({ s, cfg, cartCount, bare }: { s: Settings; cfg: C
   const nav = on(cfg, "bottom_nav") && !bare;
   return (
     <>
+      {on(cfg, "back_top") && <a href="#" class={`px-top ${nav ? "" : "low"}`} aria-label="উপরে যান" data-back-top hidden><Icon name="up" size={20} /></a>}
       {(wa || call || msg) && (
         <div class={`px-floats ${nav ? "" : "low"} ${bare ? "bare" : ""}`}>
           {msg && <a href={msg} class="px-fab px-fab-msg" target="_blank" rel="noopener" aria-label="Messenger-এ মেসেজ দিন"><Icon name="bolt" size={24} /></a>}
@@ -247,7 +331,7 @@ export const StoreFloating = ({ s, cfg, cartCount, bare }: { s: Settings; cfg: C
         <nav class="px-bottom" aria-label="মোবাইল মেনু">
           <a href="/"><Icon name="home" /><span>হোম</span></a>
           <label for="px-drawer"><Icon name="grid" /><span>ক্যাটাগরি</span></label>
-          <a href="/cart" class="px-bottom-cart"><Icon name="cart" /><span>কার্ট</span><i data-cart-count>{bn(cartCount)}</i></a>
+          <a href="/cart" class="px-bottom-cart"><Icon name={cartIco(cfg)} /><span>কার্ট</span><i data-cart-count>{bn(cartCount)}</i></a>
           {s.contact_phone ? <a href={phoneHref(s)}><Icon name="phone" /><span>কল করুন</span></a> : <a href="/search"><Icon name="search" /><span>খুঁজুন</span></a>}
         </nav>
       )}
@@ -268,8 +352,11 @@ const Section = ({ title, href, children }: { title?: string; href?: string; chi
   </section>
 );
 
-export const StoreHome = ({ s, cfg, sections }: { s: Settings; cfg: Cfg; sections: HomeSection[] }) => {
-  const safeLink = (l?: string) => (l && /^(\/[^/]|https:\/\/)/.test(l) ? l : undefined);
+export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; cfg: Cfg; sections: HomeSection[]; picked: Map<number, Product>; latest: Product[] }) => {
+  const offer = (n: number) => () => {
+    const list = (cfg[`offer${n}_products`] || "").split(",").map((x) => picked.get(parseInt(x, 10))).filter((p): p is Product => !!p);
+    return list.length ? <Section title={cfg[`offer${n}_title`]}><div class="grid px-grid">{list.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section> : null;
+  };
   const per = parseInt(cfg.per_section || "0", 10);
   const parts: Record<string, () => Child> = {
     banner: () => {
@@ -321,6 +408,38 @@ export const StoreHome = ({ s, cfg, sections }: { s: Settings; cfg: Cfg; section
       </>
     ),
     trust: () => <div class="px-home-trust"><TrustStrip cfg={cfg} /></div>,
+    offer1: offer(1), offer2: offer(2), offer3: offer(3),
+    latest: () => latest.length ? (
+      <Section title={cfg.latest_title}><div class="grid px-grid">{latest.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section>
+    ) : null,
+    midbanner: () => {
+      if (!cfg.mid_banner) return null;
+      const img = <img src={imageUrl(cfg.mid_banner)} alt="" loading="lazy" width="1200" height="300" />;
+      const href = safeLink(cfg.mid_banner_link);
+      return <div class="px-midbanner">{href ? <a href={href}>{img}</a> : img}</div>;
+    },
+    video: () => {
+      const m = /(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/.exec(cfg.video_url || "");
+      if (!m) return null;
+      return (
+        <Section title={cfg.video_title || undefined}>
+          <div class="video" data-yt={m[1]}>
+            <button type="button" class="video-thumb" aria-label="ভিডিও চালান">
+              <img src={`https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`} alt="ভিডিও" loading="lazy" width="480" height="360" />
+              <span class="play">▶</span>
+            </button>
+          </div>
+        </Section>
+      );
+    },
+    features: () => {
+      const items = [1, 2, 3].map((n) => ({ t: cfg[`feature_${n}`], sub: cfg[`feature_${n}_sub`], icon: (cfg[`feature_${n}_icon`] || "star") as keyof typeof I })).filter((x) => x.t);
+      return items.length ? (
+        <div class="px-features">
+          {items.map((x) => <div class="px-feature"><Icon name={x.icon in I ? x.icon : "star"} size={26} /><span><b>{x.t}</b>{x.sub && <small>{x.sub}</small>}</span></div>)}
+        </div>
+      ) : null;
+    },
     text: () => (cfg.text_title || cfg.text_body) ? (
       <Section title={cfg.text_title || undefined}><div class="px-text-block">{cfg.text_body}</div></Section>
     ) : null,
@@ -331,15 +450,38 @@ export const StoreHome = ({ s, cfg, sections }: { s: Settings; cfg: Cfg; section
         {sections.length === 0 && <p class="empty">এখনো কোনো পণ্য যোগ করা হয়নি।</p>}
         {homeOrder(cfg).map((k) => parts[k]?.())}
       </div>
+      {on(cfg, "popup_on") && cfg.popup_image && (
+        <div class="px-popup" data-popup data-delay={cfg.popup_delay || "3"} data-key={cfg.popup_image} hidden>
+          <div class="px-popup-box">
+            <button type="button" class="px-popup-x" aria-label="বন্ধ করুন" data-popup-close><Icon name="close" /></button>
+            {safeLink(cfg.popup_link)
+              ? <a href={safeLink(cfg.popup_link)}><img src={imageUrl(cfg.popup_image)} alt="অফার" width="800" height="800" loading="lazy" /></a>
+              : <img src={imageUrl(cfg.popup_image)} alt="অফার" width="800" height="800" loading="lazy" />}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 /* ---------- ক্যাটাগরি / সার্চের পণ্য তালিকা ---------- */
-export const ListingPage = ({ title, products, q, nav, activeId, cfg }: { title: string; products: Product[]; q?: string; nav: NavCat[]; activeId?: number; cfg: Cfg }) => (
+export const SORTS: Record<string, string> = { "": "ডিফল্ট", new: "নতুন আগে", price_asc: "দাম: কম থেকে বেশি", price_desc: "দাম: বেশি থেকে কম", name: "নাম অনুযায়ী" };
+
+export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "" }: { title: string; products: Product[]; q?: string; nav: NavCat[]; activeId?: number; cfg: Cfg; sort?: string }) => (
   <div class="wrap px-listing">
-    <nav class="px-crumbs"><a href="/">হোম</a> › <span>{title}</span></nav>
-    <h1 class="page-title">{title} <small class="muted">({bn(products.length)}টা পণ্য)</small></h1>
+    {on(cfg, "breadcrumbs") && <nav class="px-crumbs"><a href="/">হোম</a> › <span>{title}</span></nav>}
+    <div class="px-list-head">
+      <h1 class="page-title">{title} <small class="muted">({bn(products.length)}টা পণ্য)</small></h1>
+      {on(cfg, "list_sort") && products.length > 1 && (
+        <form method="get" class="px-sort">
+          {q !== undefined && <input type="hidden" name="q" value={q} />}
+          <label>সাজান:{" "}
+            <select name="sort" data-autosubmit>{Object.entries(SORTS).map(([k, l]) => <option value={k} selected={k === sort}>{l}</option>)}</select>
+          </label>
+          <noscript><button class="btn btn-outline">দেখুন</button></noscript>
+        </form>
+      )}
+    </div>
     {q !== undefined && (
       <form action="/search" method="get" class={`px-search px-search-page ${on(cfg, "header_search") ? "dup" : ""}`} role="search">
         <input type="search" name="q" value={q} placeholder="পণ্যের নাম লিখুন…" maxlength={60} aria-label="পণ্য খুঁজুন" />
@@ -358,3 +500,58 @@ export const ListingPage = ({ title, products, q, nav, activeId, cfg }: { title:
     )}
   </div>
 );
+
+/* ---------- দোকান সাময়িক বন্ধ ---------- */
+export const ComingSoonPage = ({ s, cfg }: { s: Settings; cfg: Cfg }) => (
+  <html lang="bn">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <meta name="robots" content="noindex" />
+      <title>{s.site_name || "দোকান"} — শীঘ্রই আসছে</title>
+      <link rel="stylesheet" href="/css/app.css" />
+    </head>
+    <body class="px-soon">
+      <main class="px-soon-box">
+        {s.logo ? <img src={imageUrl(s.logo)} alt={s.site_name || ""} height="64" /> : <h1>{s.site_name}</h1>}
+        <p>{cfg.coming_soon_text}</p>
+        {s.contact_phone && <a href={phoneHref(s)} class="btn btn-primary">📞 {bn(s.contact_phone)}</a>}
+      </main>
+    </body>
+  </html>
+);
+
+/* ---------- অর্ডার ট্র্যাকিং ---------- */
+const STEPS = ["new", "confirmed", "shipped"] as const;
+export const TrackPage = ({ s, order, error, values }: { s: Settings; order: { order: Order; items: OrderItem[] } | null; error: string; values: { order: string; phone: string } }) => {
+  const st = order?.order.status;
+  const idx = st ? STEPS.indexOf(st as (typeof STEPS)[number]) : -1;
+  return (
+    <div class="wrap narrow px-track">
+      <h1 class="page-title">অর্ডার ট্র্যাক করুন</h1>
+      <form method="get" action="/track" class="px-track-form">
+        <label class="field"><span>অর্ডার নম্বর</span><input type="text" name="order" value={values.order} placeholder="যেমন FS-1001" required maxlength={30} /></label>
+        <label class="field"><span>যে মোবাইল নম্বরে অর্ডার করেছেন</span><input type="tel" name="phone" value={values.phone} placeholder="01XXXXXXXXX" required inputmode="tel" /></label>
+        <button class="btn btn-primary btn-block">খুঁজুন</button>
+      </form>
+      {error && <div class="alert alert-error">{error}</div>}
+      {order && (
+        <div class="px-track-result">
+          <p>অর্ডার <b>{order.order.order_no}</b> · {dhakaTime(order.order.created_at)}</p>
+          {st === "cancelled" || st === "fake" ? (
+            <div class="alert alert-error">এই অর্ডারটি বাতিল হয়েছে। প্রশ্ন থাকলে কল করুন: {bn(s.contact_phone || "")}</div>
+          ) : (
+            <ol class="px-steps">
+              {STEPS.map((k, i) => <li class={i <= idx ? "done" : ""}><span>{bn(i + 1)}</span>{STATUS_LABEL[k]}</li>)}
+            </ol>
+          )}
+          <div class="summary">
+            {order.items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
+            <div><span>ডেলিভারি ({AREA_LABEL[order.order.area]})</span><span>{taka(order.order.delivery_charge)}</span></div>
+            <div class="summary-total"><span>মোট</span><span>{taka(order.order.total)}</span></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

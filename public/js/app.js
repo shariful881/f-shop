@@ -209,3 +209,25 @@
   var t = setInterval(function () { go(idx() + 1); }, 5000);
   track.addEventListener("touchstart", function () { clearInterval(t); }, { passive: true });
 })();
+
+/* অফারের পপআপ (দিনে একবার), উপরে যান বাটন, সাজানো বদলালে সাথে সাথে */
+(function () {
+  var pop = document.querySelector("[data-popup]");
+  if (pop) {
+    var key = "popup:" + pop.dataset.key, today = new Date().toDateString(), seen = null;
+    try { seen = localStorage.getItem(key); } catch (e) {}
+    if (seen !== today) {
+      setTimeout(function () { pop.hidden = false; }, (+pop.dataset.delay || 0) * 1000);
+      var close = function () { pop.hidden = true; try { localStorage.setItem(key, today); } catch (e) {} };
+      pop.addEventListener("click", function (e) { if (e.target === pop || e.target.closest("[data-popup-close]")) close(); });
+    }
+  }
+  var top = document.querySelector("[data-back-top]");
+  if (top) {
+    window.addEventListener("scroll", function () { top.hidden = window.scrollY < 600; }, { passive: true });
+    top.addEventListener("click", function (e) { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+  }
+  document.querySelectorAll("[data-autosubmit]").forEach(function (sel) {
+    sel.addEventListener("change", function () { sel.form.submit(); });
+  });
+})();

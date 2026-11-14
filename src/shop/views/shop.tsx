@@ -20,6 +20,7 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
       <a href={`/p/${p.slug}`} class="card-img">
         <img src={imageUrl(p.image)} alt={p.name} loading="lazy" width="400" height="400" />
         {off > 0 && fmt !== "off" && <span class="badge">{fmt === "minus" ? `-${bn(off)}%` : `${bn(off)}% ছাড়`}</span>}
+        {cfg?.free_tag === "1" && +(cfg._free_min || 0) > 0 && p.price >= +(cfg._free_min || 0) && <span class="free-tag">ফ্রি ডেলিভারি</span>}
       </a>
       <div class="card-body">
         <a href={`/p/${p.slug}`} class="card-title">{p.name}</a>
@@ -263,12 +264,17 @@ export const CheckoutPage = ({ products, settings, form, closed }: { products: P
 };
 
 /* ---------- ধন্যবাদ ---------- */
+/** ধন্যবাদের লেখায় {name}, {order_no}, {total}, {phone}, {shop} বসানো */
+export function fillThanks(t: string, o: Order, s: Settings): string {
+  const map: Record<string, string> = { name: o.name, order_no: o.order_no, orderid: o.order_no, total: taka(o.total).replace("৳", ""), totalamount: taka(o.total).replace("৳", ""), phone: bn(o.phone), shop: s.site_name || "", mysite: s.site_name || "" };
+  return t.replace(/\{(\w+)\}/g, (m, k: string) => map[k.toLowerCase()] ?? m);
+}
 export const ThanksPage = ({ order, items, settings }: { order: Order; items: OrderItem[]; settings: Settings }) => (
   <div class="wrap narrow thanks">
     <div class="thanks-icon">✓</div>
     <h1>ধন্যবাদ, আপনার অর্ডারটি পেয়েছি!</h1>
     <p class="order-no">অর্ডার নম্বর: <strong>{order.order_no}</strong></p>
-    {settings.thanks_message ? <p class="thanks-message">{settings.thanks_message}</p> : <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>}
+    {settings.thanks_message ? <p class="thanks-message">{fillThanks(settings.thanks_message, order, settings)}</p> : <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>}
     <div class="summary">
       {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
