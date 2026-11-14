@@ -392,55 +392,84 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
   const isEdit = !!v.id;
   return (
     <>
-      <p><a href="/admin/products">← পণ্য তালিকা</a></p>
-      <h1>{isEdit ? "পণ্য এডিট" : "নতুন পণ্য"} {isEdit && <a href={`/admin/products/${v.id}/landing`} class="btn btn-outline btn-sm">ল্যান্ডিং পেজ বিল্ডার →</a>}</h1>
-      <form method="post" action={isEdit ? `/admin/products/${v.id}` : "/admin/products"} enctype="multipart/form-data" class="admin-form">
-        <div class="form-grid">
-          <label class="field"><span>নাম *</span><input type="text" name="name" value={v.name ?? ""} required />{e.name && <small class="error">{e.name}</small>}</label>
-          <label class="field"><span>slug (লিংক: /p/slug)</span><input type="text" name="slug" value={v.slug ?? ""} placeholder="ফাঁকা রাখলে নিজে বানাবে" pattern="[a-z0-9-]*" />{e.slug && <small class="error">{e.slug}</small>}</label>
-          <label class="field"><span>ক্যাটাগরি</span>
-            <select name="category_id">
-              <option value="">— নেই —</option>
-              {p.categories.map((c) => <option value={String(c.id)} selected={v.category_id === c.id}>{c.name}</option>)}
-            </select>
-          </label>
-          <label class="field"><span>দাম (৳) *</span><input type="number" name="price" min="0" value={v.price != null ? String(v.price) : ""} required />{e.price && <small class="error">{e.price}</small>}</label>
-          <label class="field"><span>কাটা দাম (৳)</span><input type="number" name="compare_price" min="0" value={v.compare_price != null ? String(v.compare_price) : ""} /></label>
-          <label class="field"><span>ক্রম (ছোট সংখ্যা আগে)</span><input type="number" name="sort_order" value={String(v.sort_order ?? 0)} /></label>
-        </div>
-        <label class="field"><span>ছবি {v.image && "(নতুন দিলে পুরনোটা বদলাবে)"}</span>
-          {v.image && <img src={imageUrl(v.image)} width="120" class="thumb" alt="" />}
-          <input type="file" name="image" accept="image/jpeg,image/png,image/webp" />
-          {e.image && <small class="error">{e.image}</small>}
-        </label>
-        <label class="field"><span>ল্যান্ডিং পেজের শিরোনাম</span><input type="text" name="headline" value={v.headline ?? ""} placeholder="ফাঁকা রাখলে পণ্যের নাম" /></label>
-        <label class="field"><span>ছোট বর্ণনা</span><textarea name="short_desc" rows={2}>{v.short_desc ?? ""}</textarea></label>
-        <label class="field"><span>বিস্তারিত কনটেন্ট (HTML)</span><textarea name="details_html" rows={10} class="mono">{v.details_html ?? ""}</textarea></label>
-        <label class="field"><span>YouTube লিংক (ঐচ্ছিক)</span><input type="url" name="youtube_url" value={v.youtube_url ?? ""} placeholder="https://youtu.be/..." />{e.youtube_url && <small class="error">{e.youtube_url}</small>}</label>
-        <fieldset class="seo-box" data-seo-box>
-          <legend><Icon name="search" size="sm" /> সার্চ ইঞ্জিন (SEO) — ঐচ্ছিক</legend>
-          <p class="muted">ফাঁকা রাখলে পণ্যের নাম আর ছোট বর্ণনা ব্যবহার হবে। Google-এ আর Facebook-এ শেয়ার করলে এগুলো দেখায়।</p>
-          <label class="field"><span>মেটা টাইটেল <small data-count-for="meta_title"></small></span><input type="text" name="meta_title" value={v.meta_title ?? ""} maxlength={100} data-count="60" placeholder={v.name ?? ""} /></label>
-          <label class="field"><span>মেটা ডেসক্রিপশন <small data-count-for="meta_description"></small></span><textarea name="meta_description" rows={2} maxlength={300} data-count="155">{v.meta_description ?? ""}</textarea></label>
-          <div class="serp" data-serp data-url={`/p/${v.slug || "slug"}`}>
-            <div class="serp-url"></div><div class="serp-title"></div><div class="serp-desc"></div>
+      <p><a href="/admin/products" class="btn-link"><Icon name="arrow-left" size="sm" /> পণ্য তালিকা</a></p>
+      <div class="detail-head">
+        <h1>{isEdit ? v.name || "পণ্য এডিট" : "নতুন পণ্য"}</h1>
+        {isEdit && (
+          <div class="inline-actions">
+            <a href={`/p/${v.slug}`} target="_blank" rel="noopener" class="btn btn-sm"><Icon name="eye" size="sm" /> দেখুন</a>
+            <a href={`/admin/products/${v.id}/landing`} class="btn btn-outline btn-sm"><Icon name="layout-template" size="sm" /> ল্যান্ডিং পেজ বিল্ডার</a>
           </div>
-        </fieldset>
-        <h2>সাইজ/রং (ঐচ্ছিক)</h2>
-        <p class="muted">যেমন অপশন: <code>সাইজ</code>, মান: <code>S, M, L, XL</code>। দুটো পর্যন্ত অপশন দেওয়া যায়। সেভ করলে সব কম্বিনেশন নিচে আসবে, সেখানে আলাদা দাম বা "স্টকে নেই" দেওয়া যাবে।</p>
-        <div class="form-grid">
-          {[0, 1].map((i) => (
-            <>
-              <label class="field"><span>অপশন {i + 1}-এর নাম</span><input type="text" name={`opt${i}_name`} value={opts[i]?.name ?? ""} placeholder={i === 0 ? "সাইজ" : "রং"} maxlength={30} /></label>
-              <label class="field"><span>মান (কমা দিয়ে)</span><input type="text" name={`opt${i}_values`} value={opts[i]?.values.join(", ") ?? ""} placeholder={i === 0 ? "S, M, L, XL" : "লাল, কালো"} /></label>
-            </>
-          ))}
+        )}
+      </div>
+      <form method="post" action={isEdit ? `/admin/products/${v.id}` : "/admin/products"} enctype="multipart/form-data" class="pf-grid">
+        <div class="pf-main">
+          <section class="sa-card pf-card">
+            <h2>মূল তথ্য</h2>
+            <label class="field"><span>পণ্যের নাম *</span><input type="text" name="name" value={v.name ?? ""} required placeholder="যেমন: কাঠের ওয়াল শেলফ" />{e.name && <small class="error">{e.name}</small>}</label>
+            <label class="field"><span>ল্যান্ডিং পেজের শিরোনাম</span><input type="text" name="headline" value={v.headline ?? ""} placeholder="ফাঁকা রাখলে পণ্যের নাম" /></label>
+            <label class="field"><span>ছোট বর্ণনা</span><textarea name="short_desc" rows={3}>{v.short_desc ?? ""}</textarea><small>কার্ড আর শেয়ারে দেখায় — ১–২ লাইন।</small></label>
+          </section>
+          <section class="sa-card pf-card">
+            <h2>বিস্তারিত</h2>
+            <label class="field"><span>বিস্তারিত কনটেন্ট (HTML)</span><textarea name="details_html" rows={10} class="mono">{v.details_html ?? ""}</textarea></label>
+            <label class="field"><span>YouTube ভিডিও লিংক (ঐচ্ছিক)</span><input type="url" name="youtube_url" value={v.youtube_url ?? ""} placeholder="https://youtu.be/..." />{e.youtube_url && <small class="error">{e.youtube_url}</small>}</label>
+          </section>
+          <section class="sa-card pf-card">
+            <h2>সাইজ/রং (ঐচ্ছিক)</h2>
+            <p class="muted small">যেমন অপশন: <code>সাইজ</code>, মান: <code>S, M, L, XL</code>। দুটো পর্যন্ত অপশন দেওয়া যায়। সেভ করলে সব কম্বিনেশন নিচে আসবে, সেখানে আলাদা দাম বা "স্টকে নেই" দেওয়া যাবে।</p>
+            <div class="form-grid">
+              {[0, 1].map((i) => (
+                <>
+                  <label class="field"><span>অপশন {i + 1}-এর নাম</span><input type="text" name={`opt${i}_name`} value={opts[i]?.name ?? ""} placeholder={i === 0 ? "সাইজ" : "রং"} maxlength={30} /></label>
+                  <label class="field"><span>মান (কমা দিয়ে)</span><input type="text" name={`opt${i}_values`} value={opts[i]?.values.join(", ") ?? ""} placeholder={i === 0 ? "S, M, L, XL" : "লাল, কালো"} /></label>
+                </>
+              ))}
+            </div>
+          </section>
+          <section class="sa-card pf-card seo-box" data-seo-box>
+            <h2>সার্চ ইঞ্জিন (SEO) <small class="muted">ঐচ্ছিক</small></h2>
+            <p class="muted small">ফাঁকা রাখলে পণ্যের নাম আর ছোট বর্ণনা ব্যবহার হবে। Google-এ আর Facebook-এ শেয়ার করলে এগুলো দেখায়।</p>
+            <label class="field"><span>মেটা টাইটেল <small data-count-for="meta_title"></small></span><input type="text" name="meta_title" value={v.meta_title ?? ""} maxlength={100} data-count="60" placeholder={v.name ?? ""} /></label>
+            <label class="field"><span>মেটা ডেসক্রিপশন <small data-count-for="meta_description"></small></span><textarea name="meta_description" rows={2} maxlength={300} data-count="155">{v.meta_description ?? ""}</textarea></label>
+            <label class="field"><span>লিংক (slug)</span><input type="text" name="slug" value={v.slug ?? ""} placeholder="ফাঁকা রাখলে নিজে বানাবে" pattern="[a-z0-9-]*" /><small>শুধু ইংরেজি ছোট হাতের অক্ষর, সংখ্যা আর - (লিংক হবে /p/slug)</small>{e.slug && <small class="error">{e.slug}</small>}</label>
+            <div class="serp" data-serp data-url={`/p/${v.slug || "slug"}`}>
+              <div class="serp-url"></div><div class="serp-title"></div><div class="serp-desc"></div>
+            </div>
+          </section>
         </div>
-        <div class="checks">
-          <label><input type="checkbox" name="is_active" value="1" checked={v.is_active !== 0} /> চালু</label>
-          <label><input type="checkbox" name="show_on_home" value="1" checked={v.show_on_home !== 0} /> হোম পেজে দেখাবে</label>
-        </div>
-        <button class="btn btn-primary btn-lg">সেভ করুন</button>
+        <aside class="pf-side">
+          <section class="sa-card pf-card">
+            <h2>অবস্থা</h2>
+            <label class="set-check"><input type="checkbox" name="is_active" value="1" checked={v.is_active !== 0} /> চালু (দোকানে দেখা যাবে)</label>
+            <label class="set-check"><input type="checkbox" name="show_on_home" value="1" checked={v.show_on_home !== 0} /> হোম পেজে দেখাবে</label>
+          </section>
+          <section class="sa-card pf-card">
+            <h2>ছবি</h2>
+            <div class="pf-img" data-img-preview>
+              {v.image ? <img src={imageUrl(v.image)} alt="" /> : <span class="pf-img-empty"><Icon name="image" size="lg" /><small>ছবি নেই</small></span>}
+            </div>
+            <input type="file" name="image" accept="image/jpeg,image/png,image/webp" />
+            <small class="hint">{v.image ? "নতুন দিলে পুরনোটা বদলাবে। " : ""}JPG/PNG/WebP, বর্গাকার হলে ভালো।</small>
+            {e.image && <small class="error">{e.image}</small>}
+          </section>
+          <section class="sa-card pf-card">
+            <h2>দাম</h2>
+            <label class="field"><span>বিক্রির দাম (৳) *</span><input type="number" name="price" min="0" value={v.price != null ? String(v.price) : ""} required />{e.price && <small class="error">{e.price}</small>}</label>
+            <label class="field"><span>কাটা দাম (৳)</span><input type="number" name="compare_price" min="0" value={v.compare_price != null ? String(v.compare_price) : ""} /><small>দিলে দামের পাশে কেটে দেখাবে — ছাড় বোঝাতে।</small></label>
+          </section>
+          <section class="sa-card pf-card">
+            <h2>সাজানো</h2>
+            <label class="field"><span>ক্যাটাগরি</span>
+              <select name="category_id">
+                <option value="">— নেই —</option>
+                {p.categories.map((c) => <option value={String(c.id)} selected={v.category_id === c.id}>{c.name}</option>)}
+              </select>
+            </label>
+            <label class="field"><span>ক্রম</span><input type="number" name="sort_order" value={String(v.sort_order ?? 0)} /><small>ছোট সংখ্যা আগে দেখাবে।</small></label>
+          </section>
+        </aside>
+        <div class="set-save pf-save"><a href="/admin/products" class="btn">বাতিল</a><button class="btn btn-primary">সেভ করুন</button></div>
       </form>
       {isEdit && p.variants && p.variants.length > 0 && (
         <form method="post" action={`/admin/products/${v.id}/variants`} class="admin-form" style="margin-top:14px">

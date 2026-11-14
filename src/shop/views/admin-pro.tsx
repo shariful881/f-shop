@@ -12,21 +12,24 @@ import { ChatWidget } from "./support";
 import { Icon, type IconName } from "./icons";
 
 /* ---------- সাইডবার লেআউট ---------- */
-const NAV: { key: string; href: string; icon: IconName; label: string; group?: string }[] = [
+const NAV: { key: string; href: string; icon: IconName; label: string; group?: string; perm?: string }[] = [
   { key: "dashboard", href: "/admin", icon: "layout-dashboard", label: "ড্যাশবোর্ড" },
   { key: "orders", href: "/admin/orders", icon: "receipt", label: "অর্ডার", group: "বিক্রি" },
-  { key: "coupons", href: "/admin/coupons", icon: "ticket", label: "কুপন" },
-  { key: "blacklist", href: "/admin/blacklist", icon: "shield-alert", label: "ফেক/ব্লক তালিকা" },
   { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
-  { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "ক্যাটালগ" },
-  { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
+  { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "পণ্য" },
   { key: "categories", href: "/admin/categories", icon: "folder", label: "ক্যাটাগরি" },
+  { key: "theme", href: "/admin/settings/customize", icon: "palette", label: "থিম ও ডিজাইন", group: "অনলাইন স্টোর", perm: "settings" },
+  { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
   { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
-  { key: "settings", href: "/admin/settings", icon: "settings", label: "দোকানের সেটিংস", group: "সেটআপ" },
-  { key: "courier", href: "/admin/courier", icon: "truck", label: "কুরিয়ার" },
+  { key: "coupons", href: "/admin/coupons", icon: "ticket", label: "কুপন", group: "মার্কেটিং" },
+  { key: "tracking", href: "/admin/settings/tracking", icon: "trending-up", label: "পিক্সেল ও ট্র্যাকিং", perm: "settings" },
   { key: "sms", href: "/admin/sms", icon: "message-square", label: "SMS" },
+  { key: "courier", href: "/admin/courier", icon: "truck", label: "কুরিয়ার", group: "ডেলিভারি" },
+  { key: "delivery", href: "/admin/settings/delivery", icon: "package", label: "ডেলিভারি চার্জ", perm: "settings" },
+  { key: "blacklist", href: "/admin/blacklist", icon: "shield-alert", label: "ফেক অর্ডার ব্লক" },
+  { key: "settings", href: "/admin/settings", icon: "settings", label: "দোকানের সেটিংস", group: "সেটিংস" },
   { key: "domains", href: "/admin/domain", icon: "globe", label: "ডোমেইন" },
-  { key: "staff", href: "/admin/staff", icon: "users", label: "স্টাফ", group: "অ্যাকাউন্ট" },
+  { key: "staff", href: "/admin/staff", icon: "users", label: "স্টাফ" },
   { key: "billing", href: "/admin/billing", icon: "credit-card", label: "বিলিং ও রিচার্জ" },
   { key: "support", href: "/admin/support", icon: "life-buoy", label: "সাপোর্ট", group: "সাহায্য" },
 ];
@@ -66,7 +69,7 @@ export const ShopShell = (p: {
             <span>{s.site_name || "আমার দোকান"}<small>অ্যাডমিন প্যানেল</small></span>
           </a>
           <nav class="sa-nav">
-            {NAV.filter((n) => n.key === "dashboard" || canAccess(p.role, n.key)).map((n, i, arr) => (
+            {NAV.filter((n) => n.key === "dashboard" || canAccess(p.role, n.perm ?? n.key)).map((n, i, arr) => (
               <>
                 {n.group && (i === 0 || arr[i - 1]!.group !== n.group) && <div class="sa-nav-group">{n.group}</div>}
                 <a href={n.href} class={p.active === n.key ? "active" : ""}>
@@ -252,21 +255,18 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
 };
 
 /* ---------- সেটিংস কেন্দ্র ---------- */
-export const SETTINGS_TABS: { key: string; href: string; label: string; icon: IconName }[] = [
-  { key: "general", href: "/admin/settings", label: "দোকানের তথ্য", icon: "store" },
-  { key: "appearance", href: "/admin/settings/appearance", label: "থিম ও লোগো", icon: "palette" },
-  { key: "customize", href: "/admin/settings/customize", label: "থিম কাস্টমাইজ", icon: "sliders-horizontal" },
-  { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি", icon: "truck" },
-  { key: "checkout", href: "/admin/settings/checkout", label: "অর্ডার ফর্ম", icon: "receipt" },
-  { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "search" },
-  { key: "tracking", href: "/admin/settings/tracking", label: "পিক্সেল ও ট্র্যাকিং", icon: "trending-up" },
-  { key: "courier", href: "/admin/courier", label: "কুরিয়ার", icon: "package" },
-  { key: "sms", href: "/admin/sms", label: "SMS", icon: "message-square" },
-  { key: "domain", href: "/admin/domain", label: "ডোমেইন", icon: "globe" },
+export const SETTINGS_TABS: { key: string; href: string; label: string; icon: IconName; set: "shop" | "theme" }[] = [
+  { key: "general", href: "/admin/settings", label: "দোকানের তথ্য", icon: "store", set: "shop" },
+  { key: "checkout", href: "/admin/settings/checkout", label: "অর্ডার ফর্ম", icon: "receipt", set: "shop" },
+  { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি চার্জ", icon: "truck", set: "shop" },
+  { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "search", set: "shop" },
+  { key: "tracking", href: "/admin/settings/tracking", label: "পিক্সেল ও ট্র্যাকিং", icon: "trending-up", set: "shop" },
+  { key: "customize", href: "/admin/settings/customize", label: "ডিজাইন কাস্টমাইজ", icon: "sliders-horizontal", set: "theme" },
+  { key: "appearance", href: "/admin/settings/appearance", label: "থিম বদল, লোগো ও ব্যানার", icon: "palette", set: "theme" },
 ];
 
 const Tabs = ({ active }: { active: string }) => (
-  <nav class="set-tabs">{SETTINGS_TABS.map((t) => <a href={t.href} class={active === t.key ? "active" : ""}><Icon name={t.icon} size="sm" />{t.label}</a>)}</nav>
+  <nav class="set-tabs">{SETTINGS_TABS.filter((t) => t.set === (SETTINGS_TABS.find((x) => x.key === active)?.set ?? "shop")).map((t) => <a href={t.href} class={active === t.key ? "active" : ""}><Icon name={t.icon} size="sm" />{t.label}</a>)}</nav>
 );
 
 const Section = (p: { title: string; desc?: Child; children?: Child }) => (

@@ -735,7 +735,7 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
 admin.get("/settings/customize", async (c) => {
   const theme = themeOf(c.var.settings);
   const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
-  return render(c, "থিম কাস্টমাইজ", "settings", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} />);
+  return render(c, "থিম ও ডিজাইন", "theme", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} />);
 });
 admin.post("/settings/customize", async (c) => {
   const b = await c.req.parseBody({ all: true }) as Record<string, unknown>;
@@ -766,7 +766,9 @@ admin.get("/settings", (c) => render(c, SET_PAGES.general!.title, "settings", SE
 admin.get("/settings/:section{[a-z]+}", (c) => {
   const pg = SET_PAGES[c.req.param("section")];
   if (!pg) return c.redirect("/admin/settings", 303);
-  return render(c, pg.title, "settings", pg.view(c));
+  const sec = c.req.param("section");
+  const nav = sec === "appearance" ? "theme" : sec === "tracking" || sec === "delivery" ? sec : "settings";
+  return render(c, pg.title, nav, pg.view(c));
 });
 
 /** ছবি আপলোড (লোগো, ফেভিকন, শেয়ার ইমেজ) — সফল হলে নতুন key, ভুল হলে error */

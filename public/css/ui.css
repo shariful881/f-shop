@@ -250,3 +250,19 @@ body.admin .thumb { border-radius: var(--r-sm); object-fit: cover; background: #
 /* তারিখ, সার্চ সারি */
 body.admin .search, body.admin .row-form { align-items: center; }
 body.admin .search .btn, body.admin .row-form .btn { flex: none; }
+
+/* ---------- পণ্যের ফর্ম: বাঁয়ে মূল, ডানে পাশের কার্ড ---------- */
+.pf-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--sp-4); align-items: start; }
+.pf-main, .pf-side { display: grid; gap: var(--sp-4); min-width: 0; }
+.pf-card { margin: 0 !important; display: grid; gap: 14px; }
+.pf-card h2 { font-size: 1rem; margin: 0; display: flex; gap: 8px; align-items: baseline; }
+.pf-card p { margin: 0; }
+.pf-save { grid-column: 1 / -1; }
+.pf-img { aspect-ratio: 1; border-radius: var(--r); overflow: hidden; border: 1px dashed var(--c-line-strong); background: #f8fafc; display: grid; place-items: center; }
+.pf-img img { width: 100%; height: 100%; object-fit: cover; }
+.pf-img-empty { display: grid; justify-items: center; gap: 4px; color: #94a3b8; }
+@media (max-width: 1000px) { .pf-grid { grid-template-columns: 1fr; } .pf-side { order: -1; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); } }
+body.admin .set-save { gap: 10px; }
+body.admin .pf-card.seo-box { padding: 16px 18px; margin: 0; border: 1px solid var(--c-line); background: #fff; border-radius: var(--r-lg); }
+.pf-img { aspect-ratio: 4 / 3; max-height: 240px; }
+@media (max-width: 600px) { body.admin .set-save { padding-right: 76px; } }

@@ -138,3 +138,20 @@ document.addEventListener("click", function (e) {
     });
   });
 })();
+
+/* পণ্যের ফর্ম: ছবি বাছলে সাথে সাথে দেখানো */
+(function () {
+  document.querySelectorAll("[data-img-preview]").forEach(function (box) {
+    var input = box.parentNode.querySelector('input[type="file"]');
+    if (!input) return;
+    input.addEventListener("change", function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      var img = document.createElement("img");
+      img.alt = "";
+      img.src = URL.createObjectURL(f);
+      box.innerHTML = "";
+      box.appendChild(img);
+    });
+  });
+})();
