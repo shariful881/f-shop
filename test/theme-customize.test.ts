@@ -45,7 +45,7 @@ describe("থিম কাস্টমাইজ", () => {
     expect(html).toContain('class="px-bottom"');
     expect(html).toContain("px-fab-call");
     expect(html).toContain('class="px-footer"');
-    expect(html.indexOf("আমাদের কথা")).toBeLessThan(html.indexOf('class="card"'));
+    expect(html.indexOf("আমাদের কথা")).toBeLessThan(html.indexOf('class="card cd-'));
 
     // অন্য থিমে লাগেনি
     await DB.prepare("UPDATE settings SET value = 'bold' WHERE key = 'theme'").run();

@@ -5,7 +5,7 @@ import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "17";
+export const ASSET_VERSION = "18";
 
 export type LayoutProps = {
   title: string;
@@ -68,6 +68,7 @@ export const Layout = (p: LayoutProps) => {
       {trackingHead(s)}
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       {themeOf(p.settings) !== "classic" && <link rel="stylesheet" href={`/css/theme-${themeOf(p.settings)}.css?v=${ASSET_VERSION}`} />}
+      <link rel="stylesheet" href={`/css/designs.css?v=${ASSET_VERSION}`} />
       <style dangerouslySetInnerHTML={{ __html: themeCss(p.settings) + cfgCss(cfg) }} />
       {fonts && <><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" /><link rel="stylesheet" href={fonts} /></>}
       <script src={`/js/device.js?v=${ASSET_VERSION}`}></script>

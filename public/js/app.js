@@ -398,3 +398,18 @@ document.addEventListener("click", function (e) {
       .catch(function () { f.submit(); });
   });
 })();
+
+/* অফারের কাউন্টডাউন — আজ রাত ১২টা পর্যন্ত */
+(function () {
+  var els = document.querySelectorAll("[data-countdown-midnight] [data-cd]");
+  if (!els.length) return;
+  var bnd = function (s) { return String(s).replace(/\d/g, function (d) { return "০১২৩৪৫৬৭৮৯"[d]; }); };
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  function tick() {
+    var now = new Date(), end = new Date(now); end.setHours(24, 0, 0, 0);
+    var s = Math.max(0, Math.floor((end - now) / 1000));
+    var t = bnd(pad(Math.floor(s / 3600)) + ":" + pad(Math.floor(s % 3600 / 60)) + ":" + pad(s % 60));
+    els.forEach(function (el) { el.textContent = t; });
+  }
+  tick(); setInterval(tick, 1000);
+})();

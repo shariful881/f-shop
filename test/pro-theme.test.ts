@@ -31,7 +31,7 @@ describe("প্রো স্টোর থিম", () => {
     const cat = (await DB.prepare("SELECT c.id, c.name FROM categories c JOIN products p ON p.category_id = c.id WHERE p.is_active = 1 LIMIT 1").first<any>())!;
     const html = await get(`/c/${cat.id}`);
     expect(html).toContain(cat.name);
-    expect(html).toContain('class="card"');
+    expect(html).toContain('class="card cd-');
     expect((await new Browser().get("/c/99999")).status).toBe(404);
 
     const found = await get(`/search?q=${encodeURIComponent("শেলফ")}`);

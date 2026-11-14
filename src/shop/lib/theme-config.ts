@@ -85,9 +85,13 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
   {
     key: "home", title: "হোমপেজ", desc: "কোন সেকশন দেখাবে, কোন ক্রমে, আর এক সারিতে কয়টা পণ্য।",
     fields: [
+      { key: "hero_style", type: "select", label: "উপরের অংশের (ব্যানার) ডিজাইন", options: { sidebar: "বাঁয়ে ক্যাটাগরি মেনু + ব্যানার + ডানে তথ্য (মার্কেটপ্লেস)", slider: "চওড়া ব্যানার স্লাইডার", full: "পুরো স্ক্রিনজুড়ে ব্যানার (প্রিমিয়াম)", skew: "তির্যক ব্যানার + চলন্ত লেখা (ফ্যাশন)" }, hint: "ব্যানারের ছবি না থাকলে দোকানের নাম আর ঘোষণার লেখা দিয়ে একটা বড় শিরোনাম দেখায়" },
+      { key: "title_style", type: "select", label: "সেকশনের শিরোনামের ডিজাইন", options: { bar: "বাঁয়ে রঙিন দাগ, সাদা বক্সে সেকশন", ribbon: "মাঝে রঙিন ফিতা", eyebrow: "ছোট উপশিরোনাম + বড় পাতলা লেখা", marker: "মোটা লেখা + হাইলাইট" } },
+      { key: "marquee", type: "toggle", label: "চলন্ত লেখার ফিতা (ব্যানারের নিচে)", hint: "বিশ্বাসের ব্যাজের লেখাগুলো আর ঘোষণা চলতে থাকে" },
+      { key: "offers_countdown", type: "toggle", label: "অফার সেকশনে কাউন্টডাউন (আজ রাত ১২টা পর্যন্ত)" },
       { key: "home_order", type: "order", label: "সেকশন সাজানো", hint: "টিক দেওয়াগুলো দেখাবে। ↑↓ দিয়ে ক্রম বদলান। ব্যানারের ছবি \"থিম ও লোগো\" ট্যাবে দিন।" },
       { key: "title_categories", type: "text", label: "ক্যাটাগরি সেকশনের শিরোনাম", max: 60 },
-      { key: "cat_style", type: "select", label: "ক্যাটাগরি টাইলের আকার", options: { circle: "গোল", square: "চারকোনা" } },
+      { key: "cat_style", type: "select", label: "ক্যাটাগরির ডিজাইন", options: { icons: "ছোট টাইলের গ্রিড (মার্কেটপ্লেস)", circle: "গোল ছবি", square: "চারকোনা ছবি", tiles: "বড় ছবির টাইল (প্রিমিয়াম)", cards: "ছবির উপর লেখা, বড় কার্ড (ফ্যাশন)" } },
       { key: "title_offers", type: "text", label: "অফার সেকশনের শিরোনাম", max: 60 },
       { key: "per_row_mobile", type: "select", label: "মোবাইলে এক সারিতে পণ্য", options: { "1": "১টা", "2": "২টা", "3": "৩টা" } },
       { key: "per_row_tablet", type: "select", label: "ট্যাবলেটে এক সারিতে পণ্য", options: { "2": "২টা", "3": "৩টা", "4": "৪টা" } },
@@ -154,6 +158,7 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
   {
     key: "card", title: "পণ্যের কার্ড", desc: "হোম, ক্যাটাগরি আর সার্চ পেজের পণ্যের বক্স।",
     fields: [
+      { key: "card_design", type: "select", label: "কার্ডের ডিজাইন", options: { pro: "পরিষ্কার, হালকা ছায়া", classic: "বর্ডার, মাঝে লেখা, কোণে ছাড়ের ফিতা", minimal: "বর্ডার নেই, লেখার মতো বাটন", bold: "মোটা বর্ডার আর গাঢ় ছায়া" } },
       { key: "card_order_btn", type: "toggle", label: "\"অর্ডার করুন\" বাটন" },
       { key: "card_order_text", type: "text", label: "অর্ডার বাটনের লেখা", max: 30 },
       { key: "card_cart_btn", type: "toggle", label: "\"কার্টে যোগ\" বাটন" },
@@ -236,6 +241,7 @@ const BASE: Cfg = {
   pd_call: "1", pd_call_text: "কল করে অর্ডার করুন", pd_wa: "1", pd_wa_text: "WhatsApp-এ জিজ্ঞাসা করুন", pd_msg: "0", pd_msg_text: "Messenger-এ মেসেজ দিন",
   pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4",
   card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
+  hero_style: "slider", title_style: "ribbon", marquee: "0", offers_countdown: "0", card_design: "classic",
   coming_soon: "0", coming_soon_text: "আমাদের দোকান খুব শীঘ্রই আসছে। অর্ডার করতে কল করুন।", breadcrumbs: "1", track_link: "1",
   ...TRUST_DEFAULTS,
 };
@@ -247,10 +253,22 @@ export const THEME_DEFAULTS: Record<ThemeKey, Cfg> = {
     topbar: "1", header_search: "1", header_nav: "1", header_call: "1",
     sec_categories: "1", sec_offers: "1", per_section: "8", img_fit: "contain", badge_fmt: "minus",
     footer_style: "full", footer_trust: "1", float_whatsapp: "1", bottom_nav: "1",
+    hero_style: "sidebar", title_style: "bar", cat_style: "icons", card_design: "pro", offers_countdown: "1",
   },
-  classic: { ...BASE },
-  minimal: { ...BASE, btn_shape: "square", radius: "none", card_style: "flat" },
-  bold: { ...BASE, btn_shape: "rounded", radius: "lg", card_style: "shadow", topbar: "1", float_whatsapp: "1" },
+  classic: {
+    ...BASE, hero_style: "slider", title_style: "ribbon", cat_style: "circle", card_design: "classic", font_heading: "hind",
+    sec_categories: "1", sec_offers: "1", sec_features: "1", btn_shape: "rounded", card_style: "border",
+  },
+  minimal: {
+    ...BASE, btn_shape: "square", radius: "none", card_style: "flat", header_layout: "center", font_heading: "anek",
+    hero_style: "full", title_style: "eyebrow", cat_style: "tiles", card_design: "minimal", card_cart_btn: "0", per_row_desktop: "4",
+    sec_categories: "1", img_fit: "cover", img_ratio: "4/5", footer_style: "center",
+  },
+  bold: {
+    ...BASE, btn_shape: "rounded", radius: "lg", card_style: "border", topbar: "1", float_whatsapp: "1", header_layout: "inline", font_heading: "baloo",
+    hero_style: "skew", title_style: "marker", cat_style: "cards", card_design: "bold", marquee: "1", offers_countdown: "1",
+    sec_categories: "1", sec_offers: "1", badge_fmt: "minus",
+  },
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;

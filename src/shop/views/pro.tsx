@@ -157,8 +157,8 @@ export const StoreHeader = ({ s, cfg, cartCount, nav, q, pages = [] }: { s: Sett
           {showNav && (
             <nav class="px-inline-nav px-only-desktop" aria-label="ক্যাটাগরি">
               <a href="/">হোম</a>
-              {navCats.slice(0, 7).map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
-              {menuPages.map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}
+              {navCats.slice(0, 6).map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
+              {menuPages.slice(0, Math.max(0, 6 - navCats.length)).map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}
             </nav>
           )}
           <div class="px-actions">
@@ -366,78 +366,140 @@ export const StoreFloating = ({ s, cfg, cartCount, bare }: { s: Settings; cfg: C
 };
 
 /* ---------- হোম ---------- */
-const Section = ({ title, href, children }: { title?: string; href?: string; children?: Child }) => (
-  <section class="home-section px-section">
+/** সেকশন: শিরোনামের ডিজাইন (title_style) CSS-এ — ts-bar / ts-ribbon / ts-eyebrow / ts-marker */
+const Section = ({ title, href, kicker, cls, children }: { title?: string; href?: string; kicker?: string; cls?: string; children?: Child }) => (
+  <section class={`home-section px-section ${cls ?? ""}`}>
     {title && (
       <div class="px-section-head">
-        <h2 class="section-title">{title}</h2>
-        {href && <a href={href} class="px-more">সব দেখুন →</a>}
+        <div class="px-sh-text">
+          {kicker && <span class="px-kicker">{kicker}</span>}
+          <h2 class="section-title"><span>{title}</span></h2>
+        </div>
+        {href && <a href={href} class="px-more">সব দেখুন <span aria-hidden="true">→</span></a>}
       </div>
     )}
     {children}
   </section>
 );
 
+/** ব্যানার না থাকলে: দোকানের নাম + ঘোষণা দিয়ে বড় শিরোনাম */
+const TextHero = ({ s, cfg }: { s: Settings; cfg: Cfg }) => (
+  <div class="px-hero-text">
+    <div>
+      <p class="px-ht-kicker">{cfg.announcement || "ক্যাশ অন ডেলিভারি · সারাদেশে হোম ডেলিভারি"}</p>
+      <h1>{s.site_name || "আমাদের দোকান"}</h1>
+      {(cfg.footer_about || s.seo_description) && <p class="px-ht-sub">{cfg.footer_about || s.seo_description}</p>}
+      <a href="#products" class="btn btn-primary btn-lg">কেনাকাটা শুরু করুন →</a>
+    </div>
+  </div>
+);
+
+/** কাউন্টডাউন — আজ রাত ১২টা পর্যন্ত (app.js চালায়) */
+const Countdown = () => (
+  <span class="px-countdown" data-countdown-midnight>শেষ হবে <b data-cd>--:--:--</b></span>
+);
+
 export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; cfg: Cfg; sections: HomeSection[]; picked: Map<number, Product>; latest: Product[] }) => {
   const offer = (n: number) => () => {
     const list = (cfg[`offer${n}_products`] || "").split(",").map((x) => picked.get(parseInt(x, 10))).filter((p): p is Product => !!p);
-    return list.length ? <Section title={cfg[`offer${n}_title`]}><div class="grid px-grid">{list.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section> : null;
+    return list.length ? <Section title={cfg[`offer${n}_title`]} kicker="বাছাই করা"><div class="grid px-grid">{list.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section> : null;
   };
   const per = parseInt(cfg.per_section || "0", 10);
+  const hero = cfg.hero_style || "slider";
+  const banners = ([1, 2, 3] as const).map((n) => ({ img: s[`banner_${n}`], link: s[`banner_${n}_link`] })).filter((b) => !!b.img);
+  const slider = banners.length ? (
+    <div class="px-slider" data-slider>
+      <div class="px-slides">
+        {banners.map((b, i) => {
+          const img = <img src={imageUrl(b.img!)} alt="" width="1200" height="450" loading={i ? "lazy" : "eager"} fetchpriority={i ? undefined : "high"} />;
+          const href = safeLink(b.link);
+          return <div class="px-slide">{href ? <a href={href}>{img}</a> : img}</div>;
+        })}
+      </div>
+      {banners.length > 1 && <div class="px-dots">{banners.map((_, i) => <button type="button" aria-label={`ব্যানার ${i + 1}`} data-dot={String(i)} class={i ? "" : "on"}></button>)}</div>}
+    </div>
+  ) : <TextHero s={s} cfg={cfg} />;
+  const marqueeItems = [cfg.announcement, ...[1, 2, 3, 4].map((n) => cfg[`trust_${n}`])].filter((x): x is string => !!x);
+  const marquee = on(cfg, "marquee") && marqueeItems.length > 0 && (
+    <div class="px-marquee" aria-hidden="true">
+      <div class="px-mq-track">{[0, 1].map(() => <span>{marqueeItems.map((t) => <>{t}<i>✦</i></>)}</span>)}</div>
+    </div>
+  );
   const parts: Record<string, () => Child> = {
     banner: () => {
-      const banners = ([1, 2, 3] as const).map((n) => ({ img: s[`banner_${n}`], link: s[`banner_${n}_link`] })).filter((b) => !!b.img);
-      if (!banners.length) return null;
-      return (
-        <div class="px-slider" data-slider>
-          <div class="px-slides">
-            {banners.map((b, i) => {
-              const img = <img src={imageUrl(b.img!)} alt="" width="1200" height="450" loading={i ? "lazy" : "eager"} fetchpriority={i ? undefined : "high"} />;
-              const href = safeLink(b.link);
-              return <div class="px-slide">{href ? <a href={href}>{img}</a> : img}</div>;
-            })}
+      if (hero === "sidebar") {
+        const [inside, outside] = [s.delivery_inside, s.delivery_outside];
+        return (
+          <>
+          <div class="px-hero-grid">
+            {sections.length > 0 && (
+              <nav class="px-hero-cats px-only-desktop" aria-label="ক্যাটাগরি">
+                <b><Icon name="grid" size={18} /> সব ক্যাটাগরি</b>
+                {sections.slice(0, 9).map((x) => <a href={`/c/${x.category.id}`}><span>{x.category.name}</span><small>{bn(x.products.length)}</small></a>)}
+              </nav>
+            )}
+            <div class="px-hero-main">
+              {slider}
+              <div class="px-hero-side px-only-desktop">
+                {s.contact_phone && <a href={phoneHref(s)} class="px-hs-box"><Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{bn(s.contact_phone)}</b></span></a>}
+                <div class="px-hs-box"><Icon name="truck" /><span><small>ডেলিভারি চার্জ</small><b>ঢাকায় ৳{bn(inside || "60")} · বাইরে ৳{bn(outside || "120")}</b></span></div>
+                <div class="px-hs-box"><Icon name="cash" /><span><small>পেমেন্ট</small><b>পণ্য হাতে পেয়ে টাকা দিন</b></span></div>
+              </div>
+            </div>
           </div>
-          {banners.length > 1 && <div class="px-dots">{banners.map((_, i) => <button type="button" aria-label={`ব্যানার ${i + 1}`} data-dot={String(i)} class={i ? "" : "on"}></button>)}</div>}
-        </div>
+          {marquee}
+          </>
+        );
+      }
+      return <><div class={`px-hero px-hero-${hero}`}>{slider}</div>{marquee}</>;
+    },
+    categories: () => {
+      if (sections.length < 2) return null;
+      const st = cfg.cat_style || "circle";
+      return (
+        <Section title={cfg.title_categories} kicker="কেনাকাটা করুন" cls="sec-cats">
+          <div class={`px-cats cs-${st}`}>
+            {sections.map((x) => (
+              <a href={`/c/${x.category.id}`} class="px-cat">
+                <span class="px-cat-img"><img src={imageUrl(x.products[0]?.image ?? null)} alt="" loading="lazy" width="240" height="240" /></span>
+                <span class="px-cat-name">{x.category.name}{(st === "cards" || st === "tiles") && <small>{bn(x.products.length)}টা পণ্য →</small>}</span>
+              </a>
+            ))}
+          </div>
+        </Section>
       );
     },
-    categories: () => sections.length < 2 ? null : (
-      <Section title={cfg.title_categories}>
-        <div class="px-cats">
-          {sections.map((x) => (
-            <a href={`/c/${x.category.id}`} class="px-cat">
-              <span class="px-cat-img"><img src={imageUrl(x.products[0]?.image ?? null)} alt="" loading="lazy" width="120" height="120" /></span>
-              <span class="px-cat-name">{x.category.name}</span>
-            </a>
-          ))}
-        </div>
-      </Section>
-    ),
     offers: () => {
       const seen = new Set<number>();
       const deals = sections.flatMap((x) => x.products)
         .filter((p) => p.compare_price && p.compare_price > p.price && !seen.has(p.id) && (seen.add(p.id), true)).slice(0, 8);
-      return deals.length < 2 ? null : (
-        <Section title={cfg.title_offers}><div class="grid px-grid">{deals.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section>
+      if (deals.length < 2) return null;
+      return (
+        <div class="px-offers-band">
+          <Section title={cfg.title_offers} kicker="সীমিত সময়ের অফার" cls="sec-offers">
+            {on(cfg, "offers_countdown") && <Countdown />}
+            <div class="grid px-grid">{deals.map((p) => <ProductCard p={p} cfg={cfg} />)}</div>
+          </Section>
+        </div>
       );
     },
     products: () => (
-      <>
+      <div id="products">
         {sections.map((x) => {
           const list = per > 0 ? x.products.slice(0, per) : x.products;
           return (
-            <Section title={x.category.name} href={on(cfg, "show_more") && x.products.length > list.length ? `/c/${x.category.id}` : undefined}>
+            <Section title={x.category.name} kicker={`${bn(x.products.length)}টা পণ্য`} href={on(cfg, "show_more") && x.products.length > list.length ? `/c/${x.category.id}` : undefined}>
               <div class="grid px-grid">{list.map((p) => <ProductCard p={p} cfg={cfg} />)}</div>
             </Section>
           );
         })}
-      </>
+      </div>
     ),
     // ফুটারের উপরে একই ব্যাজ চালু থাকলে হোমে আবার দেখায় না (দুবার আসত)
     trust: () => on(cfg, "footer_trust") ? null : <div class="px-home-trust"><TrustStrip cfg={cfg} /></div>,
     offer1: offer(1), offer2: offer(2), offer3: offer(3),
     latest: () => latest.length ? (
-      <Section title={cfg.latest_title}><div class="grid px-grid">{latest.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section>
+      <Section title={cfg.latest_title} kicker="নতুন এসেছে"><div class="grid px-grid">{latest.map((p) => <ProductCard p={p} cfg={cfg} />)}</div></Section>
     ) : null,
     midbanner: () => {
       if (!cfg.mid_banner) return null;
@@ -449,7 +511,7 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
       const m = /(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/.exec(cfg.video_url || "");
       if (!m) return null;
       return (
-        <Section title={cfg.video_title || undefined}>
+        <Section title={cfg.video_title || undefined} kicker="ভিডিও">
           <div class="video" data-yt={m[1]}>
             <button type="button" class="video-thumb" aria-label="ভিডিও চালান">
               <img src={`https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`} alt="ভিডিও" loading="lazy" width="480" height="360" />
@@ -471,11 +533,12 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
       <Section title={cfg.text_title || undefined}><div class="px-text-block">{cfg.text_body}</div></Section>
     ) : null,
   };
+  const order = homeOrder(cfg);
   return (
-    <div class="px-home">
+    <div class={`px-home ts-${cfg.title_style || "ribbon"} hs-${hero}`}>
       <div class="wrap">
         {sections.length === 0 && <p class="empty">এখনো কোনো পণ্য যোগ করা হয়নি।</p>}
-        {homeOrder(cfg).map((k) => parts[k]?.())}
+        {order.map((k) => parts[k]?.())}
       </div>
       {on(cfg, "popup_on") && cfg.popup_image && (
         <div class="px-popup" data-popup data-delay={cfg.popup_delay || "3"} data-key={cfg.popup_image} hidden>

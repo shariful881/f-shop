@@ -39,6 +39,22 @@ describe("থিমের বাড়তি অপশন", () => {
     expect(html.indexOf("২৪ ঘণ্টায় ডেলিভারি")).toBeLessThan(html.indexOf("ঈদের বাছাই"));
   });
 
+  it("চার থিমের নিজস্ব ডিজাইন: শিরোনাম, উপরের অংশ, ক্যাটাগরি, কার্ড আলাদা", async () => {
+    const want = {
+      pro: ["ts-bar", "hs-sidebar", "px-hero-grid", "cs-icons", "cd-pro", "data-countdown-midnight"],
+      classic: ["ts-ribbon", "hs-slider", "cs-circle", "cd-classic", "px-features"],
+      minimal: ["ts-eyebrow", "hs-full", "cs-tiles", "cd-minimal", "px-h-center"],
+      bold: ["ts-marker", "hs-skew", "cs-cards", "cd-bold", "px-marquee", "px-h-inline"],
+    } as const;
+    for (const [theme, marks] of Object.entries(want)) {
+      await DB.prepare("UPDATE settings SET value = ? WHERE key = 'theme'").bind(theme).run();
+      const html = await get("/");
+      for (const m of marks) expect(html, `${theme}: ${m}`).toContain(m);
+    }
+    // ব্যানার না থাকলে বড় শিরোনাম (খালি জায়গা নয়)
+    expect(await get("/")).toContain("px-hero-text");
+  });
+
   it("বিশ্বাসের ব্যাজ হোম সেকশন আর ফুটার দুটোতে চালু থাকলেও হোমপেজে একবারই দেখায়", async () => {
     const a = await adminBrowser();
     const count = (h: string) => h.split('class="px-trust-strip"').length - 1;

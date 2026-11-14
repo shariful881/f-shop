@@ -18,7 +18,7 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
   const href = (cfg?.product_link ?? "product") === "landing" ? `/p/${p.slug}` : `/product/${p.slug}`;
   const cartBtn = (cfg?.card_cart_btn ?? "1") === "1";
   return (
-    <div class="card">
+    <div class={`card cd-${cfg?.card_design || "classic"}`}>
       <a href={href} class="card-img">
         <img src={imageUrl(p.image)} alt={p.name} loading="lazy" width="400" height="400" />
         {off > 0 && fmt !== "off" && <span class="badge">{fmt === "minus" ? `-${bn(off)}%` : `${bn(off)}% ছাড়`}</span>}
