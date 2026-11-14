@@ -12,8 +12,14 @@ jobs:
   test-deploy:
     runs-on: ubuntu-latest
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      RAW_CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
+      # secret-এ ভুল করে ফাঁকা লাইন/দুবার পেস্ট হলেও প্রথম টোকেনটাই নেওয়া
+      - name: টোকেন প্রস্তুত
+        run: |
+          T=$(printf '%s\n' "$RAW_CF_TOKEN" | awk 'NF{print $1; exit}')
+          if [ -n "$T" ]; then echo "::add-mask::$T"; echo "CLOUDFLARE_API_TOKEN=$T" >> "$GITHUB_ENV"; fi
+
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
