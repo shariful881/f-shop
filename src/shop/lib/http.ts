@@ -1,4 +1,5 @@
-import type { Ctx } from "../env";
+import type { Context } from "hono";
+type Ctx = Context<any>;
 
 /**
  * আসল ভিজিটরের IP।

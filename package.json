@@ -11,7 +11,8 @@
     "db:seed": "wrangler d1 execute PLATFORM_DB --local --file=scripts/seed-platform.sql",
     "db:reset": "rm -rf .wrangler/state && npm run db:migrate && npm run db:seed",
     "db:migrate:remote": "wrangler d1 migrations apply PLATFORM_DB --remote",
-    "deploy": "wrangler d1 migrations apply PLATFORM_DB --remote && wrangler deploy"
+    "deploy": "wrangler d1 migrations apply PLATFORM_DB --remote && wrangler deploy",
+    "super:create": "node scripts/super-create.mjs"
   },
   "repository": {
     "type": "git",

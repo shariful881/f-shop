@@ -4,9 +4,23 @@ import { shopApp } from "./app";
 import type { WorkerEnv } from "../worker-env";
 // প্রতিটা দোকানের ডাটাবেসের টেবিল (ক্রম অনুযায়ী)
 import m0001 from "../../migrations/shop/0001_init.sql";
+import m0002 from "../../migrations/shop/0002_login_tokens.sql";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 
-export const SHOP_MIGRATIONS: [string, string][] = [["0001_init", m0001]];
+export const SHOP_MIGRATIONS: [string, string][] = [
+  ["0001_init", m0001],
+  ["0002_login_tokens", m0002],
+];
+
+export type SetupInput = {
+  shopId: string;
+  shopName: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone: string;
+  passwordHash: string;
+  seedDemo: boolean;
+};
 
 /** যেসব হেডার শুধু আমাদের Worker বসায় (বাইরে থেকে আসলে মুছে ফেলা হয়) */
 export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "x-fshop-state"];
@@ -49,6 +63,34 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     this.shopId = shopId;
     await this.ctx.storage.put("shop_id", shopId);
     if (seed) await this.seedDemo();
+  }
+
+  /**
+   * সাইনআপের সাথে সাথে নতুন দোকান সাজানো: মালিকের লগইন, দোকানের নাম, যোগাযোগ নম্বর।
+   * ফেরত দেয় এককালীন লগইন টোকেন (৫ মিনিট) — দোকানের ঠিকানায় সরাসরি ড্যাশবোর্ডে ঢোকার জন্য।
+   */
+  async setupShop(input: SetupInput): Promise<string> {
+    await this.ensureInit(input.shopId, false);
+    if (input.seedDemo) {
+      await this.seedDemo();
+      await this.db.prepare("DELETE FROM users WHERE email = 'demo@fshop.test'").run();
+    }
+    await this.db.batch([
+      this.db.prepare("INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1) ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, is_admin = 1")
+        .bind(input.ownerName, input.ownerEmail, input.passwordHash),
+      this.db.prepare("UPDATE settings SET value = ? WHERE key = 'site_name'").bind(input.shopName),
+      this.db.prepare("UPDATE settings SET value = ? WHERE key = 'contact_phone'").bind(input.ownerPhone),
+    ]);
+    const user = await this.db.prepare("SELECT id FROM users WHERE email = ?").bind(input.ownerEmail).first<{ id: number }>();
+    return this.createLoginToken(user!.id);
+  }
+
+  async createLoginToken(userId: number): Promise<string> {
+    const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)))]
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+    await this.db.prepare("INSERT INTO login_tokens (id, user_id, expires_at) VALUES (?, ?, datetime('now', '+5 minutes'))").bind(hash, userId).run();
+    return token;
   }
 
   async seedDemo() {

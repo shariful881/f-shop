@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, SettingsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
-import { createSession, destroySession, verifyPassword } from "../lib/auth";
+import { createSession, destroySession, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
 import type { Category, Product } from "../lib/products";
@@ -53,6 +53,21 @@ admin.post("/login", async (c) => {
 
   const token = await createSession(c.env.DB, user.id);
   setCookie(c, ADMIN_COOKIE, token, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+  return c.redirect("/admin/orders", 303);
+});
+
+/** সাইনআপের পর এককালীন টোকেন দিয়ে সরাসরি ড্যাশবোর্ডে */
+admin.get("/auto-login", async (c) => {
+  const token = c.req.query("t") || "";
+  if (!/^[0-9a-f]{64}$/.test(token)) return c.redirect("/admin/login", 303);
+  const db = c.env.DB;
+  const id = await sha256Hex(token);
+  const row = await db.prepare("SELECT user_id FROM login_tokens WHERE id = ? AND expires_at > datetime('now')").bind(id).first<{ user_id: number }>();
+  await db.prepare("DELETE FROM login_tokens WHERE id = ? OR expires_at < datetime('now')").bind(id).run();
+  if (!row) return c.redirect("/admin/login", 303);
+  const session = await createSession(db, row.user_id);
+  setCookie(c, ADMIN_COOKIE, session, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+  flash(c, "ok", "স্বাগতম! আপনার দোকান তৈরি হয়ে গেছে। প্রথমে সেটিংস আর পণ্য ঠিক করে নিন।");
   return c.redirect("/admin/orders", 303);
 });
 
