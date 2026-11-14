@@ -119,6 +119,8 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .tp-classic .tp-preview { background: #f8fafc; } .tp-classic i { background: #0f766e; } .tp-classic b { background: #fff; border: 1px solid #e5e7eb; }
 .tp-minimal .tp-preview { background: #fff; border: 1px solid #f1f5f9; } .tp-minimal i { background: #fff; border-bottom: 1px solid #e5e7eb; } .tp-minimal b { background: #f1f5f9; }
 .tp-bold .tp-preview { background: #fff7ed; } .tp-bold i { background: linear-gradient(90deg, #7c2d12, #ea580c); } .tp-bold b { background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.12); border-radius: 10px; }
+.tp-pro .tp-preview { background: #f5f6f8; } .tp-pro i { background: #fff; border-top: 6px solid #115e59; border-bottom: 1px solid #e5e7eb; height: 22px; } .tp-pro b { background: #fff; border: 1px solid #eef0f3; border-radius: 8px; box-shadow: 0 2px 6px rgba(15,23,42,.06); }
+@media (min-width: 1100px) { .theme-picks.wide { grid-template-columns: repeat(4, 1fr); } }
 /* রিপোর্ট */
 .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0 14px; }
 @media (min-width: 900px) { .stat-grid { grid-template-columns: repeat(6, 1fr); } }
