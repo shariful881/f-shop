@@ -12,6 +12,7 @@ import type { ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn } from "../lib/format";
+import { ShopShell } from "./admin-pro";
 
 export type Flash = { type: "ok" | "error"; text: string } | null;
 
@@ -33,62 +34,46 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
   }
 };
 
-export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; announcements?: { id: number; title: string; body: string | null; level: string }[]; support?: boolean; children?: Child }) => (
-  <html lang="bn">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <meta name="robots" content="noindex" />
-      <title>{p.title} — অ্যাডমিন</title>
-      <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
-      <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
-    </head>
-    <body class="admin">
-      {p.email && (
-        <header class="admin-header">
-          <div class="wrap admin-header-inner">
-            <a href="/admin/orders" class="logo">{p.settings.site_name || "F-Shop"} অ্যাডমিন</a>
-            <nav class="admin-nav">
-              {[
-                ["orders", "/admin/orders", "অর্ডার"],
-                ["reports", "/admin/reports", "রিপোর্ট"],
-                ["products", "/admin/products", "পণ্য"],
-                ["categories", "/admin/categories", "ক্যাটাগরি"],
-                ["blacklist", "/admin/blacklist", "ব্ল্যাকলিস্ট"],
-                ["coupons", "/admin/coupons", "কুপন"],
-                ["settings", "/admin/settings", "সেটিংস"],
-                ["courier", "/admin/courier", "কুরিয়ার"],
-                ["sms", "/admin/sms", "SMS"],
-                ["billing", "/admin/billing", "বিলিং"],
-                ["staff", "/admin/staff", "স্টাফ"],
-                ["domains", "/admin/domain", "ডোমেইন"],
-              ].filter(([k]) => canAccess(p.role ?? "owner", k!)).map(([k, href, label]) => (
-                <a href={href} class={p.active === k ? "active" : ""}>{label}</a>
-              ))}
-              <a href="/" target="_blank">সাইট ↗</a>
-              <form method="post" action="/admin/logout" class="inline"><button class="btn-link">লগআউট</button></form>
-            </nav>
-          </div>
-        </header>
-      )}
-      {p.email && p.support && (
-        <div class="banner banner-support">
-          🔑 <strong>সাপোর্ট মোড</strong> — সুপার অ্যাডমিন হিসেবে {p.settings.site_name || "এই দোকানের"} প্যানেল দেখছেন। সব কাজ মালিকের মতোই হবে।
-          <form method="post" action="/admin/logout" class="inline"><button class="btn-link">বের হয়ে সুপার অ্যাডমিনে ফিরুন →</button></form>
-        </div>
-      )}
-      {p.email && <StateBanner state={p.state} />}
-      {p.email && (p.announcements ?? []).map((a) => (
-        <div class={`banner banner-ann banner-ann-${a.level}`}><strong>📢 {a.title}</strong>{a.body ? <> — {a.body}</> : null}</div>
-      ))}
-      <main class="wrap admin-main">
+export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; announcements?: { id: number; title: string; body: string | null; level: string }[]; support?: boolean; newOrders?: number; children?: Child }) => {
+  if (p.email) {
+    return (
+      <ShopShell title={p.title} settings={p.settings} active={p.active} email={p.email} role={p.role ?? "owner"} newOrders={p.newOrders}
+        top={<>
+          {p.support && (
+            <div class="banner banner-support">
+              🔑 <strong>সাপোর্ট মোড</strong> — সুপার অ্যাডমিন হিসেবে {p.settings.site_name || "এই দোকানের"} প্যানেল দেখছেন। সব কাজ মালিকের মতোই হবে।
+              <form method="post" action="/admin/logout" class="inline"><button class="btn-link">বের হয়ে সুপার অ্যাডমিনে ফিরুন →</button></form>
+            </div>
+          )}
+          <StateBanner state={p.state} />
+          {(p.announcements ?? []).map((a) => (
+            <div class={`banner banner-ann banner-ann-${a.level}`}><strong>📢 {a.title}</strong>{a.body ? <> — {a.body}</> : null}</div>
+          ))}
+        </>}>
         {p.flash && <div class={`alert ${p.flash.type === "ok" ? "alert-ok" : "alert-error"}`}>{p.flash.text}</div>}
         {p.children}
-      </main>
-      <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
-    </body>
-  </html>
-);
+      </ShopShell>
+    );
+  }
+  return (
+    <html lang="bn">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex" />
+        <title>{p.title} — অ্যাডমিন</title>
+        <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
+        <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
+      </head>
+      <body class="admin admin-login">
+        <main class="wrap admin-main">
+          {p.flash && <div class={`alert ${p.flash.type === "ok" ? "alert-ok" : "alert-error"}`}>{p.flash.text}</div>}
+          {p.children}
+        </main>
+      </body>
+    </html>
+  );
+};
 
 /* ---------- লগইন ---------- */
 export const LoginPage = ({ error, email }: { error?: string; email?: string }) => (
@@ -413,6 +398,15 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
         <label class="field"><span>ছোট বর্ণনা</span><textarea name="short_desc" rows={2}>{v.short_desc ?? ""}</textarea></label>
         <label class="field"><span>বিস্তারিত কনটেন্ট (HTML)</span><textarea name="details_html" rows={10} class="mono">{v.details_html ?? ""}</textarea></label>
         <label class="field"><span>YouTube লিংক (ঐচ্ছিক)</span><input type="url" name="youtube_url" value={v.youtube_url ?? ""} placeholder="https://youtu.be/..." />{e.youtube_url && <small class="error">{e.youtube_url}</small>}</label>
+        <fieldset class="seo-box" data-seo-box>
+          <legend>🔍 সার্চ ইঞ্জিন (SEO) — ঐচ্ছিক</legend>
+          <p class="muted">ফাঁকা রাখলে পণ্যের নাম আর ছোট বর্ণনা ব্যবহার হবে। Google-এ আর Facebook-এ শেয়ার করলে এগুলো দেখায়।</p>
+          <label class="field"><span>মেটা টাইটেল <small data-count-for="meta_title"></small></span><input type="text" name="meta_title" value={v.meta_title ?? ""} maxlength={100} data-count="60" placeholder={v.name ?? ""} /></label>
+          <label class="field"><span>মেটা ডেসক্রিপশন <small data-count-for="meta_description"></small></span><textarea name="meta_description" rows={2} maxlength={300} data-count="155">{v.meta_description ?? ""}</textarea></label>
+          <div class="serp" data-serp data-url={`/p/${v.slug || "slug"}`}>
+            <div class="serp-url"></div><div class="serp-title"></div><div class="serp-desc"></div>
+          </div>
+        </fieldset>
         <h2>সাইজ/রং (ঐচ্ছিক)</h2>
         <p class="muted">যেমন অপশন: <code>সাইজ</code>, মান: <code>S, M, L, XL</code>। দুটো পর্যন্ত অপশন দেওয়া যায়। সেভ করলে সব কম্বিনেশন নিচে আসবে, সেখানে আলাদা দাম বা "স্টকে নেই" দেওয়া যাবে।</p>
         <div class="form-grid">
@@ -532,57 +526,6 @@ export const BlacklistPage = ({ rows, q }: { rows: BlacklistRow[]; q: string }) 
 );
 
 /* ---------- সেটিংস ---------- */
-export const SettingsPage = ({ s }: { s: Settings }) => (
-  <>
-    <h1>সেটিংস</h1>
-    <form method="post" action="/admin/settings" class="admin-form" enctype="multipart/form-data">
-      <h2>সাধারণ</h2>
-      <div class="form-grid">
-        <label class="field"><span>সাইটের নাম</span><input type="text" name="site_name" value={s.site_name} required /></label>
-        <label class="field"><span>যোগাযোগ নম্বর</span><input type="text" name="contact_phone" value={s.contact_phone} required /></label>
-        <label class="field"><span>ডেলিভারি চার্জ — ঢাকার ভিতরে (৳)</span><input type="number" min="0" name="delivery_inside" value={s.delivery_inside} required /></label>
-        <label class="field"><span>ডেলিভারি চার্জ — ঢাকার বাইরে (৳)</span><input type="number" min="0" name="delivery_outside" value={s.delivery_outside} required /></label>
-      </div>
-      <h2>থিম</h2>
-      <div class="theme-picks">
-        {(Object.entries(THEMES) as [string, { name: string; desc: string }][]).map(([k, t]) => (
-          <label class={`theme-pick tp-${k}`}>
-            <input type="radio" name="theme" value={k} checked={(s.theme || "classic") === k} />
-            <span class="tp-preview"><i></i><b></b><b></b></span>
-            <strong>{t.name}</strong>
-            <small>{t.desc}</small>
-          </label>
-        ))}
-      </div>
-      <h2>লোগো আর রং</h2>
-      <div class="form-grid">
-        <label class="field"><span>লোগো (PNG/JPG/WebP, ১ MB পর্যন্ত — ফাঁকা রাখলে আগেরটা থাকবে)</span>
-          {s.logo && <img src={imageUrl(s.logo)} height="40" class="logo-preview" alt="" />}
-          <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" />
-          {s.logo && <label class="small-check"><input type="checkbox" name="remove_logo" value="1" /> লোগো সরান</label>}
-        </label>
-        <div class="field color-fields">
-          <label><span>মূল রং (হেডার, দাম)</span><input type="color" name="brand_color" value={s.brand_color || "#0f766e"} /></label>
-          <label><span>বাটনের রং</span><input type="color" name="accent_color" value={s.accent_color || "#ea580c"} /></label>
-        </div>
-      </div>
-      <h2>Facebook (Pixel + Conversions API)</h2>
-      <div class="form-grid">
-        <label class="field"><span>Pixel ID</span><input type="text" name="fb_pixel_id" value={s.fb_pixel_id} inputmode="numeric" pattern="[0-9]*" /></label>
-        <label class="field"><span>Graph API ভার্সন</span><input type="text" name="fb_graph_version" value={s.fb_graph_version} placeholder="v26.0" pattern="v[0-9]+\.[0-9]+" /></label>
-        <label class="field">
-          <span>CAPI Access Token {s.fb_capi_token ? "(সেট করা আছে — ফাঁকা রাখলে আগেরটাই থাকবে)" : "(সেট করা নেই)"}</span>
-          <input type="password" name="fb_capi_token" value="" autocomplete="new-password" placeholder={s.fb_capi_token ? "••••••••••••" : ""} />
-          {s.fb_capi_token && <label class="small-check"><input type="checkbox" name="clear_token" value="1" /> টোকেন মুছে ফেলুন</label>}
-        </label>
-        <label class="field"><span>Test Event Code (টেস্ট শেষে ফাঁকা করুন)</span><input type="text" name="fb_test_event_code" value={s.fb_test_event_code} placeholder="TEST12345" /></label>
-      </div>
-      <button class="btn btn-primary btn-lg">সেভ করুন</button>
-    </form>
-  </>
-);
-
-
 /* ---------- বিলিং ---------- */
 export type LedgerRow = { id: number; type: string; amount: number; balance_after: number | null; ref: string; note: string | null; created_at: string };
 export type TopupRow = { id: number; amount: number; method: string; sender: string; trx_id: string; status: string; created_at: string };

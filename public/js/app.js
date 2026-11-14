@@ -48,6 +48,7 @@
   document.querySelectorAll("[data-order-form]").forEach(function (form) {
     var subtotal = +form.dataset.subtotal || 0;
     var charges = { inside: +form.dataset.inside || 0, outside: +form.dataset.outside || 0 };
+    var freeMin = +form.dataset.freeMin || 0;
     var coupon = null; // সার্ভার থেকে পাওয়া কুপনের নিয়ম
     function couponDiscount(sub, delivery) {
       if (!coupon || sub < (coupon.min_order || 0)) return 0;
@@ -64,7 +65,7 @@
       var sub = form.querySelector("[data-subtotal-text]");
       if (sub) sub.textContent = taka(subtotal);
       var checked = form.querySelector("input[name=area]:checked");
-      var d = charges[checked ? checked.value : "inside"];
+      var d = freeMin > 0 && subtotal >= freeMin ? 0 : charges[checked ? checked.value : "inside"];
       var dEl = form.querySelector("[data-delivery]");
       var tEl = form.querySelector("[data-total]");
       var disc = couponDiscount(subtotal, d);

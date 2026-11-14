@@ -13,6 +13,11 @@ export const SETTING_KEYS = [
   "brand_color",
   "accent_color",
   "theme",
+  "store_email", "store_address", "whatsapp", "facebook_page", "favicon",
+  "seo_title", "seo_description", "seo_image", "seo_noindex",
+  "ga4_id", "gtm_id", "tiktok_pixel_id",
+  "free_delivery_min", "delivery_time_inside", "delivery_time_outside",
+  "min_order", "show_note", "thanks_message", "order_form_title",
 ] as const;
 
 export const THEMES = {
@@ -54,8 +59,19 @@ export async function saveSettings(db: D1Database, values: Partial<Settings>) {
   if (stmts.length) await db.batch(stmts);
 }
 
-export function deliveryCharge(s: Settings, area: string): number {
+/** ডেলিভারি চার্জ — নির্দিষ্ট টাকার বেশি অর্ডারে (সেট করা থাকলে) ফ্রি */
+export function deliveryCharge(s: Settings, area: string, subtotal?: number): number {
+  const free = freeDeliveryMin(s);
+  if (free > 0 && subtotal !== undefined && subtotal >= free) return 0;
   const v = area === "inside" ? s.delivery_inside : s.delivery_outside;
   const n = parseInt(v || "0", 10);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
+const posInt = (v: string | undefined) => { const n = parseInt(v || "0", 10); return Number.isFinite(n) && n > 0 ? n : 0; };
+export const freeDeliveryMin = (s: Settings) => posInt(s.free_delivery_min);
+export const minOrderAmount = (s: Settings) => posInt(s.min_order);
+
+/* ট্র্যাকিং আইডির বৈধ রূপ (স্ক্রিপ্টে বসানোর আগে) */
+export const GA4_RE = /^G-[A-Z0-9]{4,15}$/;
+export const GTM_RE = /^GTM-[A-Z0-9]{4,12}$/;
+export const TIKTOK_RE = /^[A-Z0-9]{10,30}$/;

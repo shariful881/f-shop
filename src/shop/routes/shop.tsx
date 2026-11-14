@@ -7,8 +7,8 @@ import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, prod
 import { addToCart, clearCart, readCart, readCartEntries, removeFromCart } from "../lib/cart";
 import { createOrder, getOrderByNo } from "../lib/orders";
 import { checkCoupon, normalizeCode } from "../lib/coupons";
-import { deliveryCharge } from "../lib/settings";
-import { clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
+import { deliveryCharge, minOrderAmount } from "../lib/settings";
+import { publicOrigin, clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
 import { imageUrl } from "../lib/format";
 import { page } from "../lib/render";
 import { newEventId, trackServer, type CustomData } from "../lib/capi";
@@ -47,7 +47,7 @@ shop.get("/", async (c) => {
   const sections = await homeSections(c.env.DB);
   const s = c.var.settings;
   return page(c,
-    <Layout title={s.site_name || "F-Shop"} settings={s} cartCount={readCart(c).length} head={pixel(c)}>
+    <Layout title={s.seo_title || s.site_name || "দোকান"} settings={s} cartCount={readCart(c).length} head={pixel(c)}>
       <HomePage sections={sections} />
     </Layout>,
   );
@@ -59,8 +59,8 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
   const variants = await productVariants(c.env.DB, p.id);
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
-    <Layout title={p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head}
-      description={p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
+    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head}
+      description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <LandingPage p={p} variants={variants} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
@@ -188,6 +188,12 @@ shop.post("/order", async (c) => {
   // দোকানের বিলিং বকেয়া বা স্থগিত থাকলে অনলাইনে অর্ডার বন্ধ
   if (!c.var.shopState.accepting) return fail({ alert: ordersClosedMessage(c.var.settings.contact_phone || "") }, 403);
 
+  // সর্বনিম্ন অর্ডার (দোকানের সেটিংস)
+  const minOrder = minOrderAmount(c.var.settings);
+  if (minOrder && products.reduce((x, p) => x + p.price, 0) < minOrder) {
+    return fail({ alert: `সর্বনিম্ন ${minOrder} টাকার অর্ডার করতে হবে।` });
+  }
+
   // ১. ইনপুট যাচাই (ফোন নম্বর নরমালাইজসহ)
   const v = validateOrderInput(values);
   if (!v.ok) return fail({ errors: v.errors });
@@ -208,7 +214,7 @@ shop.post("/order", async (c) => {
 
     // ৪. কুপন (থাকলে) — সার্ভারে যাচাই
     const subtotal = products.reduce((x, p) => x + p.price, 0);
-    const delivery = deliveryCharge(s, v.area);
+    const delivery = deliveryCharge(s, v.area, subtotal);
     let coupon: { id: number; code: string; discount: number } | null = null;
     if (values.coupon) {
       const cc = await checkCoupon(c.env.DB, values.coupon, subtotal, delivery, v.phone);
@@ -223,7 +229,7 @@ shop.post("/order", async (c) => {
       address: values.address!,
       area: v.area,
       note: values.note!,
-      deliveryCharge: deliveryCharge(s, v.area),
+      deliveryCharge: delivery,
       deviceId,
       ip: clientIp(c),
       userAgent: (c.req.header("user-agent") || "").slice(0, 500),
@@ -261,7 +267,7 @@ shop.post("/coupon/check", async (c) => {
     lines = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
   }
   const subtotal = lines.reduce((x, p) => x + p.price, 0);
-  const delivery = deliveryCharge(c.var.settings, body.area === "outside" ? "outside" : "inside");
+  const delivery = deliveryCharge(c.var.settings, body.area === "outside" ? "outside" : "inside", subtotal);
   const r = await checkCoupon(c.env.DB, String(body.coupon ?? ""), subtotal, delivery);
   if (!r.ok) return c.json({ ok: false, message: r.message });
   const cp = r.coupon;
@@ -277,6 +283,24 @@ shop.post("/t/ic", async (c) => {
   const [p] = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
   if (p) trackServer(c, "InitiateCheckout", eventId, productData([p]));
   return c.body(null, 204);
+});
+
+/* ---------- সার্চ ইঞ্জিন: robots.txt আর sitemap.xml ---------- */
+shop.get("/robots.txt", (c) => {
+  const origin = publicOrigin(c);
+  const body = c.var.settings.seo_noindex === "1"
+    ? "User-agent: *\nDisallow: /\n"
+    : `User-agent: *\nDisallow: /admin\nDisallow: /cart\nDisallow: /checkout\nDisallow: /thanks\nSitemap: ${origin}/sitemap.xml\n`;
+  return c.text(body, 200, { "Cache-Control": "public, max-age=3600" });
+});
+
+shop.get("/sitemap.xml", async (c) => {
+  const origin = publicOrigin(c);
+  const { results } = await c.env.DB.prepare("SELECT slug, updated_at FROM products WHERE is_active = 1 ORDER BY id DESC LIMIT 5000").all<{ slug: string; updated_at: string }>();
+  const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const urls = [`<url><loc>${esc(origin)}/</loc></url>`, ...results.map((p) => `<url><loc>${esc(`${origin}/p/${encodeURIComponent(p.slug)}`)}</loc><lastmod>${p.updated_at.slice(0, 10)}</lastmod></url>`)];
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`, 200,
+    { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" });
 });
 
 /* ---------- ধন্যবাদ ---------- */

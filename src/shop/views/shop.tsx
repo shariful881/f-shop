@@ -3,7 +3,7 @@ import type { Settings } from "../lib/settings";
 import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL } from "../lib/orders";
 import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
-import { deliveryCharge } from "../lib/settings";
+import { deliveryCharge, freeDeliveryMin } from "../lib/settings";
 import { parseLanding } from "../lib/landing";
 import { sanitizeHtml } from "../lib/sanitize";
 import { BuiltLanding } from "./landing";
@@ -75,11 +75,16 @@ export const OrderForm = (p: {
   const area = v.area === "outside" ? "outside" : "inside";
   const inside = deliveryCharge(p.settings, "inside");
   const outside = deliveryCharge(p.settings, "outside");
+  const freeMin = freeDeliveryMin(p.settings);
+  const isFree = freeMin > 0 && p.subtotal >= freeMin;
+  const s = p.settings;
   return (
     <form method="post" action="/order" class="order-form" id="order-form" data-order-form
-      data-subtotal={String(p.subtotal)} data-inside={String(inside)} data-outside={String(outside)}
+      data-subtotal={String(p.subtotal)} data-inside={String(inside)} data-outside={String(outside)} data-free-min={String(freeMin)}
       data-source={p.source} data-product-id={p.productId ? String(p.productId) : ""} novalidate>
+      {s.order_form_title && <h3 class="order-form-title">{s.order_form_title}</h3>}
       {p.form?.alert && <div class="alert alert-error" role="alert">{p.form.alert}</div>}
+      {freeMin > 0 && <p class="free-delivery-note" data-free-note>🚚 {taka(freeMin)} বা তার বেশি অর্ডারে ডেলিভারি ফ্রি!</p>}
       <input type="hidden" name="source" value={p.source} />
       {p.productId && <input type="hidden" name="product_id" value={String(p.productId)} />}
       <input type="hidden" name="did_ls" value="" data-did-ls />
@@ -117,8 +122,8 @@ export const OrderForm = (p: {
       </label>
       <fieldset class="field area-field">
         <span>ডেলিভারি এলাকা *</span>
-        <label class="radio"><input type="radio" name="area" value="inside" checked={area === "inside"} /> {AREA_LABEL.inside} ({taka(inside)})</label>
-        <label class="radio"><input type="radio" name="area" value="outside" checked={area === "outside"} /> {AREA_LABEL.outside} ({taka(outside)})</label>
+        <label class="radio"><input type="radio" name="area" value="inside" checked={area === "inside"} /> {AREA_LABEL.inside} ({taka(inside)}){s.delivery_time_inside && <small class="muted"> · {s.delivery_time_inside}</small>}</label>
+        <label class="radio"><input type="radio" name="area" value="outside" checked={area === "outside"} /> {AREA_LABEL.outside} ({taka(outside)}){s.delivery_time_outside && <small class="muted"> · {s.delivery_time_outside}</small>}</label>
         {e.area && <small class="error">{e.area}</small>}
       </fieldset>
       <details class="coupon-box" open={!!v.coupon || !!e.coupon}>
@@ -129,16 +134,18 @@ export const OrderForm = (p: {
         </div>
         <small data-coupon-msg class={e.coupon ? "error" : "muted"}>{e.coupon ?? ""}</small>
       </details>
-      <label class="field">
-        <span>নোট (ঐচ্ছিক)</span>
-        <input type="text" name="note" value={v.note ?? ""} maxlength={300} />
-      </label>
+      {s.show_note !== "0" && (
+        <label class="field">
+          <span>নোট (ঐচ্ছিক)</span>
+          <input type="text" name="note" value={v.note ?? ""} maxlength={300} />
+        </label>
+      )}
 
       <div class="summary">
         <div><span>পণ্যের দাম</span><span data-subtotal-text>{taka(p.subtotal)}</span></div>
-        <div><span>ডেলিভারি চার্জ</span><span data-delivery>{taka(area === "inside" ? inside : outside)}</span></div>
+        <div><span>ডেলিভারি চার্জ</span><span data-delivery>{taka(isFree ? 0 : area === "inside" ? inside : outside)}</span></div>
         <div class="discount-row" data-discount-row hidden><span>কুপন ছাড়</span><span data-discount>-৳০</span></div>
-        <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (area === "inside" ? inside : outside))}</span></div>
+        <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (isFree ? 0 : area === "inside" ? inside : outside))}</span></div>
       </div>
       <button type="submit" class="btn btn-primary btn-block btn-lg" data-submit>অর্ডার কনফার্ম করুন</button>
       <p class="muted center">ক্যাশ অন ডেলিভারি — পণ্য হাতে পেয়ে টাকা দিন</p>
@@ -255,7 +262,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     <div class="thanks-icon">✓</div>
     <h1>ধন্যবাদ, আপনার অর্ডারটি পেয়েছি!</h1>
     <p class="order-no">অর্ডার নম্বর: <strong>{order.order_no}</strong></p>
-    <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>
+    {settings.thanks_message ? <p class="thanks-message">{settings.thanks_message}</p> : <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>}
     <div class="summary">
       {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>

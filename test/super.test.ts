@@ -119,7 +119,7 @@ describe("দোকানের নিয়ন্ত্রণ", () => {
     expect(loc.searchParams.get("support")).toBe("1");
     const shopB = new Browser();
     const login = await shopB.fetch(loc.pathname + loc.search, { base: "https://shop.test" } as RequestInit);
-    expect(login.headers.get("location")).toBe("/admin/orders");
+    expect(login.headers.get("location")).toBe("/admin");
     const panel = await (await shopB.fetch("/admin/orders", { base: "https://shop.test" } as RequestInit)).text();
     expect(panel).toContain("সাপোর্ট মোড");
     // বের হলে সুপার অ্যাডমিনের দোকানের পেজে ফেরে, সাপোর্ট মোড মুছে যায়

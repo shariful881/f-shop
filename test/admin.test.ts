@@ -220,7 +220,7 @@ describe("পণ্য, ক্যাটাগরি, সেটিংস", () => 
     await a.post("/admin/settings", { ...base, fb_capi_token: "" });
     const tok = await DB.prepare("SELECT value FROM settings WHERE key='fb_capi_token'").first<{ value: string }>();
     expect(tok!.value).toBe("SECRET_TOKEN");
-    const page = await (await a.get("/admin/settings")).text();
+    const page = await (await a.get("/admin/settings/tracking")).text();
     expect(page).not.toContain("SECRET_TOKEN"); // টোকেন পেজে দেখায় না
     expect(page).toContain('type="password" name="fb_capi_token"');
 

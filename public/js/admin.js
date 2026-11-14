@@ -72,3 +72,47 @@ document.addEventListener("change", function (e) {
     });
   });
 })();
+
+/* অক্ষর গোনা আর Google প্রিভিউ (SEO) */
+(function () {
+  document.querySelectorAll("[data-count]").forEach(function (el) {
+    var ideal = +el.getAttribute("data-count");
+    var out = document.querySelector('[data-count-for="' + el.name + '"]');
+    function upd() {
+      if (!out) return;
+      var n = el.value.length;
+      out.textContent = "(" + n + "/" + ideal + ")";
+      out.className = n === 0 ? "" : n <= ideal ? "cnt-ok" : "cnt-warn";
+    }
+    el.addEventListener("input", upd); upd();
+  });
+  document.querySelectorAll("[data-serp]").forEach(function (box) {
+    var scope = box.closest("form") || document;
+    var t = scope.querySelector('[name="seo_title"], [name="meta_title"]');
+    var d = scope.querySelector('[name="seo_description"], [name="meta_description"]');
+    var nameEl = scope.querySelector('[name="name"]');
+    var descFallback = scope.querySelector('[name="short_desc"]');
+    function upd() {
+      var title = (t && t.value) || (nameEl && nameEl.value) || box.getAttribute("data-fallback-title") || (t && t.placeholder) || "";
+      var desc = (d && d.value) || (descFallback && descFallback.value) || "";
+      var u = box.getAttribute("data-url") || "";
+      box.querySelector(".serp-url").textContent = /^https?:\/\//.test(u) ? u.replace(/^https?:\/\//, "") : location.host + u;
+      box.querySelector(".serp-title").textContent = title.length > 60 ? title.slice(0, 60) + "…" : title;
+      box.querySelector(".serp-desc").textContent = desc.length > 155 ? desc.slice(0, 155) + "…" : (desc || "ডেসক্রিপশন লিখলে এখানে দেখাবে");
+    }
+    [t, d, nameEl, descFallback].forEach(function (x) { if (x) x.addEventListener("input", upd); });
+    upd();
+  });
+})();
+
+/* দোকানের লিংক কপি */
+document.addEventListener("click", function (e) {
+  var b = e.target.closest && e.target.closest("[data-copy]");
+  if (!b) return;
+  var src = document.querySelector("[data-copy-src]");
+  if (!src) return;
+  src.select();
+  (navigator.clipboard ? navigator.clipboard.writeText(src.value) : Promise.reject()).catch(function () { document.execCommand("copy"); });
+  b.textContent = "কপি হয়েছে ✓";
+  setTimeout(function () { b.textContent = "কপি"; }, 1600);
+});

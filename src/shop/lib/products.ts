@@ -1,5 +1,7 @@
 export type Product = {
   id: number;
+  meta_title?: string | null;
+  meta_description?: string | null;
   category_id: number | null;
   name: string;
   slug: string;

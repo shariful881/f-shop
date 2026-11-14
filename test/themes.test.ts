@@ -26,7 +26,7 @@ describe("থিম", () => {
     await a.post("/admin/settings", { ...base, theme: "bold" });
     await a.post("/admin/settings", { ...base, theme: "../../evil" });
     expect((await DB.prepare("SELECT value FROM settings WHERE key='theme'").first<any>()).value).toBe("bold");
-    const page = await (await a.get("/admin/settings")).text();
+    const page = await (await a.get("/admin/settings/appearance")).text();
     for (const n of ["ক্লাসিক", "মিনিমাল", "বোল্ড"]) expect(page).toContain(n);
   });
 });

@@ -1,16 +1,17 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
-import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, SettingsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
+import { AdminLayout, BlacklistPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
 import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderStatus } from "../lib/orders";
 import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
-import { safeColor, saveSettings, THEMES } from "../lib/settings";
-import { clientIp, isHttps, str, toInt } from "../lib/http";
-import { youtubeId } from "../lib/format";
+import { GA4_RE, GTM_RE, safeColor, saveSettings, THEMES, TIKTOK_RE } from "../lib/settings";
+import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
+import { SettingsAppearancePage, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
+import { bn, youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
 import { CouponsPage, LandingBuilderPage, ReportsPage, type CouponRow } from "../views/admin";
@@ -65,9 +66,10 @@ async function markShopLogin(c: Ctx) {
 
 async function render(c: Ctx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200) {
   const ann = await announcements(c);
+  const pending = c.var.admin ? await c.env.DB.prepare("SELECT COUNT(*) n FROM orders WHERE status = 'new'").first<{ n: number }>() : null;
   return c.html(
     "<!DOCTYPE html>" +
-      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState} announcements={ann} support={getCookie(c, "support_mode") === "1"}>{body as any}</AdminLayout>),
+      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState} announcements={ann} support={getCookie(c, "support_mode") === "1"} newOrders={pending?.n ?? 0}>{body as any}</AdminLayout>),
     status,
   );
 }
@@ -91,7 +93,7 @@ admin.post("/login", async (c) => {
   const token = await createSession(c.env.DB, user.id);
   setCookie(c, ADMIN_COOKIE, token, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
   await markShopLogin(c);
-  return c.redirect("/admin/orders", 303);
+  return c.redirect("/admin", 303);
 });
 
 /** সাইনআপের পর এককালীন টোকেন দিয়ে সরাসরি ড্যাশবোর্ডে */
@@ -110,9 +112,9 @@ admin.get("/auto-login", async (c) => {
     flash(c, "ok", "সুপার অ্যাডমিন থেকে এই দোকানের প্যানেলে ঢুকেছেন।");
   } else {
     await markShopLogin(c);
-    flash(c, "ok", "স্বাগতম! আপনার দোকান তৈরি হয়ে গেছে। প্রথমে সেটিংস আর পণ্য ঠিক করে নিন।");
+    flash(c, "ok", "স্বাগতম! আপনার দোকান তৈরি হয়ে গেছে। নিচের ধাপগুলো শেষ করে দোকান সাজিয়ে নিন।");
   }
-  return c.redirect("/admin/orders", 303);
+  return c.redirect("/admin", 303);
 });
 
 admin.post("/logout", async (c) => {
@@ -128,7 +130,60 @@ admin.post("/logout", async (c) => {
 /* ---------- এর পরের সব পেজে লগইন লাগবে ---------- */
 admin.use("*", requireAdmin);
 
-admin.get("/", (c) => c.redirect("/admin/orders", 303));
+/* ---------- ড্যাশবোর্ড ---------- */
+admin.get("/", async (c) => {
+  const db = c.env.DB;
+  const s = c.var.settings;
+  // ঢাকার দিন: UTC + ৬ ঘণ্টা
+  const todayStart = "datetime(date('now', '+6 hours'), '-6 hours')";
+  const [t, y, pend, m, ch, rec, top, prods] = await db.batch([
+    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(CASE WHEN status NOT IN ('fake', 'cancelled') THEN total END), 0) v FROM orders WHERE created_at >= ${todayStart}`),
+    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(CASE WHEN status NOT IN ('fake', 'cancelled') THEN total END), 0) v FROM orders WHERE created_at >= datetime(${todayStart}, '-1 day') AND created_at < ${todayStart}`),
+    db.prepare("SELECT COUNT(*) n FROM orders WHERE status = 'new'"),
+    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(status IN ('confirmed', 'shipped')), 0) ok, COALESCE(SUM(status IN ('fake', 'cancelled')), 0) bad,
+        COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total END), 0) sales FROM orders WHERE created_at >= datetime('now', '-30 days')`),
+    db.prepare(`SELECT date(created_at, '+6 hours') d, COUNT(*) a, COALESCE(SUM(status IN ('confirmed', 'shipped')), 0) ok FROM orders WHERE created_at >= datetime('now', '-14 days') GROUP BY d`),
+    db.prepare("SELECT id, order_no, name, phone, total, status, created_at FROM orders ORDER BY id DESC LIMIT 8"),
+    db.prepare(`SELECT i.product_name, COUNT(*) n, SUM(i.price) amount FROM order_items i JOIN orders o ON o.id = i.order_id
+        WHERE o.created_at >= datetime('now', '-30 days') AND o.status IN ('confirmed', 'shipped') GROUP BY i.product_name ORDER BY n DESC LIMIT 6`),
+    db.prepare("SELECT COUNT(*) total, COALESCE(SUM(is_active), 0) active FROM products"),
+  ]);
+  const one = (r: D1Result | undefined) => (r!.results[0] ?? {}) as Record<string, number>;
+  const byDay = new Map((ch!.results as { d: string; a: number; ok: number }[]).map((r) => [r.d, r]));
+  const chart: ShopDash["chart"] = [];
+  const now = Date.now() + 6 * 3600e3;
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now - i * 86400e3).toISOString().slice(0, 10);
+    const r = byDay.get(d);
+    chart.push({ label: bn(`${d.slice(8, 10)}/${d.slice(5, 7)}`), all: r?.a ?? 0, confirmed: r?.ok ?? 0 });
+  }
+  const mm = one(m);
+  const pr = one(prods);
+  const domain = await c.env.PLATFORM_DB.prepare("SELECT 1 FROM domains WHERE shop_id = ? AND status = 'active' LIMIT 1").bind(c.env.SHOP_ID).first().catch(() => null);
+  const setup: SetupStep[] = [
+    { key: "info", label: "দোকানের নাম আর যোগাযোগ নম্বর", desc: "কাস্টমার যাতে আপনাকে খুঁজে পান", done: !!s.site_name && !!s.contact_phone && s.contact_phone !== "01700000000", href: "/admin/settings" },
+    { key: "logo", label: "লোগো দিন", desc: "দোকানের পরিচয়", done: !!s.logo, href: "/admin/settings/appearance" },
+    { key: "product", label: "প্রথম পণ্য যোগ করুন", desc: "প্রতিটা পণ্যের নিজের ল্যান্ডিং পেজ তৈরি হয়", done: (pr.total ?? 0) > 0, href: "/admin/products/new" },
+    { key: "delivery", label: "ডেলিভারি চার্জ ঠিক করুন", desc: "ঢাকার ভিতরে আর বাইরে", done: !!s.delivery_inside && !!s.delivery_outside, href: "/admin/settings/delivery" },
+    { key: "pixel", label: "Facebook Pixel + Conversions API", desc: "অ্যাডের ফল মাপতে আর খরচ কমাতে", done: !!s.fb_pixel_id && !!s.fb_capi_token, href: "/admin/settings/tracking" },
+    { key: "seo", label: "SEO টাইটেল আর ডেসক্রিপশন", desc: "Google আর শেয়ারে সুন্দর দেখাতে", done: !!s.seo_title && !!s.seo_description, href: "/admin/settings/seo" },
+    { key: "courier", label: "কুরিয়ার যুক্ত করুন", desc: "এক ক্লিকে পার্সেল বুকিং", done: configuredCouriers(s).length > 0, href: "/admin/courier" },
+    { key: "domain", label: "নিজের ডোমেইন (ঐচ্ছিক)", desc: "yourshop.com", done: !!domain, href: "/admin/domain" },
+  ];
+  const d: ShopDash = {
+    today: { orders: one(t).n ?? 0, value: one(t).v ?? 0 },
+    yesterday: { orders: one(y).n ?? 0, value: one(y).v ?? 0 },
+    pending: one(pend).n ?? 0,
+    d30: { orders: mm.n ?? 0, confirmed: mm.ok ?? 0, fake: mm.bad ?? 0, sales: mm.sales ?? 0, aov: mm.ok ? (mm.sales ?? 0) / mm.ok : 0 },
+    chart,
+    recent: rec!.results as ShopDash["recent"],
+    top: top!.results as ShopDash["top"],
+    products: { total: pr.total ?? 0, active: pr.active ?? 0 },
+    setup,
+    storeUrl: publicOrigin(c),
+  };
+  return render(c, "ড্যাশবোর্ড", "dashboard", <ShopDashboardPage d={d} role={c.var.admin!.role} />);
+});
 
 /* ---------- অর্ডার ---------- */
 const PER_PAGE = 50;
@@ -470,6 +525,8 @@ async function saveProduct(c: Ctx, id: number | null) {
     short_desc: str(body.short_desc, 2000) || null,
     details_html: (typeof body.details_html === "string" ? body.details_html : "").slice(0, 200_000) || null,
     youtube_url: str(body.youtube_url, 300) || null,
+    meta_title: str(body.meta_title, 100) || null,
+    meta_description: str(body.meta_description, 300) || null,
     is_active: body.is_active ? 1 : 0,
     show_on_home: body.show_on_home ? 1 : 0,
     sort_order: toInt(body.sort_order),
@@ -510,17 +567,17 @@ async function saveProduct(c: Ctx, id: number | null) {
     if (existing?.image) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, existing.image)).catch(() => {});
   }
 
-  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json];
+  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json, v.meta_title, v.meta_description];
   let productId = id;
   if (id) {
     await db.prepare(
       `UPDATE products SET category_id=?, name=?, slug=?, price=?, compare_price=?, image=?, headline=?, short_desc=?, details_html=?,
-         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, updated_at=datetime('now') WHERE id=?`,
+         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, meta_title=?, meta_description=?, updated_at=datetime('now') WHERE id=?`,
     ).bind(...cols, id).run();
   } else {
     const r = await db.prepare(
-      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
+      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json, meta_title, meta_description)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
     ).bind(...cols).first<{ id: number }>();
     productId = r!.id;
   }
@@ -624,47 +681,96 @@ admin.post("/blacklist/:id{[0-9]+}/delete", async (c) => {
 });
 
 /* ---------- সেটিংস ---------- */
-admin.get("/settings", (c) => render(c, "সেটিংস", "settings", <SettingsPage s={c.var.settings} />));
+/* ---------- সেটিংস কেন্দ্র ---------- */
+const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = {
+  general: { title: "দোকানের সেটিংস", view: (c) => <SettingsGeneralPage s={c.var.settings} /> },
+  appearance: { title: "থিম ও লোগো", view: (c) => <SettingsAppearancePage s={c.var.settings} /> },
+  delivery: { title: "ডেলিভারি", view: (c) => <SettingsDeliveryPage s={c.var.settings} /> },
+  checkout: { title: "অর্ডার ফর্ম", view: (c) => <SettingsCheckoutPage s={c.var.settings} /> },
+  seo: { title: "SEO", view: (c) => <SettingsSeoPage s={c.var.settings} url={publicOrigin(c)} /> },
+  tracking: { title: "পিক্সেল ও ট্র্যাকিং", view: (c) => <SettingsTrackingPage s={c.var.settings} /> },
+};
 
-admin.post("/settings", async (c) => {
+admin.get("/settings", (c) => render(c, SET_PAGES.general!.title, "settings", SET_PAGES.general!.view(c)));
+admin.get("/settings/:section{[a-z]+}", (c) => {
+  const pg = SET_PAGES[c.req.param("section")];
+  if (!pg) return c.redirect("/admin/settings", 303);
+  return render(c, pg.title, "settings", pg.view(c));
+});
+
+/** ছবি আপলোড (লোগো, ফেভিকন, শেয়ার ইমেজ) — সফল হলে নতুন key, ভুল হলে error */
+async function settingImage(c: Ctx, b: Record<string, unknown>, key: "logo" | "favicon" | "seo_image", maxBytes: number): Promise<{ value?: string; error?: string }> {
+  const file = b[key];
+  const current = c.var.settings[key];
+  if (file instanceof File && file.size > 0) {
+    const ext = IMAGE_TYPES[file.type];
+    if (!ext || file.size > maxBytes) return { error: `ছবি PNG/JPG/WebP আর ${Math.round(maxBytes / 1024 / 1024)} MB-এর কম হতে হবে` };
+    const name = `${key}/${crypto.randomUUID()}.${ext}`;
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, name), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+    if (current) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, current)).catch(() => {});
+    return { value: name };
+  }
+  if (b[`remove_${key}`] && current) {
+    await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, current)).catch(() => {});
+    return { value: "" };
+  }
+  return {};
+}
+
+/**
+ * সেটিংস সেভ — শুধু ফর্মে যে ঘরগুলো আছে সেগুলোই বদলায়।
+ * চেকবক্স না পাঠালে "বন্ধ" ধরা হয় শুধু তার নিজের সেকশনের ফর্ম থেকে এলে।
+ */
+async function saveSettingsForm(c: Ctx, section: string) {
   const b = await c.req.parseBody();
-  const values: Record<string, string> = {
-    site_name: str(b.site_name, 100) || "F-Shop",
-    contact_phone: str(b.contact_phone, 30),
-    delivery_inside: String(Math.max(0, toInt(b.delivery_inside))),
-    delivery_outside: String(Math.max(0, toInt(b.delivery_outside))),
-    fb_pixel_id: str(b.fb_pixel_id, 30).replace(/\D/g, ""),
-    fb_test_event_code: str(b.fb_test_event_code, 50),
-    fb_graph_version: /^v\d+\.\d+$/.test(str(b.fb_graph_version, 10)) ? str(b.fb_graph_version, 10) : "v26.0",
-  };
-  values.theme = typeof b.theme === "string" && b.theme in THEMES ? b.theme : (c.var.settings.theme || "classic");
-  values.brand_color = safeColor(str(b.brand_color, 7), c.var.settings.brand_color || "#0f766e");
-  values.accent_color = safeColor(str(b.accent_color, 7), c.var.settings.accent_color || "#ea580c");
+  const has = (k: string) => k in b;
+  const v: Record<string, string> = {};
+  const text: [string, number][] = [
+    ["contact_phone", 30], ["store_email", 120], ["store_address", 300], ["whatsapp", 20], ["fb_test_event_code", 50],
+    ["seo_title", 100], ["seo_description", 300], ["thanks_message", 500], ["order_form_title", 100],
+    ["delivery_time_inside", 60], ["delivery_time_outside", 60],
+  ];
+  for (const [k, max] of text) if (has(k)) v[k] = str(b[k], max);
+  if (has("site_name")) v.site_name = str(b.site_name, 100) || c.var.settings.site_name || "আমার দোকান";
+  if (has("facebook_page")) { const u = str(b.facebook_page, 200); v.facebook_page = /^https:\/\/[^\s]+$/.test(u) ? u : ""; }
+  for (const k of ["delivery_inside", "delivery_outside", "free_delivery_min", "min_order"]) if (has(k)) v[k] = String(Math.max(0, toInt(b[k])));
+  if (has("fb_pixel_id")) v.fb_pixel_id = str(b.fb_pixel_id, 30).replace(/\D/g, "");
+  if (has("fb_graph_version")) v.fb_graph_version = /^v\d+\.\d+$/.test(str(b.fb_graph_version, 10)) ? str(b.fb_graph_version, 10) : "v26.0";
+  if (has("ga4_id")) { const x = str(b.ga4_id, 20).toUpperCase(); v.ga4_id = GA4_RE.test(x) ? x : ""; }
+  if (has("gtm_id")) { const x = str(b.gtm_id, 20).toUpperCase(); v.gtm_id = GTM_RE.test(x) ? x : ""; }
+  if (has("tiktok_pixel_id")) { const x = str(b.tiktok_pixel_id, 30).toUpperCase(); v.tiktok_pixel_id = TIKTOK_RE.test(x) ? x : ""; }
+  if (has("theme")) v.theme = typeof b.theme === "string" && b.theme in THEMES ? b.theme : (c.var.settings.theme || "classic");
+  if (has("brand_color")) v.brand_color = safeColor(str(b.brand_color, 7), c.var.settings.brand_color || "#0f766e");
+  if (has("accent_color")) v.accent_color = safeColor(str(b.accent_color, 7), c.var.settings.accent_color || "#ea580c");
+  if (section === "checkout") v.show_note = b.show_note ? "1" : "0";
+  if (section === "seo") v.seo_noindex = b.seo_noindex ? "1" : "0";
 
-  // লোগো
-  const logo = b.logo;
-  if (logo instanceof File && logo.size > 0) {
-    const ext = IMAGE_TYPES[logo.type];
-    if (!ext || logo.size > 1024 * 1024) {
-      flash(c, "error", "লোগো PNG/JPG/WebP আর ১ MB-এর কম হতে হবে");
-      return c.redirect("/admin/settings", 303);
+  // গোপন টোকেন: ফাঁকা রাখলে আগেরটাই থাকে
+  const token = str(b.fb_capi_token, 1000);
+  if (token) v.fb_capi_token = token;
+  else if (b.clear_token) v.fb_capi_token = "";
+
+  // ছবি
+  for (const [key, max] of [["logo", 1024 * 1024], ["favicon", 512 * 1024], ["seo_image", 2 * 1024 * 1024]] as const) {
+    const r = await settingImage(c, b, key, max);
+    if (r.error) {
+      flash(c, "error", r.error);
+      return c.redirect(section === "general" && !has("_section") ? "/admin/settings" : SETTINGS_URL[section] ?? "/admin/settings", 303);
     }
-    const key = `logo/${crypto.randomUUID()}.${ext}`;
-    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await logo.arrayBuffer(), { httpMetadata: { contentType: logo.type } });
-    if (c.var.settings.logo) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, c.var.settings.logo)).catch(() => {});
-    values.logo = key;
-  } else if (b.remove_logo && c.var.settings.logo) {
-    await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, c.var.settings.logo)).catch(() => {});
-    values.logo = "";
+    if (r.value !== undefined) v[key] = r.value;
   }
 
-  // টোকেন: ফাঁকা রাখলে আগেরটাই থাকে
-  const token = str(b.fb_capi_token, 1000);
-  if (token) values.fb_capi_token = token;
-  else if (b.clear_token) values.fb_capi_token = "";
-  await saveSettings(c.env.DB, values);
+  await saveSettings(c.env.DB, v);
   flash(c, "ok", "সেটিংস সেভ হয়েছে।");
-  return c.redirect("/admin/settings", 303);
+  return c.redirect(SETTINGS_URL[section] ?? "/admin/settings", 303);
+}
+const SETTINGS_URL: Record<string, string> = Object.fromEntries(Object.keys(SET_PAGES).map((k) => [k, k === "general" ? "/admin/settings" : `/admin/settings/${k}`]));
+
+admin.post("/settings", (c) => saveSettingsForm(c, "general"));
+admin.post("/settings/:section{[a-z]+}", (c) => {
+  const section = c.req.param("section");
+  if (!SET_PAGES[section]) return c.redirect("/admin/settings", 303);
+  return saveSettingsForm(c, section);
 });
 
 /* ---------- বিলিং ---------- */

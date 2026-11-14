@@ -64,7 +64,7 @@ describe("সাইনআপ", () => {
     const url = new URL(loc);
     const auto = await shopB.fetch(url.pathname + url.search, { base: "https://rahim.ourdomain.com" } as RequestInit);
     expect(auto.status).toBe(303);
-    expect(auto.headers.get("location")).toBe("/admin/orders");
+    expect(auto.headers.get("location")).toBe("/admin");
     const dash = await shopB.fetch("/admin/orders", { base: "https://rahim.ourdomain.com" } as RequestInit);
     expect(dash.status).toBe(200);
     expect(await dash.text()).toContain("স্বাগতম");
