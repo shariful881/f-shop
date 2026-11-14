@@ -68,6 +68,7 @@ export async function resetDb() {
   await DB.batch([
     DB.prepare("UPDATE settings SET value='' WHERE key IN ('fb_pixel_id','fb_capi_token','fb_test_event_code')"),
     DB.prepare("UPDATE settings SET value='01700000000' WHERE key='contact_phone'"),
+    DB.prepare("UPDATE settings SET value='' WHERE key LIKE 'steadfast_%' OR key LIKE 'pathao_%' OR key LIKE 'redx_%'"),
   ]);
   await seedDemo();
 }

@@ -34,6 +34,13 @@ export type Order = {
   purchase_sending_until: string | null;
   coupon_code: string | null;
   discount: number;
+  courier: string | null;
+  consignment_id: string | null;
+  tracking_code: string | null;
+  courier_status: string | null;
+  courier_sent_at: string | null;
+  courier_checked_at: string | null;
+  courier_response: string | null;
   created_at: string;
   updated_at: string;
 };

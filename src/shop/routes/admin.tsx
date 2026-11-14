@@ -24,6 +24,8 @@ import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, remove
 import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
 import { clearShopCache } from "../../platform/resolve";
+import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
+import { CourierPage } from "../views/admin";
 
 export const admin = new Hono<AppEnv>();
 
@@ -122,7 +124,7 @@ admin.get("/orders", async (c) => {
     .all<Order & { item_count: number }>();
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage orders={results.slice(0, PER_PAGE)} counts={counts} status={status} q={q} page={page} hasMore={results.length > PER_PAGE} />);
+    <OrdersPage orders={results.slice(0, PER_PAGE)} counts={counts} status={status} q={q} page={page} hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
 });
 
 admin.get("/orders/:id{[0-9]+}", async (c) => {
@@ -140,7 +142,7 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
   ]);
   const types = (bl!.results as { type: string }[]).map((r) => r.type);
   return render(c, o.order_no, "orders",
-    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} />);
+    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} />);
 });
 
 admin.post("/orders/:id{[0-9]+}/status", async (c) => {
@@ -173,6 +175,152 @@ admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {
   const p = await sendPurchase(c.env.DB, id, c.var.settings);
   flash(c, p.ok ? "ok" : "error", p.ok ? "Purchase পাঠানো হয়েছে।" : `Purchase যায়নি: ${p.message}`);
   return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+/* ---------- কুরিয়ার ---------- */
+const COURIERS: CourierKey[] = ["steadfast", "pathao", "redx"];
+const saver = (c: Ctx) => (v: Record<string, string>) => saveSettings(c.env.DB, v);
+
+/**
+ * একটা অর্ডার কুরিয়ারে পাঠানো। একই অর্ডার দুবার বুক না হয় সেজন্য আগে "sending" দিয়ে দাবি করা হয়।
+ * সফল হলে অর্ডার নিজে থেকে "শিপড" হয়।
+ */
+async function bookOrder(c: Ctx, id: number, courier: CourierKey, opt: Partial<SendOptions>): Promise<{ ok: boolean; message: string }> {
+  const db = c.env.DB;
+  const s = c.var.settings;
+  if (!configuredCouriers(s).includes(courier)) return { ok: false, message: `${COURIER_NAME[courier]}-এর API তথ্য দেওয়া নেই (সেটিংস → কুরিয়ার)` };
+  const data = await getOrderById(db, id);
+  if (!data) return { ok: false, message: "অর্ডার পাওয়া যায়নি" };
+  const o = data.order;
+  if (o.status !== "confirmed") return { ok: false, message: `${o.order_no}: শুধু কনফার্ম হওয়া অর্ডার কুরিয়ারে পাঠানো যায়` };
+  if (o.consignment_id) return { ok: false, message: `${o.order_no}: আগেই ${COURIER_NAME[o.courier as CourierKey] ?? o.courier}-এ পাঠানো হয়েছে` };
+  const claim = await db.prepare(
+    `UPDATE orders SET courier = ?, courier_status = 'sending', courier_sent_at = datetime('now')
+     WHERE id = ? AND status = 'confirmed' AND consignment_id IS NULL
+       AND (courier_status IS NULL OR courier_status != 'sending' OR courier_sent_at < datetime('now', '-2 minutes'))`,
+  ).bind(courier, id).run();
+  if (!claim.meta.changes) return { ok: false, message: `${o.order_no}: এখন পাঠানো হচ্ছে, একটু পরে দেখুন` };
+
+  const note = [o.note, data.items.map((i) => i.product_name + (i.variant_label ? ` (${i.variant_label})` : "")).join(", ")].filter(Boolean).join(" | ");
+  const r = await sendParcel(courier, s, o, data.items, { cod: o.total, note, ...opt }, saver(c));
+  if (!r.ok) {
+    await db.prepare("UPDATE orders SET courier = NULL, courier_status = NULL, courier_sent_at = NULL, courier_response = ? WHERE id = ?").bind(r.raw || r.message, id).run();
+    return { ok: false, message: `${o.order_no}: ${r.message}` };
+  }
+  await db.prepare(
+    `UPDATE orders SET consignment_id = ?, tracking_code = ?, courier_status = ?, courier_response = ?, courier_sent_at = datetime('now'), courier_checked_at = datetime('now') WHERE id = ?`,
+  ).bind(r.consignmentId, r.trackingCode || r.consignmentId, r.status || "", r.raw.slice(0, 4000), id).run();
+  await changeStatus(db, id, "shipped");
+  return { ok: true, message: `${o.order_no}: ${r.message} (${r.trackingCode || r.consignmentId})` };
+}
+
+admin.post("/orders/:id{[0-9]+}/courier", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const b = await c.req.parseBody();
+  const courier = String(b.courier) as CourierKey;
+  if (!COURIERS.includes(courier)) {
+    flash(c, "error", "কুরিয়ার বাছাই করুন");
+    return c.redirect(`/admin/orders/${id}`, 303);
+  }
+  const cod = toInt(b.cod, -1);
+  const opt: Partial<SendOptions> = {
+    pathaoCity: toInt(b.pathao_city) || undefined,
+    pathaoZone: toInt(b.pathao_zone) || undefined,
+    pathaoArea: toInt(b.pathao_area) || undefined,
+    redxAreaId: toInt(b.redx_area_id) || undefined,
+    redxAreaName: str(b.redx_area_name, 100),
+    weightKg: Math.min(30, Math.max(0.1, Number(b.weight) || 0.5)),
+  };
+  if (cod >= 0) opt.cod = cod;
+  const r = await bookOrder(c, id, courier, opt);
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+admin.post("/orders/:id{[0-9]+}/courier/status", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const o = await c.env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first<Order>();
+  if (!o?.consignment_id) {
+    flash(c, "error", "এই অর্ডার কুরিয়ারে পাঠানো হয়নি");
+  } else {
+    const r = await parcelStatus(c.var.settings, o, saver(c));
+    if (r.ok) {
+      await c.env.DB.prepare("UPDATE orders SET courier_status = ?, courier_checked_at = datetime('now') WHERE id = ?").bind(r.status, id).run();
+      flash(c, "ok", `কুরিয়ার স্ট্যাটাস: ${r.status}`);
+    } else {
+      flash(c, "error", r.message);
+    }
+  }
+  return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+/** অনেক অর্ডার একসাথে (Steadfast বা Pathao — Pathao ঠিকানা দেখে শহর/এলাকা নিজে বোঝে) */
+admin.post("/orders/bulk-courier", async (c) => {
+  const b = await c.req.parseBody({ all: true });
+  const courier = String(b.courier) as CourierKey;
+  const raw = b["ids"] ?? b["ids[]"];
+  const ids = [...new Set((Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => toInt(x)).filter((x) => x > 0))].slice(0, 50);
+  if (courier !== "steadfast" && courier !== "pathao") {
+    flash(c, "error", "একসাথে পাঠানো যায় Steadfast বা Pathao-তে। RedX-এ এলাকা বাছতে হয়, তাই অর্ডার খুলে পাঠান।");
+  } else if (!ids.length) {
+    flash(c, "error", "অন্তত একটা অর্ডার বাছাই করুন");
+  } else {
+    const done: string[] = [];
+    const failed: string[] = [];
+    for (const id of ids) {
+      const r = await bookOrder(c, id, courier, {});
+      (r.ok ? done : failed).push(r.message);
+    }
+    const text = `${done.length}টা অর্ডার ${COURIER_NAME[courier]}-এ গেছে।` + (failed.length ? ` ${failed.length}টা যায়নি — ${failed.join("; ")}` : "");
+    flash(c, failed.length ? "error" : "ok", text.slice(0, 1500));
+  }
+  return c.redirect("/admin/orders?status=confirmed", 303);
+});
+
+/** ড্রপডাউনের জন্য শহর/জোন/এলাকা (অর্ডারের অনুমতি থাকলেই) */
+admin.get("/orders/courier-locations", async (c) => {
+  const s = c.var.settings;
+  const which = c.req.query("courier");
+  const type = c.req.query("type");
+  const id = toInt(c.req.query("id"));
+  if (which === "pathao" && configuredCouriers(s).includes("pathao") && (type === "cities" || type === "zones" || type === "areas")) {
+    if (type !== "cities" && !id) return c.json({ items: [] });
+    const r = await pathaoList(s, saver(c), type, id);
+    return c.json(r, r.error ? 502 : 200);
+  }
+  if (which === "redx" && configuredCouriers(s).includes("redx")) {
+    const r = await redxAreas(s);
+    return c.json(r, r.error ? 502 : 200);
+  }
+  return c.json({ items: [], error: "কুরিয়ার চালু নেই" }, 400);
+});
+
+/* কুরিয়ার সেটিংস (শুধু মালিক) */
+const COURIER_SECRET_KEYS = ["steadfast_secret_key", "pathao_client_secret", "pathao_password", "redx_token"] as const;
+const COURIER_PLAIN_KEYS = ["steadfast_api_key", "pathao_client_id", "pathao_username", "pathao_store_id", "redx_pickup_store_id"] as const;
+
+admin.get("/courier", (c) => render(c, "কুরিয়ার", "courier", <CourierPage s={c.var.settings} active={configuredCouriers(c.var.settings)} />));
+
+admin.post("/courier", async (c) => {
+  const b = await c.req.parseBody();
+  const s = c.var.settings;
+  const values: Record<string, string> = {};
+  for (const k of COURIER_PLAIN_KEYS) values[k] = str(b[k], 200);
+  // গোপন তথ্য: ফাঁকা রাখলে আগেরটাই থাকে; "মুছুন" টিক দিলে মুছে যায়
+  for (const k of COURIER_SECRET_KEYS) {
+    const v = str(b[k], 2000);
+    if (v) values[k] = v;
+    else if (b[`clear_${k}`]) values[k] = "";
+  }
+  values.pathao_sandbox = b.pathao_sandbox ? "1" : "0";
+  values.redx_sandbox = b.redx_sandbox ? "1" : "0";
+  // Pathao-র তথ্য বদলালে পুরনো টোকেন বাদ
+  const pathaoChanged = ["pathao_client_id", "pathao_username", "pathao_client_secret", "pathao_password", "pathao_sandbox"].some((k) => k in values && values[k] !== (s[k] ?? ""));
+  if (pathaoChanged) { values.pathao_token = ""; values.pathao_token_expires = "0"; }
+  for (const k of ["pathao_store_id", "redx_pickup_store_id"]) values[k] = values[k]!.replace(/\D/g, "");
+  await saveSettings(c.env.DB, values);
+  flash(c, "ok", "কুরিয়ার সেটিংস সেভ হয়েছে।");
+  return c.redirect("/admin/courier", 303);
 });
 
 /* ---------- পণ্য ---------- */

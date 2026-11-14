@@ -11,6 +11,7 @@ import m0005 from "../../migrations/shop/0005_variants.sql";
 import m0006 from "../../migrations/shop/0006_coupons.sql";
 import m0007 from "../../migrations/shop/0007_landing_builder.sql";
 import m0008 from "../../migrations/shop/0008_theme.sql";
+import m0009 from "../../migrations/shop/0009_courier.sql";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 
 export const SHOP_MIGRATIONS: [string, string][] = [
@@ -22,6 +23,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0006_coupons", m0006],
   ["0007_landing_builder", m0007],
   ["0008_theme", m0008],
+  ["0009_courier", m0009],
 ];
 
 export type SetupInput = {

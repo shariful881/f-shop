@@ -1,3 +1,4 @@
+import { COURIER_NAME, type CourierKey } from "../lib/courier";
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, STATUS_LABEL } from "../lib/orders";
@@ -55,6 +56,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
                 ["blacklist", "/admin/blacklist", "ব্ল্যাকলিস্ট"],
                 ["coupons", "/admin/coupons", "কুপন"],
                 ["settings", "/admin/settings", "সেটিংস"],
+                ["courier", "/admin/courier", "কুরিয়ার"],
                 ["billing", "/admin/billing", "বিলিং"],
                 ["staff", "/admin/staff", "স্টাফ"],
                 ["domains", "/admin/domain", "ডোমেইন"],
@@ -108,7 +110,10 @@ export const OrdersPage = (p: {
   q: string;
   page: number;
   hasMore: boolean;
-}) => (
+  couriers?: CourierKey[];
+}) => {
+  const bulk = !p.q && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
+  return (
   <>
     <div class="tabs">
       {STATUS_TABS.map((s) => (
@@ -126,29 +131,44 @@ export const OrdersPage = (p: {
     {p.orders.length === 0 ? (
       <p class="empty">কোনো অর্ডার নেই</p>
     ) : (
+      <form method="post" action="/admin/orders/bulk-courier" id="bulk-form">
+      {bulk && (
+        <div class="bulk-bar">
+          <label class="inline-check"><input type="checkbox" data-check-all /> সব বাছুন</label>
+          <select name="courier">
+            {(p.couriers ?? []).filter((k) => k !== "redx").map((k) => <option value={k}>{COURIER_NAME[k]}</option>)}
+          </select>
+          <button class="btn btn-primary" data-confirm="বাছাই করা অর্ডারগুলো কুরিয়ারে পাঠাবেন?">বাছাই করা অর্ডার কুরিয়ারে পাঠান</button>
+        </div>
+      )}
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>অর্ডার</th><th>কাস্টমার</th><th>মোট</th><th>স্ট্যাটাস</th><th>সময়</th></tr></thead>
+          <thead><tr>{bulk && <th></th>}<th>অর্ডার</th><th>কাস্টমার</th><th>মোট</th><th>স্ট্যাটাস</th><th>সময়</th></tr></thead>
           <tbody>
             {p.orders.map((o) => (
               <tr>
+                {bulk && <td><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
                 <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{o.item_count}টা পণ্য</small></td>
                 <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a></td>
                 <td>{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
-                <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} /></td>
+                <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
+                  {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
+                </td>
                 <td><small>{dhakaTime(o.created_at)}</small></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      </form>
     )}
     <div class="pager">
       {p.page > 1 && <a class="btn btn-outline" href={`?status=${p.status}&q=${encodeURIComponent(p.q)}&page=${p.page - 1}`}>← আগের</a>}
       {p.hasMore && <a class="btn btn-outline" href={`?status=${p.status}&q=${encodeURIComponent(p.q)}&page=${p.page + 1}`}>পরের →</a>}
     </div>
   </>
-);
+  );
+};
 
 /* ---------- অর্ডার ডিটেইল ---------- */
 const ACTION_LABEL: Record<OrderStatus, string> = {
@@ -159,7 +179,57 @@ const ACTION_LABEL: Record<OrderStatus, string> = {
   fake: "ফেক",
 };
 
-export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean } }) => {
+const TRACK_URL: Record<string, (t: string) => string> = {
+  steadfast: (t) => `https://steadfast.com.bd/t/${encodeURIComponent(t)}`,
+  pathao: (t) => `https://merchant.pathao.com/tracking?consignment_id=${encodeURIComponent(t)}`,
+  redx: (t) => `https://redx.com.bd/track-parcel/?trackingId=${encodeURIComponent(t)}`,
+};
+
+const CourierPanel = ({ o, couriers }: { o: Order; couriers: CourierKey[] }) => (
+  <section class="panel">
+    <h2>কুরিয়ার</h2>
+    {o.consignment_id ? (
+      <>
+        <dl class="kv">
+          <dt>কুরিয়ার</dt><dd>{COURIER_NAME[o.courier as CourierKey] ?? o.courier}</dd>
+          <dt>ট্র্যাকিং</dt><dd><a href={TRACK_URL[o.courier ?? ""]?.(o.tracking_code || o.consignment_id) ?? "#"} target="_blank" rel="noopener"><code>{o.tracking_code || o.consignment_id}</code></a></dd>
+          <dt>স্ট্যাটাস</dt><dd><span class="pill">{o.courier_status || "—"}</span> <small class="muted">{dhakaTime(o.courier_checked_at)}</small></dd>
+          <dt>পাঠানো</dt><dd>{dhakaTime(o.courier_sent_at)}</dd>
+        </dl>
+        <form method="post" action={`/admin/orders/${o.id}/courier/status`}><button class="btn btn-outline">স্ট্যাটাস আপডেট</button></form>
+      </>
+    ) : o.status !== "confirmed" ? (
+      <p class="muted">কনফার্ম হওয়া অর্ডার কুরিয়ারে পাঠানো যায়।</p>
+    ) : couriers.length === 0 ? (
+      <p class="muted">কুরিয়ার চালু নেই। <a href="/admin/courier">কুরিয়ার সেটিংসে</a> Steadfast/Pathao/RedX-এর API তথ্য দিন।</p>
+    ) : (
+      <form method="post" action={`/admin/orders/${o.id}/courier`} class="admin-form courier-form" data-courier-form>
+        <div class="form-grid">
+          <label class="field"><span>কুরিয়ার</span>
+            <select name="courier" data-courier-select>
+              {couriers.map((k) => <option value={k}>{COURIER_NAME[k]}</option>)}
+            </select>
+          </label>
+          <label class="field"><span>ক্যাশ কালেকশন (৳)</span><input type="number" name="cod" min="0" value={String(o.total)} /></label>
+          <label class="field"><span>ওজন (কেজি)</span><input type="number" name="weight" min="0.1" max="30" step="0.1" value="0.5" /></label>
+        </div>
+        <div class="form-grid" data-for="pathao" hidden>
+          <label class="field"><span>শহর</span><select name="pathao_city" data-loc="pathao:cities" data-next="pathao_zone"><option value="">ঠিকানা দেখে নিজে বুঝবে</option></select></label>
+          <label class="field"><span>জোন</span><select name="pathao_zone" data-loc="pathao:zones" data-next="pathao_area"><option value="">—</option></select></label>
+          <label class="field"><span>এলাকা</span><select name="pathao_area" data-loc="pathao:areas"><option value="">—</option></select></label>
+        </div>
+        <div class="form-grid" data-for="redx" hidden>
+          <label class="field"><span>ডেলিভারি এলাকা</span><select name="redx_area_id" data-loc="redx:areas"><option value="">বাছাই করুন</option></select></label>
+          <input type="hidden" name="redx_area_name" />
+        </div>
+        <button class="btn btn-primary" data-confirm="এই অর্ডার কুরিয়ারে বুক করবেন? বুক হলে অর্ডার শিপড হয়ে যাবে।">কুরিয়ারে পাঠান</button>
+      </form>
+    )}
+    {o.courier_response && !o.consignment_id && <details><summary>শেষ চেষ্টার রেসপন্স</summary><pre class="pre">{o.courier_response}</pre></details>}
+  </section>
+);
+
+export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[] }) => {
   const o = p.order;
   return (
     <>
@@ -203,6 +273,8 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
             </tbody>
           </table>
         </section>
+
+        {(o.status === "confirmed" || o.consignment_id) && <CourierPanel o={o} couriers={p.couriers ?? []} />}
 
         <section class="panel">
           <h2>Facebook Purchase</h2>
@@ -937,5 +1009,49 @@ export const ReportsPage = ({ r }: { r: Report }) => (
         )}
       </section>
     </div>
+  </>
+);
+
+/* ---------- কুরিয়ার সেটিংস ---------- */
+const Secret = ({ name, label, set }: { name: string; label: string; set: boolean }) => (
+  <label class="field"><span>{label}</span>
+    <input type="password" name={name} autocomplete="off" placeholder={set ? "সেভ করা আছে — বদলাতে নতুনটা দিন" : ""} />
+    {set && <small><label class="inline-check"><input type="checkbox" name={`clear_${name}`} value="1" /> মুছে ফেলুন</label></small>}
+  </label>
+);
+
+export const CourierPage = ({ s, active }: { s: Settings; active: CourierKey[] }) => (
+  <>
+    <h1>কুরিয়ার</h1>
+    <p class="muted">আপনার নিজের কুরিয়ার মার্চেন্ট অ্যাকাউন্টের API তথ্য দিন। পার্সেল আপনার অ্যাকাউন্টেই বুক হবে, টাকাও আপনার অ্যাকাউন্টে আসবে।
+      চালু: {active.length ? active.map((k) => COURIER_NAME[k]).join(", ") : "কোনোটা নয়"}</p>
+    <form method="post" action="/admin/courier" class="admin-form">
+      <h2>Steadfast {active.includes("steadfast") && <span class="pill pill-ok">চালু</span>}</h2>
+      <p class="muted small">Steadfast প্যানেল → API সেকশন থেকে Api Key আর Secret Key নিন।</p>
+      <div class="form-grid">
+        <label class="field"><span>Api Key</span><input type="text" name="steadfast_api_key" value={s.steadfast_api_key ?? ""} autocomplete="off" /></label>
+        <Secret name="steadfast_secret_key" label="Secret Key" set={!!s.steadfast_secret_key} />
+      </div>
+
+      <h2>Pathao {active.includes("pathao") && <span class="pill pill-ok">চালু</span>}</h2>
+      <p class="muted small">Pathao মার্চেন্ট প্যানেল → Developer API থেকে Client ID/Secret নিন। ইউজারনেম/পাসওয়ার্ড হলো মার্চেন্ট লগইনের ইমেইল আর পাসওয়ার্ড। Store ID পাবেন প্যানেলের স্টোর তালিকায়।</p>
+      <div class="form-grid">
+        <label class="field"><span>Client ID</span><input type="text" name="pathao_client_id" value={s.pathao_client_id ?? ""} autocomplete="off" /></label>
+        <Secret name="pathao_client_secret" label="Client Secret" set={!!s.pathao_client_secret} />
+        <label class="field"><span>ইউজারনেম (ইমেইল)</span><input type="text" name="pathao_username" value={s.pathao_username ?? ""} autocomplete="off" /></label>
+        <Secret name="pathao_password" label="পাসওয়ার্ড" set={!!s.pathao_password} />
+        <label class="field"><span>Store ID</span><input type="text" inputmode="numeric" name="pathao_store_id" value={s.pathao_store_id ?? ""} /></label>
+        <label class="field inline-check"><input type="checkbox" name="pathao_sandbox" value="1" checked={s.pathao_sandbox === "1"} /> টেস্ট (sandbox) মোড</label>
+      </div>
+
+      <h2>RedX {active.includes("redx") && <span class="pill pill-ok">চালু</span>}</h2>
+      <p class="muted small">RedX মার্চেন্ট প্যানেল → Developer API থেকে Access Token নিন। পিকআপ স্টোর আইডি না দিলে ডিফল্ট স্টোর ব্যবহার হবে।</p>
+      <div class="form-grid">
+        <Secret name="redx_token" label="API Access Token" set={!!s.redx_token} />
+        <label class="field"><span>পিকআপ স্টোর আইডি (ঐচ্ছিক)</span><input type="text" inputmode="numeric" name="redx_pickup_store_id" value={s.redx_pickup_store_id ?? ""} /></label>
+        <label class="field inline-check"><input type="checkbox" name="redx_sandbox" value="1" checked={s.redx_sandbox === "1"} /> টেস্ট (sandbox) মোড</label>
+      </div>
+      <button class="btn btn-primary">সেভ করুন</button>
+    </form>
   </>
 );

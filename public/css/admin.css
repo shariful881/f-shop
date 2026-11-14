@@ -133,3 +133,10 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .chart .bar-val { font-size: 11px; fill: #334155; font-weight: 700; }
 .chart .bar-label { font-size: 10px; fill: #64748b; }
 .row-form input[type=date] { flex: 0 1 170px; }
+
+/* কুরিয়ার */
+.bulk-bar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.5rem 0;padding:.6rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px}
+.bulk-bar select{padding:.45rem;border:1px solid #cbd5e1;border-radius:8px}
+.inline-check{display:inline-flex;gap:.4rem;align-items:center;flex-direction:row}
+.courier-form .form-grid{margin-bottom:.5rem}
+.small{font-size:.875rem}
