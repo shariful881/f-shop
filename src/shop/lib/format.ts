@@ -7,8 +7,9 @@ export function bn(v: string | number): string {
 
 /** ১২৫০ → ৳১,২৫০ */
 export function taka(n: number): string {
-  const s = Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return "৳" + bn(s);
+  const v = Math.round(n);
+  const s = Math.abs(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (v < 0 ? "-৳" : "৳") + bn(s);
 }
 
 /** UTC সময় ('YYYY-MM-DD HH:MM:SS') → ঢাকার সময়, যেমন 14/11/2026, 09:38 AM */

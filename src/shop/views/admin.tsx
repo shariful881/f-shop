@@ -6,11 +6,30 @@ import type { Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
+import type { ShopState } from "../../platform/billing";
+import { bn } from "../lib/format";
 
 export type Flash = { type: "ok" | "error"; text: string } | null;
 
 /* ---------- লেআউট ---------- */
-export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; children?: Child }) => (
+/** ট্রায়াল / কম ব্যালেন্স / অর্ডার বন্ধ — ড্যাশবোর্ডের উপরে */
+export const StateBanner = ({ state }: { state?: ShopState }) => {
+  if (!state) return null;
+  switch (state.reason) {
+    case "trial":
+      return <div class="banner banner-info">🎁 ফ্রি ট্রায়াল চলছে: {dhakaTime(state.trial_ends_at).split(",")[0]} পর্যন্ত অথবা আরও {bn(state.trial_orders_left)}টা কনফার্ম অর্ডার। <a href="/admin/billing">বিস্তারিত</a></div>;
+    case "low_balance":
+      return <div class="banner banner-warn">⚠️ ব্যালেন্স {taka(state.balance)}। {dhakaTime(state.grace_ends_at)} এর মধ্যে রিচার্জ না করলে দোকানে নতুন অর্ডার নেওয়া বন্ধ হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
+    case "blocked_balance":
+      return <div class="banner banner-bad">⛔ ব্যালেন্স {taka(state.balance)} — দোকানে নতুন অর্ডার নেওয়া বন্ধ আছে। রিচার্জ করলে সাথে সাথে চালু হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
+    case "suspended":
+      return <div class="banner banner-bad">⛔ দোকানটি সাময়িকভাবে স্থগিত করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।</div>;
+    default:
+      return null;
+  }
+};
+
+export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; state?: ShopState; children?: Child }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -32,6 +51,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
                 ["categories", "/admin/categories", "ক্যাটাগরি"],
                 ["blacklist", "/admin/blacklist", "ব্ল্যাকলিস্ট"],
                 ["settings", "/admin/settings", "সেটিংস"],
+                ["billing", "/admin/billing", "বিলিং"],
               ].map(([k, href, label]) => (
                 <a href={href} class={p.active === k ? "active" : ""}>{label}</a>
               ))}
@@ -41,6 +61,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
           </div>
         </header>
       )}
+      {p.email && <StateBanner state={p.state} />}
       <main class="wrap admin-main">
         {p.flash && <div class={`alert ${p.flash.type === "ok" ? "alert-ok" : "alert-error"}`}>{p.flash.text}</div>}
         {p.children}
@@ -409,3 +430,80 @@ export const SettingsPage = ({ s }: { s: Settings }) => (
     </form>
   </>
 );
+
+
+/* ---------- বিলিং ---------- */
+export type LedgerRow = { id: number; type: string; amount: number; balance_after: number | null; ref: string; note: string | null; created_at: string };
+export type TopupRow = { id: number; amount: number; method: string; sender: string; trx_id: string; status: string; created_at: string };
+const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "মাসিক চার্জ", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়" };
+const TOPUP_STATUS: Record<string, string> = { pending: "অপেক্ষায়", approved: "যোগ হয়েছে", rejected: "বাতিল" };
+
+export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; nextBill: string | null; staffCount: number; errors?: Record<string, string>; values?: Record<string, string> }) => {
+  const e = p.errors ?? {};
+  const v = p.values ?? {};
+  const monthly = Number(p.fees.monthly_fee || 99) + p.staffCount * Number(p.fees.staff_fee || 99);
+  return (
+    <>
+      <h1>বিলিং</h1>
+      <div class="panels">
+        <section class="panel">
+          <h2>ব্যালেন্স</h2>
+          <div class={`balance-big ${p.state.balance < 0 ? "neg" : ""}`}>{taka(p.state.balance)}</div>
+          {p.state.status === "trial" ? (
+            <p>ফ্রি ট্রায়াল: <strong>{dhakaTime(p.state.trial_ends_at)}</strong> পর্যন্ত অথবা আরও <strong>{bn(p.state.trial_orders_left)}</strong>টা কনফার্ম অর্ডার। এর মধ্যে কোনো চার্জ নেই।</p>
+          ) : (
+            <p>পরের মাসিক চার্জ: <strong>{taka(monthly)}</strong> — {dhakaTime(p.nextBill)}</p>
+          )}
+          <ul class="muted small-list">
+            <li>প্রতি কনফার্ম অর্ডার: {taka(Number(p.fees.order_fee || 2))} (ফেক/বাতিল অর্ডারে চার্জ নেই)</li>
+            <li>মাসিক সার্ভিস চার্জ: {taka(Number(p.fees.monthly_fee || 99))}</li>
+            <li>প্রতিজন স্টাফ: {taka(Number(p.fees.staff_fee || 99))}/মাস {p.staffCount > 0 && `(এখন ${bn(p.staffCount)} জন)`}</li>
+            <li>ব্যালেন্স মাইনাস হলে {bn(p.fees.grace_days || "3")} দিন পর নতুন অর্ডার নেওয়া বন্ধ হয়</li>
+          </ul>
+        </section>
+        <section class="panel">
+          <h2>রিচার্জ করুন</h2>
+          <ol class="small-list">
+            <li>bKash <strong>{p.fees.bkash_number}</strong> অথবা Nagad <strong>{p.fees.nagad_number}</strong> নম্বরে <strong>Send Money</strong> করুন</li>
+            <li>নিচে টাকার পরিমাণ, আপনার নম্বর আর Transaction ID দিন</li>
+            <li>যাচাই করে আমরা ব্যালেন্সে যোগ করে দেব</li>
+          </ol>
+          <form method="post" action="/admin/billing/topup" class="order-form">
+            <div class="form-grid">
+              <label class="field"><span>মাধ্যম</span>
+                <select name="method"><option value="bkash" selected={v.method !== "nagad"}>bKash</option><option value="nagad" selected={v.method === "nagad"}>Nagad</option></select>
+              </label>
+              <label class="field"><span>টাকা (সর্বনিম্ন {taka(Number(p.fees.min_topup || 100))})</span><input type="number" name="amount" min={p.fees.min_topup || "100"} value={v.amount ?? ""} required />{e.amount && <small class="error">{e.amount}</small>}</label>
+              <label class="field"><span>যে নম্বর থেকে পাঠিয়েছেন</span><input type="tel" name="sender" value={v.sender ?? ""} required />{e.sender && <small class="error">{e.sender}</small>}</label>
+              <label class="field"><span>Transaction ID</span><input type="text" name="trx_id" value={v.trx_id ?? ""} required maxlength={30} />{e.trx_id && <small class="error">{e.trx_id}</small>}</label>
+            </div>
+            <button class="btn btn-primary">রিচার্জের অনুরোধ পাঠান</button>
+          </form>
+        </section>
+      </div>
+      {p.topups.length > 0 && (
+        <section class="panel">
+          <h2>রিচার্জের অনুরোধ</h2>
+          <table class="table compact"><tbody>
+            {p.topups.map((t) => <tr><td>{dhakaTime(t.created_at)}</td><td>{t.method === "bkash" ? "bKash" : "Nagad"} · {t.trx_id}</td><td>{taka(t.amount)}</td><td><span class={`pill ${t.status === "approved" ? "pill-ok" : t.status === "rejected" ? "pill-bad" : ""}`}>{TOPUP_STATUS[t.status]}</span></td></tr>)}
+          </tbody></table>
+        </section>
+      )}
+      <section class="panel">
+        <h2>লেনদেনের হিসাব</h2>
+        {p.ledger.length === 0 ? <p class="muted">এখনো কোনো লেনদেন নেই</p> : (
+          <div class="table-wrap"><table class="table compact">
+            <thead><tr><th>সময়</th><th>বিবরণ</th><th class="right">টাকা</th><th class="right">ব্যালেন্স</th></tr></thead>
+            <tbody>
+              {p.ledger.map((l) => (
+                <tr><td><small>{dhakaTime(l.created_at)}</small></td><td>{LEDGER_LABEL[l.type] ?? l.type}{l.note ? ` — ${l.note}` : ""}</td>
+                  <td class={`right ${l.amount < 0 ? "danger" : ""}`}>{l.amount === 0 ? "—" : (l.amount > 0 ? "+" : "") + taka(l.amount)}</td>
+                  <td class="right">{l.balance_after != null ? taka(l.balance_after) : ""}</td></tr>
+              ))}
+            </tbody>
+          </table></div>
+        )}
+      </section>
+    </>
+  );
+};

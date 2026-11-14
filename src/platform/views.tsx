@@ -208,3 +208,82 @@ export const SuperShopPage = (p: { shop: ShopListRow; domains: { hostname: strin
 };
 
 export { taka };
+
+/* ---------- সুপার অ্যাডমিন: বিলিং ---------- */
+export type SuperTopupRow = { id: number; shop_id: string; shop_name: string; slug: string; amount: number; method: string; sender: string; trx_id: string; status: string; created_at: string };
+
+export const SuperTopupsPage = ({ pending, recent }: { pending: SuperTopupRow[]; recent: SuperTopupRow[] }) => (
+  <>
+    <h1>রিচার্জের অনুরোধ</h1>
+    <p class="muted">bKash/Nagad অ্যাপে Transaction ID মিলিয়ে দেখে তারপর অনুমোদন দিন।</p>
+    {pending.length === 0 ? <p class="empty">অপেক্ষায় কোনো অনুরোধ নেই</p> : (
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>দোকান</th><th>মাধ্যম</th><th>Transaction ID</th><th>পাঠানো নম্বর</th><th>টাকা</th><th></th></tr></thead>
+        <tbody>
+          {pending.map((t) => (
+            <tr>
+              <td><a href={`/super/shops/${t.shop_id}`}>{t.shop_name}</a><br /><small>{dhakaTime(t.created_at)}</small></td>
+              <td>{t.method === "bkash" ? "bKash" : "Nagad"}</td>
+              <td><code>{t.trx_id}</code></td>
+              <td>{t.sender}</td>
+              <td><strong>{taka(t.amount)}</strong></td>
+              <td class="nowrap">
+                <form method="post" action={`/super/topups/${t.id}/approve`} class="inline" data-confirm={`${taka(t.amount)} ${t.shop_name}-এর ব্যালেন্সে যোগ হবে। নিশ্চিত?`}><button class="btn btn-primary btn-sm">অনুমোদন</button></form>
+                <form method="post" action={`/super/topups/${t.id}/reject`} class="inline" data-confirm="অনুরোধটি বাতিল করবেন?"><button class="btn-link danger">বাতিল</button></form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table></div>
+    )}
+    <h2 style="margin-top:20px">সাম্প্রতিক</h2>
+    <div class="table-wrap"><table class="table compact"><tbody>
+      {recent.map((t) => <tr><td>{t.shop_name}</td><td>{t.method === "bkash" ? "bKash" : "Nagad"} · <code>{t.trx_id}</code></td><td>{taka(t.amount)}</td><td>{t.status === "approved" ? "✓ যোগ হয়েছে" : "✕ বাতিল"}</td><td><small>{dhakaTime(t.created_at)}</small></td></tr>)}
+    </tbody></table></div>
+  </>
+);
+
+export const SuperSettingsPage = ({ s }: { s: Record<string, string> }) => (
+  <>
+    <h1>প্ল্যাটফর্ম সেটিংস</h1>
+    <form method="post" action="/super/settings" class="admin-form">
+      <h2>দাম</h2>
+      <div class="form-grid">
+        {[["order_fee", "প্রতি কনফার্ম অর্ডার (৳)"], ["monthly_fee", "মাসিক চার্জ (৳)"], ["staff_fee", "প্রতি স্টাফ মাসিক (৳)"], ["min_topup", "সর্বনিম্ন রিচার্জ (৳)"],
+          ["trial_days", "ট্রায়াল (দিন)"], ["trial_orders", "ট্রায়ালে ফ্রি অর্ডার"], ["grace_days", "ব্যালেন্স মাইনাসের পর কত দিন অর্ডার চালু থাকবে"]].map(([k, label]) => (
+          <label class="field"><span>{label}</span><input type="number" min="0" name={k} value={s[k] ?? ""} required /></label>
+        ))}
+      </div>
+      <h2>পেমেন্ট নম্বর</h2>
+      <div class="form-grid">
+        <label class="field"><span>bKash নম্বর</span><input type="text" name="bkash_number" value={s.bkash_number ?? ""} /></label>
+        <label class="field"><span>Nagad নম্বর</span><input type="text" name="nagad_number" value={s.nagad_number ?? ""} /></label>
+        <label class="field"><span>সাপোর্ট নম্বর</span><input type="text" name="support_phone" value={s.support_phone ?? ""} /></label>
+      </div>
+      <p class="muted">ট্রায়ালের দিন/অর্ডার বদলালে শুধু নতুন দোকানে প্রযোজ্য হবে।</p>
+      <button class="btn btn-primary btn-lg">সেভ করুন</button>
+    </form>
+  </>
+);
+
+export type SuperLedgerRow = { id: number; type: string; amount: number; balance_after: number | null; note: string | null; created_at: string };
+
+export const SuperBillingPanel = ({ shop, ledger }: { shop: { id: string; balance: number; next_bill_at: string | null; staff_count: number; low_balance_since: string | null }; ledger: SuperLedgerRow[] }) => (
+  <section class="panel">
+    <h2>বিলিং</h2>
+    <dl class="kv">
+      <dt>ব্যালেন্স</dt><dd><strong class={shop.balance < 0 ? "danger" : ""}>{taka(shop.balance)}</strong></dd>
+      <dt>পরের বিল</dt><dd>{dhakaTime(shop.next_bill_at)}</dd>
+      <dt>স্টাফ</dt><dd>{bn(shop.staff_count)} জন</dd>
+      {shop.low_balance_since && <><dt>মাইনাস</dt><dd>{dhakaTime(shop.low_balance_since)} থেকে</dd></>}
+    </dl>
+    <form method="post" action={`/super/shops/${shop.id}/adjust`} class="row-form" data-confirm="ব্যালেন্স সমন্বয় করবেন?">
+      <input type="number" name="amount" placeholder="+৫০ / -২০" required class="w-sm" />
+      <input type="text" name="note" placeholder="কারণ" required />
+      <button class="btn btn-outline btn-sm">সমন্বয়</button>
+    </form>
+    <table class="table compact"><tbody>
+      {ledger.map((l) => <tr><td><small>{dhakaTime(l.created_at)}</small></td><td>{l.note ?? l.type}</td><td class="right">{l.amount === 0 ? "—" : (l.amount > 0 ? "+" : "") + taka(l.amount)}</td><td class="right">{l.balance_after != null ? taka(l.balance_after) : ""}</td></tr>)}
+    </tbody></table>
+  </section>
+);

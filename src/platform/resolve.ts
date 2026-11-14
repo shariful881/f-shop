@@ -1,6 +1,10 @@
 import type { WorkerEnv } from "../worker-env";
 
-export type ShopRow = { id: string; slug: string; name: string; status: string; seed_demo: number };
+import type { BillingShop } from "./billing";
+
+export type ShopRow = BillingShop & { slug: string; name: string; seed_demo: number };
+
+const COLS = "s.id, s.slug, s.name, s.status, s.seed_demo, s.balance, s.trial_ends_at, s.trial_orders_left, s.next_bill_at, s.low_balance_since, s.staff_count";
 
 /** একই Worker-এ বারবার ডাটাবেসে না গিয়ে ৩০ সেকেন্ড মনে রাখা */
 const cache = new Map<string, { at: number; shop: ShopRow | null }>();
@@ -20,14 +24,14 @@ async function cached(key: string, load: () => Promise<ShopRow | null>) {
 
 export function shopBySlug(env: WorkerEnv, slug: string) {
   return cached(`s:${slug}`, () =>
-    env.PLATFORM_DB.prepare("SELECT id, slug, name, status, seed_demo FROM shops WHERE slug = ? AND status != 'closed'").bind(slug).first<ShopRow>(),
+    env.PLATFORM_DB.prepare(`SELECT ${COLS} FROM shops s WHERE s.slug = ? AND s.status != 'closed'`).bind(slug).first<ShopRow>(),
   );
 }
 
 export function shopByDomain(env: WorkerEnv, hostname: string) {
   return cached(`d:${hostname}`, () =>
     env.PLATFORM_DB.prepare(
-      `SELECT s.id, s.slug, s.name, s.status, s.seed_demo FROM domains d JOIN shops s ON s.id = d.shop_id
+      `SELECT ${COLS} FROM domains d JOIN shops s ON s.id = d.shop_id
        WHERE d.hostname = ? AND d.status = 'active' AND s.status != 'closed'`,
     ).bind(hostname).first<ShopRow>(),
   );

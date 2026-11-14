@@ -64,3 +64,14 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .checks { display: flex; gap: 18px; flex-wrap: wrap; font-weight: 600; }
 .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .88rem; }
 .small-check { font-size: .88rem; font-weight: 500; display: flex; gap: 6px; align-items: center; }
+
+/* বিলিং ব্যানার */
+.banner { padding: 10px 14px; font-weight: 600; text-align: center; }
+.banner a { font-weight: 700; margin-left: 6px; }
+.banner-info { background: #ecfeff; color: #155e75; }
+.banner-warn { background: #fef3c7; color: #92400e; }
+.banner-bad { background: #fee2e2; color: #991b1b; }
+.balance-big { font-size: 2.2rem; font-weight: 800; color: var(--brand-dark); }
+.balance-big.neg { color: var(--danger); }
+.small-list { padding-left: 20px; margin: 8px 0; }
+.small-list li { margin: 3px 0; }

@@ -37,5 +37,8 @@
   // .sql ফাইল কোডে টেক্সট হিসেবে আনা (দোকানের migration)
   "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
 
+  // প্রতিদিন বাংলাদেশ সময় সকাল ৬:১৭-তে: ট্রায়াল শেষ করা, মাসিক চার্জ
+  "triggers": { "crons": ["17 0 * * *"] },
+
   "observability": { "enabled": true }
 }

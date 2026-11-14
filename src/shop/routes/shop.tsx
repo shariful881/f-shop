@@ -59,7 +59,7 @@ function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 | 422 |
   return page(c,
     <Layout title={p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head}
       description={p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
-      <LandingPage p={p} settings={s} form={form} />
+      <LandingPage p={p} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
   );
@@ -120,7 +120,7 @@ function renderCheckout(c: Ctx, products: Product[], form?: FormState, status: 2
   const head = pixel(c, [{ name: "InitiateCheckout", id: newEventId("ic"), params: productData(products) }]);
   return page(c,
     <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head}>
-      <CheckoutPage products={products} settings={s} form={form} />
+      <CheckoutPage products={products} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
   );
@@ -164,6 +164,9 @@ shop.post("/order", async (c) => {
   }
 
   if (!products.length) return fail({ alert: "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
+
+  // দোকানের বিলিং বকেয়া বা স্থগিত থাকলে অনলাইনে অর্ডার বন্ধ
+  if (!c.var.shopState.accepting) return fail({ alert: ordersClosedMessage(c.var.settings.contact_phone || "") }, 403);
 
   // ১. ইনপুট যাচাই (ফোন নম্বর নরমালাইজসহ)
   const v = validateOrderInput(values);
@@ -249,6 +252,9 @@ shop.get("/thanks", async (c) => {
     </Layout>,
   );
 });
+
+export const ordersClosedMessage = (contact: string) =>
+  `দুঃখিত, এই মুহূর্তে অনলাইনে অর্ডার নেওয়া বন্ধ আছে। অর্ডার করতে কল করুন: ${contact}`;
 
 export function notFound(c: Ctx) {
   const s = c.var.settings;

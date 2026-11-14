@@ -13,6 +13,9 @@ import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
+import { BillingPage, type LedgerRow, type TopupRow } from "../views/admin";
+import { billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
+import { clearShopCache } from "../../platform/resolve";
 
 export const admin = new Hono<AppEnv>();
 
@@ -30,7 +33,7 @@ function takeFlash(c: Ctx): Flash {
 function render(c: Ctx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200) {
   return c.html(
     "<!DOCTYPE html>" +
-      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email}>{body as any}</AdminLayout>),
+      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} state={c.var.shopState}>{body as any}</AdminLayout>),
     status,
   );
 }
@@ -139,6 +142,13 @@ admin.post("/orders/:id{[0-9]+}/status", async (c) => {
   if (!res.ok) {
     flash(c, "error", res.message);
   } else if (to === "confirmed") {
+    // বিলিং: ট্রায়ালে ফ্রি অর্ডার কমে, চালু দোকানে প্রতি কনফার্ম অর্ডারে চার্জ (একবারই)
+    try {
+      await chargeConfirmedOrder(c.env.PLATFORM_DB, c.env.SHOP_ID, res.order.order_no);
+      clearShopCache(); // একই Worker-এ পরের রিকোয়েস্টে নতুন ব্যালেন্স (অন্য জায়গায় সর্বোচ্চ ৩০ সেকেন্ড দেরি)
+    } catch (e) {
+      console.error("billing error", e);
+    }
     // কনফার্ম হলে শুধু সার্ভার থেকে (CAPI) Purchase যায়
     const p = await sendPurchase(c.env.DB, id, c.var.settings);
     flash(c, p.ok ? "ok" : "error", p.ok ? "অর্ডার কনফার্ম হয়েছে, Facebook-এ Purchase গেছে।" : `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${p.message}`);
@@ -347,4 +357,48 @@ admin.post("/settings", async (c) => {
   await saveSettings(c.env.DB, values);
   flash(c, "ok", "সেটিংস সেভ হয়েছে।");
   return c.redirect("/admin/settings", 303);
+});
+
+/* ---------- বিলিং ---------- */
+async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; values: Record<string, string> }) {
+  const pdb = c.env.PLATFORM_DB;
+  const shopId = c.env.SHOP_ID;
+  const [fees, shop] = await Promise.all([platformSettings(pdb), billingShop(pdb, shopId)]);
+  const [ledger, topups] = await pdb.batch([
+    pdb.prepare("SELECT id, type, amount, balance_after, ref, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 ORDER BY id DESC LIMIT 200").bind(shopId),
+    pdb.prepare("SELECT id, amount, method, sender, trx_id, status, created_at FROM topups WHERE shop_id = ? ORDER BY id DESC LIMIT 20").bind(shopId),
+  ]);
+  return render(c, "বিলিং", "billing",
+    <BillingPage state={c.var.shopState} fees={fees} ledger={ledger!.results as LedgerRow[]} topups={topups!.results as TopupRow[]}
+      nextBill={shop?.next_bill_at ?? null} staffCount={shop?.staff_count ?? 0} errors={form?.errors} values={form?.values} />,
+    form ? 422 : 200);
+}
+
+admin.get("/billing", (c) => renderBilling(c));
+
+admin.post("/billing/topup", async (c) => {
+  const b = await c.req.parseBody();
+  const fees = await platformSettings(c.env.PLATFORM_DB);
+  const values = { method: str(b.method, 10), amount: str(b.amount, 10), sender: str(b.sender, 30), trx_id: str(b.trx_id, 30).toUpperCase() };
+  const errors: Record<string, string> = {};
+  const amount = toInt(values.amount, 0);
+  const min = toInt(fees.min_topup, 100);
+  if (amount < min || amount > 100000) errors.amount = `৳${min} থেকে ৳১,০০,০০০ এর মধ্যে দিন`;
+  const sender = normalizePhone(values.sender);
+  if (!sender) errors.sender = "সঠিক নম্বর দিন";
+  if (!/^[A-Z0-9]{6,30}$/.test(values.trx_id)) errors.trx_id = "সঠিক Transaction ID দিন";
+  const method = values.method === "nagad" ? "nagad" : "bkash";
+  if (!errors.trx_id) {
+    const dup = await c.env.PLATFORM_DB.prepare("SELECT 1 FROM topups WHERE trx_id = ?").bind(values.trx_id).first();
+    if (dup) errors.trx_id = "এই Transaction ID আগেই দেওয়া হয়েছে";
+  }
+  if (Object.keys(errors).length) return renderBilling(c, { errors, values });
+  try {
+    await c.env.PLATFORM_DB.prepare("INSERT INTO topups (shop_id, amount, method, sender, trx_id) VALUES (?, ?, ?, ?, ?)")
+      .bind(c.env.SHOP_ID, amount, method, sender, values.trx_id).run();
+  } catch {
+    return renderBilling(c, { errors: { trx_id: "এই Transaction ID আগেই দেওয়া হয়েছে" }, values });
+  }
+  flash(c, "ok", "রিচার্জের অনুরোধ পাঠানো হয়েছে। যাচাই হলে ব্যালেন্সে যোগ হবে।");
+  return c.redirect("/admin/billing", 303);
 });

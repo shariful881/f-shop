@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { ShopState } from "../platform/billing";
 
 /** দোকানের ভিতরের binding — DB হলো এই দোকানের নিজস্ব ডাটাবেস */
 export type Bindings = {
@@ -15,6 +16,7 @@ export type Variables = {
   fbc: string | null;
   settings: Record<string, string>;
   admin?: { id: number; email: string; name: string };
+  shopState: ShopState;
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

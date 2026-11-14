@@ -4,7 +4,11 @@ import type { PCtx, PEnv } from "./lib";
 import {
   createSuperSession, destroySuperSession, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
-import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperShopPage, SuperShopsPage, type PFlash, type ShopListRow } from "./views";
+import {
+  HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperBillingPanel, SuperLoginPage, SuperSettingsPage, SuperShopPage, SuperShopsPage, SuperTopupsPage,
+  type PFlash, type ShopListRow, type SuperLedgerRow, type SuperTopupRow,
+} from "./views";
+import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { sameOriginPost, securityHeaders } from "../shop/middleware/base";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
@@ -79,11 +83,12 @@ platformApp.post("/signup", async (c) => {
   if (Object.keys(errors).length) return fail(errors);
 
   const id = crypto.randomUUID();
+  const ps = await platformSettings(c.env.PLATFORM_DB);
   try {
     await c.env.PLATFORM_DB.prepare(
       `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left)
-       VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+14 days'), 50)`,
-    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email).run();
+       VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?)`,
+    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 14), num(ps, "trial_orders", 50)).run();
   } catch {
     return fail({ slug: "এই ঠিকানা আগেই নেওয়া হয়েছে" });
   }
@@ -116,6 +121,8 @@ function flash(c: PCtx, type: "ok" | "error", text: string) {
 const superNav = (
   <>
     <a href="/super">দোকান</a>
+    <a href="/super/topups">রিচার্জ</a>
+    <a href="/super/settings">সেটিংস</a>
     <form method="post" action="/super/logout" class="inline"><button class="btn-link">লগআউট</button></form>
   </>
 );
@@ -186,7 +193,13 @@ platformApp.get("/super/shops/:id", async (c) => {
   const shop = await loadShop(c, c.req.param("id"));
   if (!shop) return superPage(c, "পাওয়া যায়নি", <p class="empty">দোকান পাওয়া যায়নি</p>, 404);
   const { results: domains } = await c.env.PLATFORM_DB.prepare("SELECT hostname, status FROM domains WHERE shop_id = ? ORDER BY hostname").bind(shop.id).all<{ hostname: string; status: string }>();
-  return superPage(c, shop.name, <SuperShopPage shop={shop} domains={domains} shopLink={shopUrl(c.env, shop.slug)} />);
+  const billing = await c.env.PLATFORM_DB.prepare("SELECT id, balance, next_bill_at, staff_count, low_balance_since FROM shops WHERE id = ?").bind(shop.id)
+    .first<{ id: string; balance: number; next_bill_at: string | null; staff_count: number; low_balance_since: string | null }>();
+  const { results: ledger } = await c.env.PLATFORM_DB.prepare(
+    "SELECT id, type, amount, balance_after, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 ORDER BY id DESC LIMIT 50",
+  ).bind(shop.id).all<SuperLedgerRow>();
+  return superPage(c, shop.name,
+    <SuperShopPage shop={shop} domains={domains} shopLink={shopUrl(c.env, shop.slug)} extra={<SuperBillingPanel shop={billing!} ledger={ledger} />} />);
 });
 
 platformApp.post("/super/shops/:id/status", async (c) => {
@@ -209,6 +222,64 @@ platformApp.post("/super/shops/:id/extend-trial", async (c) => {
   clearShopCache();
   flash(c, "ok", `ট্রায়াল ${days} দিন বাড়ানো হয়েছে।`);
   return c.redirect(`/super/shops/${id}`, 303);
+});
+
+platformApp.post("/super/shops/:id/adjust", async (c) => {
+  const id = c.req.param("id");
+  const b = await c.req.parseBody();
+  const amount = toInt(b.amount, 0);
+  const note = str(b.note, 200);
+  if (amount && note) {
+    await applyLedger(c.env.PLATFORM_DB, id, "adjust", amount, `adjust:${crypto.randomUUID()}`, `সমন্বয়: ${note}`);
+    clearShopCache();
+    flash(c, "ok", "ব্যালেন্স সমন্বয় হয়েছে।");
+  }
+  return c.redirect(`/super/shops/${id}`, 303);
+});
+
+/* রিচার্জ */
+const TOPUP_SELECT = "SELECT t.*, s.name AS shop_name, s.slug FROM topups t JOIN shops s ON s.id = t.shop_id";
+
+platformApp.get("/super/topups", async (c) => {
+  const [p, r] = await c.env.PLATFORM_DB.batch([
+    c.env.PLATFORM_DB.prepare(`${TOPUP_SELECT} WHERE t.status = 'pending' ORDER BY t.id`),
+    c.env.PLATFORM_DB.prepare(`${TOPUP_SELECT} WHERE t.status != 'pending' ORDER BY t.id DESC LIMIT 50`),
+  ]);
+  return superPage(c, "রিচার্জ", <SuperTopupsPage pending={p!.results as SuperTopupRow[]} recent={r!.results as SuperTopupRow[]} />);
+});
+
+platformApp.post("/super/topups/:id/approve", async (c) => {
+  const res = await approveTopup(c.env.PLATFORM_DB, toInt(c.req.param("id")));
+  clearShopCache();
+  flash(c, res.ok ? "ok" : "error", res.message);
+  return c.redirect("/super/topups", 303);
+});
+
+platformApp.post("/super/topups/:id/reject", async (c) => {
+  await c.env.PLATFORM_DB.prepare("UPDATE topups SET status = 'rejected', decided_at = datetime('now') WHERE id = ? AND status = 'pending'").bind(toInt(c.req.param("id"))).run();
+  flash(c, "ok", "অনুরোধ বাতিল হয়েছে।");
+  return c.redirect("/super/topups", 303);
+});
+
+/* প্ল্যাটফর্ম সেটিংস */
+const NUM_KEYS = ["order_fee", "monthly_fee", "staff_fee", "min_topup", "trial_days", "trial_orders", "grace_days"];
+const TEXT_KEYS = ["bkash_number", "nagad_number", "support_phone"];
+
+platformApp.get("/super/settings", async (c) =>
+  superPage(c, "সেটিংস", <SuperSettingsPage s={await platformSettings(c.env.PLATFORM_DB, true)} />));
+
+platformApp.post("/super/settings", async (c) => {
+  const b = await c.req.parseBody();
+  const stmts = [
+    ...NUM_KEYS.map((k) => [k, String(Math.max(0, toInt(b[k], 0)))]),
+    ...TEXT_KEYS.map((k) => [k, str(b[k], 30)]),
+  ].map(([k, v]) =>
+    c.env.PLATFORM_DB.prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v),
+  );
+  await c.env.PLATFORM_DB.batch(stmts);
+  clearSettingsCache();
+  flash(c, "ok", "সেটিংস সেভ হয়েছে।");
+  return c.redirect("/super/settings", 303);
 });
 
 export const unknownHostPage = () =>

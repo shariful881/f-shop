@@ -113,7 +113,7 @@ export const OrderForm = (p: {
 };
 
 /* ---------- ল্যান্ডিং পেজ ---------- */
-export const LandingPage = ({ p, settings, form }: { p: Product; settings: Settings; form?: FormState }) => {
+export const LandingPage = ({ p, settings, form, closed }: { p: Product; settings: Settings; form?: FormState; closed?: string }) => {
   const yt = youtubeId(p.youtube_url);
   const off = discountPercent(p.price, p.compare_price);
   return (
@@ -148,7 +148,7 @@ export const LandingPage = ({ p, settings, form }: { p: Product; settings: Setti
             <img src={imageUrl(p.image)} alt="" width="64" height="64" loading="lazy" />
             <div><strong>{p.name}</strong><br />{taka(p.price)}</div>
           </div>
-          <OrderForm settings={settings} subtotal={p.price} productId={p.id} source="landing" form={form} />
+          {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={p.price} productId={p.id} source="landing" form={form} />}
         </section>
       </div>
       <a href="#order" class="sticky-order">অর্ডার করুন — {taka(p.price)}</a>
@@ -194,7 +194,7 @@ export const CartPage = ({ products }: { products: Product[] }) => {
 };
 
 /* ---------- চেকআউট ---------- */
-export const CheckoutPage = ({ products, settings, form }: { products: Product[]; settings: Settings; form?: FormState }) => {
+export const CheckoutPage = ({ products, settings, form, closed }: { products: Product[]; settings: Settings; form?: FormState; closed?: string }) => {
   const subtotal = products.reduce((s, p) => s + p.price, 0);
   return (
     <div class="wrap narrow">
@@ -207,7 +207,7 @@ export const CheckoutPage = ({ products, settings, form }: { products: Product[]
           </li>
         ))}
       </ul>
-      <OrderForm settings={settings} subtotal={subtotal} source="cart" form={form} />
+      {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={subtotal} source="cart" form={form} />}
     </div>
   );
 };

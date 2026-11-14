@@ -1,5 +1,6 @@
 import type { WorkerEnv } from "./worker-env";
-import { resolveHost, type ShopRow } from "./platform/resolve";
+import { clearShopCache, resolveHost, type ShopRow } from "./platform/resolve";
+import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired } from "./platform/billing";
 import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
 import { imageStorageKey } from "./shop/env";
@@ -35,7 +36,15 @@ export default {
     if (target.kind === "platform") return platformApp.fetch(request, env, ctx);
     if (target.kind === "unknown") return unknownHostPage();
 
-    const shop = target.shop;
+    let shop = target.shop;
+
+    // ট্রায়ালের সময় শেষ হলে এখনই চালু করা (দৈনিক cron-এর অপেক্ষা না করে)
+    if (trialExpired(shop)) {
+      await endTrial(env.PLATFORM_DB, shop.id, await platformSettings(env.PLATFORM_DB));
+      clearShopCache();
+      const again = await resolveHost(env, host);
+      if (again.kind === "shop") shop = again.shop;
+    }
 
     // পণ্যের ছবি: R2-তে প্রতিটা দোকানের আলাদা ফোল্ডার থেকে
     if (url.pathname.startsWith("/img/") && request.method === "GET") {
@@ -44,14 +53,21 @@ export default {
 
     return forwardToShop(env, shop, request);
   },
+
+  /** প্রতিদিন একবার: ট্রায়াল শেষ, মাসিক চার্জ */
+  async scheduled(_event: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)));
+  },
 } satisfies ExportedHandler<WorkerEnv>;
 
-export function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Request) {
+export async function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Request) {
   const headers = new Headers(request.headers);
   for (const h of INTERNAL_HEADERS) headers.delete(h); // বাইরে থেকে কেউ এগুলো পাঠাতে পারবে না
   headers.set("x-fshop-id", shop.id);
   headers.set("x-fshop-slug", shop.slug);
   if (shop.seed_demo) headers.set("x-fshop-seed", "1");
+  // বিলিং অবস্থা: দোকান এখন অর্ডার নিতে পারবে কি না (শুধু আমাদের Worker বসায়)
+  headers.set("x-fshop-state", encodeURIComponent(JSON.stringify(computeState(shop, await platformSettings(env.PLATFORM_DB)))));
   const stub = env.SHOP.getByName(shop.id);
   return stub.fetch(new Request(request, { headers }));
 }
