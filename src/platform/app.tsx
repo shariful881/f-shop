@@ -5,7 +5,7 @@ import {
   createSuperSession, destroySuperSession, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
 import {
-  HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperBillingPanel, SuperLoginPage, SuperSettingsPage, SuperShopPage, SuperShopsPage, SuperTopupsPage,
+  HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperBillingPanel, SuperLoginPage, SuperSettingsPage, SuperSetupPage, SuperShopPage, SuperShopsPage, SuperTopupsPage,
   type PFlash, type ShopListRow, type SuperLedgerRow, type SuperTopupRow,
 } from "./views";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
@@ -150,8 +150,46 @@ platformApp.post("/super/logout", async (c) => {
   return c.redirect("/super/login", 303);
 });
 
+/**
+ * প্রথম সুপার অ্যাডমিন: কেউ না থাকলে, আর platform_settings-এ রাখা এককালীন setup কোড মিললে।
+ * কাজ শেষে কোড মুছে যায়।
+ */
+async function setupAllowed(c: PCtx, code: string): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{24,}$/.test(code)) return false;
+  const db = c.env.PLATFORM_DB;
+  const [admins, row] = await Promise.all([
+    db.prepare("SELECT COUNT(*) n FROM super_admins").first<{ n: number }>(),
+    db.prepare("SELECT value FROM platform_settings WHERE key = 'super_setup_code'").first<{ value: string }>(),
+  ]);
+  return (admins?.n ?? 0) === 0 && !!row?.value && row.value === code;
+}
+
+platformApp.get("/super/setup", async (c) => {
+  const code = c.req.query("code") || "";
+  if (!(await setupAllowed(c, code))) return c.redirect("/super/login", 303);
+  return html(c, <PLayout title="সুপার অ্যাডমিন তৈরি" admin><SuperSetupPage code={code} /></PLayout>);
+});
+
+platformApp.post("/super/setup", async (c) => {
+  const b = await c.req.parseBody();
+  const code = str(b.code, 100);
+  if (!(await platformRateLimit(c.env, `supersetup:${clientIp(c)}`, 10, 900)) || !(await setupAllowed(c, code))) return c.redirect("/super/login", 303);
+  const email = str(b.email, 120).toLowerCase();
+  const password = typeof b.password === "string" ? b.password : "";
+  const fail = (msg: string) => html(c, <PLayout title="সুপার অ্যাডমিন তৈরি" admin><SuperSetupPage code={code} error={msg} email={email} /></PLayout>, 422);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("সঠিক ইমেইল দিন");
+  if (password.length < 10) return fail("পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের দিন");
+  if (password !== b.password2) return fail("দুটো পাসওয়ার্ড মেলেনি");
+  const db = c.env.PLATFORM_DB;
+  await db.batch([
+    db.prepare("INSERT INTO super_admins (email, password_hash) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM super_admins)").bind(email, await hashPassword(password)),
+    db.prepare("DELETE FROM platform_settings WHERE key = 'super_setup_code'"),
+  ]);
+  return c.redirect("/super/login", 303);
+});
+
 platformApp.use("/super/*", async (c, next) => {
-  if (c.req.path === "/super/login") return next();
+  if (c.req.path === "/super/login" || c.req.path === "/super/setup") return next();
   const admin = await superFromCookie(c);
   if (!admin) return c.redirect("/super/login", 303);
   c.set("superAdmin", admin);

@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Browser, resetDb, shopDb } from "./helpers";
 import { hashPassword } from "../src/shop/lib/auth";
@@ -189,5 +189,29 @@ describe("সুপার অ্যাডমিন", () => {
     const after = await shopRow("trial-x");
     const days = (new Date(after!.trial_ends_at.replace(" ", "T") + "Z").getTime() - Date.now()) / 86400000;
     expect(days).toBeGreaterThan(20.9);
+  });
+});
+
+describe("প্রথম সুপার অ্যাডমিন (এককালীন সেটআপ কোড)", () => {
+  const CODE = "abcdefghijklmnopqrstuvwxyz123456";
+  it("কোড মিললে আর কেউ না থাকলে একবারই তৈরি হয়; কোড মুছে যায়", async () => {
+    const db = env.PLATFORM_DB;
+    await db.prepare("DELETE FROM super_admins").run();
+    await db.prepare("INSERT OR REPLACE INTO platform_settings (key, value) VALUES ('super_setup_code', ?)").bind(CODE).run();
+
+    const post = (body: Record<string, string>) => SELF.fetch(P + "/super/setup", { method: "POST", body: new URLSearchParams(body), headers: { origin: P }, redirect: "manual" });
+    expect((await SELF.fetch(P + "/super/setup?code=wrongwrongwrongwrongwrong1", { redirect: "manual" })).status).toBe(303);
+    expect((await SELF.fetch(P + "/super/setup?code=" + CODE, { redirect: "manual" })).status).toBe(200);
+    expect((await post({ code: CODE, email: "me@x.com", password: "short", password2: "short" })).status).toBe(422);
+    expect((await post({ code: CODE, email: "Me@X.com", password: "longpassword1", password2: "longpassword1" })).status).toBe(303);
+    expect((await db.prepare("SELECT email FROM super_admins").all()).results).toEqual([{ email: "me@x.com" }]);
+    expect(await db.prepare("SELECT 1 FROM platform_settings WHERE key='super_setup_code'").first()).toBeNull();
+    // দ্বিতীয়বার আর হয় না
+    await db.prepare("INSERT OR REPLACE INTO platform_settings (key, value) VALUES ('super_setup_code', ?)").bind(CODE).run();
+    await post({ code: CODE, email: "hacker@x.com", password: "longpassword1", password2: "longpassword1" });
+    expect((await db.prepare("SELECT COUNT(*) n FROM super_admins").first<any>()).n).toBe(1);
+    // লগইন হয়
+    const login = await SELF.fetch(P + "/super/login", { method: "POST", body: new URLSearchParams({ email: "me@x.com", password: "longpassword1" }), headers: { origin: P }, redirect: "manual" });
+    expect(login.headers.get("location")).toBe("/super");
   });
 });

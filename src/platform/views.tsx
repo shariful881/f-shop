@@ -2,7 +2,7 @@ import type { Child } from "hono/jsx";
 import { ASSET_VERSION } from "../shop/views/layout";
 import { bn, dhakaTime, taka } from "../shop/lib/format";
 
-export const PLATFORM_NAME = "F-Shop";
+export const PLATFORM_NAME = "SellxBD";
 
 export type PFlash = { type: "ok" | "error"; text: string } | null;
 
@@ -109,6 +109,22 @@ export const SuperLoginPage = ({ error, email }: { error?: string; email?: strin
       <label class="field"><span>ইমেইল</span><input type="email" name="email" value={email ?? ""} required /></label>
       <label class="field"><span>পাসওয়ার্ড</span><input type="password" name="password" required /></label>
       <button class="btn btn-primary btn-block">লগইন</button>
+    </form>
+  </div>
+);
+
+/** প্রথম সুপার অ্যাডমিন বানানো (এককালীন সেটআপ কোড দিয়ে) */
+export const SuperSetupPage = ({ code, error, email }: { code: string; error?: string; email?: string }) => (
+  <div class="login-box">
+    <h1>সুপার অ্যাডমিন তৈরি</h1>
+    <p class="muted">এই পেজ একবারই কাজ করে। নিজের ইমেইল আর শক্ত পাসওয়ার্ড (কমপক্ষে ১০ অক্ষর) দিন।</p>
+    {error && <div class="alert alert-error">{error}</div>}
+    <form method="post" action="/super/setup" class="order-form">
+      <input type="hidden" name="code" value={code} />
+      <label class="field"><span>ইমেইল</span><input type="email" name="email" value={email ?? ""} required autocomplete="username" /></label>
+      <label class="field"><span>পাসওয়ার্ড</span><input type="password" name="password" required minlength={10} autocomplete="new-password" /></label>
+      <label class="field"><span>আবার পাসওয়ার্ড</span><input type="password" name="password2" required minlength={10} autocomplete="new-password" /></label>
+      <button class="btn btn-primary btn-block">তৈরি করুন</button>
     </form>
   </div>
 );
