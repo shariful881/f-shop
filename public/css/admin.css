@@ -119,3 +119,17 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .tp-classic .tp-preview { background: #f8fafc; } .tp-classic i { background: #0f766e; } .tp-classic b { background: #fff; border: 1px solid #e5e7eb; }
 .tp-minimal .tp-preview { background: #fff; border: 1px solid #f1f5f9; } .tp-minimal i { background: #fff; border-bottom: 1px solid #e5e7eb; } .tp-minimal b { background: #f1f5f9; }
 .tp-bold .tp-preview { background: #fff7ed; } .tp-bold i { background: linear-gradient(90deg, #7c2d12, #ea580c); } .tp-bold b { background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.12); border-radius: 10px; }
+/* রিপোর্ট */
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0 14px; }
+@media (min-width: 900px) { .stat-grid { grid-template-columns: repeat(6, 1fr); } }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 2px; }
+.stat small { color: var(--muted); font-size: .82rem; }
+.stat strong { font-size: 1.45rem; }
+.stat em { font-style: normal; color: var(--muted); font-size: .85rem; }
+.stat.good strong { color: #15803d; }
+.stat.bad strong { color: var(--danger); }
+.chart { width: 100%; height: auto; }
+.chart .bar { fill: var(--brand); }
+.chart .bar-val { font-size: 11px; fill: #334155; font-weight: 700; }
+.chart .bar-label { font-size: 10px; fill: #64748b; }
+.row-form input[type=date] { flex: 0 1 170px; }

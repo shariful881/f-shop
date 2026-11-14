@@ -7,6 +7,7 @@ import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
 import type { ShopState } from "../../platform/billing";
+import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn } from "../lib/format";
 
@@ -48,6 +49,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
             <nav class="admin-nav">
               {[
                 ["orders", "/admin/orders", "অর্ডার"],
+                ["reports", "/admin/reports", "রিপোর্ট"],
                 ["products", "/admin/products", "পণ্য"],
                 ["categories", "/admin/categories", "ক্যাটাগরি"],
                 ["blacklist", "/admin/blacklist", "ব্ল্যাকলিস্ট"],
@@ -851,5 +853,89 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
       )}
     </div>
     <script src={`/js/builder.js?v=${ASSET_VERSION}`} defer></script>
+  </>
+);
+
+/* ---------- রিপোর্ট ---------- */
+const BarChart = ({ days }: { days: Report["days"] }) => {
+  const W = 640, H = 180, pad = 24;
+  const max = Math.max(1, ...days.map((d) => d.orders));
+  const bw = (W - pad * 2) / Math.max(1, days.length);
+  const every = Math.ceil(days.length / 10);
+  return (
+    <svg viewBox={`0 0 ${W} ${H + 30}`} class="chart" role="img" aria-label="দিনভিত্তিক অর্ডার">
+      <line x1={pad} y1={H} x2={W - pad} y2={H} stroke="#e5e7eb" />
+      {days.map((d, i) => {
+        const h = Math.round((d.orders / max) * (H - 20));
+        const x = pad + i * bw;
+        return (
+          <g>
+            <rect x={x + bw * 0.15} y={H - h} width={Math.max(2, bw * 0.7)} height={h} rx="3" class="bar"><title>{`${d.date}: ${d.orders}টা অর্ডার, ৳${d.sales}`}</title></rect>
+            {d.orders > 0 && bw > 18 && <text x={x + bw / 2} y={H - h - 4} text-anchor="middle" class="bar-val">{bn(d.orders)}</text>}
+            {i % every === 0 && <text x={x + bw / 2} y={H + 18} text-anchor="middle" class="bar-label">{bn(d.date.slice(8, 10))}/{bn(d.date.slice(5, 7))}</text>}
+          </g>
+        );
+      })}
+    </svg>
+  );
+};
+
+export const ReportsPage = ({ r }: { r: Report }) => (
+  <>
+    <h1>রিপোর্ট</h1>
+    <div class="tabs">
+      {[["today", "আজ"], ["7", "৭ দিন"], ["30", "৩০ দিন"]].map(([k, l]) => (
+        <a href={`/admin/reports?range=${k}`} class={r.range.key === k ? "tab active" : "tab"}>{l}</a>
+      ))}
+    </div>
+    <form method="get" action="/admin/reports" class="row-form">
+      <input type="hidden" name="range" value="custom" />
+      <input type="date" name="from" value={r.range.from} />
+      <input type="date" name="to" value={r.range.to} />
+      <button class="btn btn-outline">দেখুন</button>
+    </form>
+    <p class="muted">{r.range.label}: {bn(r.range.from.split("-").reverse().join("/"))} — {bn(r.range.to.split("-").reverse().join("/"))}</p>
+
+    <div class="stat-grid">
+      <div class="stat"><small>মোট অর্ডার</small><strong>{bn(r.total)}</strong></div>
+      <div class="stat good"><small>বিক্রি (কনফার্ম + শিপড)</small><strong>{taka(r.sales)}</strong></div>
+      <div class="stat"><small>কনফার্মের অপেক্ষায়</small><strong>{bn(r.byStatus.new ?? 0)}</strong><em>{taka(r.pendingValue)}</em></div>
+      <div class="stat"><small>কনফার্মের হার</small><strong>{bn(r.confirmRate)}%</strong></div>
+      <div class={`stat ${r.fakeRate >= 20 ? "bad" : ""}`}><small>ফেক অর্ডারের হার</small><strong>{bn(r.fakeRate)}%</strong><em>{bn(r.byStatus.fake ?? 0)}টা ফেক</em></div>
+      <div class="stat"><small>গড় অর্ডার</small><strong>{taka(r.avgOrder)}</strong></div>
+    </div>
+
+    <section class="panel">
+      <h2>দিনভিত্তিক অর্ডার</h2>
+      <BarChart days={r.days} />
+    </section>
+
+    <div class="panels">
+      <section class="panel">
+        <h2>স্ট্যাটাস</h2>
+        <table class="table compact"><tbody>
+          {(["new", "confirmed", "shipped", "cancelled", "fake"] as OrderStatus[]).map((s) => (
+            <tr><td><StatusBadge s={s} /></td><td class="right">{bn(r.byStatus[s] ?? 0)}</td></tr>
+          ))}
+          <tr><td>ঢাকার ভিতরে / বাইরে (বিক্রি)</td><td class="right">{bn(r.areas.inside)} / {bn(r.areas.outside)}</td></tr>
+        </tbody></table>
+      </section>
+      <section class="panel">
+        <h2>সবচেয়ে বেশি বিক্রি</h2>
+        {r.topProducts.length === 0 ? <p class="muted">এই সময়ে কোনো বিক্রি নেই</p> : (
+          <table class="table compact"><tbody>
+            {r.topProducts.map((p, i) => <tr><td>{bn(i + 1)}. {p.name}</td><td class="right">{bn(p.count)}টা</td><td class="right">{taka(p.revenue)}</td></tr>)}
+          </tbody></table>
+        )}
+      </section>
+      <section class="panel">
+        <h2>কুপন</h2>
+        {r.coupons.length === 0 ? <p class="muted">এই সময়ে কোনো কুপন ব্যবহার হয়নি</p> : (
+          <table class="table compact"><tbody>
+            {r.coupons.map((c) => <tr><td><code>{c.code}</code></td><td class="right">{bn(c.uses)} বার</td><td class="right">-{taka(c.discount)}</td></tr>)}
+          </tbody></table>
+        )}
+      </section>
+    </div>
   </>
 );

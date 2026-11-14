@@ -13,7 +13,8 @@ import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
-import { CouponsPage, LandingBuilderPage, type CouponRow } from "../views/admin";
+import { CouponsPage, LandingBuilderPage, ReportsPage, type CouponRow } from "../views/admin";
+import { buildReport, resolveRange } from "../lib/reports";
 import { defaultLanding, normalizeLanding, parseLanding, SECTION_LABEL } from "../lib/landing";
 import { Layout } from "../views/layout";
 import { BuiltLanding } from "../views/landing";
@@ -752,4 +753,10 @@ admin.post("/upload-image", async (c) => {
   const key = `p/${crypto.randomUUID()}.${ext}`;
   await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
   return c.json({ key });
+});
+
+/* ---------- রিপোর্ট (মালিক ও ম্যানেজার) ---------- */
+admin.get("/reports", async (c) => {
+  const r = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
+  return render(c, "রিপোর্ট", "reports", <ReportsPage r={await buildReport(c.env.DB, r)} />);
 });
