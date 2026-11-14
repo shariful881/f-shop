@@ -99,7 +99,7 @@ export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: 
  * অর্ডার নম্বর: FS-100001, FS-100002 …
  */
 export async function createOrder(db: D1Database, o: NewOrder, products: Product[]): Promise<{ id: number; order_no: string }> {
-  const subtotal = products.reduce((s, p) => s + p.price, 0);
+  const subtotal = products.reduce((s, p) => s + p.price * (p.qty ?? 1), 0);
   const discount = Math.max(0, Math.min(o.discount ?? 0, subtotal + o.deliveryCharge));
   const total = subtotal + o.deliveryCharge - discount;
   const tmp = "TMP-" + crypto.randomUUID();
@@ -117,9 +117,9 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
     ...products.map((p) =>
       db
         .prepare(
-          "INSERT INTO order_items (order_id, product_id, product_name, price, qty, variant_id, variant_label) VALUES ((SELECT id FROM orders WHERE order_no = ?), ?, ?, ?, 1, ?, ?)",
+          "INSERT INTO order_items (order_id, product_id, product_name, price, qty, variant_id, variant_label) VALUES ((SELECT id FROM orders WHERE order_no = ?), ?, ?, ?, ?, ?, ?)",
         )
-        .bind(tmp, p.id, p.name, p.price, p.variant_id ?? null, p.variant_label ?? null),
+        .bind(tmp, p.id, p.name, p.price, p.qty ?? 1, p.variant_id ?? null, p.variant_label ?? null),
     ),
     ...(o.couponId && discount ? [db.prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?").bind(o.couponId)] : []),
     db.prepare("UPDATE orders SET order_no = ? || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(o.prefix || "FS-", tmp),

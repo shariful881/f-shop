@@ -40,33 +40,50 @@ describe("নিয়ম ১: ফোন নম্বর যাচাই আর 
   });
 });
 
-describe("নিয়ম ২: কার্টে একটা পণ্য সর্বোচ্চ ১টা", () => {
-  it("একই পণ্য আবার যোগ করলে 'আগেই কার্টে আছে'", async () => {
+describe("নিয়ম ২: এক পণ্য একবারে দোকানের সর্বোচ্চ সীমা পর্যন্ত", () => {
+  it("একই পণ্য আবার যোগ করলে পরিমাণ বাড়ে; সীমা পার হয় না", async () => {
+    await DB.prepare("INSERT INTO settings (key, value) VALUES ('max_qty', '2') ON CONFLICT(key) DO UPDATE SET value = '2'").run();
+    try {
     const b = new Browser();
     const r1 = await b.post("/cart/add", { product_id: 1 }, { accept: "application/json" });
     expect(await r1.json()).toMatchObject({ ok: true, count: 1 });
     const r2 = await b.post("/cart/add", { product_id: 1 }, { accept: "application/json" });
-    const d2 = await r2.json<{ ok: boolean; message: string; count: number }>();
-    expect(d2.ok).toBe(false);
-    expect(d2.message).toContain("আগেই কার্টে আছে");
-    expect(d2.count).toBe(1);
+    expect(await r2.json()).toMatchObject({ ok: true, count: 2 });
+    const r3 = await b.post("/cart/add", { product_id: 1 }, { accept: "application/json" });
+    const d3 = await r3.json<{ ok: boolean; message: string; count: number }>();
+    expect(d3.ok).toBe(false);
+    expect(d3.message).toContain("সর্বোচ্চ ২টা");
+    expect(d3.count).toBe(2);
+    } finally { await DB.prepare("UPDATE settings SET value = '5' WHERE key = 'max_qty'").run(); }
   });
 
-  it("কুকি বদলে ডুপ্লিকেট ঢোকালেও সার্ভার একটাই রাখে, qty সবসময় ১", async () => {
+  it("কুকি বদলে ডুপ্লিকেট বা অনেক বড় সংখ্যা ঢোকালেও সার্ভার এক লাইন রাখে, সীমার বেশি নয়", async () => {
     const b = new Browser();
-    b.cookies.set("cart", "1,1,1,3,3");
+    b.cookies.set("cart", "1*999,1,1,3,3");
     await b.post("/order", { source: "cart", name: "করিম", phone: "01812345678", address: "চট্টগ্রাম সদর", area: "inside" });
     const o = await lastOrder();
     const { results } = await DB.prepare("SELECT product_id, qty FROM order_items WHERE order_id=? ORDER BY product_id").bind(o!.id).all();
-    expect(results).toEqual([{ product_id: 1, qty: 1 }, { product_id: 3, qty: 1 }]);
-    expect(o!.subtotal).toBe(1250 + 690);
+    // দোকানের সীমা (৫) পর্যন্ত, তার বেশি নয়
+    expect(results).toEqual([{ product_id: 1, qty: 5 }, { product_id: 3, qty: 1 }]);
+    expect(o!.subtotal).toBe(1250 * 5 + 690);
   });
 
-  it("কার্ট পেজে কোয়ান্টিটি বাড়ানোর অপশন নেই", async () => {
+  it("কার্ট আর চেকআউটে +/− আর মুছুন; পরিমাণ অনুযায়ী দাম আর অর্ডার", async () => {
     const b = new Browser();
     await b.post("/cart/add", { product_id: 1 });
-    const html = await (await b.get("/cart")).text();
-    expect(html).not.toMatch(/name="qty"|quantity/i);
+    await b.post("/cart/add", { product_id: 3 });
+    const co = await (await b.get("/checkout")).text();
+    expect(co).toContain('action="/cart/qty"');
+    expect(co).toContain("data-ci-remove");
+    const r = await b.post("/cart/qty", { product_id: 1, qty: 3 }, { accept: "application/json" });
+    expect(await r.json()).toMatchObject({ ok: true, qty: 3, line_total: 3750, subtotal: 3750 + 690, count: 4 });
+    const rm = await b.post("/cart/remove", { product_id: 3, back: "/checkout" });
+    expect(rm.headers.get("location")).toBe("/checkout");
+    await b.post("/order", { source: "cart", name: "করিম", phone: "01812345678", address: "চট্টগ্রাম সদর", area: "inside" });
+    const o = await lastOrder();
+    const { results } = await DB.prepare("SELECT product_id, qty, price FROM order_items WHERE order_id=?").bind(o!.id).all();
+    expect(results).toEqual([{ product_id: 1, qty: 3, price: 1250 }]);
+    expect(o!.subtotal).toBe(3750);
   });
 });
 

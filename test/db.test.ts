@@ -29,9 +29,11 @@ describe("ডাটাবেস", () => {
     expect((await DB.prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(3);
   });
 
-  it("order_items-এ qty ১ ছাড়া অন্য কিছু রাখা যায় না", async () => {
+  it("order_items-এ qty ১ থেকে ৫০ (০ বা ৫০-এর বেশি রাখা যায় না)", async () => {
     await DB.prepare("INSERT INTO orders (order_no,name,phone,address,area,subtotal,delivery_charge,total) VALUES ('T1','a','01711111111','x','inside',1,1,2)").run();
-    await expect(DB.prepare("INSERT INTO order_items (order_id,product_name,price,qty) VALUES (1,'x',1,2)").run()).rejects.toThrow();
+    await DB.prepare("INSERT INTO order_items (order_id,product_name,price,qty) VALUES (1,'x',1,3)").run();
+    await expect(DB.prepare("INSERT INTO order_items (order_id,product_name,price,qty) VALUES (1,'x',1,0)").run()).rejects.toThrow();
+    await expect(DB.prepare("INSERT INTO order_items (order_id,product_name,price,qty) VALUES (1,'x',1,51)").run()).rejects.toThrow();
   });
 });
 

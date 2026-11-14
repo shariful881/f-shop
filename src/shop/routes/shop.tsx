@@ -10,15 +10,15 @@ import { sanitizeHtml } from "../lib/sanitize";
 import { ADMIN_COOKIE } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
-import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, productVariants, type Product } from "../lib/products";
-import { addToCart, clearCart, readCart, readCartEntries, removeFromCart, upsertCart } from "../lib/cart";
+import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, linesSubtotal, productVariants, type Product } from "../lib/products";
+import { addToCart, clearCart, maxQty, readCart, readCartEntries, removeFromCart, setCartQty, upsertCart } from "../lib/cart";
 import { ProductPage } from "../views/product";
 import { parseLanding } from "../lib/landing";
 import { createOrder, getOrderByNo, orderPrefix } from "../lib/orders";
 import { checkCoupon, normalizeCode } from "../lib/coupons";
 import { deliveryCharge, minOrderAmount } from "../lib/settings";
 import { publicOrigin, clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
-import { imageUrl } from "../lib/format";
+import { bn, imageUrl } from "../lib/format";
 import { page } from "../lib/render";
 import { newEventId, trackServer, type CustomData } from "../lib/capi";
 import { PixelHead, type BrowserEvent } from "../views/pixel";
@@ -26,6 +26,12 @@ import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLo
 import { isUuid } from "../middleware/device";
 
 export const shop = new Hono<AppEnv>();
+
+/** কার্টের লাইন, প্রতিটার পরিমাণ দোকানের সর্বোচ্চ সীমার মধ্যে */
+async function shopCartLines(c: Ctx, entries = readCartEntries(c)): Promise<Product[]> {
+  const max = maxQty(c.var.settings);
+  return (await cartLines(c.env.DB, entries)).map((l) => ({ ...l, qty: Math.min(max, l.qty ?? 1) }));
+}
 
 /* প্রো থিমে হেডারের ক্যাটাগরি মেনু (যেসব ক্যাটাগরিতে চালু পণ্য আছে) */
 shop.use("*", async (c, next) => {
@@ -67,9 +73,9 @@ function productData(products: Product[]): CustomData {
   return {
     content_type: "product",
     content_ids: products.map((p) => String(p.id)),
-    contents: products.map((p) => ({ id: String(p.id), quantity: 1, item_price: p.price })),
-    num_items: products.length,
-    value: products.reduce((sum, p) => sum + p.price, 0),
+    contents: products.map((p) => ({ id: String(p.id), quantity: p.qty ?? 1, item_price: p.price })),
+    num_items: products.reduce((n, p) => n + (p.qty ?? 1), 0),
+    value: linesSubtotal(products),
     currency: "BDT",
   };
 }
@@ -274,45 +280,70 @@ shop.post("/cart/add", async (c) => {
     }
     return wantsJson(c) ? c.json({ ok: false, message: "পণ্যটি পাওয়া যায়নি" }, 404) : c.redirect("/cart", 303);
   }
+  const max = maxQty(c.var.settings);
+  const qty = Math.min(max, Math.max(1, toInt(body.qty, 1)));
   // এখনই কিনুন: কার্টে রেখে সরাসরি চেকআউটে
   if (body.buy_now) {
     const already = readCartEntries(c).some((e) => e.productId === id);
-    upsertCart(c, id, product.variant_id ?? null);
-    if (!already) trackServer(c, "AddToCart", newEventId("atc"), { ...productData([product]), content_name: product.name });
+    upsertCart(c, id, product.variant_id ?? null, qty, max);
+    if (!already) trackServer(c, "AddToCart", newEventId("atc"), { ...productData([{ ...product, qty }]), content_name: product.name });
     return c.redirect("/checkout", 303);
   }
-  const added = addToCart(c, id, product.variant_id ?? null);
-  const count = readCart(c).length + (added ? 1 : 0);
+  const result = addToCart(c, id, product.variant_id ?? null, qty, max);
+  const before = readCartEntries(c).reduce((n, e) => n + (e.qty ?? 1), 0);
+  const prevQty = readCartEntries(c).find((e) => e.productId === id)?.qty ?? 0;
+  const count = result === "max" ? before : before - prevQty + Math.min(max, prevQty + qty);
   let eventId: string | null = null;
-  const fbParams = { ...productData([product]), content_name: product.name };
-  if (added) {
+  const fbParams = { ...productData([{ ...product, qty }]), content_name: product.name };
+  if (result !== "max") {
     eventId = newEventId("atc");
     trackServer(c, "AddToCart", eventId, fbParams);
   }
   if (wantsJson(c)) {
     return c.json({
-      ok: added,
-      message: added ? "কার্টে যোগ হয়েছে" : "এই পণ্যটি আগেই কার্টে আছে",
+      ok: result !== "max",
+      message: result === "added" ? "কার্টে যোগ হয়েছে" : result === "more" ? "কার্টে পরিমাণ বাড়ানো হয়েছে" : `এই পণ্য একবারে সর্বোচ্চ ${bn(max)}টা নেওয়া যায়`,
       count,
       event_id: eventId,
       fb_params: fbParams,
     });
   }
-  return c.redirect("/cart", 303);
+  return c.redirect(typeof body.back === "string" && body.back === "/checkout" ? "/checkout" : "/cart", 303);
+});
+
+/** কার্ট/চেকআউটে পরিমাণ বদলানো (+/−) */
+shop.post("/cart/qty", async (c) => {
+  const body = await c.req.parseBody();
+  const max = maxQty(c.var.settings);
+  const q = setCartQty(c, toInt(body.product_id), toInt(body.qty, 1), max);
+  const back = body.back === "/checkout" ? "/checkout" : "/cart";
+  if (!wantsJson(c)) return c.redirect(back, 303);
+  if (q === null) return c.json({ ok: false, message: "পণ্যটি কার্টে নেই" }, 404);
+  // নতুন হিসাব
+  const entries = readCartEntries(c).map((e) => (e.productId === toInt(body.product_id) ? { ...e, qty: q } : e));
+  const lines = await shopCartLines(c, entries);
+  const line = lines.find((l) => l.id === toInt(body.product_id));
+  return c.json({ ok: true, qty: q, max, line_total: line ? line.price * q : 0, subtotal: linesSubtotal(lines), count: entries.reduce((n, e) => n + (e.qty ?? 1), 0) });
 });
 
 shop.post("/cart/remove", async (c) => {
   const body = await c.req.parseBody();
-  removeFromCart(c, toInt(body.product_id));
-  return c.redirect("/cart", 303);
+  const id = toInt(body.product_id);
+  removeFromCart(c, id);
+  if (wantsJson(c)) {
+    const entries = readCartEntries(c).filter((e) => e.productId !== id);
+    const lines = await shopCartLines(c, entries);
+    return c.json({ ok: true, subtotal: linesSubtotal(lines), count: entries.reduce((n, e) => n + (e.qty ?? 1), 0), empty: lines.length === 0 });
+  }
+  return c.redirect(body.back === "/checkout" ? "/checkout" : "/cart", 303);
 });
 
 shop.get("/cart", async (c) => {
-  const products = await cartLines(c.env.DB, readCartEntries(c));
+  const products = await shopCartLines(c);
   const s = c.var.settings;
   return page(c,
-    <Layout title="কার্ট" settings={s} cartCount={products.length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
-      <CartPage products={products} />
+    <Layout title="কার্ট" settings={s} cartCount={products.reduce((n, p) => n + (p.qty ?? 1), 0)} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
+      <CartPage products={products} max={maxQty(s)} />
     </Layout>,
   );
 });
@@ -321,15 +352,15 @@ function renderCheckout(c: Ctx, products: Product[], form?: FormState, status: 2
   const s = c.var.settings;
   const head = pixel(c, [{ name: "InitiateCheckout", id: newEventId("ic"), params: productData(products) }]);
   return page(c,
-    <Layout title="চেকআউট" settings={s} cartCount={products.length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare>
-      <CheckoutPage products={products} settings={s} form={form} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
+    <Layout title="চেকআউট" settings={s} cartCount={products.reduce((n, p) => n + (p.qty ?? 1), 0)} head={head} nav={c.var.navCats} pages={c.var.navPages} bare>
+      <CheckoutPage products={products} settings={s} form={form} max={maxQty(s)} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
     </Layout>,
     status,
   );
 }
 
 shop.get("/checkout", async (c) => {
-  const products = await cartLines(c.env.DB, readCartEntries(c));
+  const products = await shopCartLines(c);
   if (!products.length) return c.redirect("/cart", 303);
   return renderCheckout(c, products);
 });
@@ -355,7 +386,7 @@ shop.post("/order", async (c) => {
   const entries = source === "cart"
     ? readCartEntries(c)
     : toInt(body.product_id) > 0 ? [{ productId: toInt(body.product_id), variantId: toInt(body.variant_id) || null }] : [];
-  const products = await cartLines(c.env.DB, entries);
+  const products = await shopCartLines(c, entries);
 
   const fail = async (form: FormState, status: 422 | 429 | 403 = 422) => {
     if (source === "landing") {
@@ -384,7 +415,7 @@ shop.post("/order", async (c) => {
 
   // সর্বনিম্ন অর্ডার (দোকানের সেটিংস)
   const minOrder = minOrderAmount(c.var.settings);
-  if (minOrder && products.reduce((x, p) => x + p.price, 0) < minOrder) {
+  if (minOrder && linesSubtotal(products) < minOrder) {
     return fail({ alert: `সর্বনিম্ন ${minOrder} টাকার অর্ডার করতে হবে।` });
   }
 
@@ -419,7 +450,7 @@ shop.post("/order", async (c) => {
     if (!guard.ok) return fail({ alert: guard.message }, 403);
 
     // ৪. কুপন (থাকলে) — সার্ভারে যাচাই
-    const subtotal = products.reduce((x, p) => x + p.price, 0);
+    const subtotal = linesSubtotal(products);
     const delivery = deliveryCharge(s, v.area, subtotal);
     let coupon: { id: number; code: string; discount: number } | null = null;
     if (values.coupon) {
@@ -470,12 +501,12 @@ shop.post("/coupon/check", async (c) => {
   const body = await c.req.parseBody();
   const source = body.source === "cart" ? "cart" : "landing";
   const entries = source === "cart" ? readCartEntries(c) : [{ productId: toInt(body.product_id), variantId: toInt(body.variant_id) || null }];
-  let lines = await cartLines(c.env.DB, entries);
+  let lines = await shopCartLines(c, entries);
   if (!lines.length && source === "landing") {
     // ভ্যারিয়েন্ট এখনো বাছাই হয়নি — মূল দামে হিসাব
     lines = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
   }
-  const subtotal = lines.reduce((x, p) => x + p.price, 0);
+  const subtotal = linesSubtotal(lines);
   const delivery = deliveryCharge(c.var.settings, body.area === "outside" ? "outside" : "inside", subtotal);
   const r = await checkCoupon(c.env.DB, String(body.coupon ?? ""), subtotal, delivery);
   if (!r.ok) return c.json({ ok: false, message: r.message });
@@ -527,8 +558,8 @@ shop.get("/thanks", async (c) => {
     params: {
       content_type: "product",
       content_ids: data.items.map((i) => String(i.product_id ?? i.id)),
-      contents: data.items.map((i) => ({ id: String(i.product_id ?? i.id), quantity: 1, item_price: i.price })),
-      num_items: data.items.length,
+      contents: data.items.map((i) => ({ id: String(i.product_id ?? i.id), quantity: i.qty || 1, item_price: i.price })),
+      num_items: data.items.reduce((n, i) => n + (i.qty || 1), 0),
       value: o.total,
       currency: "BDT",
     },

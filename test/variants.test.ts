@@ -96,7 +96,7 @@ describe("কাস্টমারের দিক", () => {
     expect((await new Browser().order({ variant_id: 99999, phone: "01811111111" })).status).toBe(422);
   });
 
-  it("কার্টে: ভ্যারিয়েন্ট ছাড়া যোগ হয় না; এক পণ্য একটাই (অন্য ভ্যারিয়েন্টেও না)", async () => {
+  it("কার্টে: ভ্যারিয়েন্ট ছাড়া যোগ হয় না; এক পণ্যের এক লাইন (আবার যোগ করলে পরিমাণ বাড়ে, নতুন ভ্যারিয়েন্ট থাকে)", async () => {
     const { variants } = await setupVariants();
     const b = new Browser();
     const r0 = await b.post("/cart/add", { product_id: 1 }, { accept: "application/json" });
@@ -105,11 +105,11 @@ describe("কাস্টমারের দিক", () => {
     const r1 = await b.post("/cart/add", { product_id: 1, variant_id: vid(variants, "M / লাল") }, { accept: "application/json" });
     expect(await r1.json()).toMatchObject({ ok: true });
     const r2 = await b.post("/cart/add", { product_id: 1, variant_id: vid(variants, "L / কালো") }, { accept: "application/json" });
-    expect(await r2.json()).toMatchObject({ ok: false, message: "এই পণ্যটি আগেই কার্টে আছে" });
+    expect(await r2.json()).toMatchObject({ ok: true, message: "কার্টে পরিমাণ বাড়ানো হয়েছে", count: 2 });
 
     await b.post("/cart/add", { product_id: 3 });
     const cart = await (await b.get("/cart")).text();
-    expect(cart).toContain("M / লাল");
+    expect(cart).toContain("L / কালো");
 
     // কুকি বদলে একই পণ্যের দুই ভ্যারিয়েন্ট ঢোকালেও একটাই থাকে
     b.cookies.set("cart", `1:${vid(variants, "M / লাল")},1:${vid(variants, "L / লাল")},3`);

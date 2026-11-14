@@ -1,4 +1,4 @@
-import type { HomeSection, Product, Variant } from "../lib/products";
+import { linesSubtotal, type HomeSection, type Product, type Variant } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL } from "../lib/orders";
@@ -199,7 +199,7 @@ export const OrderForm = (p: {
         <div class="discount-row" data-discount-row hidden><span>কুপন ছাড়</span><span data-discount>-৳০</span></div>
         <div class="summary-total"><span>মোট</span><span data-total>{taka(p.subtotal + (isFree ? 0 : area === "outside" ? outside : area === "inside" ? inside : 0))}</span></div>
       </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg" data-submit>অর্ডার কনফার্ম করুন</button>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" data-submit>অর্ডার কনফার্ম করুন — <span data-total-btn>{taka(p.subtotal + (isFree ? 0 : area === "outside" ? outside : area === "inside" ? inside : 0))}</span></button>
       <p class="muted center">ক্যাশ অন ডেলিভারি — পণ্য হাতে পেয়ে টাকা দিন</p>
     </form>
   );
@@ -294,9 +294,51 @@ const ProductExtras = ({ p, s, cfg, related }: { p: Product; s: Settings; cfg: C
   );
 };
 
+/* ---------- কার্ট আর চেকআউটের পণ্যের তালিকা: পরিমাণ (+/−) আর মুছে ফেলা (✕) ---------- */
+const CartItems = ({ products, back, max }: { products: Product[]; back: "/cart" | "/checkout"; max: number }) => (
+  <section class="ci" data-cart-items data-back={back}>
+    <div class="ci-head"><h2>পণ্যের বিবরণ</h2><span>দাম</span></div>
+    {products.map((p) => {
+      const q = p.qty ?? 1;
+      return (
+        <div class="ci-row" data-ci-row={String(p.id)}>
+          <a href={`/product/${p.slug}`} class="ci-img"><img src={imageUrl(p.image)} alt="" width="72" height="72" loading="lazy" /></a>
+          <div class="ci-info">
+            <a href={`/product/${p.slug}`} class="ci-name">{p.name}</a>
+            {p.variant_label && <div class="muted">{p.variant_label}</div>}
+            <div class="ci-qty" role="group" aria-label="পরিমাণ">
+              <span class="muted">পরিমাণ:</span>
+              <form method="post" action="/cart/qty" class="inline">
+                <input type="hidden" name="product_id" value={String(p.id)} /><input type="hidden" name="back" value={back} />
+                <input type="hidden" name="qty" value={String(q - 1)} />
+                <button type="submit" class="ci-step" aria-label="কমান" disabled={q <= 1} data-ci-step="-1">−</button>
+              </form>
+              <b data-ci-qty>{bn(q)}</b>
+              <form method="post" action="/cart/qty" class="inline">
+                <input type="hidden" name="product_id" value={String(p.id)} /><input type="hidden" name="back" value={back} />
+                <input type="hidden" name="qty" value={String(q + 1)} />
+                <button type="submit" class="ci-step" aria-label="বাড়ান" disabled={q >= max} data-ci-step="1">+</button>
+              </form>
+            </div>
+          </div>
+          <div class="ci-price">
+            <b data-ci-total data-unit={String(p.price)}>{taka(p.price * q)}</b>
+            {p.compare_price && p.compare_price > p.price && <del class="compare" data-ci-compare={String(p.compare_price)}>{taka(p.compare_price * q)}</del>}
+            {q > 1 && <small class="muted" data-ci-unit>প্রতিটা {taka(p.price)}</small>}
+            <form method="post" action="/cart/remove">
+              <input type="hidden" name="product_id" value={String(p.id)} /><input type="hidden" name="back" value={back} />
+              <button type="submit" class="ci-remove" aria-label={`${p.name} মুছে ফেলুন`} data-ci-remove>✕ মুছুন</button>
+            </form>
+          </div>
+        </div>
+      );
+    })}
+  </section>
+);
+
 /* ---------- কার্ট ---------- */
-export const CartPage = ({ products }: { products: Product[] }) => {
-  const subtotal = products.reduce((s, p) => s + p.price, 0);
+export const CartPage = ({ products, max = 5 }: { products: Product[]; max?: number }) => {
+  const subtotal = linesSubtotal(products);
   return (
     <div class="wrap narrow">
       <h1 class="page-title">আপনার কার্ট</h1>
@@ -307,25 +349,10 @@ export const CartPage = ({ products }: { products: Product[] }) => {
         </div>
       ) : (
         <>
-          <ul class="cart-list">
-            {products.map((p) => (
-              <li class="cart-item">
-                <img src={imageUrl(p.image)} alt="" width="64" height="64" loading="lazy" />
-                <div class="cart-item-info">
-                  <a href={`/product/${p.slug}`}>{p.name}</a>
-                  {p.variant_label && <div class="muted">{p.variant_label}</div>}
-                  <div class="price">{taka(p.price)}</div>
-                </div>
-                <form method="post" action="/cart/remove">
-                  <input type="hidden" name="product_id" value={String(p.id)} />
-                  <button type="submit" class="btn-link danger" aria-label="মুছুন">✕</button>
-                </form>
-              </li>
-            ))}
-          </ul>
-          <p class="muted">প্রতিটা পণ্য একটা করে নেওয়া যায়।</p>
-          <div class="summary"><div class="summary-total"><span>মোট (ডেলিভারি ছাড়া)</span><span>{taka(subtotal)}</span></div></div>
+          <CartItems products={products} back="/cart" max={max} />
+          <div class="summary"><div class="summary-total"><span>মোট (ডেলিভারি ছাড়া)</span><span data-cart-subtotal>{taka(subtotal)}</span></div></div>
           <a href="/checkout" class="btn btn-primary btn-block btn-lg">চেকআউট করুন</a>
+          <a href="/" class="btn-link ci-more">← আরও পণ্য দেখুন</a>
         </>
       )}
     </div>
@@ -333,20 +360,19 @@ export const CartPage = ({ products }: { products: Product[] }) => {
 };
 
 /* ---------- চেকআউট ---------- */
-export const CheckoutPage = ({ products, settings, form, closed }: { products: Product[]; settings: Settings; form?: FormState; closed?: string }) => {
-  const subtotal = products.reduce((s, p) => s + p.price, 0);
+export const CheckoutPage = ({ products, settings, form, closed, max = 5 }: { products: Product[]; settings: Settings; form?: FormState; closed?: string; max?: number }) => {
+  const subtotal = linesSubtotal(products);
   return (
     <div class="wrap narrow">
       <h1 class="page-title">চেকআউট</h1>
-      <ul class="cart-list compact">
-        {products.map((p) => (
-          <li class="cart-item">
-            <img src={imageUrl(p.image)} alt="" width="48" height="48" loading="lazy" />
-            <div class="cart-item-info"><span>{p.name}</span>{p.variant_label && <div class="muted">{p.variant_label}</div>}<div class="price">{taka(p.price)}</div></div>
-          </li>
-        ))}
-      </ul>
-      {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={subtotal} source="cart" form={form} />}
+      {products.length === 0 ? (
+        <div class="empty"><p>কার্টে কোনো পণ্য নেই।</p><a href="/" class="btn btn-primary">পণ্য দেখুন</a></div>
+      ) : (
+        <>
+          <CartItems products={products} back="/checkout" max={max} />
+          {closed ? <div class="alert alert-error">{closed}</div> : <OrderForm settings={settings} subtotal={subtotal} source="cart" form={form} />}
+        </>
+      )}
     </div>
   );
 };
@@ -364,7 +390,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     <p class="order-no">অর্ডার নম্বর: <strong>{order.order_no}</strong></p>
     {settings.thanks_message ? <p class="thanks-message">{fillThanks(settings.thanks_message, order, settings)}</p> : <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>}
     <div class="summary">
-      {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
+      {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}{(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}</span><span>{taka(i.price * (i.qty || 1))}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
       {order.discount > 0 && <div><span>কুপন ছাড় ({order.coupon_code})</span><span>-{taka(order.discount)}</span></div>}
       <div class="summary-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(order.total)}</span></div>

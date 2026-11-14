@@ -375,6 +375,9 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
         <F label="ইমেইল ঘর">
           <select name="checkout_email">{Object.entries({ off: "দেখাবে না", optional: "দেখাবে (ঐচ্ছিক)", required: "দেখাবে (অবশ্যই দিতে হবে)" }).map(([k, l]) => <option value={k} selected={(s.checkout_email || "off") === k}>{l}</option>)}</select>
         </F>
+        <F label="এক পণ্য একবারে সর্বোচ্চ কয়টা" hint="কাস্টমার কার্ট/চেকআউটে + চেপে এর বেশি নিতে পারবে না। ফেক অর্ডার কমাতে ছোট রাখুন। ১ দিলে আগের মতো প্রতিটা পণ্য একটা করে।">
+          <input type="number" name="max_qty" min="1" max="50" value={s.max_qty || "5"} />
+        </F>
         <F label="ডেলিভারি এলাকা আগে থেকে বাছা থাকবে">
           <select name="default_area">{Object.entries({ inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে", none: "কোনোটা না (কাস্টমার নিজে বাছবে)" }).map(([k, l]) => <option value={k} selected={(s.default_area || "inside") === k}>{l}</option>)}</select>
         </F>

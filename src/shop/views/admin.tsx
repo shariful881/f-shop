@@ -274,7 +274,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
           <h2>পণ্য</h2>
           <table class="table compact">
             <tbody>
-              {p.items.map((i) => <tr><td>{i.product_name}{i.variant_label ? <strong> ({i.variant_label})</strong> : ""} × ১</td><td class="right">{taka(i.price)}</td></tr>)}
+              {p.items.map((i) => <tr><td>{i.product_name}{i.variant_label ? <strong> ({i.variant_label})</strong> : ""} × {bn(i.qty || 1)}{(i.qty || 1) > 1 ? <small class="muted"> (প্রতিটা {taka(i.price)})</small> : ""}</td><td class="right">{taka(i.price * (i.qty || 1))}</td></tr>)}
               <tr><td>ডেলিভারি চার্জ</td><td class="right">{taka(o.delivery_charge)}</td></tr>
               {o.discount > 0 && <tr><td>কুপন ছাড় ({o.coupon_code})</td><td class="right">-{taka(o.discount)}</td></tr>}
               <tr class="total"><td>মোট</td><td class="right">{taka(o.total)}</td></tr>

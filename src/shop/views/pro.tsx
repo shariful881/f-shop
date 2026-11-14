@@ -604,7 +604,7 @@ export const TrackPage = ({ s, order, error, values }: { s: Settings; order: { o
             </ol>
           )}
           <div class="summary">
-            {order.items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</span><span>{taka(i.price)}</span></div>)}
+            {order.items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}{(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}</span><span>{taka(i.price * (i.qty || 1))}</span></div>)}
             <div><span>ডেলিভারি ({AREA_LABEL[order.order.area]})</span><span>{taka(order.order.delivery_charge)}</span></div>
             <div class="summary-total"><span>মোট</span><span>{taka(order.order.total)}</span></div>
           </div>

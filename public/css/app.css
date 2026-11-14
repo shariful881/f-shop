@@ -511,3 +511,24 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .pp-sticky .btn { padding: 10px 6px; font-size: .92rem; }
 .pp-sticky-price { font-weight: 800; color: var(--brand-dark); padding: 0 4px; }
 @media (min-width: 860px) { .pp-sticky { display: none; } }
+
+/* কার্ট/চেকআউটের পণ্যের তালিকা */
+.ci { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 14px; margin-bottom: 14px; }
+.ci-head { display: flex; justify-content: space-between; align-items: end; border-bottom: 1px dashed #cbd5e1; padding: 10px 0 8px; }
+.ci-head h2 { font-size: 1.05rem; margin: 0; }
+.ci-head span { font-weight: 700; font-size: .9rem; }
+.ci-row { display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.ci-row:last-child { border-bottom: 0; }
+.ci-img img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+.ci-name { color: var(--text); text-decoration: none; font-weight: 700; line-height: 1.35; display: block; }
+.ci-qty { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.ci-qty form { margin: 0; }
+.ci-qty b { min-width: 28px; text-align: center; }
+.ci-step { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #fff; color: var(--accent); font-size: 1.2rem; font-weight: 700; line-height: 1; cursor: pointer; }
+.ci-step:disabled { color: #cbd5e1; cursor: not-allowed; }
+.ci-price { text-align: right; display: grid; justify-items: end; gap: 2px; }
+.ci-price b { font-size: 1.05rem; }
+.ci-price form { margin: 4px 0 0; }
+.ci-remove { border: 0; background: none; color: var(--danger); text-decoration: underline; cursor: pointer; font: inherit; font-size: .88rem; padding: 2px 0; }
+.ci-more { display: block; text-align: center; margin-top: 8px; }
+.inline { display: inline; }

@@ -22,7 +22,13 @@ export type Product = {
   /** কার্ট/অর্ডারের লাইনে: বাছাই করা ভ্যারিয়েন্ট (price তখন ভ্যারিয়েন্টের দাম) */
   variant_id?: number | null;
   variant_label?: string | null;
+  /** কার্ট/অর্ডারের লাইনে: পরিমাণ (না থাকলে ১) */
+  qty?: number;
 };
+
+/** লাইনের মোট দাম (একক দাম × পরিমাণ) */
+export const lineTotal = (p: { price: number; qty?: number }) => p.price * (p.qty ?? 1);
+export const linesSubtotal = (list: { price: number; qty?: number }[]) => list.reduce((s, p) => s + lineTotal(p), 0);
 
 export type Variant = { id: number; product_id: number; label: string; price: number | null; active: number; sort_order: number };
 
@@ -70,7 +76,7 @@ export async function syncVariants(db: D1Database, productId: number, options: P
   await db.batch(stmts);
 }
 
-export type CartEntry = { productId: number; variantId: number | null };
+export type CartEntry = { productId: number; variantId: number | null; qty?: number };
 
 /**
  * কার্ট/অর্ডারের লাইন: চালু পণ্য + (থাকলে) চালু ভ্যারিয়েন্ট।
@@ -92,12 +98,12 @@ export async function cartLines(db: D1Database, entries: CartEntry[]): Promise<P
     if (!prod) continue;
     const own = variants.filter((x) => x.product_id === prod.id);
     if (!own.length) {
-      lines.push({ ...prod, variant_id: null, variant_label: null });
+      lines.push({ ...prod, variant_id: null, variant_label: null, qty: e.qty ?? 1 });
       continue;
     }
     const chosen = own.find((x) => x.id === e.variantId);
     if (!chosen) continue;
-    lines.push({ ...prod, price: chosen.price ?? prod.price, variant_id: chosen.id, variant_label: chosen.label });
+    lines.push({ ...prod, price: chosen.price ?? prod.price, variant_id: chosen.id, variant_label: chosen.label, qty: e.qty ?? 1 });
   }
   return lines;
 }

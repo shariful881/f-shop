@@ -68,7 +68,7 @@
     }
     function update() {
       var vr = form.querySelector("input[name=variant_id]:checked") || form.querySelector("select[name=variant_id] option:checked");
-      if (vr && vr.dataset.price) subtotal = +vr.dataset.price;
+      subtotal = vr && vr.dataset.price ? +vr.dataset.price : +form.dataset.subtotal || 0;
       var sub = form.querySelector("[data-subtotal-text]");
       if (sub) sub.textContent = taka(subtotal);
       var checked = form.querySelector("input[name=area]:checked");
@@ -80,6 +80,8 @@
       if (row) { row.hidden = !disc; row.querySelector("[data-discount]").textContent = "-" + taka(disc); }
       if (dEl) dEl.textContent = taka(d);
       if (tEl) tEl.textContent = taka(subtotal + d - disc);
+      var tb = form.querySelector("[data-total-btn]");
+      if (tb) tb.textContent = taka(subtotal + d - disc);
     }
     form.addEventListener("change", update);
     update();
@@ -348,4 +350,51 @@ document.addEventListener("click", function (e) {
   if (sticky && actions && "IntersectionObserver" in window) {
     new IntersectionObserver(function (es) { sticky.classList.toggle("is-hidden", es[0].isIntersecting); }).observe(actions);
   }
+})();
+
+
+/* কার্ট/চেকআউট: পরিমাণ +/− আর মুছে ফেলা — পেজ না বদলে, ফর্মে লেখা তথ্য হারায় না */
+(function () {
+  var box = document.querySelector("[data-cart-items]");
+  if (!box) return;
+  var D = "০১২৩৪৫৬৭৮৯";
+  function bn(s) { return String(s).replace(/[0-9]/g, function (d) { return D[d]; }); }
+  function taka(n) { return "৳" + bn(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")); }
+  function totals(d) {
+    document.querySelectorAll("[data-cart-count]").forEach(function (el) { el.textContent = bn(d.count || 0); });
+    var sub = document.querySelector("[data-cart-subtotal]");
+    if (sub) sub.textContent = taka(d.subtotal);
+    var of = document.querySelector("[data-order-form]");
+    if (of) { of.dataset.subtotal = String(d.subtotal); of.dispatchEvent(new Event("change", { bubbles: true })); }
+  }
+  box.addEventListener("submit", function (e) {
+    var f = e.target, row = f.closest("[data-ci-row]");
+    if (!row) return;
+    e.preventDefault();
+    var btns = row.querySelectorAll("button"); btns.forEach(function (b) { b.disabled = true; });
+    fetch(f.action, { method: "POST", body: new FormData(f), headers: { Accept: "application/json" }, credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (f.action.indexOf("/cart/remove") >= 0) {
+          if (d.empty) { location.reload(); return; }
+          row.remove(); totals(d); return;
+        }
+        if (!d.ok) { location.reload(); return; }
+        var q = d.qty;
+        row.querySelector("[data-ci-qty]").textContent = bn(q);
+        var tot = row.querySelector("[data-ci-total]"); tot.textContent = taka(d.line_total);
+        var cmp = row.querySelector("[data-ci-compare]"); if (cmp) cmp.textContent = taka(+cmp.dataset.ciCompare * q);
+        var unit = row.querySelector("[data-ci-unit]");
+        if (q > 1) { if (!unit) { unit = document.createElement("small"); unit.className = "muted"; unit.setAttribute("data-ci-unit", ""); tot.parentNode.insertBefore(unit, tot.parentNode.querySelector("form")); } unit.textContent = "প্রতিটা " + taka(+tot.dataset.unit); }
+        else if (unit) unit.remove();
+        var forms = row.querySelectorAll(".ci-qty form");
+        forms[0].querySelector("[name=qty]").value = String(q - 1);
+        forms[1].querySelector("[name=qty]").value = String(q + 1);
+        totals(d);
+        btns.forEach(function (b) { b.disabled = false; });
+        forms[0].querySelector("button").disabled = q <= 1;
+        forms[1].querySelector("button").disabled = q >= d.max;
+      })
+      .catch(function () { f.submit(); });
+  });
 })();

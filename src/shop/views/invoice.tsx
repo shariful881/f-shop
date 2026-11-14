@@ -14,7 +14,7 @@ const Barcode = ({ text }: { text: string }) => <div class="iv-bar" dangerouslyS
 
 const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
   const o = d.order;
-  const subtotal = d.items.reduce((x, i) => x + i.price, 0);
+  const subtotal = d.items.reduce((x, i) => x + i.price * (i.qty || 1), 0);
   return (
     <section class="iv-page iv-a4">
       <header class="iv-head">
@@ -46,7 +46,7 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
               {s.invoice_image !== "0" && <td class="iv-img">{i.image && <img src={imageUrl(i.image)} alt="" />}</td>}
               <td>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}</td>
               <td>{bn(i.qty || 1)}</td>
-              <td class="r">{taka(i.price)}</td>
+              <td class="r">{(i.qty || 1) > 1 ? <small class="iv-muted">{bn(i.qty)} × {taka(i.price)}<br /></small> : null}{taka(i.price * (i.qty || 1))}</td>
             </tr>
           ))}
         </tbody>
@@ -74,7 +74,7 @@ const Sticker = ({ d, s }: { d: InvoiceData; s: Settings }) => {
         <b>📞 {bn(o.phone)}</b>
         <p>{o.address}</p>
       </div>
-      <div class="st-items">{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""}`).join(", ")}</div>
+      <div class="st-items">{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""}${(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}`).join(", ")}</div>
       <div class="st-cod"><span>ক্যাশ অন ডেলিভারি</span><b>{taka(o.total)}</b></div>
       {s.invoice_barcode !== "0" && <Barcode text={o.order_no} />}
       <div class="st-no">{o.order_no} · {AREA_LABEL[o.area]}</div>

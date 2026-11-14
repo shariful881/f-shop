@@ -55,7 +55,7 @@ export async function buildReport(db: D1Database, r: Range): Promise<Report> {
     db.prepare(`SELECT date(o.created_at, '+6 hours') AS d, COUNT(*) AS orders,
         COALESCE(SUM(CASE WHEN status IN ${SOLD} THEN total END), 0) AS sales
       FROM orders o WHERE ${W} GROUP BY d ORDER BY d`).bind(start, end),
-    db.prepare(`SELECT i.product_name AS name, COUNT(*) AS count, SUM(i.price) AS revenue
+    db.prepare(`SELECT i.product_name AS name, SUM(COALESCE(i.qty, 1)) AS count, SUM(i.price * COALESCE(i.qty, 1)) AS revenue
       FROM order_items i JOIN orders o ON o.id = i.order_id
       WHERE ${W} AND o.status IN ${SOLD} GROUP BY i.product_name ORDER BY count DESC, revenue DESC LIMIT 10`).bind(start, end),
     db.prepare(`SELECT coupon_code AS code, COUNT(*) AS uses, SUM(discount) AS discount

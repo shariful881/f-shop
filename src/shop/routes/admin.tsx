@@ -147,7 +147,7 @@ admin.get("/", async (c) => {
         COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total END), 0) sales FROM orders WHERE created_at >= datetime('now', '-30 days')`),
     db.prepare(`SELECT date(created_at, '+6 hours') d, COUNT(*) a, COALESCE(SUM(status IN ('confirmed', 'shipped')), 0) ok FROM orders WHERE created_at >= datetime('now', '-14 days') GROUP BY d`),
     db.prepare("SELECT id, order_no, name, phone, total, status, created_at FROM orders ORDER BY id DESC LIMIT 8"),
-    db.prepare(`SELECT i.product_name, COUNT(*) n, SUM(i.price) amount FROM order_items i JOIN orders o ON o.id = i.order_id
+    db.prepare(`SELECT i.product_name, SUM(COALESCE(i.qty, 1)) n, SUM(i.price * COALESCE(i.qty, 1)) amount FROM order_items i JOIN orders o ON o.id = i.order_id
         WHERE o.created_at >= datetime('now', '-30 days') AND o.status IN ('confirmed', 'shipped') GROUP BY i.product_name ORDER BY n DESC LIMIT 6`),
     db.prepare("SELECT COUNT(*) total, COALESCE(SUM(is_active), 0) active FROM products"),
   ]);
@@ -210,7 +210,7 @@ admin.get("/orders", async (c) => {
   }
   const { results } = await db
     .prepare(
-      `SELECT o.*, (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id) AS item_count
+      `SELECT o.*, (SELECT COALESCE(SUM(qty), 0) FROM order_items i WHERE i.order_id = o.id) AS item_count
        FROM orders o WHERE ${where} ORDER BY o.id DESC LIMIT ? OFFSET ?`,
     )
     .bind(...binds, PER_PAGE + 1, (page - 1) * PER_PAGE)
@@ -788,6 +788,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
     v.invoice_barcode = b.invoice_barcode ? "1" : "0";
     v.invoice_image = b.invoice_image ? "1" : "0";
   }
+  if (has("max_qty")) v.max_qty = String(Math.min(50, Math.max(1, toInt(b.max_qty, 5))));
   if (has("invoice_size")) v.invoice_size = b.invoice_size === "sticker" ? "sticker" : "a4";
   if (has("checkout_email")) v.checkout_email = ["off", "optional", "required"].includes(String(b.checkout_email)) ? String(b.checkout_email) : "off";
   if (has("default_area")) v.default_area = ["inside", "outside", "none"].includes(String(b.default_area)) ? String(b.default_area) : "inside";

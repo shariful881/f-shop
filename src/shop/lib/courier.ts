@@ -158,7 +158,7 @@ async function redxSend(s: Settings, o: Order, items: OrderItem[], opt: SendOpti
     parcel_weight: Math.round((opt.weightKg ?? 0.5) * 1000),
     instruction: opt.note.slice(0, 200),
     value: o.total,
-    parcel_details_json: items.map((i) => ({ name: i.product_name, category: "general", value: i.price })),
+    parcel_details_json: items.map((i) => ({ name: (i.qty || 1) > 1 ? `${i.product_name} x${i.qty}` : i.product_name, category: "general", value: i.price * (i.qty || 1) })),
   };
   if (s.redx_pickup_store_id) body.pickup_store_id = Number(s.redx_pickup_store_id);
   const r = await call(`${redxBase(s)}/parcel`, { method: "POST", headers: redxHeaders(s), body: JSON.stringify(body) });

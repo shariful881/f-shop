@@ -154,8 +154,8 @@ export async function sendPurchase(db: D1Database, orderId: number, s: Settings)
       value: order.total,
       content_type: "product",
       content_ids: items.map((i) => String(i.product_id ?? i.id)),
-      contents: items.map((i) => ({ id: String(i.product_id ?? i.id), quantity: 1, item_price: i.price })),
-      num_items: items.length,
+      contents: items.map((i) => ({ id: String(i.product_id ?? i.id), quantity: i.qty || 1, item_price: i.price })),
+      num_items: items.reduce((n, i) => n + (i.qty || 1), 0),
       order_id: order.order_no,
     },
   };
