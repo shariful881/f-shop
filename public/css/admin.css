@@ -78,3 +78,5 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .inline-form { margin: 0; display: inline-flex; gap: 6px; flex-wrap: nowrap; }
 .inline-form select, .inline-form input { font: inherit; padding: 5px 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; min-width: 0; flex: 0 1 auto; }
 .w-md { width: 150px; }
+.ns-box { display: grid; gap: 6px; margin: 8px 0 12px; }
+.ns { display: block; font-size: 1.05rem; padding: 10px 12px; background: #f1f5f9; border: 1px dashed #94a3b8; border-radius: 8px; user-select: all; }

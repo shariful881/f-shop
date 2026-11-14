@@ -8,6 +8,9 @@ declare global {
       IMAGES: R2Bucket;
       PLATFORM_DOMAIN: string;
       DEV_MODE?: string;
+      CF_API_TOKEN?: string;
+      CF_ACCOUNT_ID?: string;
+      WORKER_NAME?: string;
       TEST_MIGRATIONS: import("cloudflare:test").D1Migration[];
     }
   }

@@ -8,6 +8,10 @@ export type Bindings = {
   PLATFORM_DB: D1Database;
   SHOP_ID: string;
   SHOP_SLUG: string;
+  PLATFORM_DOMAIN: string;
+  CF_API_TOKEN?: string;
+  CF_ACCOUNT_ID?: string;
+  WORKER_NAME?: string;
 };
 
 export type Variables = {

@@ -11,7 +11,10 @@
 
   "vars": {
     // SaaS-এর মূল ডোমেইন — কেনার পর এখানে বসাবেন
-    "PLATFORM_DOMAIN": "ourdomain.com"
+    "PLATFORM_DOMAIN": "ourdomain.com",
+    "WORKER_NAME": "f-shop",
+    // আপনার Cloudflare Account ID (নিজের ডোমেইন ফিচারের জন্য)। CF_API_TOKEN secret হিসেবে বসাবেন (README দেখুন)
+    "CF_ACCOUNT_ID": ""
   },
 
   // মূল ডাটাবেস: দোকানের তালিকা, ডোমেইন, বিলিং
@@ -38,7 +41,8 @@
   "rules": [{ "type": "Text", "globs": ["**/*.sql"], "fallthrough": true }],
 
   // প্রতিদিন বাংলাদেশ সময় সকাল ৬:১৭-তে: ট্রায়াল শেষ করা, মাসিক চার্জ
-  "triggers": { "crons": ["17 0 * * *"] },
+  // আর প্রতি ৩০ মিনিটে: অপেক্ষায় থাকা দোকানের ডোমেইন যাচাই
+  "triggers": { "crons": ["17 0 * * *", "*/30 * * * *"] },
 
   "observability": { "enabled": true }
 }

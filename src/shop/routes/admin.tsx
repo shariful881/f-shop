@@ -13,7 +13,9 @@ import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
-import { BillingPage, StaffPage, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
+import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
+import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
+import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
 import { clearShopCache } from "../../platform/resolve";
 
@@ -479,4 +481,103 @@ admin.post("/staff/:id{[0-9]+}/delete", async (c) => {
   clearShopCache();
   flash(c, "ok", "স্টাফ মুছে ফেলা হয়েছে।");
   return c.redirect("/admin/staff", 303);
+});
+
+/* ---------- নিজের ডোমেইন (শুধু মালিক) — section "domains" ---------- */
+function freeShopUrl(c: Ctx) {
+  return `https://${c.env.SHOP_SLUG}.${c.env.PLATFORM_DOMAIN}`;
+}
+
+async function renderDomain(c: Ctx, form?: { value: string; error: string }) {
+  const rows = await shopDomains(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  return render(c, "ডোমেইন", "domains",
+    <DomainPage domains={rows} freeUrl={freeShopUrl(c)} configured={cfFromEnv(c.env).configured} value={form?.value} error={form?.error} />,
+    form ? 422 : 200);
+}
+
+admin.get("/domain", (c) => renderDomain(c));
+// "/admin/domain" রোল-চেকে section "domain" — "domains"-এর মতোই মালিকের জন্য
+
+admin.post("/domain", async (c) => {
+  const input = str((await c.req.parseBody()).domain, 260);
+  const n = normalizeDomain(input, c.env.PLATFORM_DOMAIN);
+  if (!n.domain) return renderDomain(c, { value: input, error: n.error! });
+  const r = await addDomain(c.env.PLATFORM_DB, cfFromEnv(c.env), c.env.SHOP_ID, n.domain);
+  if (!r.ok) return renderDomain(c, { value: input, error: r.message });
+  flash(c, "ok", r.message);
+  return c.redirect("/admin/domain", 303);
+});
+
+admin.post("/domain/check", async (c) => {
+  const r = await checkDomain(c.env.PLATFORM_DB, cfFromEnv(c.env), c.env.SHOP_ID);
+  flash(c, r.status === "active" ? "ok" : "error", r.message);
+  return c.redirect("/admin/domain", 303);
+});
+
+admin.post("/domain/remove", async (c) => {
+  await removeDomain(c.env.PLATFORM_DB, cfFromEnv(c.env), c.env.SHOP_ID);
+  flash(c, "ok", "ডোমেইন সরানো হয়েছে। দোকান এখন শুধু ফ্রি ঠিকানায় চলবে।");
+  return c.redirect("/admin/domain", 303);
+});
+
+/* ---------- DNS রেকর্ড ---------- */
+async function zoneOf(c: Ctx) {
+  const rows = await shopDomains(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  return rows[0] ? { zoneId: rows[0].zone_id!, root: rows[0].root! } : null;
+}
+
+async function renderDns(c: Ctx, form?: { error: string; values: Record<string, string> }) {
+  const z = await zoneOf(c);
+  if (!z) return c.redirect("/admin/domain", 303);
+  const cf = cfFromEnv(c.env);
+  const [list, scan] = await Promise.all([cf.listDns(z.zoneId), cf.scanList(z.zoneId)]);
+  const toView = (r: DnsRecord): DnsView => ({ id: r.id, type: r.type, name: r.name, content: r.content, priority: r.priority, protected: isProtected(r, z.root) });
+  return render(c, "DNS রেকর্ড", "domains",
+    <DnsPage root={z.root} records={(list.ok ? list.result ?? [] : []).map(toView)} scanned={(scan.ok ? scan.result ?? [] : []).map(toView)}
+      error={form?.error ?? (list.ok ? undefined : "Cloudflare থেকে রেকর্ড আনা যায়নি")} values={form?.values} />,
+    form ? 422 : 200);
+}
+
+admin.get("/dns", (c) => renderDns(c));
+
+admin.post("/dns", async (c) => {
+  const z = await zoneOf(c);
+  if (!z) return c.redirect("/admin/domain", 303);
+  const b = await c.req.parseBody();
+  const values = { type: str(b.type, 10), name: str(b.name, 200), content: str(b.content, 2000), priority: str(b.priority, 6) };
+  const v = validateDnsInput(values.type, values.name, values.content, z.root);
+  if (!v.record) return renderDns(c, { error: v.error!, values });
+  if (values.type === "MX") v.record.priority = Math.min(65535, Math.max(0, toInt(values.priority, 10)));
+  const r = await cfFromEnv(c.env).createDns(z.zoneId, v.record);
+  if (!r.ok) return renderDns(c, { error: cfError(r), values });
+  flash(c, "ok", "রেকর্ড যোগ হয়েছে।");
+  return c.redirect("/admin/dns", 303);
+});
+
+admin.post("/dns/:id/delete", async (c) => {
+  const z = await zoneOf(c);
+  if (!z) return c.redirect("/admin/domain", 303);
+  const cf = cfFromEnv(c.env);
+  const list = await cf.listDns(z.zoneId);
+  const rec = (list.result ?? []).find((r) => r.id === c.req.param("id"));
+  if (!rec || isProtected(rec, z.root)) {
+    flash(c, "error", "এই রেকর্ড মোছা যাবে না");
+  } else {
+    await cf.deleteDns(z.zoneId, rec.id);
+    flash(c, "ok", "রেকর্ড মুছে ফেলা হয়েছে।");
+  }
+  return c.redirect("/admin/dns", 303);
+});
+
+admin.post("/dns/accept-scan", async (c) => {
+  const z = await zoneOf(c);
+  if (!z) return c.redirect("/admin/domain", 303);
+  const cf = cfFromEnv(c.env);
+  const scan = await cf.scanList(z.zoneId);
+  const recs = scan.ok ? scan.result ?? [] : [];
+  const accepts = recs.filter((r) => !isProtected(r, z.root)).map((r) => r.id);
+  const rejects = recs.filter((r) => isProtected(r, z.root)).map((r) => r.id);
+  await cf.scanReview(z.zoneId, accepts, rejects);
+  flash(c, "ok", `${accepts.length}টা রেকর্ড যোগ হয়েছে।`);
+  return c.redirect("/admin/dns", 303);
 });

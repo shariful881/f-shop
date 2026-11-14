@@ -1,5 +1,6 @@
 import type { WorkerEnv } from "./worker-env";
 import { clearShopCache, resolveHost, type ShopRow } from "./platform/resolve";
+import { cfFromEnv, checkPendingDomains } from "./platform/domains";
 import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired } from "./platform/billing";
 import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
@@ -55,8 +56,12 @@ export default {
   },
 
   /** প্রতিদিন একবার: ট্রায়াল শেষ, মাসিক চার্জ */
-  async scheduled(_event: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) {
-    ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)));
+  async scheduled(event: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) {
+    if (event.cron === "17 0 * * *") {
+      ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)));
+    } else {
+      ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)));
+    }
   },
 } satisfies ExportedHandler<WorkerEnv>;
 

@@ -7,5 +7,8 @@ export type WorkerEnv = {
   IMAGES: R2Bucket;
   ASSETS: Fetcher;
   PLATFORM_DOMAIN: string;        // যেমন ourdomain.com
-  DEV_MODE?: string;              // "1" হলে ?shop=slug দিয়ে দোকান খোলা যায় (শুধু Codespaces/লোকাল)
+  DEV_MODE?: string;
+  WORKER_NAME?: string;           // এই Worker-এর নাম (wrangler.jsonc-এর name)
+  CF_ACCOUNT_ID?: string;         // নিজের ডোমেইন ফিচারের জন্য
+  CF_API_TOKEN?: string;          // secret: Zone Edit + DNS Edit + Workers Routes Edit              // "1" হলে ?shop=slug দিয়ে দোকান খোলা যায় (শুধু Codespaces/লোকাল)
 };

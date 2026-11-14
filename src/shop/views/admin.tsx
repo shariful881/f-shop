@@ -54,6 +54,7 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
                 ["settings", "/admin/settings", "সেটিংস"],
                 ["billing", "/admin/billing", "বিলিং"],
                 ["staff", "/admin/staff", "স্টাফ"],
+                ["domains", "/admin/domain", "ডোমেইন"],
               ].filter(([k]) => canAccess(p.role ?? "owner", k!)).map(([k, href, label]) => (
                 <a href={href} class={p.active === k ? "active" : ""}>{label}</a>
               ))}
@@ -581,6 +582,117 @@ export const StaffPage = (p: { users: StaffRow[]; me: number; fee: number; trial
           </label>
         </div>
         <button class="btn btn-primary" data-confirm-fee>যোগ করুন{p.trial ? "" : ` (${taka(p.fee)}/মাস)`}</button>
+      </form>
+    </>
+  );
+};
+
+/* ---------- ডোমেইন ---------- */
+export type DomainView = { hostname: string; status: string; nameservers: string | null; root: string | null; checked_at: string | null; error: string | null };
+
+export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configured: boolean; value?: string; error?: string }) => {
+  const root = p.domains[0]?.root;
+  const ns: string[] = p.domains[0]?.nameservers ? JSON.parse(p.domains[0].nameservers) : [];
+  const active = p.domains.length > 0 && p.domains.every((d) => d.status === "active");
+  return (
+    <>
+      <h1>ডোমেইন</h1>
+      {root && p.error && <div class="alert alert-error">{p.error}</div>}
+      <section class="panel">
+        <h2>ফ্রি ঠিকানা</h2>
+        <p><a href={p.freeUrl} target="_blank">{p.freeUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "")}</a> — সবসময় চালু থাকবে</p>
+      </section>
+
+      {!root ? (
+        <section class="panel">
+          <h2>নিজের ডোমেইন যোগ করুন</h2>
+          {!p.configured && <div class="alert alert-error">নিজের ডোমেইন ফিচার এখনো চালু করা হয়নি। সাপোর্টে যোগাযোগ করুন।</div>}
+          <p class="muted">যেমন <code>dokan.com</code> — www ছাড়া মূল ডোমেইন দিন। www সহ দুটোতেই আপনার দোকান চলবে।</p>
+          <form method="post" action="/admin/domain" class="row-form">
+            <input type="text" name="domain" value={p.value ?? ""} placeholder="dokan.com" required />
+            <button class="btn btn-primary">যোগ করুন</button>
+          </form>
+          {p.error && <div class="alert alert-error">{p.error}</div>}
+          <p class="muted">যোগ করার পর আমরা দুটো নেমসার্ভার দেব। সেগুলো আপনার ডোমেইন কোম্পানির প্যানেলে বসালেই দোকান আপনার ডোমেইনে চালু হবে।</p>
+        </section>
+      ) : (
+        <section class="panel">
+          <h2>{root} {active ? <span class="pill pill-ok">চালু</span> : <span class="pill">অপেক্ষায়</span>}</h2>
+          {active ? (
+            <p>আপনার দোকান চালু আছে: <a href={`https://${root}`} target="_blank">https://{root}</a> এবং <a href={`https://www.${root}`} target="_blank">www.{root}</a></p>
+          ) : (
+            <>
+              <p><strong>ধাপ ১:</strong> আপনার ডোমেইন কোম্পানির প্যানেলে (যেখান থেকে ডোমেইন কিনেছেন) লগইন করুন।</p>
+              <p><strong>ধাপ ২:</strong> Nameserver অংশে আগের সব নেমসার্ভার মুছে এই দুটো বসান:</p>
+              <div class="ns-box">{ns.map((n) => <code class="ns">{n}</code>)}</div>
+              <p><strong>ধাপ ৩:</strong> সেভ করে নিচের বাটনে চাপুন। নেমসার্ভার ছড়াতে কয়েক মিনিট থেকে ২৪ ঘণ্টা লাগতে পারে — আমরা প্রতি ৩০ মিনিটে নিজে থেকেও যাচাই করি।</p>
+              <p class="muted">⚠️ এই ডোমেইনে ইমেইল বা অন্য কিছু চালালে আগে <a href="/admin/dns">DNS রেকর্ড</a> পেজে রেকর্ডগুলো ঠিক আছে কি না দেখে নিন।</p>
+              <form method="post" action="/admin/domain/check" class="inline"><button class="btn btn-primary">এখনই যাচাই করুন</button></form>
+              {p.domains[0]?.checked_at && <p class="muted">শেষ যাচাই: {dhakaTime(p.domains[0].checked_at)}</p>}
+              {p.domains[0]?.error && <div class="alert alert-error">{p.domains[0].error}</div>}
+            </>
+          )}
+          <p><a href="/admin/dns" class="btn btn-outline">DNS রেকর্ড (ইমেইল ইত্যাদি)</a></p>
+          <form method="post" action="/admin/domain/remove" class="inline" data-confirm={`${root} সরিয়ে ফেলবেন? দোকান শুধু ফ্রি ঠিকানায় চলবে, আর এই ডোমেইনের DNS রেকর্ড মুছে যাবে।`}>
+            <button class="btn-link danger">ডোমেইন সরান</button>
+          </form>
+          <p class="muted">ডোমেইন সরালে আপনার ডোমেইন কোম্পানির প্যানেলে আগের নেমসার্ভার ফেরত বসাবেন।</p>
+        </section>
+      )}
+    </>
+  );
+};
+
+/* ---------- DNS রেকর্ড ---------- */
+export type DnsView = { id: string; type: string; name: string; content: string; priority?: number; protected: boolean };
+
+export const DnsPage = (p: { root: string; records: DnsView[]; scanned: DnsView[]; error?: string; values?: Record<string, string> }) => {
+  const v = p.values ?? {};
+  return (
+    <>
+      <p><a href="/admin/domain">← ডোমেইন</a></p>
+      <h1>DNS রেকর্ড — {p.root}</h1>
+      <p class="muted">ইমেইল (MX), যাচাইয়ের TXT বা অন্য সাবডোমেইনের রেকর্ড এখানে রাখুন। মূল ডোমেইন আর www আপনার দোকানের জন্য সংরক্ষিত।</p>
+      {p.scanned.length > 0 && (
+        <section class="panel">
+          <h2>আপনার আগের DNS-এ পাওয়া রেকর্ড ({p.scanned.length})</h2>
+          <p class="muted">নেমসার্ভার বদলানোর আগে এগুলো গ্রহণ করুন, যাতে ইমেইল ইত্যাদি বন্ধ না হয়। মূল/www-এর রেকর্ড বাদ যাবে।</p>
+          <table class="table compact"><tbody>
+            {p.scanned.map((r) => <tr class={r.protected ? "dim" : ""}><td>{r.type}</td><td>{r.name}</td><td class="break">{r.priority != null ? `${r.priority} ` : ""}{r.content}</td><td>{r.protected ? "বাদ যাবে" : ""}</td></tr>)}
+          </tbody></table>
+          <form method="post" action="/admin/dns/accept-scan"><button class="btn btn-primary">সব গ্রহণ করুন</button></form>
+        </section>
+      )}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>ধরন</th><th>নাম</th><th>মান</th><th></th></tr></thead>
+          <tbody>
+            {p.records.length === 0 && <tr><td colspan={4} class="muted">কোনো রেকর্ড নেই</td></tr>}
+            {p.records.map((r) => (
+              <tr>
+                <td><code>{r.type}</code></td>
+                <td>{r.name}</td>
+                <td class="break">{r.priority != null ? `${r.priority} ` : ""}{r.content}</td>
+                <td>{r.protected ? <span class="pill">দোকানের জন্য</span> : (
+                  <form method="post" action={`/admin/dns/${r.id}/delete`} class="inline" data-confirm="রেকর্ডটি মুছবেন?"><button class="btn-link danger">মুছুন</button></form>
+                )}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <form method="post" action="/admin/dns" class="admin-form" style="margin-top:14px">
+        <h2>নতুন রেকর্ড</h2>
+        {p.error && <div class="alert alert-error">{p.error}</div>}
+        <div class="form-grid">
+          <label class="field"><span>ধরন</span>
+            <select name="type">{["MX", "TXT", "CNAME", "A", "AAAA"].map((t) => <option value={t} selected={v.type === t}>{t}</option>)}</select>
+          </label>
+          <label class="field"><span>নাম (মূল ডোমেইনের জন্য @)</span><input type="text" name="name" value={v.name ?? ""} placeholder="@ অথবা mail" required /></label>
+          <label class="field"><span>মান</span><input type="text" name="content" value={v.content ?? ""} placeholder="যেমন mx.zoho.com অথবা v=spf1 ..." required /></label>
+          <label class="field"><span>Priority (শুধু MX)</span><input type="number" name="priority" value={v.priority ?? "10"} min="0" max="65535" /></label>
+        </div>
+        <button class="btn btn-primary">যোগ করুন</button>
       </form>
     </>
   );

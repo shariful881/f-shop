@@ -117,6 +117,10 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       PLATFORM_DB: this.env.PLATFORM_DB,
       SHOP_ID: shopId,
       SHOP_SLUG: request.headers.get("x-fshop-slug") || "",
+      PLATFORM_DOMAIN: this.env.PLATFORM_DOMAIN,
+      CF_API_TOKEN: this.env.CF_API_TOKEN,
+      CF_ACCOUNT_ID: this.env.CF_ACCOUNT_ID,
+      WORKER_NAME: this.env.WORKER_NAME,
     };
     const execCtx = {
       waitUntil: (p: Promise<unknown>) => this.ctx.waitUntil(p),
