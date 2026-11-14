@@ -120,11 +120,29 @@ describe("দোকানের নিয়ন্ত্রণ", () => {
     const shopB = new Browser();
     const login = await shopB.fetch(loc.pathname + loc.search, { base: "https://shop.test" } as RequestInit);
     expect(login.headers.get("location")).toBe("/admin/orders");
-    expect((await shopB.fetch("/admin/orders", { base: "https://shop.test" } as RequestInit)).status).toBe(200);
+    const panel = await (await shopB.fetch("/admin/orders", { base: "https://shop.test" } as RequestInit)).text();
+    expect(panel).toContain("সাপোর্ট মোড");
+    // বের হলে সুপার অ্যাডমিনের দোকানের পেজে ফেরে, সাপোর্ট মোড মুছে যায়
+    const out = await shopB.fetch("/admin/logout", { method: "POST", base: "https://shop.test", body: new URLSearchParams() } as RequestInit);
+    expect(out.headers.get("location")).toBe(`https://ourdomain.com/super/shops/${DEMO_SHOP_ID}`);
+    expect(shopB.cookies.has("support_mode")).toBe(false);
     // একই লিংক দ্বিতীয়বার কাজ করে না
     expect((await new Browser().fetch(loc.pathname + loc.search, { base: "https://shop.test" } as RequestInit)).headers.get("location")).toBe("/admin/login");
     const log = await pdb().prepare("SELECT admin_email, detail FROM audit_log WHERE action = 'shop.impersonate'").first<any>();
     expect(log).toMatchObject({ admin_email: "sup@t.com", detail: "টিকেট ১২" });
+  });
+
+  it("দোকানের তালিকায় এক ক্লিকে ঢোকার বাটন; দোকানের পেজে পণ্য আর অর্ডারের হিসাব", async () => {
+    await adminBrowser();
+    await new Browser().order({ phone: "01712345678" });
+    const o = await member("owner@t.com", "owner");
+    const list = await (await get(o, "/super/shops")).text();
+    expect(list).toContain(`/super/shops/${DEMO_SHOP_ID}/impersonate`);
+    const detail = await (await get(o, `/super/shops/${DEMO_SHOP_ID}`)).text();
+    expect(detail).toContain("দোকানের ভিতরে এখন");
+    expect(detail).toContain("FS-100001");
+    const f = await member("fin@t.com", "finance");
+    expect(await (await get(f, "/super/shops")).text()).not.toContain("/impersonate");
   });
 
   it("নোট আর মালিকের তথ্য বদল", async () => {

@@ -67,7 +67,7 @@ async function render(c: Ctx, title: string, active: string, body: unknown, stat
   const ann = await announcements(c);
   return c.html(
     "<!DOCTYPE html>" +
-      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState} announcements={ann}>{body as any}</AdminLayout>),
+      String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState} announcements={ann} support={getCookie(c, "support_mode") === "1"}>{body as any}</AdminLayout>),
     status,
   );
 }
@@ -106,7 +106,8 @@ admin.get("/auto-login", async (c) => {
   const session = await createSession(db, row.user_id);
   setCookie(c, ADMIN_COOKIE, session, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
   if (c.req.query("support") === "1") {
-    flash(c, "ok", "সাপোর্ট টিম হিসেবে দোকানের মালিকের অ্যাকাউন্টে ঢুকেছেন। কাজ শেষে লগআউট করুন।");
+    setCookie(c, "support_mode", "1", { path: "/admin", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+    flash(c, "ok", "সুপার অ্যাডমিন থেকে এই দোকানের প্যানেলে ঢুকেছেন।");
   } else {
     await markShopLogin(c);
     flash(c, "ok", "স্বাগতম! আপনার দোকান তৈরি হয়ে গেছে। প্রথমে সেটিংস আর পণ্য ঠিক করে নিন।");
@@ -117,6 +118,10 @@ admin.get("/auto-login", async (c) => {
 admin.post("/logout", async (c) => {
   await destroySession(c.env.DB, getCookie(c, ADMIN_COOKIE));
   deleteCookie(c, ADMIN_COOKIE, { path: "/" });
+  const wasSupport = getCookie(c, "support_mode") === "1";
+  deleteCookie(c, "support_mode", { path: "/admin" });
+  // সাপোর্ট মোড থেকে বের হলে সুপার অ্যাডমিনে ফেরা
+  if (wasSupport) return c.redirect(`https://${c.env.PLATFORM_DOMAIN}/super/shops/${c.env.SHOP_ID}`, 303);
   return c.redirect("/admin/login", 303);
 });
 

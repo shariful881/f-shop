@@ -352,7 +352,7 @@ export const SHOP_FILTERS: Record<string, string> = {
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
 
-export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; q: string; filter: string; sort: string; page: number; total: number; per: number; shopLink: (slug: string) => string }) => {
+export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; q: string; filter: string; sort: string; page: number; total: number; per: number; shopLink: (slug: string) => string; canEnter?: boolean }) => {
   const qs = (o: Record<string, string | number>) => {
     const u = new URLSearchParams({ q: p.q, filter: p.filter, sort: p.sort, page: String(p.page), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])) });
     for (const [k, v] of [...u]) if (!v || (k === "page" && v === "1") || (k === "sort" && v === "new")) u.delete(k);
@@ -379,7 +379,7 @@ export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; 
         {p.rows.length === 0 ? <Empty text="কোনো দোকান পাওয়া যায়নি" /> : (
           <div class="sa-table-wrap">
             <table class="sa-table">
-              <thead><tr><th>দোকান</th><th>মালিক</th><th>অবস্থা</th><th class="sa-r">ব্যালেন্স</th><th class="sa-r">অর্ডার</th><th>শেষ অর্ডার</th><th>শেষ লগইন</th><th>তৈরি</th></tr></thead>
+              <thead><tr><th>দোকান</th><th>মালিক</th><th>অবস্থা</th><th class="sa-r">ব্যালেন্স</th><th class="sa-r">অর্ডার</th><th>শেষ অর্ডার</th><th>শেষ লগইন</th><th>তৈরি</th>{p.canEnter && <th></th>}</tr></thead>
               <tbody>
                 {p.rows.map((s) => (
                   <tr>
@@ -393,6 +393,13 @@ export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; 
                     <td><small>{ago(s.last_order_at)}</small></td>
                     <td><small>{ago(s.last_login_at)}</small></td>
                     <td><small>{dhakaTime(s.created_at).slice(0, 10)}</small></td>
+                    {p.canEnter && (
+                      <td class="sa-r">
+                        <form method="post" action={`/super/shops/${s.id}/impersonate`} target="_blank" class="sa-inline">
+                          <button class="sa-btn sa-btn-sm sa-btn-accent" title="পাসওয়ার্ড ছাড়া এই দোকানের অ্যাডমিন প্যানেলে ঢুকুন">🔑 ঢুকুন</button>
+                        </form>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -431,6 +438,7 @@ export const ShopDetailPage = (p: {
   topups: TopupRow[];
   notes: NoteRow[];
   audit: AuditRow[];
+  live?: ShopLive | null;
 }) => {
   const s = p.s;
   const r = p.role;
@@ -445,9 +453,8 @@ export const ShopDetailPage = (p: {
         <div class="sa-head-actions">
           <a href={p.shopLink} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost">দোকান দেখুন ↗</a>
           {can(r, "shop.impersonate") && (
-            <form method="post" action={`/super/shops/${s.id}/impersonate`} target="_blank" class="sa-inline" data-confirm="দোকানের মালিকের অ্যাকাউন্টে সাপোর্ট লগইন হবে, আর অডিট লগে লেখা থাকবে। চালিয়ে যাবেন?">
-              <input type="hidden" name="reason" value="সাপোর্ট" />
-              <button class="sa-btn">🔑 সাপোর্ট লগইন</button>
+            <form method="post" action={`/super/shops/${s.id}/impersonate`} target="_blank" class="sa-inline">
+              <button class="sa-btn sa-btn-accent">🔑 দোকানের প্যানেলে ঢুকুন</button>
             </form>
           )}
         </div>
@@ -459,6 +466,8 @@ export const ShopDetailPage = (p: {
         <Kpi label="আমাদের আয় (মোট)" value={taka(p.revenue.lifetime)} sub={`মোট রিচার্জ ${taka(p.revenue.topups)}`} />
         <Kpi label="শেষ লগইন" value={ago(s.last_login_at)} sub={`${bn(s.staff_count)} জন বাড়তি স্টাফ`} />
       </div>
+
+      {p.live && <LiveStats l={p.live} />}
 
       <div class="sa-grid-2-1">
         <div>
@@ -558,6 +567,35 @@ export const ShopDetailPage = (p: {
     </>
   );
 };
+
+/* ---------- দোকানের ভিতরের হিসাব (দোকানের নিজের ডাটাবেস থেকে) ---------- */
+export type ShopLive = {
+  products: { total: number; active: number };
+  orders: Record<string, number>;
+  recent: { order_no: string; name: string; total: number; status: string; created_at: string }[];
+  users: number;
+};
+const ORDER_ST: Record<string, string> = { new: "নতুন", confirmed: "কনফার্ম", shipped: "শিপড", cancelled: "বাতিল", fake: "ফেক" };
+
+const LiveStats = ({ l }: { l: ShopLive }) => (
+  <Card title="দোকানের ভিতরে এখন" action={<span class="sa-muted">দোকানের নিজের ডাটাবেস থেকে</span>}>
+    <div class="sa-live">
+      <div><small>পণ্য</small><b>{n0(l.products.total)}</b><span>{n0(l.products.active)}টা চালু</span></div>
+      <div><small>মোট অর্ডার</small><b>{n0(l.orders.total ?? 0)}</b><span>২৪ ঘণ্টায় {n0(l.orders.last24h ?? 0)}টা</span></div>
+      <div><small>নতুন (অপেক্ষায়)</small><b class={(l.orders.new_orders ?? 0) > 0 ? "sa-warn" : ""}>{n0(l.orders.new_orders ?? 0)}</b><span>কনফার্ম {n0(l.orders.confirmed ?? 0)} · শিপড {n0(l.orders.shipped ?? 0)}</span></div>
+      <div><small>বাতিল/ফেক</small><b>{n0(l.orders.cancelled ?? 0)}</b><span>{l.orders.total ? pct(((l.orders.cancelled ?? 0) / l.orders.total) * 100) : "—"}</span></div>
+      <div><small>বিক্রি (কনফার্ম+শিপড)</small><b>{taka(l.orders.sales ?? 0)}</b><span>{n0(l.users)} জন অ্যাডমিন/স্টাফ</span></div>
+    </div>
+    {l.recent.length > 0 && (
+      <div class="sa-table-wrap"><table class="sa-table">
+        <thead><tr><th>সাম্প্রতিক অর্ডার</th><th>কাস্টমার</th><th class="sa-r">টাকা</th><th>অবস্থা</th><th>সময়</th></tr></thead>
+        <tbody>{l.recent.map((o) => (
+          <tr><td><b>{o.order_no}</b></td><td>{o.name}</td><td class="sa-r">{taka(o.total)}</td><td><span class={`sa-pill sa-os-${o.status}`}>{ORDER_ST[o.status] ?? o.status}</span></td><td><small>{ago(o.created_at)}</small></td></tr>
+        ))}</tbody>
+      </table></div>
+    )}
+  </Card>
+);
 
 /* ---------- রিচার্জ ---------- */
 export const TopupTable = ({ rows, role, showShop = true }: { rows: TopupRow[]; role: SuperRole; showShop?: boolean }) => (

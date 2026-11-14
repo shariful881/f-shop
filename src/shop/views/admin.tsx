@@ -33,7 +33,7 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
   }
 };
 
-export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; announcements?: { id: number; title: string; body: string | null; level: string }[]; children?: Child }) => (
+export const AdminLayout = (p: { title: string; settings: Settings; active?: string; flash?: Flash; email?: string; role?: Role; state?: ShopState; announcements?: { id: number; title: string; body: string | null; level: string }[]; support?: boolean; children?: Child }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -70,6 +70,12 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
             </nav>
           </div>
         </header>
+      )}
+      {p.email && p.support && (
+        <div class="banner banner-support">
+          🔑 <strong>সাপোর্ট মোড</strong> — সুপার অ্যাডমিন হিসেবে {p.settings.site_name || "এই দোকানের"} প্যানেল দেখছেন। সব কাজ মালিকের মতোই হবে।
+          <form method="post" action="/admin/logout" class="inline"><button class="btn-link">বের হয়ে সুপার অ্যাডমিনে ফিরুন →</button></form>
+        </div>
       )}
       {p.email && <StateBanner state={p.state} />}
       {p.email && (p.announcements ?? []).map((a) => (

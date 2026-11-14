@@ -104,6 +104,24 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     return this.createLoginToken(user!.id);
   }
 
+  /** সুপার অ্যাডমিনের জন্য দোকানের সংক্ষিপ্ত হিসাব (পণ্য, অর্ডার, বিক্রি) */
+  async quickStats(shopId: string) {
+    await this.ensureInit(shopId, false);
+    const p = await this.db.prepare("SELECT COUNT(*) total, COALESCE(SUM(is_active), 0) active FROM products").first<{ total: number; active: number }>();
+    const o = await this.db.prepare(
+      `SELECT COUNT(*) total,
+         COALESCE(SUM(status = 'new'), 0) new_orders, COALESCE(SUM(status = 'confirmed'), 0) confirmed, COALESCE(SUM(status = 'shipped'), 0) shipped,
+         COALESCE(SUM(status IN ('cancelled', 'fake')), 0) cancelled,
+         COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total ELSE 0 END), 0) sales,
+         COALESCE(SUM(created_at >= datetime('now', '-1 day')), 0) last24h
+       FROM orders`,
+    ).first<Record<string, number>>();
+    const recent = await this.db.prepare("SELECT order_no, name, total, status, created_at FROM orders ORDER BY id DESC LIMIT 5")
+      .all<{ order_no: string; name: string; total: number; status: string; created_at: string }>();
+    const staff = await this.db.prepare("SELECT COUNT(*) n FROM users WHERE is_admin = 1 AND active = 1").first<{ n: number }>();
+    return { products: p!, orders: o!, recent: recent.results, users: staff?.n ?? 0 };
+  }
+
   /** সুপার অ্যাডমিনের সাপোর্ট লগইন: দোকানের মালিকের জন্য ৫ মিনিটের এককালীন টোকেন */
   async ownerLoginToken(shopId: string): Promise<string | null> {
     await this.ensureInit(shopId, false);

@@ -220,7 +220,7 @@ superApp.get("/shops", async (c) => {
   const counts = Object.fromEntries(Object.entries((cnt!.results[0] ?? {}) as Record<string, number>).map(([k, v]) => [k, Number(v) || 0]));
   return page(c, "দোকান", "shops",
     <ShopsPage rows={list!.results as ShopRow[]} counts={counts} q={q} filter={filter} sort={sort} page={pg} per={PER_PAGE}
-      total={(total!.results[0] as { n: number }).n} shopLink={(slug) => shopUrl(c.env, slug)} />);
+      total={(total!.results[0] as { n: number }).n} shopLink={(slug) => shopUrl(c.env, slug)} canEnter={allowed(c, "shop.impersonate")} />);
 });
 
 /** CSV — Excel-এ খোলার জন্য (সূত্র-ইনজেকশন থেকে নিরাপদ) */
@@ -259,12 +259,14 @@ superApp.get("/shops/:id", async (c) => {
     db.prepare("SELECT * FROM audit_log WHERE target_type = 'shop' AND target_id = ? ORDER BY id DESC LIMIT 15").bind(s.id),
   ]);
   const orders30 = series(days, ord!.results as { d: string; v: number }[]);
+  // দোকানের নিজের ডাটাবেস থেকে পণ্য/অর্ডারের হিসাব (ব্যর্থ হলে পেজ তবুও খোলে)
+  const live = await c.env.SHOP.getByName(s.id).quickStats(s.id).catch(() => null);
   const r = (rev!.results[0] ?? {}) as { lifetime: number | null; topups: number | null };
   return page(c, s.name, "shops",
     <ShopDetailPage s={s} role={me(c).role} shopLink={shopUrl(c.env, s.slug)} domains={dom!.results as any}
       orders30={orders30} orders30Total={orders30.reduce((x, y) => x + y.value, 0)}
       revenue={{ lifetime: r.lifetime ?? 0, topups: r.topups ?? 0 }}
-      ledger={led!.results as LedgerRow[]} topups={tps!.results as TopupRow[]} notes={notes!.results as NoteRow[]} audit={aud!.results as AuditRow[]} />);
+      ledger={led!.results as LedgerRow[]} topups={tps!.results as TopupRow[]} notes={notes!.results as NoteRow[]} audit={aud!.results as AuditRow[]} live={live as any} />);
 });
 
 superApp.post("/shops/:id/status", async (c) => {
@@ -353,7 +355,7 @@ superApp.post("/shops/:id/impersonate", async (c) => {
     flash(c, "error", "দোকানে কোনো চালু মালিক অ্যাকাউন্ট নেই।");
     return c.redirect(`/super/shops/${s.id}`, 303);
   }
-  await audit(c, "shop.impersonate", "shop", s.id, str((await c.req.parseBody()).reason, 200) || "সাপোর্ট");
+  await audit(c, "shop.impersonate", "shop", s.id, str((await c.req.parseBody()).reason, 200) || "সুপার অ্যাডমিন থেকে প্যানেলে প্রবেশ");
   return c.redirect(shopUrl(c.env, s.slug, `/admin/auto-login?t=${token}&support=1`), 303);
 });
 

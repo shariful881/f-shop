@@ -190,3 +190,11 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa a:hover { text-decoration: underline; }
 .sa .sa-btn:hover, .sa .sa-nav a:hover, .sa .sa-chips a:hover, .sa .sa-kpi:hover, .sa .sa-brand:hover, .sa .sa-me-link:hover { text-decoration: none; }
 .sa-table td a b { color: var(--sa-ink); }
+
+.sa-btn-accent { background: #ea580c; border-color: #ea580c; } .sa-btn-accent:hover { background: #c2410c; }
+.sa-live { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+@media (max-width: 900px) { .sa-live { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sa-live > div { background: #f8fafc; border-radius: 12px; padding: 10px 12px; }
+.sa-live small { display: block; color: var(--sa-mute); font-size: .78rem; } .sa-live b { display: block; font-size: 1.3rem; } .sa-live span { font-size: .78rem; color: var(--sa-mute); }
+.sa-os-new { background: #dbeafe; color: #1e40af; } .sa-os-confirmed { background: #d1fae5; color: #065f46; } .sa-os-shipped { background: #e0e7ff; color: #3730a3; }
+.sa-os-cancelled, .sa-os-fake { background: #fee2e2; color: #991b1b; }
