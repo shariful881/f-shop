@@ -40,7 +40,7 @@ async function demoLinks(c: PCtx) {
   const { results } = await c.env.PLATFORM_DB.prepare("SELECT slug, demo_niche FROM shops WHERE demo_niche IS NOT NULL AND status = 'active'").all<{ slug: string; demo_niche: string }>();
   return results.flatMap((r) => {
     const n = nicheByKey(r.demo_niche);
-    return n ? [{ niche: n.niche, name: n.name, url: shopUrl(c.env, r.slug) }] : [];
+    return n ? [{ key: n.key, niche: n.niche, name: n.name, url: shopUrl(c.env, r.slug) }] : [];
   });
 }
 

@@ -7,7 +7,7 @@ import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { publicOrigin, str, toInt } from "../lib/http";
 import { platformSettings } from "../../platform/billing";
 import {
-  agentsOnline, CATEGORIES, createTicket, emit, hoursText, hub, messages, openChat, PRIORITY, publicMsg, shopMessage, systemMessage, telegram, withinHours,
+  agentsOnline, CATEGORIES, createTicket, STATUS, emit, hoursText, hub, messages, openChat, PRIORITY, publicMsg, shopMessage, systemMessage, telegram, withinHours,
   type Ticket,
 } from "../../platform/support";
 import { ShopNewTicket, ShopSupportList, ShopTicketPage } from "../views/support";
@@ -78,7 +78,11 @@ export function registerSupport(admin: Hono<AppEnv>, render: Render, flash: Flas
     if (values.body.length < 10) errors.body = "সমস্যাটা একটু বিস্তারিত লিখুন";
     const fe = checkFile(b.attachment);
     if (fe) errors.attachment = fe;
-    if (Object.keys(errors).length) return render(c, "নতুন টিকেট", "support", <ShopNewTicket errors={errors} values={values} />, 422);
+    const ajax = c.req.header("x-sx-ajax") === "1";
+    if (Object.keys(errors).length) {
+      if (ajax) return c.json({ error: Object.values(errors).join(" · "), errors }, 422);
+      return render(c, "নতুন টিকেট", "support", <ShopNewTicket errors={errors} values={values} />, 422);
+    }
 
     const attachment = await saveFile(c, b.attachment);
     const id = await createTicket(c.env.PLATFORM_DB, {
@@ -86,8 +90,18 @@ export function registerSupport(admin: Hono<AppEnv>, render: Render, flash: Flas
       priority: values.priority, openedBy: author(c), body: values.body, attachment,
     });
     await announceNew(c, { id, channel: "ticket", subject: values.subject, priority: values.priority, body: values.body });
+    if (ajax) return c.json({ id, url: `/admin/support/${id}` });
     flash(c, "ok", `টিকেট #${id} জমা হয়েছে। উত্তর এলে এখানে আর মেনুতে দেখাবে।`);
     return c.redirect(`/admin/support/${id}`, 303);
+  });
+
+  /** উইজেটের "সাপোর্ট টিকেট" ভাগের তালিকা */
+  admin.get("/support/tickets.json", async (c) => {
+    const { results } = await c.env.PLATFORM_DB.prepare(
+      `SELECT id, subject, status, priority, shop_unread, last_message_at, last_preview, last_sender FROM support_tickets
+       WHERE shop_id = ? AND channel = 'ticket' ORDER BY (status IN ('open','pending')) DESC, last_message_at DESC LIMIT 15`,
+    ).bind(c.env.SHOP_ID).all<Ticket>();
+    return c.json({ tickets: results.map((t) => ({ ...t, status_label: STATUS[t.status] ?? t.status })) });
   });
 
   /* ---------- লাইভ চ্যাট (JSON — support.js) ---------- */
@@ -97,10 +111,10 @@ export function registerSupport(admin: Hono<AppEnv>, render: Render, flash: Flas
       openChat(db, c.env.SHOP_ID),
       platformSettings(db),
       agentsOnline(c.env),
-      db.prepare("SELECT COALESCE(SUM(shop_unread), 0) n FROM support_tickets WHERE shop_id = ?").bind(c.env.SHOP_ID).first<{ n: number }>(),
+      db.prepare("SELECT COALESCE(SUM(shop_unread), 0) n, COALESCE(SUM(CASE WHEN channel = 'ticket' THEN shop_unread END), 0) t FROM support_tickets WHERE shop_id = ?").bind(c.env.SHOP_ID).first<{ n: number; t: number }>(),
     ]);
     return c.json({
-      online: n > 0, within: withinHours(s), hours: hoursText(s), unread: unread?.n ?? 0,
+      online: n > 0, within: withinHours(s), hours: hoursText(s), unread: unread?.n ?? 0, ticketUnread: unread?.t ?? 0,
       ticketId: chat?.id ?? null, chatUnread: chat?.shop_unread ?? 0,
       messages: chat ? (await messages(db, chat.id, { includeInternal: false })).slice(-80).map(publicMsg) : [],
     });

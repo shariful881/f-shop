@@ -43,7 +43,7 @@ export const ShopSupportList = (p: { tickets: Ticket[]; online: boolean; hours: 
         <h2>কীভাবে সাহায্য করতে পারি?</h2>
         <p>লাইভ চ্যাটে সাথে সাথে কথা বলুন, অথবা সমস্যার বিস্তারিত লিখে টিকেট দিন — স্ক্রিনশটসহ। আমাদের টিম উত্তর দিলে এখানেই দেখবেন।</p>
         <div class="sx-hero-actions">
-          <button type="button" class="sa-btn" data-sx-open>💬 লাইভ চ্যাট</button>
+          <button type="button" class="sa-btn" data-sx-open="chat">💬 লাইভ চ্যাট</button>
           <a href="/admin/support/new" class="sa-btn sa-btn-ghost">🎫 নতুন টিকেট</a>
         </div>
       </div>
@@ -57,10 +57,16 @@ export const ShopSupportList = (p: { tickets: Ticket[]; online: boolean; hours: 
       </div>
     </div>
 
+    <TicketCard title="🎫 সাপোর্ট টিকেট" empty="এখনো কোনো টিকেট নেই। বড় সমস্যা হলে স্ক্রিনশটসহ টিকেট দিন।" tickets={p.tickets.filter((t) => t.channel === "ticket")} action={<a href="/admin/support/new" class="sa-btn sa-btn-sm">➕ নতুন টিকেট</a>} />
+    <TicketCard title="💬 লাইভ চ্যাট" empty="এখনো কোনো চ্যাট হয়নি। কোণার 💬 বাটনে চাপ দিয়ে কথা বলুন।" tickets={p.tickets.filter((t) => t.channel === "chat")} action={<button type="button" class="sa-btn sa-btn-ghost sa-btn-sm" data-sx-open="chat">চ্যাট খুলুন</button>} />
+  </div>
+);
+
+const TicketCard = (p: { title: string; empty: string; tickets: Ticket[]; action?: unknown }) => (
     <div class="sa-card">
-      <div class="sa-card-head"><h2>আমার টিকেট ও চ্যাট</h2></div>
+      <div class="sa-card-head"><h2>{p.title}</h2>{p.action as any}</div>
       {p.tickets.length === 0 ? (
-        <p class="sa-empty">এখনো কোনো টিকেট নেই। কোনো সমস্যা হলে উপরের বাটন থেকে জানান।</p>
+        <p class="sa-empty">{p.empty}</p>
       ) : (
         <div class="sx-list">
           {p.tickets.map((t) => (
@@ -80,7 +86,6 @@ export const ShopSupportList = (p: { tickets: Ticket[]; online: boolean; hours: 
         </div>
       )}
     </div>
-  </div>
 );
 
 /* ---------- দোকানদার: নতুন টিকেট ---------- */
@@ -169,27 +174,59 @@ export const ShopTicketPage = (p: { t: Ticket; msgs: Message[] }) => {
   );
 };
 
-/** সব অ্যাডমিন পেজের কোণে ভাসমান চ্যাট বাটন — বাকিটা support.js বানায় */
+/** সব অ্যাডমিন পেজের কোণে ভাসমান সাপোর্ট — দুই ভাগ: লাইভ চ্যাট আর সাপোর্ট টিকেট (বাকিটা support.js) */
 export const ChatWidget = ({ shopName }: { shopName: string }) => (
   <div id="sx-widget" class="sx-widget" data-shop={shopName}>
-    <button type="button" class="sx-fab" data-sx-open aria-label="লাইভ সাপোর্ট">
+    <button type="button" class="sx-fab" data-sx-open aria-label="সাপোর্ট">
       <span class="sx-fab-ico">💬</span><span class="sx-fab-label">সাপোর্ট</span><span class="sx-fab-badge" hidden></span>
     </button>
-    <section class="sx-panel" hidden aria-label="লাইভ সাপোর্ট চ্যাট">
+    <section class="sx-panel" hidden aria-label="SellxBD সাপোর্ট">
       <header class="sx-panel-head">
         <div><b>SellxBD সাপোর্ট</b><small data-sx-presence-text>সংযোগ হচ্ছে…</small></div>
         <span class="sx-dot" data-sx-presence></span>
         <button type="button" class="sx-x" data-sx-close aria-label="বন্ধ">✕</button>
       </header>
-      <div class="sx-panel-body" data-sx-log>
-        <div class="sx-sys">আসসালামু আলাইকুম! আপনার সমস্যা বা প্রশ্ন লিখুন — টিম অনলাইনে থাকলে সাথে সাথে উত্তর দেবে, না থাকলে টিকেট হিসেবে জমা থাকবে।</div>
+      <nav class="sx-tabs" role="tablist">
+        <button type="button" role="tab" class="active" data-sx-tab="chat">💬 লাইভ চ্যাট<span class="sx-tab-badge" data-sx-badge-chat hidden></span></button>
+        <button type="button" role="tab" data-sx-tab="ticket">🎫 সাপোর্ট টিকেট<span class="sx-tab-badge" data-sx-badge-ticket hidden></span></button>
+      </nav>
+
+      {/* ভাগ ১: লাইভ চ্যাট */}
+      <div class="sx-pane" data-sx-pane="chat">
+        <div class="sx-panel-body" data-sx-log>
+          <div class="sx-sys">আসসালামু আলাইকুম! ছোট প্রশ্ন বা দ্রুত সাহায্যের জন্য এখানে লিখুন — টিম অনলাইনে থাকলে সাথে সাথে উত্তর দেবে।</div>
+        </div>
+        <div class="sx-typing" data-sx-typing-ind hidden>সাপোর্ট লিখছে<span>.</span><span>.</span><span>.</span></div>
+        <form class="sx-panel-form" data-sx-chat-form>
+          <textarea rows={1} maxlength={2000} placeholder="মেসেজ লিখুন…" required></textarea>
+          <button aria-label="পাঠান">➤</button>
+        </form>
       </div>
-      <div class="sx-typing" data-sx-typing-ind hidden>সাপোর্ট লিখছে<span>.</span><span>.</span><span>.</span></div>
-      <form class="sx-panel-form" data-sx-chat-form>
-        <textarea rows={1} maxlength={2000} placeholder="মেসেজ লিখুন…" required></textarea>
-        <button aria-label="পাঠান">➤</button>
-      </form>
-      <footer class="sx-panel-foot"><a href="/admin/support">সব টিকেট</a> · <a href="/admin/support/new">স্ক্রিনশটসহ টিকেট দিন</a></footer>
+
+      {/* ভাগ ২: সাপোর্ট টিকেট */}
+      <div class="sx-pane" data-sx-pane="ticket" hidden>
+        <div class="sx-tk-list" data-sx-tk-list>
+          <div class="sx-tk-intro">
+            <b>বড় সমস্যা? টিকেট দিন</b>
+            <span>সমস্যার বিস্তারিত আর স্ক্রিনশট দিন — টিম দেখে এখানেই উত্তর দেবে, সমাধান না হওয়া পর্যন্ত খোলা থাকবে।</span>
+            <button type="button" class="sa-btn sa-btn-sm" data-sx-tk-new>➕ নতুন টিকেট</button>
+          </div>
+          <div class="sx-tk-items" data-sx-tk-items><div class="sx-muted sx-tk-empty">লোড হচ্ছে…</div></div>
+          <a href="/admin/support" class="sx-tk-all">সব টিকেট দেখুন →</a>
+        </div>
+        <form class="sx-tk-form" data-sx-tk-form hidden enctype="multipart/form-data">
+          <button type="button" class="sx-tk-back" data-sx-tk-back>← টিকেটের তালিকা</button>
+          <div class="sx-grid2">
+            <label>ধরন<select name="category">{Object.entries(CATEGORIES).map(([k, l]) => <option value={k}>{l}</option>)}</select></label>
+            <label>গুরুত্ব<select name="priority"><option value="normal">সাধারণ</option><option value="high">জরুরি</option><option value="urgent">খুব জরুরি</option></select></label>
+          </div>
+          <label>বিষয়<input name="subject" maxlength={150} required placeholder="এক লাইনে সমস্যাটা" /></label>
+          <label>বিস্তারিত<textarea name="body" rows={4} maxlength={5000} required placeholder="কী করতে চাইছিলেন, কী হয়েছে, কোন পেজে, অর্ডার নম্বর…"></textarea></label>
+          <label>স্ক্রিনশট <small>(ঐচ্ছিক, ৩ MB)</small><input type="file" name="attachment" accept="image/jpeg,image/png,image/webp" /></label>
+          <div class="sx-tk-err" data-sx-tk-err hidden></div>
+          <button class="sa-btn sa-btn-block">টিকেট জমা দিন</button>
+        </form>
+      </div>
     </section>
   </div>
 );

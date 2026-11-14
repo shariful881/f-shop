@@ -183,3 +183,44 @@
 .sx-toast.out { opacity: 0; transform: translateX(20px); }
 /* সুপার অ্যাডমিনে উইজেট নেই, তাই টোস্ট নিচে */
 body.sa:not(.shop-admin) .sx-toasts { top: auto; bottom: 16px; }
+
+/* ---------- উইজেটের দুই ভাগ: লাইভ চ্যাট | সাপোর্ট টিকেট ---------- */
+.sx-tabs { display: grid; grid-template-columns: 1fr 1fr; background: #f1f5f9; padding: 4px; gap: 4px; border-bottom: 1px solid var(--sa-line); }
+.sx-tabs button { position: relative; border: 0; background: transparent; border-radius: 10px; padding: 9px 6px; font: inherit; font-size: .88rem; font-weight: 700; color: #475569; cursor: pointer; }
+.sx-tabs button.active { background: #fff; color: #0f766e; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+.sx-tab-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: #ea580c; color: #fff; font-size: .7rem; vertical-align: 1px; }
+.sx-tab-badge[hidden] { display: none; }
+.sx-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.sx-pane[hidden] { display: none; }
+.sx-pane > .sx-typing { padding: 4px 16px; background: #fafbfd; }
+
+.sx-tk-list, .sx-tk-form { flex: 1; overflow-y: auto; padding: 14px; background: #fafbfd; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+.sx-tk-list[hidden], .sx-tk-form[hidden] { display: none; }
+.sx-tk-intro { display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--sa-line); border-radius: 14px; padding: 14px; }
+.sx-tk-intro span { color: #475569; font-size: .84rem; line-height: 1.5; }
+.sx-tk-intro .sa-btn { align-self: flex-start; margin-top: 4px; }
+.sx-tk-items { display: flex; flex-direction: column; gap: 8px; }
+.sx-tk-empty { text-align: center; padding: 12px; }
+.sx-tk-item { display: flex; flex-direction: column; gap: 4px; background: #fff; border: 1px solid var(--sa-line); border-radius: 12px; padding: 10px 12px; color: inherit !important; text-decoration: none !important; }
+.sx-tk-item:hover { border-color: #99f6e4; }
+.sx-tk-item.unread { border-color: #fdba74; background: #fff7ed; }
+.sx-tk-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.sx-tk-top b { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sx-tk-prev { color: #64748b; font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-tk-item small { color: #94a3b8; font-size: .74rem; }
+.sx-tk-all { text-align: center; font-size: .84rem; padding: 4px; }
+.sx-tk-form label { display: flex; flex-direction: column; gap: 5px; font-size: .84rem; font-weight: 600; color: #334155; }
+.sx-tk-form label small { font-weight: 400; color: var(--sa-mute); }
+.sx-tk-form input:not([type=file]), .sx-tk-form select, .sx-tk-form textarea { font: inherit; font-weight: 400; font-size: .9rem; border: 1px solid #d5dbe5; border-radius: 10px; padding: 8px 10px; background: #fff; width: 100%; box-sizing: border-box; }
+.sx-tk-form textarea { resize: vertical; line-height: 1.5; }
+.sx-tk-form input[type=file] { font-size: .8rem; font-weight: 400; }
+.sx-tk-form .sx-grid2 { gap: 0 10px; }
+.sx-tk-back { align-self: flex-start; background: none; border: 0; color: #0e7490; font: inherit; font-size: .84rem; cursor: pointer; padding: 0; }
+.sx-tk-err { background: #fef2f2; color: #b91c1c; border-radius: 10px; padding: 8px 10px; font-size: .84rem; }
+.sx-tk-err[hidden] { display: none; }
+
+/* সুপার ইনবক্স: লাইভ চ্যাট | সাপোর্ট টিকেট আলাদা */
+.sx-channels { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+.sx-channels a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 12px; background: #fff; border: 1px solid var(--sa-line); color: #334155 !important; font-weight: 700; text-decoration: none !important; }
+.sx-channels a.active { background: #0f766e; border-color: #0f766e; color: #fff !important; }
+.sx-channels .sa-badge { margin: 0; }
