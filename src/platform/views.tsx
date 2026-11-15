@@ -383,7 +383,6 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
           <button type="button" role="tab" class="on" aria-selected="true" data-bill="year">বাৎসরিক <span>১৫% ছাড়</span></button>
           <button type="button" role="tab" aria-selected="false" data-bill="month">মাসিক</button>
         </div>
-        <p class="hp-swipe" aria-hidden="true"><Icon name="arrow-left" size="sm" /> সরিয়ে সব প্ল্যান দেখুন <Icon name="arrow-right" size="sm" /></p>
         <div class="hp-plans" data-mode="year">
           {(["free", "small", "grow", "big"] as const).map((k) => (
             <div class={`hp-plan${k === "grow" ? " hp-plan-hot" : ""}`}>

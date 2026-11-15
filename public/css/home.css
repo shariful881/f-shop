@@ -337,3 +337,21 @@
 .hp-py, .hp-pm { margin-bottom: 14px; }
 .hp-plan-year s { color: #94a3b8; }
 @media (max-width: 639px) { .hp-bill-tabs { margin-top: 16px; } .hp-bill-tabs button { padding: 9px 16px; } }
+
+/* মোবাইলে প্ল্যান: পাশে সরানো নয়, নিচে নিচে ছোট কার্ড — সব প্ল্যান একসাথে চোখে পড়ে */
+@media (max-width: 639px) {
+  .hp-plans { display: grid; grid-template-columns: 1fr; gap: 12px; overflow: visible; margin: 16px 0 0; padding: 0; scroll-snap-type: none; }
+  .hp-plan { flex: none; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: start; padding: 16px; border-radius: 16px; }
+  .hp-plan h3 { grid-column: 1; grid-row: 1; font-size: 1.08rem; }
+  .hp-plan-for { grid-column: 1; grid-row: 2; margin: 2px 0 0; font-size: .8rem; }
+  .hp-plan .hp-py, .hp-plan .hp-pm { grid-column: 2; grid-row: 1 / span 2; text-align: right; margin: 0; }
+  .hp-plan .hp-plan-price { font-size: 1.45rem; margin: 0; }
+  .hp-plan .hp-plan-price small { font-size: .78rem; }
+  .hp-plan .hp-plan-year { font-size: .74rem; display: block; margin-top: 2px; }
+  .hp-plan ul { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; padding-top: 12px; font-size: .84rem; }
+  .hp-plan li { gap: 4px; }
+  .hp-plan-hot { margin-top: 8px; }
+  .hp-plan-badge { left: 16px; transform: none; top: -11px; font-size: .72rem; }
+  .hp-bill-tabs { width: 100%; }
+  .hp-bill-tabs button { flex: 1; justify-content: center; }
+}
