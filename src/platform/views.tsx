@@ -51,7 +51,18 @@ const Check = () => <span class="h-check" aria-hidden="true">✓</span>;
 const Cross = () => <span class="h-cross" aria-hidden="true">✕</span>;
 
 /** বিক্রির পুরো পথ — ট্যাবে ভাগ করা ফিচার। প্রতিটা: [আইকন, নাম, কোন সমস্যা, কীভাবে সমাধান]। নতুন ফিচার এলে এখানে যোগ করুন। */
-const FEATURE_TABS: { key: string; icon: IconName; title: string; short: string; sub: string; items: [IconName, string, string, string][] }[] = [
+const FEATURE_TABS: { key: string; icon: IconName; title: string; short: string; sub: string; hot?: boolean; items: [IconName, string, string, string][] }[] = [
+  {
+    key: "orders", icon: "shield-check", title: "অর্ডার আর ফেক আটকানো", short: "ফেক আটকানো", sub: "বাংলাদেশে অনলাইন বিক্রির সবচেয়ে বড় সমস্যা — আসল ক্রেতা, কম ফেরত", hot: true,
+    items: [
+      ["shield-alert", "ফেক অর্ডার ব্লক", "ভুয়া নম্বরে অর্ডার, পার্সেল ফেরত", "ভুল নম্বর নেয় না, বারবার অর্ডার আটকায়; ফেক ধরলে নম্বর আর ডিভাইস ব্লক।"],
+      ["users", "ক্রেতার রেকর্ড", "কে পার্সেল নেবে আর কে নেবে না, আগে জানা যায় না", "আগে কতবার নিয়েছে আর ফেরত দিয়েছে — সব SellxBD দোকান আর কুরিয়ারের রেকর্ড মিলিয়ে।"],
+      ["hourglass", "অসম্পূর্ণ অর্ডার", "নম্বর লিখে অর্ডার না করেই চলে যায়", "সেই নম্বর তালিকায় আসে — কল বা WhatsApp করে এক ক্লিকে অর্ডার বানান।"],
+      ["wallet", "অগ্রিম পেমেন্ট", "ঝুঁকির ক্রেতার কাছে পার্সেল পাঠানো জুয়া", "ডেলিভারি চার্জ বা পুরো টাকা bKash/Nagad/Rocket-এ অগ্রিম — শুধু যার কাছে দরকার।"],
+      ["shopping-cart", "কার্ট আর চেকআউট", "একসাথে কয়েকটা পণ্য কিনতে ইনবক্সে লম্বা কথা", "কয়েকটা পণ্য একসাথে, পরিমাণ বদলানো, নিজের ঘর যোগ — কাস্টমার নিজেই অর্ডার করে।"],
+      ["bell", "ফোনে অর্ডারের খবর", "নতুন অর্ডার এসে পড়ে থাকে, দেরিতে ফোন", "প্যানেল অ্যাপের মতো ফোনে বসান — অর্ডার এলেই নোটিফিকেশন।"],
+    ],
+  },
   {
     key: "build", icon: "store", title: "দোকান আর পেজ", short: "দোকান", sub: "কোড ছাড়াই সুন্দর দোকান আর অ্যাডের পেজ",
     items: [
@@ -72,17 +83,6 @@ const FEATURE_TABS: { key: string; icon: IconName; title: string; short: string;
       ["chart-line", "GA4, GTM, TikTok", "কোথা থেকে কাস্টমার আসছে অজানা", "Google Analytics, Tag Manager আর TikTok Pixel — শুধু ID বসালেই চালু।"],
       ["search", "Google-এর জন্য SEO", "Google-এ খুঁজলে দোকান পাওয়া যায় না", "প্রতিটা পণ্যের টাইটেল-বিবরণ, Google-এ কেমন দেখাবে তার প্রিভিউ, sitemap নিজে তৈরি।"],
       ["tag", "কুপন আর অফার", "উৎসবের অফার চালাতে ঝামেলা", "ঈদ অফার, % ছাড়, ফ্রি ডেলিভারি কুপন, কাটা দাম — এক মিনিটে চালু।"],
-    ],
-  },
-  {
-    key: "orders", icon: "shield-check", title: "অর্ডার আর ফেক আটকানো", short: "ফেক আটকানো", sub: "আসল ক্রেতা, কম ফেরত",
-    items: [
-      ["shield-alert", "ফেক অর্ডার ব্লক", "ভুয়া নম্বরে অর্ডার, পার্সেল ফেরত", "ভুল নম্বর নেয় না, বারবার অর্ডার আটকায়; ফেক ধরলে নম্বর আর ডিভাইস ব্লক।"],
-      ["users", "ক্রেতার রেকর্ড", "কে পার্সেল নেবে আর কে নেবে না, আগে জানা যায় না", "আগে কতবার নিয়েছে আর ফেরত দিয়েছে — সব SellxBD দোকান আর কুরিয়ারের রেকর্ড মিলিয়ে।"],
-      ["hourglass", "অসম্পূর্ণ অর্ডার", "নম্বর লিখে অর্ডার না করেই চলে যায়", "সেই নম্বর তালিকায় আসে — কল বা WhatsApp করে এক ক্লিকে অর্ডার বানান।"],
-      ["wallet", "অগ্রিম পেমেন্ট", "ঝুঁকির ক্রেতার কাছে পার্সেল পাঠানো জুয়া", "ডেলিভারি চার্জ বা পুরো টাকা bKash/Nagad/Rocket-এ অগ্রিম — শুধু যার কাছে দরকার।"],
-      ["shopping-cart", "কার্ট আর চেকআউট", "একসাথে কয়েকটা পণ্য কিনতে ইনবক্সে লম্বা কথা", "কয়েকটা পণ্য একসাথে, পরিমাণ বদলানো, নিজের ঘর যোগ — কাস্টমার নিজেই অর্ডার করে।"],
-      ["bell", "ফোনে অর্ডারের খবর", "নতুন অর্ডার এসে পড়ে থাকে, দেরিতে ফোন", "প্যানেল অ্যাপের মতো ফোনে বসান — অর্ডার এলেই নোটিফিকেশন।"],
     ],
   },
   {
@@ -224,13 +224,14 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
         <div class="hp-tabs" data-hp-tabs>
           <div class="hp-tablist" role="tablist">
             {FEATURE_TABS.map((t, i) => (
-              <button type="button" role="tab" class={i === 0 ? "active" : ""} data-hp-tab={t.key} aria-selected={i === 0 ? "true" : "false"}>
-                <Icon name={t.icon} /> <span class="hp-tl-long">{t.title}</span><span class="hp-tl-short">{t.short}</span>
+              <button type="button" role="tab" class={`${i === 0 ? "active" : ""}${t.hot ? " hot" : ""}`} data-hp-tab={t.key} aria-selected={i === 0 ? "true" : "false"}>
+                <Icon name={t.icon} /> <span class="hp-tl-long">{t.title}</span><span class="hp-tl-short">{t.short}</span>{t.hot && <em class="hp-tab-hot">সবচেয়ে জরুরি</em>}
               </button>
             ))}
           </div>
           {FEATURE_TABS.map((t, i) => (
-            <div class="hp-panel-tab" data-hp-panel={t.key} role="tabpanel" data-first={i === 0 ? "1" : undefined}>
+            <div class={`hp-panel-tab${t.hot ? " hot" : ""}`} data-hp-panel={t.key} role="tabpanel" data-first={i === 0 ? "1" : undefined}>
+              {t.hot && <p class="hp-hot-note"><Icon name="shield-alert" /> <span><b>বাংলাদেশে অনলাইন বিক্রির সবচেয়ে বড় সমস্যা ফেক অর্ডার আর পার্সেল ফেরত।</b> তাই এই ভাগটা SellxBD-এর সবচেয়ে শক্তিশালী — অর্ডার আসার মুহূর্ত থেকে পার্সেল পাঠানো পর্যন্ত প্রতিটা ধাপে পাহারা।</span></p>}
               <h3 class="hp-tab-h"><Icon name={t.icon} /> {t.title} <small>{t.sub}</small></h3>
               <div class="hp-feats">
                 {t.items.map(([ic, title, problem, d]) => (

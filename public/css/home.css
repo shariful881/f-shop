@@ -299,3 +299,19 @@
   .hp-sticky .btn { padding: 11px 16px; white-space: nowrap; }
   .hp .p-foot { padding-bottom: 80px; }
 }
+
+/* ===== ফেক আটকানো ট্যাব — সবচেয়ে জরুরি, তাই আলাদা করে চোখে পড়ে ===== */
+.hp-tablist button.hot { position: relative; border-color: #fdba74; background: #fff7ed; color: #9a3412; }
+.hp-tablist button.hot.active { background: linear-gradient(135deg, #ea580c, #c2410c); border-color: #c2410c; color: #fff; box-shadow: 0 10px 24px rgba(234,88,12,.35); }
+.hp-tab-hot { position: absolute; top: -10px; right: 10px; font-style: normal; font-size: .66rem; font-weight: 800; background: #dc2626; color: #fff; padding: 1px 8px; border-radius: 999px; white-space: nowrap; box-shadow: 0 0 0 2px #fff; }
+.hp-hot-note { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 14px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fdba74; color: #7c2d12; line-height: 1.6; }
+.hp-hot-note > .ic { color: #ea580c; width: 26px; height: 26px; flex: none; margin-top: 1px; }
+.hp-hot-note b { color: #9a3412; }
+.hp-panel-tab.hot .hp-feat { border-color: #fed7aa; }
+.hp-panel-tab.hot .hp-feat .hp-ic { background: #ffedd5; color: #c2410c; }
+@media (max-width: 639px) {
+  .hp-tab-hot { top: -9px; left: 50%; right: auto; transform: translateX(-50%); font-size: .6rem; padding: 0 6px; }
+  .hp-tabs.js .hp-tablist { padding-top: 14px; }
+  .hp-hot-note { font-size: .9rem; padding: 12px; }
+}
+.hp-tabs.js .hp-tablist { padding-top: 14px; }
