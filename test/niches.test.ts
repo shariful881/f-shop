@@ -177,6 +177,25 @@ describe("ডেমোর ছবি এক জায়গায়", () => {
     await spost(b, "/super/demos-share-images");
     expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'gadgetpara-02'").first()) as any).image).toBe("demo/gadgetpara-02.jpg");
     expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM images WHERE key LIKE 'p/%'").first())!.n).toBe(0);
+    expect(await (await b.fetch("/super/demos", { base: P } as RequestInit)).text()).toContain("সব দোকান শেষ");
+  });
+
+  it("২০টার বেশি দোকান হলে পরের চাপে পরের দোকানগুলো ধরে", async () => {
+    await pdb().prepare("DELETE FROM platform_settings WHERE key = 'demo_share_cursor'").run();
+    for (let i = 0; i < 22; i++) {
+      await pdb().prepare("INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, plan, niche, created_at) VALUES (?, ?, 'x', 'x', '01700000000', ?, 'active', 'free', 'gadgetpara', datetime('now', ?))")
+        .bind(`sh-${i}`, `shopn${i}`, `n${i}@x.com`, `-${100 - i} minutes`).run();
+    }
+    const b = await superB();
+    const total = (await pdb().prepare("SELECT COUNT(*) n FROM shops WHERE (niche IS NOT NULL OR demo_niche IS NOT NULL) AND deleted_at IS NULL").first<{ n: number }>())!.n;
+    await spost(b, "/super/demos-share-images");
+    expect(await (await b.fetch("/super/demos", { base: P } as RequestInit)).text()).toContain("বোতামটা আবার চাপুন");
+    const cur = (await pdb().prepare("SELECT value FROM platform_settings WHERE key = 'demo_share_cursor'").first<{ value: string }>())!.value;
+    expect(cur).not.toBe("");
+    await spost(b, "/super/demos-share-images");
+    if (total <= 40) expect(await (await b.fetch("/super/demos", { base: P } as RequestInit)).text()).toContain("সব দোকান শেষ");
+    const audits = await pdb().prepare("SELECT detail FROM audit_log WHERE action = 'demo.share_images' ORDER BY rowid DESC LIMIT 2").all<{ detail: string }>();
+    expect(audits.results[1].detail).toMatch(/^20টা দোকান/);
   });
 });
 
