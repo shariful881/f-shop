@@ -159,11 +159,13 @@ describe("সুপার অ্যাডমিন: টেমপ্লেট", (
 });
 
 describe("নিশের নতুন টেমপ্লেট", () => {
-  it("৮টা নতুন টেমপ্লেট আছে, সব ঠিকমতো পড়া যায়, নতুন সেকশন থাকে", async () => {
+  it("নিশের ১৪টা টেমপ্লেট (মোট ২০টা) আছে, সব ঠিকমতো পড়া যায়, নতুন সেকশন থাকে", async () => {
     const { PLATFORM_DB } = (await import("cloudflare:test")).env as unknown as { PLATFORM_DB: D1Database };
     const { parseLanding } = await import("../src/shop/lib/landing");
     const { results } = await PLATFORM_DB.prepare("SELECT name, json FROM landing_templates WHERE sort_order >= 20").all<{ name: string; json: string }>();
-    expect(results.length).toBe(8);
+    expect(results.length).toBe(14);
+    const all = await PLATFORM_DB.prepare("SELECT COUNT(*) n FROM landing_templates WHERE active = 1").first<{ n: number }>();
+    expect(all!.n).toBeGreaterThanOrEqual(20);
     const types = new Set<string>();
     for (const r of results) {
       const l = parseLanding(r.json);

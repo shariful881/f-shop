@@ -1,0 +1,82 @@
+"""আরও ৬টা নিশ ল্যান্ডিং টেমপ্লেট (মোট ২০) → migrations/platform/0013_more_landing_templates.sql
+চালাতে: python3 scripts/gen-landing-templates-2.py"""
+import json
+
+def sec(i, t, data, style=None, enabled=True):
+    s = {"id": i, "type": t, "enabled": enabled, "data": data}
+    if style:
+        s["style"] = style
+    return s
+
+ORDER = lambda bg, btn: sec("order", "order_form", {"title": "অর্ডার করতে নিচের ফর্মটি পূরণ করুন"}, {"bg": bg, "btn_bg": btn, "btn_color": "#ffffff"})
+STEPS = sec("steps", "steps", {"title": "কীভাবে অর্ডার করবেন", "items": ["নিচের ফর্মে নাম, মোবাইল আর ঠিকানা দিন", "আমরা ফোন করে অর্ডার কনফার্ম করব", "১–৩ দিনে পণ্য হাতে পেয়ে টাকা দিন"]})
+COD = ["ক্যাশ অন ডেলিভারি", "সারাদেশে হোম ডেলিভারি", "পণ্য দেখে নেওয়ার সুযোগ"]
+FAQ_DELIVERY = {"q": "ডেলিভারি কত দিনে?", "a": "ঢাকায় ১–২ দিন, বাইরে ২–৪ দিন।"}
+
+T = []
+
+T.append(("অন্তর্বাস ও লঞ্জারি (গোপন প্যাকেজিং)", "ফ্যাশন", "নরম রং, সাইজ গাইড, গোপন প্যাকেজিংয়ের নিশ্চয়তা — ব্রা, প্যান্টি, নাইটি", {"style": {"font": "anek"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "আরামদায়ক কাপড়, সঠিক ফিটিং — প্যাকেটে কী আছে কেউ জানবে না", "show_price": True, "button_text": "গোপনে অর্ডার করুন"}, {"bg": "#fdf2f8", "color": "#831843", "btn_bg": "#be185d", "btn_color": "#ffffff", "align": "center"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "কেন আমাদের থেকে নেবেন", "items": ["নরম, ঘাম শোষণকারী কাপড়", "সব সাইজ — ফোনে মাপ মিলিয়ে দেব", "নাম লেখা ছাড়া সাধারণ প্যাকেটে ডেলিভারি", "মহিলা কর্মী দিয়ে কনফার্মেশন কল"]}),
+    sec("guarantee", "guarantee", {"title": "১০০% গোপনীয়তা", "subheadline": "প্যাকেটের বাইরে পণ্যের নাম থাকে না। আপনার তথ্য কারো সাথে শেয়ার করা হয় না।"}),
+    STEPS, ORDER("#fdf2f8", "#9d174d"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "সাইজ কীভাবে বুঝব?", "a": "অর্ডারের পর ফোনে আপনার মাপ জেনে সঠিক সাইজ দেব।"}, FAQ_DELIVERY]}),
+]}))
+
+T.append(("পাঞ্জাবি ও পুরুষের পোশাক", "ফ্যাশন", "ঈদ-উৎসবের কালেকশন, সাইজ চার্ট, কাপড়ের তুলনা — পাঞ্জাবি, শার্ট, প্যান্ট", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "উৎসবের জন্য প্রিমিয়াম পাঞ্জাবি — আরামদায়ক কাপড়, নিখুঁত সেলাই", "show_price": True, "button_text": "পছন্দের সাইজ অর্ডার করুন"}, {"bg": "#1e293b", "color": "#f8fafc", "btn_bg": "#d97706", "btn_color": "#ffffff"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "কালেকশনের বিশেষত্ব", "items": ["১০০% কটন / সিল্ক মিক্স", "M থেকে XXL সব সাইজ", "রং ওঠে না, ইস্ত্রি সহজ", "উপহারের জন্য সুন্দর প্যাকেট"]}),
+    sec("comparison", "comparison", {"title": "সাইজ চার্ট (ইঞ্চি)", "labels": ["বুক", "লম্বা"], "rows": [{"label": "M", "us": "৪০", "them": "৪২"}, {"label": "L", "us": "৪২", "them": "৪৩"}, {"label": "XL", "us": "৪৪", "them": "৪৪"}]}),
+    sec("cta", "cta", {"headline": "ঈদের আগে ডেলিভারি পেতে আজই অর্ডার করুন", "button_text": "অর্ডার করুন", "show_price": True}, {"bg": "#fffbeb"}),
+    STEPS, ORDER("#f8fafc", "#b45309"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "সাইজ না মিললে?", "a": "ডেলিভারির সময় দেখে নিন, না মিললে বদলে দেব।"}, FAQ_DELIVERY]}),
+]}))
+
+T.append(("ইসলামিক পণ্য", "অন্যান্য", "শান্ত ডিজাইন, খাঁটির নিশ্চয়তা — আতর, টুপি, জায়নামাজ, তসবিহ, কুরআন শরীফ", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "খাঁটি আতর আর মানসম্মত ইসলামিক পণ্য — সারাদেশে ডেলিভারি", "show_price": True, "button_text": "এখনই অর্ডার করুন"}, {"bg": "#064e3b", "color": "#ecfdf5", "btn_bg": "#ca8a04", "btn_color": "#1c1917"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "কেন আমাদের পণ্য", "items": ["অ্যালকোহলমুক্ত খাঁটি আতর", "দীর্ঘক্ষণ সুবাস থাকে", "সুন্দর গিফট বক্স", "সাশ্রয়ী দাম"]}),
+    sec("guarantee", "guarantee", {"title": "খাঁটি না হলে টাকা ফেরত", "subheadline": "পণ্য হাতে পেয়ে মান নিয়ে সন্তুষ্ট না হলে ফেরত দিন।"}),
+    sec("trust", "trust", {"title": "", "items": COD}),
+    ORDER("#ecfdf5", "#047857"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "আতরে অ্যালকোহল আছে?", "a": "না, সব আতর অ্যালকোহলমুক্ত।"}, FAQ_DELIVERY]}),
+]}))
+
+T.append(("গাছ, বীজ ও ছাদবাগান", "অন্যান্য", "ধাপে ধাপে চাষের নিয়ম, আগে-পরে ছবি — চারা, বীজ, টব, জৈব সার", {"style": {"font": "anek"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "ছাদে বা বারান্দায় নিজের হাতে সবজি — ভালো জাতের বীজ ও চারা", "show_price": True, "button_text": "বীজ অর্ডার করুন"}, {"bg": "#14532d", "color": "#f0fdf4", "btn_bg": "#84cc16", "btn_color": "#1a2e05"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("before_after", "before_after", {"title": "বীজ থেকে ফসল", "images": ["", ""], "labels": ["বপনের দিন", "৪৫ দিন পরে"]}),
+    sec("steps-grow", "steps", {"title": "কীভাবে লাগাবেন", "items": ["টবে মাটি আর জৈব সার মেশান", "বীজ আধা ইঞ্চি গভীরে দিন", "রোদ পায় এমন জায়গায় রাখুন, নিয়মিত পানি দিন"]}),
+    sec("benefits", "benefits", {"title": "আমাদের বীজ কেন", "items": ["উচ্চ অঙ্কুরোদগম হার", "বারোমাসি জাত", "চাষের নিয়মের লিফলেট সাথে", "ফোনে চাষের পরামর্শ"]}),
+    ORDER("#f0fdf4", "#15803d"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "চারা গজাবে তো?", "a": "নিয়ম মেনে লাগালে বেশিরভাগ বীজ ৭–১০ দিনে গজায়।"}, FAQ_DELIVERY]}),
+]}))
+
+T.append(("গয়না ও জুয়েলারি", "ফ্যাশন", "বড় ছবি, ক্লোজআপ, গিফট বক্স — কানের দুল, চুড়ি, নেকলেস", {"style": {"font": "anek"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "উৎসব আর উপহারের জন্য ঝলমলে গয়না — রং কালো হয় না", "show_price": True, "button_text": "এখনই অর্ডার করুন"}, {"bg": "#1c1917", "color": "#fef3c7", "btn_bg": "#d4a017", "btn_color": "#1c1917", "align": "center"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("image", "image", {"title": "", "images": []}, enabled=False),
+    sec("benefits", "benefits", {"title": "যা পাচ্ছেন", "items": ["অ্যান্টি-ট্রানিশ কোটিং — রং টেকে", "ত্বকে অ্যালার্জি করে না", "সুন্দর গিফট বক্সে প্যাক", "ছবির মতোই পণ্য"]}),
+    sec("cta", "cta", {"headline": "প্রিয়জনকে উপহার দিন", "button_text": "অর্ডার করুন", "show_price": True}, {"bg": "#fffbeb"}),
+    ORDER("#fffbeb", "#a16207"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "রং কত দিন থাকবে?", "a": "পানি আর পারফিউম থেকে দূরে রাখলে অনেক দিন নতুনের মতো থাকে।"}, FAQ_DELIVERY]}),
+]}))
+
+T.append(("জুতা ও ব্যাগ", "ফ্যাশন", "সাইজ চার্ট, মানের তুলনা, রিপ্লেসমেন্ট — জুতা, স্যান্ডেল, লেডিস ব্যাগ, ওয়ালেট", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "আসল লেদার, আরামদায়ক সোল — সারাদিন পরলেও পা ব্যথা নয়", "show_price": True, "button_text": "সাইজ বেছে অর্ডার করুন"}, {"bg": "#292524", "color": "#fafaf9", "btn_bg": "#ea580c", "btn_color": "#ffffff"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "কেন এই জুতা", "items": ["আসল চামড়া", "নরম কুশন সোল", "পিছলে না এমন তলা", "৩৯ থেকে ৪৪ সব সাইজ"]}),
+    sec("comparison", "comparison", {"title": "আমাদের বনাম বাজারের সস্তা জুতা", "labels": ["আমাদের", "সস্তা জুতা"], "rows": [{"label": "চামড়া", "us": "আসল", "them": "রেক্সিন"}, {"label": "টিকে", "us": "১–২ বছর", "them": "কয়েক মাস"}, {"label": "সাইজ বদল", "us": "✓", "them": "✕"}]}),
+    sec("guarantee", "guarantee", {"title": "সাইজ না মিললে বদলে দেব", "subheadline": "৭ দিনের মধ্যে না পরা অবস্থায় সাইজ বদলানো যাবে।"}),
+    STEPS, ORDER("#fafaf9", "#c2410c"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "আমার সাইজ কত?", "a": "পায়ের দৈর্ঘ্য মেপে জানালে আমরা মিলিয়ে দেব।"}, FAQ_DELIVERY]}),
+]}))
+
+lines = ["-- আরও ৬টা নিশ ল্যান্ডিং টেমপ্লেট (মোট ২০) — scripts/gen-landing-templates-2.py দিয়ে তৈরি"]
+for i, (name, cat, desc, data) in enumerate(T):
+    js = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("'", "''")
+    lines.append(f"INSERT INTO landing_templates (name, category, description, json, sort_order) VALUES ('{name}', '{cat}', '{desc}', '{js}', {30 + i});")
+open("migrations/platform/0013_more_landing_templates.sql", "w").write("\n".join(lines) + "\n")
+print(len(T), "templates")
