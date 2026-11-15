@@ -34,13 +34,21 @@ import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/cu
 import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMedia, type MediaFolder } from "../lib/media";
 import { MediaPage } from "../views/media";
 import { DesignEditorPage } from "../views/design";
-import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
+import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
+import { outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type Risk } from "../lib/fraud";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
 import { registerSupport } from "./support";
 import { customersCsv, ordersCsv, productsCsv } from "../lib/export";
 import { BackupPage, type StorageStats } from "../views/backup";
 import { UiKitPage } from "../views/ui";
+import { IncompleteConvertPage, IncompletePage } from "../views/incomplete";
+import { draftItems, INCOMPLETE_TABS, incompleteCounts, listIncomplete, markConverted, type IncompleteRow, type IncompleteTab } from "../lib/incomplete";
+import { cartLines } from "../lib/products";
+import { createOrder, orderPrefix } from "../lib/orders";
+import { deliveryCharge } from "../lib/settings";
+import { maxQty } from "../lib/cart";
+import { validateOrderInput } from "../lib/order-guard";
 
 export const admin = new Hono<AppEnv>();
 
@@ -205,6 +213,22 @@ const PER_PAGE = 50;
 const ORDER_RANGES = { all: 0, today: 1, "7": 7, "30": 30 } as const;
 type OrderRange = keyof typeof ORDER_RANGES;
 
+/** অনেক নম্বরের রায়: এই দোকান + অন্য দোকান + কুরিয়ারের ক্যাশ (বাইরের কল নয়) */
+async function riskMap(c: Ctx, phones: string[]): Promise<Record<string, Risk & { shared: number; courier: number | null }>> {
+  if (!phones.length) return {};
+  const [own, shared, courier] = await Promise.all([
+    ownRecords(c.env.DB, phones),
+    sharedRecords(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, phones),
+    cachedCourierRecords(c.env.DB, phones),
+  ]);
+  const out: Record<string, Risk & { shared: number; courier: number | null }> = {};
+  for (const p of phones) {
+    const sh = shared[p];
+    out[p] = { ...riskOf(own[p], sh, courier[p]), shared: sh ? sh.delivered + sh.returned + sh.cancelled + sh.fake : 0, courier: courier[p]?.ratio ?? null };
+  }
+  return out;
+}
+
 admin.get("/orders", async (c) => {
   const db = c.env.DB;
   const status = (STATUS_TABS as string[]).includes(c.req.query("status") || "") ? (c.req.query("status") as OrderStatus) : "new";
@@ -244,10 +268,74 @@ admin.get("/orders", async (c) => {
     ).bind(...phones).all<{ phone: string; good: number; bad: number }>();
     for (const r of h) history[r.phone] = { good: r.good, bad: r.bad };
   }
+  const risk = await riskMap(c, phones);
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history}
+    <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk}
       hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
+});
+
+/* ---------- অসম্পূর্ণ অর্ডার ---------- */
+admin.get("/incomplete", async (c) => {
+  const q = c.req.query("status") || "open";
+  const status = (q in INCOMPLETE_TABS ? q : "open") as IncompleteTab;
+  const [rows, counts] = await Promise.all([listIncomplete(c.env.DB, status), incompleteCounts(c.env.DB)]);
+  const risk = status === "open" || status === "called" ? await riskMap(c, [...new Set(rows.map((r) => r.phone))]) : {};
+  return render(c, "অসম্পূর্ণ অর্ডার", "incomplete",
+    <IncompletePage rows={rows} status={status} counts={counts} shopName={c.var.settings.site_name || "আমাদের দোকান"} risk={risk} capture={c.var.settings.incomplete_capture !== "0"} />);
+});
+
+admin.post("/incomplete/:id{[0-9]+}/status", async (c) => {
+  const to = String((await c.req.parseBody()).status);
+  if (["open", "called", "dismissed"].includes(to)) {
+    // অর্ডার হয়ে যাওয়া লাইন আর বদলায় না; একই নম্বরের আরেকটা খোলা লাইন থাকলে ফিরিয়ে আনা যায় না
+    await c.env.DB.prepare(
+      `UPDATE incomplete_orders SET status = ?, updated_at = datetime('now') WHERE id = ? AND status != 'converted'
+         AND (? = 'dismissed' OR NOT EXISTS (SELECT 1 FROM incomplete_orders x WHERE x.phone = incomplete_orders.phone AND x.id != incomplete_orders.id AND x.status IN ('open', 'called')))`,
+    ).bind(to, toInt(c.req.param("id")), to).run().catch(() => {});
+  }
+  return c.redirect(c.req.header("referer")?.includes("/admin/incomplete") ? new URL(c.req.header("referer")!).pathname + new URL(c.req.header("referer")!).search : "/admin/incomplete", 303);
+});
+
+async function convertView(c: Ctx, row: IncompleteRow, extra: { errors?: Record<string, string>; values?: Record<string, string> } = {}, status: 200 | 422 = 200) {
+  const s = c.var.settings;
+  const max = maxQty(s);
+  const lines = (await cartLines(c.env.DB, draftItems(row))).map((l) => ({ ...l, qty: Math.min(max, l.qty ?? 1) }));
+  const sub = lines.reduce((t, l) => t + l.price * (l.qty ?? 1), 0);
+  const blocked = !!(await c.env.DB.prepare("SELECT 1 FROM blacklist_entries WHERE type = 'phone' AND value = ?").bind(row.phone).first());
+  return { lines, page: render(c, "অর্ডার বানান", "incomplete",
+    <IncompleteConvertPage row={row} lines={lines} delivery={{ inside: deliveryCharge(s, "inside", sub), outside: deliveryCharge(s, "outside", sub) }} blocked={blocked} {...extra} />, status) };
+}
+
+admin.get("/incomplete/:id{[0-9]+}", async (c) => {
+  const row = await c.env.DB.prepare("SELECT * FROM incomplete_orders WHERE id = ?").bind(toInt(c.req.param("id"))).first<IncompleteRow>();
+  if (!row) return c.redirect("/admin/incomplete", 303);
+  if (row.status === "converted" && row.order_id) return c.redirect(`/admin/orders/${row.order_id}`, 303);
+  return (await convertView(c, row)).page;
+});
+
+admin.post("/incomplete/:id{[0-9]+}/convert", async (c) => {
+  const db = c.env.DB;
+  const row = await db.prepare("SELECT * FROM incomplete_orders WHERE id = ?").bind(toInt(c.req.param("id"))).first<IncompleteRow>();
+  if (!row) return c.redirect("/admin/incomplete", 303);
+  if (row.status === "converted" && row.order_id) return c.redirect(`/admin/orders/${row.order_id}`, 303);
+  const b = await c.req.parseBody();
+  const values = { name: str(b.name, 100), address: str(b.address, 300), area: String(b.area ?? ""), note: str(b.note, 300) };
+  const v = validateOrderInput({ ...values, phone: row.phone });
+  const view = await convertView(c, row, v.ok ? {} : { errors: v.errors, values }, 422);
+  if (!v.ok || !view.lines.length) return view.page;
+  const sub = view.lines.reduce((t, l) => t + l.price * (l.qty ?? 1), 0);
+  const order = await createOrder(db, {
+    name: values.name, phone: v.phone, address: values.address, area: v.area, note: values.note,
+    deliveryCharge: deliveryCharge(c.var.settings, v.area, sub),
+    deviceId: row.device_id, ip: clientIp(c), userAgent: "অসম্পূর্ণ অর্ডার থেকে (অ্যাডমিন)",
+    fbp: null, fbc: null, sourceUrl: row.source_url || "", prefix: orderPrefix(c.var.settings),
+  }, view.lines);
+  await markConverted(db, row.phone, order.id);
+  // অন্য কারণে লাইনটা বন্ধ থাকলে (যেমন "বাদ") এটাকেও অর্ডারের সাথে জোড়া
+  await db.prepare("UPDATE incomplete_orders SET status = 'converted', order_id = ?, updated_at = datetime('now') WHERE id = ?").bind(order.id, row.id).run();
+  flash(c, "ok", `অর্ডার ${order.order_no} তৈরি হয়েছে — "নতুন" তালিকায় আছে।`);
+  return c.redirect(`/admin/orders/${order.id}`, 303);
 });
 
 /** কাস্টমার: ফোন নম্বর ধরে অর্ডারের হিসাব */
@@ -320,8 +408,15 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
   ]);
   const types = (bl!.results as { type: string }[]).map((r) => r.type);
   const sms = (await db.prepare("SELECT * FROM sms_logs WHERE order_id = ? ORDER BY id").bind(o.id).all<SmsLogRow>()).results;
+  const [own, shared, cached] = await Promise.all([
+    ownRecords(db, [o.phone], o.id),
+    sharedRecords(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, [o.phone]),
+    cachedCourierRecords(db, [o.phone]),
+  ]);
+  const record = { own: own[o.phone], shared: shared[o.phone], courier: cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings) };
   return render(c, o.order_no, "orders",
-    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms} />);
+    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
+      record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} />);
 });
 
 /** স্ট্যাটাস বদল + তার পরের কাজ (বিলিং, Purchase, SMS) — একটা আর একসাথে অনেক অর্ডার দুটোতেই */
@@ -343,7 +438,12 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
       ? { ok: true, message: "অর্ডার কনফার্ম হয়েছে, Facebook-এ Purchase গেছে।" }
       : { ok: true, message: `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${p.message}`, purchaseFail: p.message };
   }
-  if (to === "cancelled" || to === "fake") return { ok: true, message: "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।" };
+  if (to === "cancelled" || to === "fake") {
+    // সব দোকানের রেকর্ডে: কুরিয়ারে যাওয়ার পর বাতিল = ফেরত
+    const outcome = to === "fake" ? "fake" : res.order.consignment_id ? "returned" : "cancelled";
+    await later(c, recordOutcome(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, res.order.order_no, res.order.phone, outcome));
+    return { ok: true, message: "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।" };
+  }
   if (to === "shipped") smsLater(c, id, "shipped");
   return { ok: true, message: "স্ট্যাটাস বদলেছে।" };
 }
@@ -398,6 +498,11 @@ admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {
 });
 
 /* ---------- SMS (রেসপন্সের পরে পেছনে যায়) ---------- */
+/** রেসপন্সের পরে চালানো (টেস্ট/লোকালে executionCtx না থাকলে সাথে সাথে) */
+async function later(c: Ctx, job: Promise<unknown>) {
+  try { c.executionCtx.waitUntil(job); } catch { await job; }
+}
+
 function smsLater(c: Ctx, orderId: number, event: SmsEvent) {
   const job = notifyOrder(c.env.DB, c.var.settings, orderId, event).catch((e) => console.error("sms error", e));
   try { c.executionCtx.waitUntil(job); } catch { /* টেস্ট/লোকাল */ }
@@ -473,10 +578,47 @@ admin.post("/orders/:id{[0-9]+}/courier/status", async (c) => {
     const r = await parcelStatus(c.var.settings, o, saver(c));
     if (r.ok) {
       await c.env.DB.prepare("UPDATE orders SET courier_status = ?, courier_checked_at = datetime('now') WHERE id = ?").bind(r.status, id).run();
-      flash(c, "ok", `কুরিয়ার স্ট্যাটাস: ${r.status}`);
+      const out = outcomeFromCourier(r.status);
+      if (out) await setOutcome(c, o, out);
+      flash(c, "ok", `কুরিয়ার স্ট্যাটাস: ${r.status}${out ? ` — ${out === "delivered" ? "ডেলিভারি হয়েছে" : "ফেরত এসেছে"}` : ""}`);
     } else {
       flash(c, "error", r.message);
     }
+  }
+  return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+/** ডেলিভারির ফল অর্ডারে আর সব দোকানের রেকর্ডে */
+async function setOutcome(c: Ctx, o: Order, out: "delivered" | "returned") {
+  if (o.outcome === out) return;
+  await c.env.DB.prepare("UPDATE orders SET outcome = ?, outcome_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").bind(out, o.id).run();
+  await later(c, recordOutcome(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, o.order_no, o.phone, out));
+}
+
+/** নিজে হাতে: "ডেলিভারি হয়েছে" / "ফেরত এসেছে" (কুরিয়ার API ছাড়া পাঠালে) */
+admin.post("/orders/:id{[0-9]+}/outcome", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const out = String((await c.req.parseBody()).outcome);
+  const o = await c.env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first<Order>();
+  if (!o || (out !== "delivered" && out !== "returned") || !["confirmed", "shipped"].includes(o.status)) {
+    flash(c, "error", "কনফার্ম বা শিপড অর্ডারেই ডেলিভারির ফল দেওয়া যায়");
+  } else {
+    await setOutcome(c, o, out);
+    flash(c, "ok", out === "delivered" ? "ডেলিভারি হয়েছে — রেকর্ডে লেখা হলো।" : "ফেরত এসেছে — রেকর্ডে লেখা হলো।");
+  }
+  return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+/** কনফার্মের আগে কুরিয়ারে ক্রেতার রেকর্ড খোঁজা */
+admin.post("/orders/:id{[0-9]+}/courier-check", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const o = await c.env.DB.prepare("SELECT phone FROM orders WHERE id = ?").bind(id).first<{ phone: string }>();
+  if (!o) return c.redirect("/admin/orders", 303);
+  if (!(await hitRateLimit(c.env.DB, "courier-check", 60, 60))) {
+    flash(c, "error", "অনেকবার খোঁজা হয়েছে, এক মিনিট পরে চেষ্টা করুন");
+  } else {
+    const r = await courierRecord(c.env.DB, c.var.settings, o.phone);
+    flash(c, "error" in r ? "error" : "ok", "error" in r ? r.error : `কুরিয়ারের রেকর্ড পাওয়া গেছে (${r.source})`);
   }
   return c.redirect(`/admin/orders/${id}`, 303);
 });
@@ -523,7 +665,7 @@ admin.get("/orders/courier-locations", async (c) => {
 });
 
 /* কুরিয়ার সেটিংস (শুধু মালিক) */
-const COURIER_SECRET_KEYS = ["steadfast_secret_key", "pathao_client_secret", "pathao_password", "redx_token"] as const;
+const COURIER_SECRET_KEYS = ["steadfast_secret_key", "pathao_client_secret", "pathao_password", "redx_token", "bdcourier_token"] as const;
 const COURIER_PLAIN_KEYS = ["steadfast_api_key", "pathao_client_id", "pathao_username", "pathao_store_id", "redx_pickup_store_id"] as const;
 
 admin.get("/courier", (c) => render(c, "কুরিয়ার", "courier", <CourierPage s={c.var.settings} active={configuredCouriers(c.var.settings)} />));
@@ -541,6 +683,7 @@ admin.post("/courier", async (c) => {
   }
   values.pathao_sandbox = b.pathao_sandbox ? "1" : "0";
   values.redx_sandbox = b.redx_sandbox ? "1" : "0";
+  values.fraud_share = b.fraud_share ? "1" : "0";
   // Pathao-র তথ্য বদলালে পুরনো টোকেন বাদ
   const pathaoChanged = ["pathao_client_id", "pathao_username", "pathao_client_secret", "pathao_password", "pathao_sandbox"].some((k) => k in values && values[k] !== (s[k] ?? ""));
   if (pathaoChanged) { values.pathao_token = ""; values.pathao_token_expires = "0"; }
@@ -1039,6 +1182,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
     for (const n of [1, 2, 3]) v[`cf${n}_req`] = b[`cf${n}_req`] ? "1" : "0";
     v.invoice_barcode = b.invoice_barcode ? "1" : "0";
     v.invoice_image = b.invoice_image ? "1" : "0";
+    v.incomplete_capture = b.incomplete_capture ? "1" : "0";
   }
   if (has("max_qty")) v.max_qty = String(Math.min(50, Math.max(1, toInt(b.max_qty, 5))));
   if (has("invoice_size")) v.invoice_size = b.invoice_size === "sticker" ? "sticker" : "a4";

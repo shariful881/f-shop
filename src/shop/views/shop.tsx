@@ -101,7 +101,8 @@ export const OrderForm = (p: {
   return (
     <form method="post" action="/order" class={`order-form ${s0.sticky_submit !== "0" ? "sticky-submit" : ""}`} id="order-form" data-order-form
       data-subtotal={String(p.subtotal)} data-inside={String(inside)} data-outside={String(outside)} data-free-min={String(freeMin)}
-      data-source={p.source} data-product-id={p.productId ? String(p.productId) : ""} novalidate>
+      data-source={p.source} data-product-id={p.productId ? String(p.productId) : ""}
+      data-draft={s.incomplete_capture !== "0" && s.demo_mode !== "1" ? "1" : undefined} novalidate>
       {s.order_form_title && <h3 class="order-form-title">{s.order_form_title}</h3>}
       {p.form?.alert && <div class="alert alert-error" role="alert">{p.form.alert}</div>}
       {freeMin > 0 && <p class="free-delivery-note" data-free-note>🚚 {taka(freeMin)} বা তার বেশি অর্ডারে ডেলিভারি ফ্রি!</p>}

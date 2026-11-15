@@ -24,6 +24,7 @@ import { newEventId, trackServer, type CustomData } from "../lib/capi";
 import { PixelHead, type BrowserEvent } from "../views/pixel";
 import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLocks, hitRateLimit, ORDER_RATE_LIMIT } from "../lib/order-guard";
 import { isUuid } from "../middleware/device";
+import { markConverted, saveDraft } from "../lib/incomplete";
 
 export const shop = new Hono<AppEnv>();
 
@@ -490,6 +491,7 @@ shop.post("/order", async (c) => {
     // (Purchase এখানে কখনো যায় না — শুধু অ্যাডমিন কনফার্ম করলে)
     trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: subtotal + delivery - (coupon?.discount ?? 0) });
 
+    await markConverted(c.env.DB, v.phone, order.id);
     if (source === "cart") clearCart(c);
     setCookie(c, "lo", order.order_no, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 });
     return c.redirect("/thanks", 303);
@@ -517,6 +519,40 @@ shop.post("/coupon/check", async (c) => {
   if (!r.ok) return c.json({ ok: false, message: r.message });
   const cp = r.coupon;
   return c.json({ ok: true, message: r.message, code: cp.code, type: cp.type, value: cp.value, max_discount: cp.max_discount, min_order: cp.min_order, discount: r.discount });
+});
+
+/* ---------- অসম্পূর্ণ অর্ডার: সঠিক নম্বর লিখে অর্ডার না করলে ---------- */
+shop.post("/t/draft", async (c) => {
+  const s = c.var.settings;
+  if (s.incomplete_capture === "0" || s.demo_mode === "1") return c.body(null, 204);
+  if (!(await hitRateLimit(c.env.DB, `draft:${clientIp(c)}`, 20, 60))) return c.body(null, 204);
+  const b = await c.req.parseBody();
+  const phone = normalizePhone(str(b.phone, 20));
+  if (!phone) return c.body(null, 204);
+  const source = b.source === "cart" ? "cart" : "landing";
+  const entries = source === "cart"
+    ? readCartEntries(c)
+    : toInt(b.product_id) > 0 ? [{ productId: toInt(b.product_id), variantId: toInt(b.variant_id) || null }] : [];
+  const lines = await shopCartLines(c, entries);
+  if (!lines.length) return c.body(null, 204);
+  // এই মাত্র অর্ডার করেছে বা ব্লক করা নম্বর — তালিকায় তোলার দরকার নেই
+  const skip = await c.env.DB.prepare(
+    `SELECT 1 FROM orders WHERE phone = ? AND created_at > datetime('now', '-30 minutes')
+     UNION ALL SELECT 1 FROM blacklist_entries WHERE type = 'phone' AND value = ? LIMIT 1`,
+  ).bind(phone, phone).first();
+  if (skip) return c.body(null, 204);
+  await saveDraft(c.env.DB, {
+    phone,
+    name: str(b.name, 100),
+    address: str(b.address, 300),
+    area: b.area === "inside" || b.area === "outside" ? b.area : "",
+    source,
+    items: lines.map((l) => ({ productId: l.id, variantId: l.variant_id ?? null, qty: l.qty ?? 1 })),
+    subtotal: linesSubtotal(lines),
+    deviceId: c.var.deviceId ?? null,
+    sourceUrl: (c.req.header("referer") || "").slice(0, 500),
+  });
+  return c.body(null, 204);
 });
 
 /* ---------- InitiateCheckout: ল্যান্ডিং ফর্মে প্রথম ফোকাস ---------- */

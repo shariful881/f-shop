@@ -20,6 +20,7 @@ import m0014 from "../../migrations/shop/0014_pro_theme.sql";
 import m0015 from "../../migrations/shop/0015_checkout_pages.sql";
 import m0016 from "../../migrations/shop/0016_order_qty.sql";
 import m0017 from "../../migrations/shop/0017_media.sql";
+import m0018 from "../../migrations/shop/0018_fraud.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
@@ -43,6 +44,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0015_checkout_pages", m0015],
   ["0016_order_qty", m0016],
   ["0017_media", m0017],
+  ["0018_fraud", m0018],
 ];
 
 export type SetupInput = {
@@ -218,7 +220,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   /** সুপার অ্যাডমিনের পুরো ব্যাকআপ (JSON) — পাসওয়ার্ড, সেশন আর ছবির বাইট বাদে */
   async exportData(shopId: string) {
     await this.ensureInit(shopId, false);
-    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs"];
+    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders"];
     const out: Record<string, unknown[]> = {};
     for (const t of tables) {
       const r = await this.db.prepare(`SELECT * FROM ${t} LIMIT 50000`).all().catch(() => ({ results: [] }));

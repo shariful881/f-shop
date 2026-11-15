@@ -16,6 +16,7 @@ import { MediaField } from "./media-field";
 const NAV: { key: string; href: string; icon: IconName; label: string; group?: string; perm?: string }[] = [
   { key: "dashboard", href: "/admin", icon: "layout-dashboard", label: "ড্যাশবোর্ড" },
   { key: "orders", href: "/admin/orders", icon: "receipt", label: "অর্ডার", group: "বিক্রি" },
+  { key: "incomplete", href: "/admin/incomplete", icon: "hourglass", label: "অসম্পূর্ণ অর্ডার" },
   { key: "customers", href: "/admin/customers", icon: "users", label: "কাস্টমার" },
   { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
   { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "পণ্য" },
@@ -41,7 +42,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
 /** প্যানেলের প্রতিটা পেজের পাশে "কীভাবে?" — sellxbd.com/help-এর গাইড */
 const HELP_BASE = "https://sellxbd.com/help";
 const HELP_FOR: Record<string, string> = {
-  dashboard: "setup-checklist", orders: "orders", customers: "customers", reports: "reports", products: "add-product",
+  dashboard: "setup-checklist", orders: "orders", incomplete: "incomplete-orders", customers: "customers", reports: "reports", products: "add-product",
   categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
   coupons: "coupons", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
   settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", export: "backup", support: "support",
@@ -407,6 +408,7 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
         <F label="সর্বনিম্ন অর্ডার (৳)" hint="এর কম দামের অর্ডার নেওয়া হবে না। ০ = সীমা নেই"><input type="number" min="0" name="min_order" value={s.min_order || "0"} /></F>
         <label class="set-check"><input type="checkbox" name="show_note" value="1" checked={s.show_note !== "0"} /> ফর্মে "নোট" ঘর দেখাবে</label>
         <label class="set-check"><input type="checkbox" name="sticky_submit" value="1" checked={s.sticky_submit !== "0"} /> মোবাইলে "অর্ডার কনফার্ম করুন" বাটন নিচে আটকে থাকবে</label>
+        <label class="set-check"><input type="checkbox" name="incomplete_capture" value="1" checked={s.incomplete_capture !== "0"} /> অসম্পূর্ণ অর্ডার ধরবে — কেউ সঠিক নম্বর লিখে অর্ডার না করলে "অসম্পূর্ণ অর্ডার" তালিকায় দেখাবে</label>
         <F label="ইমেইল ঘর">
           <select name="checkout_email">{Object.entries({ off: "দেখাবে না", optional: "দেখাবে (ঐচ্ছিক)", required: "দেখাবে (অবশ্যই দিতে হবে)" }).map(([k, l]) => <option value={k} selected={(s.checkout_email || "off") === k}>{l}</option>)}</select>
         </F>

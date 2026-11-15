@@ -14,6 +14,7 @@ import { MediaField } from "./media-field";
 import type { ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
+import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
 import { bn } from "../lib/format";
 import { ShopShell } from "./admin-pro";
 
@@ -118,6 +119,14 @@ const HistoryBadge = ({ h }: { h?: { good: number; bad: number } }) => {
   return <span class={`badge badge-${tone}`} title="আগের অর্ডার: ডেলিভারি / বাতিল-ফেক">✓{bn(h.good)} · ✕{bn(h.bad)}</span>;
 };
 
+/** তিন জায়গা মিলিয়ে ক্রেতার রায় (তালিকায় ছোট চিহ্ন) */
+const RISK_TONE = { new: "", good: "ok", warn: "warn", bad: "bad" } as const;
+export const RiskBadge = ({ r }: { r?: Risk & { shared?: number; courier?: number | null } }) => {
+  if (!r || r.level === "new") return null;
+  const parts = [r.shared ? `অন্য দোকানে ${bn(r.shared)}টা` : "", r.courier != null ? `কুরিয়ারে ${bn(r.courier)}%` : ""].filter(Boolean).join(" · ");
+  return <span class={`badge badge-${RISK_TONE[r.level]}`} title={`ডেলিভারি সফল ${bn(r.ratio ?? 0)}% (${bn(r.records)}টা রেকর্ড)${parts ? " — " + parts : ""}`}>{r.label} {r.ratio != null && `${bn(r.ratio)}%`}</span>;
+};
+
 export const OrdersPage = (p: {
   orders: (Order & { item_count: number })[];
   counts: Record<string, number>;
@@ -127,6 +136,7 @@ export const OrdersPage = (p: {
   hasMore: boolean;
   range?: keyof typeof RANGE_LABEL;
   history?: Record<string, { good: number; bad: number }>;
+  risk?: Record<string, Risk & { shared?: number; courier?: number | null }>;
   couriers?: CourierKey[];
 }) => {
   const range = p.range ?? "all";
@@ -202,10 +212,11 @@ export const OrdersPage = (p: {
               <tr>
                 {bulk && <td><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
                 <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
-                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a></td>
+                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a> <RiskBadge r={p.risk?.[o.phone]} /></td>
                 <td>{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
                 <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
+                  {o.outcome && <><br /><span class={`pill ${o.outcome === "delivered" ? "pill-ok" : "pill-bad"}`}>{o.outcome === "delivered" ? "ডেলিভারি হয়েছে" : "ফেরত এসেছে"}</span></>}
                 </td>
                 <td><small>{dhakaTime(o.created_at)}</small></td>
               </tr>
@@ -282,7 +293,48 @@ const CourierPanel = ({ o, couriers }: { o: Order; couriers: CourierKey[] }) => 
   </section>
 );
 
-export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[] }) => {
+export type BuyerRecord = { own?: Own; shared?: Shared; courier: CourierSummary | null; sharing: boolean; canCheck: boolean; risk: Risk };
+
+const RISK_TEXT = {
+  new: "এই নম্বরে আগের কোনো রেকর্ড পাওয়া যায়নি — নতুন ক্রেতা। দরকার হলে ফোন করে নিশ্চিত হয়ে নিন।",
+  good: "আগের রেকর্ড ভালো — বেশিরভাগ পার্সেল নিয়েছে।",
+  warn: "কিছু ফেরত/ফেক আছে — কনফার্মের আগে ফোন করে নিশ্চিত হয়ে নিন।",
+  bad: "অনেক পার্সেল ফেরত বা ফেক — অগ্রিম ডেলিভারি চার্জ নিয়ে পাঠানো নিরাপদ।",
+} as const;
+
+/** ক্রেতার রেকর্ড: এই দোকান, SellxBD-এর অন্য দোকান, কুরিয়ার */
+const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
+  const own = r.own;
+  const sh = r.shared;
+  return (
+    <section class="panel buyer-record">
+      <h2>ক্রেতার রেকর্ড <span class={`badge ${r.risk.level === "new" ? "" : `badge-${RISK_TONE[r.risk.level]}`}`}>{r.risk.label}{r.risk.ratio != null ? ` · ${bn(r.risk.ratio)}%` : ""}</span></h2>
+      <p class="muted small">{RISK_TEXT[r.risk.level]}</p>
+      <table class="table compact rec-table">
+        <thead><tr><th></th><th>ডেলিভারি</th><th>ফেরত</th><th>বাতিল</th><th>ফেক</th></tr></thead>
+        <tbody>
+          <tr><td>এই দোকানে</td><td>{bn(own?.delivered ?? 0)}</td><td>{bn(own?.returned ?? 0)}</td><td>{bn(own?.cancelled ?? 0)}</td><td>{bn(own?.fake ?? 0)}</td></tr>
+          {r.sharing
+            ? <tr><td>SellxBD-এর অন্য দোকানে{sh?.shops ? <small class="muted"> ({bn(sh.shops)}টা দোকান)</small> : ""}</td><td>{bn(sh?.delivered ?? 0)}</td><td>{bn(sh?.returned ?? 0)}</td><td>{bn(sh?.cancelled ?? 0)}</td><td>{bn(sh?.fake ?? 0)}</td></tr>
+            : <tr><td colspan={5} class="muted small">অন্য দোকানের রেকর্ড বন্ধ — <a href="/admin/courier">কুরিয়ার সেটিংসে</a> চালু করুন</td></tr>}
+          {r.courier && (
+            <tr><td>কুরিয়ারে <small class="muted">({r.courier.source})</small></td>
+              <td colspan={4}>{r.courier.ratio == null ? "কোনো পার্সেল নেই" : <>সফল <strong>{bn(r.courier.ratio)}%</strong>{r.courier.source === "BD Courier" ? ` — মোট ${bn(r.courier.total)}টা, ফেরত ${bn(r.courier.cancelled)}টা` : ""}</>}
+                {(r.courier.reports ?? 0) > 0 && <> · <span class="pill pill-bad">{bn(r.courier.reports!)}টা ফ্রড রিপোর্ট</span></>}
+                {r.courier.checked_at && <><br /><small class="muted">খোঁজা হয়েছে {dhakaTime(r.courier.checked_at)}</small></>}
+              </td></tr>
+          )}
+        </tbody>
+      </table>
+      {(own?.open ?? 0) > 0 && <p class="small">এই নম্বরের আরও {bn(own!.open)}টা অর্ডার চলছে।</p>}
+      {r.canCheck
+        ? <form method="post" action={`/admin/orders/${o.id}/courier-check`}><button class="btn btn-outline btn-sm"><Icon name="search" size="sm" /> {r.courier ? "কুরিয়ারে আবার খুঁজুন" : "কুরিয়ারে রেকর্ড খুঁজুন"}</button></form>
+        : <p class="muted small">কুরিয়ারে রেকর্ড দেখতে <a href="/admin/courier">কুরিয়ার সেটিংসে</a> Steadfast-এর চাবি বা BD Courier-এর ফ্রি API কী দিন।</p>}
+    </section>
+  );
+};
+
+export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord }) => {
   const o = p.order;
   return (
     <>
@@ -331,7 +383,22 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
           </table>
         </section>
 
+        {p.record && <BuyerRecordPanel o={o} r={p.record} />}
+
         {(o.status === "confirmed" || o.consignment_id) && <CourierPanel o={o} couriers={p.couriers ?? []} />}
+
+        {(o.status === "confirmed" || o.status === "shipped") && (
+          <section class="panel">
+            <h2>ডেলিভারির ফল</h2>
+            {o.outcome
+              ? <p><span class={`pill ${o.outcome === "delivered" ? "pill-ok" : "pill-bad"}`}>{o.outcome === "delivered" ? "ডেলিভারি হয়েছে" : "ফেরত এসেছে"}</span> <small class="muted">{dhakaTime(o.outcome_at)}</small></p>
+              : <p class="muted small">কুরিয়ারের স্ট্যাটাস আপডেট করলে নিজে থেকে বসে। নিজে পাঠালে এখানে চাপুন — ক্রেতার রেকর্ডে যোগ হবে।</p>}
+            <div class="actions">
+              {o.outcome !== "delivered" && <form method="post" action={`/admin/orders/${o.id}/outcome`} class="inline"><input type="hidden" name="outcome" value="delivered" /><button class="btn btn-outline btn-sm"><Icon name="check" size="sm" /> ডেলিভারি হয়েছে</button></form>}
+              {o.outcome !== "returned" && <form method="post" action={`/admin/orders/${o.id}/outcome`} class="inline" data-confirm="পার্সেল ফেরত এসেছে? ক্রেতার রেকর্ডে ফেরত লেখা হবে।"><input type="hidden" name="outcome" value="returned" /><button class="btn btn-outline btn-sm"><Icon name="undo-2" size="sm" /> ফেরত এসেছে</button></form>}
+            </div>
+          </section>
+        )}
 
         {(p.sms ?? []).length > 0 && (
           <section class="panel">
@@ -1227,6 +1294,14 @@ export const CourierPage = ({ s, active }: { s: Settings; active: CourierKey[] }
         <label class="field"><span>পিকআপ স্টোর আইডি (ঐচ্ছিক)</span><input type="text" inputmode="numeric" name="redx_pickup_store_id" value={s.redx_pickup_store_id ?? ""} /></label>
         <label class="field inline-check"><input type="checkbox" name="redx_sandbox" value="1" checked={s.redx_sandbox === "1"} /> টেস্ট (sandbox) মোড</label>
       </div>
+      <h2>ক্রেতার ডেলিভারি রেকর্ড</h2>
+      <p class="muted small">কনফার্মের আগে অর্ডারের পেজে "কুরিয়ারে রেকর্ড খুঁজুন" চাপলে নম্বরটা আগে কতগুলো পার্সেল নিয়েছে/ফেরত দিয়েছে দেখাবে।
+        Steadfast-এর চাবি থাকলে সেটা দিয়েই খোঁজে। সব কুরিয়ার (Pathao, RedX, Paperfly…) মিলিয়ে দেখতে <a href="https://bdcourier.com/" target="_blank" rel="noopener">bdcourier.com</a>-এ ফ্রি রেজিস্ট্রেশন করে API কী দিন।</p>
+      <div class="form-grid">
+        <Secret name="bdcourier_token" label="BD Courier API কী (ঐচ্ছিক)" set={!!s.bdcourier_token} />
+      </div>
+      <label class="set-check"><input type="checkbox" name="fraud_share" value="1" checked={s.fraud_share !== "0"} /> SellxBD-এর সব দোকানের মিলিত রেকর্ড দেখাবে</label>
+      <p class="muted small">আপনার দোকানের ফেক/ফেরত/ডেলিভারির সংখ্যাও অন্যরা দেখবে। নম্বর গোপন কোডে থাকে, দোকানের নাম কেউ দেখে না। বন্ধ করলে আপনিও অন্যদেরটা দেখবেন না।</p>
       <button class="btn btn-primary">সেভ করুন</button>
     </form>
   </>

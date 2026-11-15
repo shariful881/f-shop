@@ -41,6 +41,8 @@ export type Order = {
   courier_sent_at: string | null;
   courier_checked_at: string | null;
   courier_response: string | null;
+  outcome?: "delivered" | "returned" | null;
+  outcome_at?: string | null;
   created_at: string;
   updated_at: string;
   email?: string | null;

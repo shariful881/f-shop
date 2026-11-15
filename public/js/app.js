@@ -132,13 +132,48 @@
       });
     }
 
-    form.addEventListener("submit", function (e) {
-      var phone = form.querySelector("input[name=phone]");
-      var digits = (phone.value || "")
-        .replace(/[০-৯]/g, function (d) { return String(bnDigits.indexOf(d)); })
+    function phoneDigits() {
+      var el = form.querySelector("input[name=phone]");
+      var d = ((el && el.value) || "")
+        .replace(/[০-৯]/g, function (x) { return String(bnDigits.indexOf(x)); })
         .replace(/\D/g, "")
         .replace(/^(00)?880?/, "0");
-      if (digits.length === 10 && digits[0] === "1") digits = "0" + digits;
+      if (d.length === 10 && d[0] === "1") d = "0" + d;
+      return d;
+    }
+
+    // অসম্পূর্ণ অর্ডার: সঠিক নম্বর লেখার পর অর্ডার না করে চলে গেলে দোকানদার তালিকায় দেখবে
+    var submitted = false, lastDraft = "", draftTimer = 0;
+    function sendDraft(leaving) {
+      if (form.dataset.draft !== "1" || submitted) return;
+      var ph = phoneDigits();
+      if (!/^01[3-9]\d{8}$/.test(ph)) return;
+      var fd = new FormData();
+      ["name", "address"].forEach(function (k) { var el = form.querySelector("[name=" + k + "]"); fd.append(k, el ? el.value.slice(0, 300) : ""); });
+      fd.append("phone", ph);
+      var ar = form.querySelector("input[name=area]:checked");
+      fd.append("area", ar ? ar.value : "");
+      var vr = form.querySelector("input[name=variant_id]:checked") || form.querySelector("select[name=variant_id] option:checked");
+      fd.append("variant_id", vr ? vr.value : "");
+      fd.append("product_id", form.dataset.productId || "");
+      fd.append("source", form.dataset.source || "");
+      var key = [ph, fd.get("name"), fd.get("address"), fd.get("area"), fd.get("variant_id")].join("|");
+      if (key === lastDraft) return;
+      lastDraft = key;
+      if (leaving && navigator.sendBeacon) navigator.sendBeacon("/t/draft", fd);
+      else fetch("/t/draft", { method: "POST", body: fd, credentials: "same-origin", keepalive: true }).catch(function () {});
+    }
+    if (form.dataset.draft === "1") {
+      var later = function () { clearTimeout(draftTimer); draftTimer = setTimeout(sendDraft, 2000); };
+      form.addEventListener("input", later);
+      form.addEventListener("change", later);
+      document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") sendDraft(true); });
+      window.addEventListener("pagehide", function () { sendDraft(true); });
+    }
+
+    form.addEventListener("submit", function (e) {
+      var phone = form.querySelector("input[name=phone]");
+      var digits = phoneDigits();
       if (!/^01[3-9]\d{8}$/.test(digits)) {
         e.preventDefault();
         toast("সঠিক মোবাইল নম্বর লিখুন (01XXXXXXXXX)");
@@ -156,6 +191,8 @@
         btn.disabled = true;
         btn.textContent = "অপেক্ষা করুন…";
       }
+      submitted = true;
+      clearTimeout(draftTimer);
     });
   });
 

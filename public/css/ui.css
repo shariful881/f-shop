@@ -566,3 +566,22 @@ body.admin .plan-pop { position: absolute; top: -10px; left: 12px; background: v
 body.admin .plan-cycle { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 8px 0; }
 body.admin .plan-cycle label { display: inline-flex; gap: 6px; align-items: center; }
 @media (max-width: 960px) { body.admin .plan-cards { grid-template-columns: repeat(2, 1fr); } }
+
+/* ধাপ ৩: ক্রেতার রেকর্ড আর অসম্পূর্ণ অর্ডার */
+body.admin .buyer-record h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+body.admin .rec-table th, body.admin .rec-table td { text-align: center; }
+body.admin .rec-table th:first-child, body.admin .rec-table td:first-child { text-align: left; }
+body.admin .rec-table td[colspan] { text-align: left; }
+body.admin .buyer-record form { margin-top: 10px; }
+body.admin .row-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+body.admin .row-actions form.inline { display: inline; }
+body.admin .incomplete-table td { vertical-align: top; }
+@media (max-width: 720px) {
+  body.admin .row-actions { justify-content: flex-start; }
+  body.admin .table-wrap .incomplete-table { min-width: 0; }
+  body.admin .incomplete-table thead { display: none; }
+  body.admin .incomplete-table, body.admin .incomplete-table tbody, body.admin .incomplete-table tr, body.admin .incomplete-table td { display: block; width: 100%; }
+  body.admin .incomplete-table tr { border-bottom: 1px solid var(--c-line); padding: 10px 0; }
+  body.admin .incomplete-table td { border: 0; padding: 4px 14px; box-sizing: border-box; }
+  body.admin .incomplete-table .row-actions { padding-top: 6px; }
+}

@@ -60,7 +60,7 @@ export async function resetDb() {
   await createShop(DEMO_SHOP_ID, "demoshop", "shop.test");
   await runInDurableObject(shopStub(), (i: ShopDO) => i.ensureInit(DEMO_SHOP_ID, false));
   await DB.batch(
-    ["sms_logs", "order_items", "orders", "coupons", "product_variants", "blacklist_entries", "sessions", "users", "products", "categories", "order_locks", "rate_limits"].map(
+    ["sms_logs", "order_items", "orders", "coupons", "product_variants", "blacklist_entries", "sessions", "users", "products", "categories", "order_locks", "rate_limits", "incomplete_orders", "courier_checks"].map(
       (t) => DB.prepare(`DELETE FROM ${t}`),
     ),
   );
@@ -70,7 +70,9 @@ export async function resetDb() {
     DB.prepare("UPDATE settings SET value='01700000000' WHERE key='contact_phone'"),
     DB.prepare("UPDATE settings SET value='' WHERE key LIKE 'steadfast_%' OR key LIKE 'pathao_%' OR key LIKE 'redx_%'"),
     DB.prepare("UPDATE settings SET value='0' WHERE key='sms_enabled'"),
+    DB.prepare("DELETE FROM settings WHERE key IN ('incomplete_capture', 'fraud_share', 'bdcourier_token')"),
   ]);
+  await env.PLATFORM_DB.prepare("DELETE FROM phone_outcomes").run();
   await seedDemo();
 }
 
