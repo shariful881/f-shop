@@ -4,6 +4,7 @@ import { ASSET_VERSION } from "../shop/views/layout";
 import { bn, dhakaTime, taka } from "../shop/lib/format";
 
 export const PLATFORM_NAME = "SellxBD";
+import { SiteFooter } from "./pages";
 
 export type PFlash = { type: "ok" | "error"; text: string } | null;
 
@@ -362,9 +363,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
       </div>
     </section>
 
-    <footer class="h-foot">
-      <div class="wrap">© {PLATFORM_NAME} · বাংলাদেশের অনলাইন সেলারদের জন্য</div>
-    </footer>
+    <SiteFooter support={f.support} />
     <script src={`/js/home.js?v=${ASSET_VERSION}`} defer></script>
   </div>
   );

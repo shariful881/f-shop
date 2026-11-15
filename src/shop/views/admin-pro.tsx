@@ -37,6 +37,15 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "support", href: "/admin/support", icon: "life-buoy", label: "সাপোর্ট", group: "সাহায্য" },
 ];
 
+/** প্যানেলের প্রতিটা পেজের পাশে "কীভাবে?" — sellxbd.com/help-এর গাইড */
+const HELP_BASE = "https://sellxbd.com/help";
+const HELP_FOR: Record<string, string> = {
+  dashboard: "setup-checklist", orders: "orders", customers: "customers", reports: "reports", products: "add-product",
+  categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
+  coupons: "coupons", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
+  settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", support: "support",
+};
+
 export const ShopShell = (p: {
   title: string;
   settings: Settings;
@@ -98,6 +107,11 @@ export const ShopShell = (p: {
             <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু"><Icon name="menu" size="lg" /></label>
             <h1>{p.title}</h1>
             <div class="sa-top-actions">
+              {p.active && HELP_FOR[p.active] && (
+                <a href={`${HELP_BASE}/${HELP_FOR[p.active!]}`} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm" title="এই পেজ কীভাবে ব্যবহার করবেন">
+                  <Icon name="life-buoy" size="sm" /> <span class="sa-hide-sm">কীভাবে?</span>
+                </a>
+              )}
               <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="store" size="sm" /> দোকান দেখুন <Icon name="external-link" size="sm" /></a>
             </div>
           </header>

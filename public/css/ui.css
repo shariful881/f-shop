@@ -512,3 +512,4 @@ body.de .de-ver-btn[disabled] { opacity: .4; }
 .lb-head { justify-content: flex-start !important; gap: 6px; flex-wrap: wrap; }
 .lb-head > strong { flex: 1 1 auto; min-width: 0; text-align: left; }
 .lb-head .b-actions { margin-left: auto; }
+@media (max-width: 600px) { body.admin .sa-hide-sm { display: none; } }

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Child } from "hono/jsx";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { PCtx, PEnv } from "./lib";
 import {
@@ -6,6 +7,8 @@ import {
 } from "./lib";
 import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage } from "./views";
 import { num, platformSettings } from "./billing";
+import { AboutPage, ContactPage, HelpArticlePage, HelpIndexPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
+import { helpBySlug } from "./help";
 import { superApp } from "./super";
 import { sameOriginPost, securityHeaders } from "../shop/middleware/base";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
@@ -29,12 +32,33 @@ platformApp.get("/health", async (c) => {
   return c.json({ ok: true, shops: row?.n ?? 0 });
 });
 
-const publicNav = (
-  <>
-    <a href="/#price" class="p-nav-link">দাম</a>
-    <a href="/signup" class="p-nav-cta">ফ্রি দোকান খুলুন</a>
-  </>
-);
+const publicNav = <PublicNav />;
+
+/** দাম আর সাপোর্ট নম্বর (সুপার অ্যাডমিনের সেটিংস থেকে) */
+async function loadFees(c: PCtx): Promise<Fees> {
+  const s = await platformSettings(c.env.PLATFORM_DB);
+  const support = /^01[3-9]\d{8}$/.test(s.support_phone || "") ? s.support_phone! : "";
+  return { monthly: num(s, "monthly_fee", 99), order: num(s, "order_fee", 2), staff: num(s, "staff_fee", 99), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 50), support };
+}
+
+/** পাবলিক পেজ: মেনু + পেজ + ফুটার */
+const publicPage = async (c: PCtx, title: string, body: (f: Fees) => Child, status: 200 | 404 = 200) => {
+  const f = await loadFees(c);
+  return html(c, <PLayout title={`${title} — ${PLATFORM_NAME}`} nav={publicNav}>{body(f)}<SiteFooter support={f.support} /></PLayout>, status);
+};
+
+platformApp.get("/pricing", (c) => publicPage(c, "দাম ও হিসাব", (f) => <PricingPage f={f} />));
+platformApp.get("/about", (c) => publicPage(c, "আমাদের সম্পর্কে", (f) => <AboutPage f={f} />));
+platformApp.get("/contact", (c) => publicPage(c, "যোগাযোগ", (f) => <ContactPage f={f} />));
+platformApp.get("/terms", (c) => publicPage(c, "শর্তাবলি", (f) => <TermsPage f={f} />));
+platformApp.get("/privacy", (c) => publicPage(c, "প্রাইভেসি নীতি", () => <PrivacyPage />));
+platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />));
+platformApp.get("/help", (c) => publicPage(c, "হেল্প সেন্টার", () => <HelpIndexPage q={(c.req.query("q") || "").slice(0, 60)} />));
+platformApp.get("/help/:slug{[a-z0-9-]+}", (c) => {
+  const a = helpBySlug(c.req.param("slug"));
+  if (!a) return c.redirect("/help", 302);
+  return publicPage(c, a.title, () => <HelpArticlePage a={a} />);
+});
 
 async function demoLinks(c: PCtx) {
   const { results } = await c.env.PLATFORM_DB.prepare("SELECT slug, demo_niche FROM shops WHERE demo_niche IS NOT NULL AND status = 'active'").all<{ slug: string; demo_niche: string }>();
@@ -45,9 +69,7 @@ async function demoLinks(c: PCtx) {
 }
 
 platformApp.get("/", async (c) => {
-  const s = await platformSettings(c.env.PLATFORM_DB);
-  const support = /^01[3-9]\d{8}$/.test(s.support_phone || "") ? s.support_phone! : "";
-  const fees = { monthly: num(s, "monthly_fee", 99), order: num(s, "order_fee", 2), staff: num(s, "staff_fee", 99), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 50), support };
+  const fees = await loadFees(c);
   return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>);
 });
 
