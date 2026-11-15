@@ -20,7 +20,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
   { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "পণ্য" },
   { key: "categories", href: "/admin/categories", icon: "folder", label: "ক্যাটাগরি" },
-  { key: "theme", href: "/admin/settings/customize", icon: "palette", label: "থিম ও ডিজাইন", group: "অনলাইন স্টোর", perm: "settings" },
+  { key: "theme", href: "/admin/design", icon: "palette", label: "থিম এডিটর", group: "অনলাইন স্টোর", perm: "settings" },
   { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
   { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
   { key: "media", href: "/admin/media", icon: "image", label: "মিডিয়া" },
@@ -503,7 +503,7 @@ const ChoicePreview = ({ kind, k }: { kind: string; k: string }) => {
   return <span class={`cz-pv cz-pv-${kind} cz-pv-${kind}-${k}`}><i class="a" /><i class="b" /><i class="c" /><i class="d" /></span>;
 };
 
-const CfgField = ({ f, cfg, products }: { f: Field; cfg: Cfg; products: { id: number; name: string }[] }) => {
+export const CfgField = ({ f, cfg, products }: { f: Field; cfg: Cfg; products: { id: number; name: string }[] }) => {
   const v = cfg[f.key] ?? "";
   switch (f.type) {
     case "choice":
@@ -588,6 +588,7 @@ export const ThemeCustomizePage = ({ theme, cfg, products }: { s: Settings; them
   return (
     <>
       <Tabs active="customize" />
+      <div class="alert alert-ok de-promo"><Icon name="sliders-horizontal" size="sm" /> <span><b>নতুন: থিম লাইভ এডিটর</b> — বদলালেই পাশে দোকান কেমন দেখাবে সাথে সাথে দেখুন, ঠিক লাগলে পাবলিশ। <a href="/admin/design" class="btn btn-sm btn-primary" style="margin-left:8px">এডিটর খুলুন</a></span></div>
       <p class="sa-muted cz-note">
         এখন দোকানে চালু আছে <b>{THEMES[theme].name}</b> থিম — নিচের সেটিংস শুধু এই থিমের।
         অন্য থিম চালু করলে সেই থিমের নিজের সেটিংস এখানে দেখাবে (<a href="/admin/settings/appearance">থিম বদলান</a>)।

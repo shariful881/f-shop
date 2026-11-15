@@ -369,6 +369,7 @@
     prev.appendChild(el("img", { src: url, alt: "" }));
     if (note) { note.hidden = false; note.textContent = "নতুন ছবি বাছা হয়েছে — নিচে সেভ করুন।"; }
     field.classList.add("mf-changed");
+    pick.dispatchEvent(new Event("change", { bubbles: true })); // থিম এডিটর সাথে সাথে সেভ করে
   }
   function openMenu(field, anchor) {
     closeMenu();

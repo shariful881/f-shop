@@ -6,6 +6,10 @@ import { shop, notFound } from "./routes/shop";
 import { device } from "./middleware/device";
 import { admin } from "./routes/admin";
 import { fbCookies } from "./middleware/fb-cookies";
+import { getCookie } from "hono/cookie";
+import { sessionUser } from "./lib/auth";
+import { ADMIN_COOKIE } from "./middleware/admin-auth";
+import { themeOf } from "./lib/settings";
 
 /** একটা দোকানের পুরো অ্যাপ — প্রতিটা দোকানের Durable Object-এর ভিতরে চলে */
 export const shopApp = new Hono<AppEnv>();
@@ -34,6 +38,29 @@ shopApp.get("/img/*", async (c) => {
 
 shopApp.use("*", securityHeaders, withSettings, sameOriginPost, device);
 shopApp.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : fbCookies(c, next)));
+
+/**
+ * থিম এডিটরের প্রিভিউ: ?__preview=1 আর মালিকের লগইন থাকলে খসড়া সেটিংস দিয়ে দোকান দেখায়।
+ * ক্রেতারা কখনো খসড়া দেখে না (লগইন ছাড়া প্যারামিটার কিছুই করে না)।
+ */
+shopApp.use("*", async (c, next) => {
+  if (c.req.path.startsWith("/admin") || c.req.query("__preview") !== "1") return next();
+  const user = await sessionUser(c.env.DB, getCookie(c, ADMIN_COOKIE));
+  if (!user || user.role !== "owner") return next();
+  const s = c.var.settings;
+  const theme = themeOf(s);
+  const draft = s[`theme_draft_${theme}`];
+  if (draft) c.set("settings", { ...s, [`theme_cfg_${theme}`]: draft });
+  await next();
+  c.header("Cache-Control", "no-store");
+  if (!(c.res.headers.get("content-type") || "").includes("text/html")) return;
+  // প্রিভিউর ভেতরে লিংকে ক্লিক করলেও প্রিভিউতেই থাকে; অর্ডার/ফর্ম জমা বন্ধ
+  const html = await c.res.text();
+  const script = `<script>(function(){document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href]");if(!a)return;var u=new URL(a.href,location.href);if(u.origin!==location.origin||u.pathname.indexOf("/admin")===0){e.preventDefault();return;}u.searchParams.set("__preview","1");a.href=u.toString();},true);document.addEventListener("submit",function(e){e.preventDefault();},true);})();</script>`;
+  const headers = new Headers(c.res.headers);
+  headers.delete("content-length");
+  c.res = new Response(html.replace("</body>", `${script}</body>`), { status: c.res.status, headers });
+});
 
 shopApp.route("/admin", admin);
 shopApp.route("/", shop);

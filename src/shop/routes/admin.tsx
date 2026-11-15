@@ -10,7 +10,7 @@ import { InvoicePage, type InvoiceData } from "../views/invoice";
 import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
-import { cfgDiff, cfgFromForm, GROUPS, themeConfig } from "../lib/theme-config";
+import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
 import { PagesPage, ThemeCustomizePage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, youtubeId } from "../lib/format";
@@ -31,6 +31,7 @@ import { clearShopCache } from "../../platform/resolve";
 import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/customers";
 import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMedia, type MediaFolder } from "../lib/media";
 import { MediaPage } from "../views/media";
+import { DesignEditorPage } from "../views/design";
 import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
@@ -833,20 +834,16 @@ admin.get("/settings/customize", async (c) => {
   const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
   return render(c, "থিম ও ডিজাইন", "theme", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} />);
 });
-admin.post("/settings/customize", async (c) => {
-  const b = await c.req.parseBody({ all: true }) as Record<string, unknown>;
+/** থিম সেটিংসের ফর্ম → যাচাই করা cfg (ছবি আপলোড/লাইব্রেরি থেকে বাছাইসহ) */
+async function cfgFromBody(c: Ctx, b: Record<string, unknown>, theme: ThemeKey): Promise<{ cfg?: Cfg; error?: string }> {
   // একই নামের একাধিক মান শুধু পণ্যের তালিকায় থাকে; বাকিগুলোর প্রথমটা
   for (const [k, val] of Object.entries(b)) if (Array.isArray(val) && !k.endsWith("_products")) b[k] = val[0];
-  const theme = themeOf(c.var.settings);
   // ছবি (মাঝের ব্যানার, পপআপ)
   for (const f of GROUPS.flatMap((g) => g.fields).filter((f) => f.type === "image")) {
     const file = b[`cfgimg_${f.key}`];
     if (file instanceof File && file.size > 0) {
       const ext = IMAGE_TYPES[file.type];
-      if (!ext || file.size > 2 * 1024 * 1024) {
-        flash(c, "error", "ছবি PNG/JPG/WebP আর ২ MB-এর কম হতে হবে");
-        return c.redirect("/admin/settings/customize", 303);
-      }
+      if (!ext || file.size > 2 * 1024 * 1024) return { error: "ছবি PNG/JPG/WebP আর ২ MB-এর কম হতে হবে" };
       const key = `theme/${crypto.randomUUID()}.${ext}`;
       await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
       await recordMedia(c.env.DB, key, { name: file.name });
@@ -857,10 +854,53 @@ admin.post("/settings/customize", async (c) => {
       if (pick && (await mediaExists(c.env.DB, pick))) b[f.key] = pick;
     }
   }
-  const value = b.reset ? "" : JSON.stringify(cfgDiff(cfgFromForm(b, theme), theme));
-  await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value });
+  return { cfg: cfgFromForm(b, theme) };
+}
+
+admin.post("/settings/customize", async (c) => {
+  const b = await c.req.parseBody({ all: true }) as Record<string, unknown>;
+  const theme = themeOf(c.var.settings);
+  const r = await cfgFromBody(c, b, theme);
+  if (r.error) {
+    flash(c, "error", r.error);
+    return c.redirect("/admin/settings/customize", 303);
+  }
+  const value = b.reset ? "" : JSON.stringify(cfgDiff(r.cfg!, theme));
+  await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value, [`theme_draft_${theme}`]: "" });
   flash(c, "ok", b.reset ? `${THEMES[theme].name} থিম শুরুর সেটিংসে ফিরেছে।` : `${THEMES[theme].name} থিমের সেটিংস সেভ হয়েছে।`);
   return c.redirect("/admin/settings/customize", 303);
+});
+
+/* ---------- থিম লাইভ এডিটর: খসড়া → প্রিভিউ → পাবলিশ ---------- */
+admin.get("/design", async (c) => {
+  const theme = themeOf(c.var.settings);
+  const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
+  const draft = c.var.settings[`theme_draft_${theme}`] || "";
+  const cfg = themeConfig(draft ? { ...c.var.settings, [`theme_cfg_${theme}`]: draft } : c.var.settings, theme);
+  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} />);
+});
+
+admin.post("/design/draft", async (c) => {
+  const theme = themeOf(c.var.settings);
+  const r = await cfgFromBody(c, await c.req.parseBody({ all: true }) as Record<string, unknown>, theme);
+  if (r.error) return c.json({ ok: false, message: r.error }, 400);
+  const draft = JSON.stringify(cfgDiff(r.cfg!, theme));
+  const live = JSON.stringify(cfgDiff(themeConfig(c.var.settings, theme), theme));
+  // লাইভের সাথে মিলে গেলে খসড়া রাখার দরকার নেই
+  await saveSettings(c.env.DB, { [`theme_draft_${theme}`]: draft === live ? "" : draft });
+  return c.json({ ok: true, changed: draft !== live });
+});
+
+admin.post("/design/publish", async (c) => {
+  const theme = themeOf(c.var.settings);
+  const draft = c.var.settings[`theme_draft_${theme}`];
+  if (draft) await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: draft, [`theme_draft_${theme}`]: "" });
+  return c.json({ ok: true });
+});
+
+admin.post("/design/discard", async (c) => {
+  await saveSettings(c.env.DB, { [`theme_draft_${themeOf(c.var.settings)}`]: "" });
+  return c.json({ ok: true });
 });
 
 admin.get("/settings", (c) => render(c, SET_PAGES.general!.title, "settings", SET_PAGES.general!.view(c)));
