@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { env, runInDurableObject, SELF } from "cloudflare:test";
+import { env as rawEnv, runInDurableObject, SELF } from "cloudflare:test";
+import type { WorkerEnv } from "../src/worker-env";
 import type { ShopDO } from "../src/shop/shop-do";
 import { SqlImageStore } from "../src/shop/lib/images";
 import { syncShopsToR2, purgeShopsLocal, setAutoPurge } from "../src/platform/r2";
 import { clearShopCache } from "../src/platform/resolve";
 import { adminBrowser, BASE, DB, DEMO_SHOP_ID, resetDb, shopStub } from "./helpers";
+
+const env = rawEnv as unknown as WorkerEnv;
 
 beforeEach(async () => {
   await resetDb();
