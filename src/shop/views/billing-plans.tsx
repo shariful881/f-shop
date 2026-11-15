@@ -2,7 +2,7 @@
  * বিলিং পেজের উপরের অংশ: এখনকার প্ল্যান, এই মাসে কত অর্ডার হলো, প্ল্যান বদলানো।
  */
 import type { BillingShop } from "../../platform/billing";
-import { cheapestFor, CYCLES, cyclePrice, overageCharge, PLAN_KEYS, type Plan, type PlanKey } from "../../platform/plans";
+import { storageLabel, cheapestFor, CYCLES, cyclePrice, overageCharge, PLAN_KEYS, type Plan, type PlanKey } from "../../platform/plans";
 import { bn, dhakaTime, taka } from "../lib/format";
 import { Icon } from "./icons";
 
@@ -48,7 +48,7 @@ export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; oldPrices?: boolean
                 <span class="plan-price">{pl.price ? taka(pl.price) : "৳০"}<small>/মাস</small></span>
                 <span>মাসে {bn(pl.orders)}টা অর্ডার</span>
                 <small class="muted">এর বেশি হলে {extraLabel(pl)}</small>
-                <small class="muted">{pl.staff ? `মালিক + ${bn(pl.staff)} জন স্টাফ` : "শুধু মালিক"} · {pl.domain ? "নিজের ডোমেইন" : "ফ্রি সাবডোমেইন"}</small>
+                <small class="muted">{pl.staff ? `মালিক + ${bn(pl.staff)} জন স্টাফ` : "শুধু মালিক"} · {pl.domain ? "নিজের ডোমেইন" : "ফ্রি সাবডোমেইন"} · ছবি {storageLabel(pl.storage)}</small>
               </label>
             );
           })}

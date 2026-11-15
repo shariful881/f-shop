@@ -6,6 +6,7 @@ import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
 import { refreshShopStorage } from "./platform/usage";
 import { r2Cron } from "./platform/r2";
+import { runShopCleanup } from "./platform/cleanup";
 
 export { ShopDO } from "./shop/shop-do";
 export { SupportHub } from "./support-hub";
@@ -65,6 +66,7 @@ export default {
       ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
       ctx.waitUntil(refreshShopStorage(env).then((n) => console.log("storage checked", n)).catch((e) => console.error("storage refresh", e)));
       ctx.waitUntil(r2Cron(env).catch((e) => console.error("r2 cron", e)));
+      ctx.waitUntil(runShopCleanup(env).then((r) => console.log("shop cleanup", r)).catch((e) => console.error("shop cleanup", e)));
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;
@@ -91,7 +93,7 @@ export const r2Base = (env: WorkerEnv, shop: Pick<ShopRow, "id" | "images_r2">) 
   env.IMG_BUCKET && env.IMG_PUBLIC_URL && (shop.images_r2 ?? 0) >= 1 ? `${env.IMG_PUBLIC_URL.replace(/\/+$/, "")}/shops/${shop.id}/` : null;
 
 /** /img/… (placeholder আর সাপোর্টের ছবি বাদে) — আগে উদ্ধৃতি, বন্ধনী, ফাঁকা, কমা বা = থাকলে */
-const IMG_RE = /(["'(\s,=])\/img\/(?!placeholder\.svg|support\/|home\/)/g;
+const IMG_RE = /(["'(\s,=])\/img\/(?!placeholder\.svg|support\/|home\/|demo\/)/g;
 
 /**
  * দোকানের পাবলিক পেজের HTML-এ ছবির ঠিকানা /img/… → https://img.<domain>/shops/<id>/…
@@ -110,6 +112,8 @@ export async function withR2Images(env: WorkerEnv, shop: ShopRow, request: Reque
 
 async function serveImage(env: WorkerEnv, shop: ShopRow, request: Request, ctx: ExecutionContext) {
   const url = new URL(request.url);
+  // ডেমোর ছবি সব দোকানে এক জায়গা থেকে (সাইটের নিজের ফাইল)
+  if (url.pathname.startsWith("/img/demo/")) return Response.redirect(`${url.origin}/demo-img/${url.pathname.slice(10)}`, 301);
   // R2-তে থাকলে সেখানে পাঠানো (পুরনো লিংক, ফিড, প্যানেলের JS) — দোকানের Durable Object জাগাতে হয় না
   const base = r2Base(env, shop);
   const key = url.pathname.slice(5);

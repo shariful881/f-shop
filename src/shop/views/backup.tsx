@@ -1,3 +1,4 @@
+import { storageLabel } from "../../platform/plans";
 /**
  * ব্যাকআপ ও স্টোরেজ — দোকানের ডাটা Excel/CSV-তে নামানো আর কতটা জায়গা খরচ হলো দেখা।
  */
@@ -16,9 +17,10 @@ const EXPORTS = [
   { kind: "customers", title: "কাস্টমার তালিকা", text: "মোবাইল, নাম, ঠিকানা, কতবার কিনেছে, মোট কেনা" },
 ];
 
-export const BackupPage = (p: { stats: StorageStats }) => {
+export const BackupPage = (p: { stats: StorageStats; limit?: number }) => {
   const s = p.stats;
-  const pct = Math.min(100, Math.round((s.imageBytes / MEDIA_SOFT_LIMIT) * 100));
+  const limit = p.limit || MEDIA_SOFT_LIMIT;
+  const pct = Math.min(100, Math.round((s.imageBytes / limit) * 100));
   return (
     <>
       <PageHead title="ব্যাকআপ ও স্টোরেজ" desc="দোকানের ডাটা নিজের কম্পিউটারে রেখে দিন। ফাইলগুলো Excel বা Google Sheets-এ সরাসরি খোলে। মাসে অন্তত একবার নামিয়ে রাখা ভালো।" />
@@ -34,7 +36,7 @@ export const BackupPage = (p: { stats: StorageStats }) => {
 
       <Card title="জায়গা কতটা খরচ হলো">
         <div class="media-usage">
-          <div><strong>ছবি: {size(s.imageBytes)}</strong> <small class="muted">(প্রস্তাবিত সীমা {bn(MEDIA_SOFT_LIMIT / 1024 / 1024)} MB)</small></div>
+          <div><strong>ছবি: {size(s.imageBytes)}</strong> <small class="muted">(প্ল্যানের সীমা {storageLabel(Math.round(limit / 1024 / 1024))})</small></div>
           <div class={`media-meter${pct >= 80 ? " warn" : ""}`}><i style={`width:${pct}%`}></i></div>
           {pct >= 80 && <small class="muted">জায়গা প্রায় শেষ — <a href="/admin/media?folder=unused">অব্যবহৃত ছবি</a> মুছে দিন।</small>}
         </div>

@@ -70,7 +70,7 @@ const publicNav = <PublicNav />;
 async function loadFees(c: PCtx): Promise<Fees> {
   const s = await platformSettings(c.env.PLATFORM_DB);
   const support = /^01[3-9]\d{8}$/.test(s.support_phone || "") ? s.support_phone! : "";
-  return { plans: plans(s), staff: num(s, "staff_fee", 49), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 400), support };
+  return { plans: plans(s), staff: num(s, "staff_fee", 49), trialDays: num(s, "trial_days", 30), trialOrders: num(s, "trial_orders", 400), support };
 }
 
 /** পাবলিক পেজ: মেনু + পেজ + ফুটার */
@@ -245,7 +245,7 @@ platformApp.post("/signup", async (c) => {
     await c.env.PLATFORM_DB.prepare(
       `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left, niche, plan, usage_reset_at)
        VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?, ?, ?, datetime('now', '+1 month'))`,
-    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 14), num(ps, "trial_orders", 400), values.niche || null, TRIAL_PLAN).run();
+    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 30), num(ps, "trial_orders", 400), values.niche || null, TRIAL_PLAN).run();
   } catch {
     return fail({ slug: "এই ঠিকানা আগেই নেওয়া হয়েছে" });
   }
@@ -261,14 +261,10 @@ platformApp.post("/signup", async (c) => {
     seedDemo: values.seed_demo === "1",
     niche: values.niche || undefined,
   });
-  // নিশের নমুনা পণ্যে ডেমো দোকানের ছবি কপি (ডেমো না থাকলে বা ভুল হলে ছবি ছাড়াই চলবে)
+  // নিশের নমুনা পণ্যে ডেমোর ছবি — কপি নয়, সব দোকান এক জায়গার ছবি দেখায় (দোকানের জায়গায় গোনা হয় না)
   if (values.niche && values.seed_demo === "1") {
     try {
-      const demo = await c.env.PLATFORM_DB.prepare("SELECT id FROM shops WHERE demo_niche = ?").bind(values.niche).first<{ id: string }>();
-      if (demo) {
-        const images = await c.env.SHOP.getByName(demo.id).exportNicheImages();
-        if (images.length) await c.env.SHOP.getByName(id).importNicheImages(id, images);
-      }
+      await c.env.SHOP.getByName(id).useSharedNicheImages(id, values.niche);
     } catch (err) { console.error("niche images", err); }
   }
   clearShopCache();
@@ -343,7 +339,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=40"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=41"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

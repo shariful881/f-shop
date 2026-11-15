@@ -68,7 +68,7 @@ import { feedItems } from "../lib/feed";
 export const admin = new Hono<AppEnv>();
 
 /* ---------- ফ্ল্যাশ মেসেজ ---------- */
-function flash(c: Ctx, type: "ok" | "error", text: string) {
+export function flash(c: Ctx, type: "ok" | "error", text: string) {
   setCookie(c, "flash", encodeURIComponent(JSON.stringify({ type, text })), { path: "/admin", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 });
 }
 function takeFlash(c: Ctx): Flash {
@@ -493,7 +493,7 @@ admin.get("/export", async (c) => {
             (SELECT COALESCE(SUM(size), 0) FROM images) imageBytes, (SELECT COUNT(*) FROM pages) pages,
             (SELECT COUNT(*) FROM sms_logs) smsLogs`,
   ).first<StorageStats>();
-  return render(c, "ব্যাকআপ ও স্টোরেজ", "export", <BackupPage stats={st!} />);
+  return render(c, "ব্যাকআপ ও স্টোরেজ", "export", <BackupPage stats={st!} limit={(c.var.shopState.storage_mb ?? 0) * 1024 * 1024} />);
 });
 
 /** ব্যাকআপ: Excel-এ খোলে এমন CSV ডাউনলোড (মালিক/ম্যানেজার) */
@@ -2051,7 +2051,7 @@ admin.get("/media", async (c) => {
   const q = (c.req.query("q") || "").slice(0, 60);
   const page = Math.max(1, toInt(c.req.query("page"), 1));
   const r = await listMedia(c.env.DB, { folder, q, limit: 60, offset: (page - 1) * 60 });
-  return render(c, "মিডিয়া", "media", <MediaPage {...r} folder={folder} q={q} page={page} />);
+  return render(c, "মিডিয়া", "media", <MediaPage {...r} folder={folder} q={q} page={page} limit={(c.var.shopState.storage_mb ?? 0) * 1024 * 1024} />);
 });
 
 /** পিকারের জন্য JSON */

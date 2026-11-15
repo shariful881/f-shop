@@ -1,4 +1,4 @@
-import { cyclePrice, type Plan, type PlanKey } from "./plans";
+import { cyclePrice, storageLabel, type Plan, type PlanKey } from "./plans";
 import type { Child } from "hono/jsx";
 import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -441,6 +441,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
               <ul>
                 <li><Icon name="check" size="sm" /> মাসে {bn(P[k].orders)}টা কনফার্ম অর্ডার</li>
                 <li><Icon name="check" size="sm" /> {P[k].staff ? `${bn(P[k].staff)} জন স্টাফ` : "শুধু মালিক"}</li>
+                <li><Icon name="check" size="sm" /> ছবির জায়গা {storageLabel(P[k].storage)}</li>
                 <li>{P[k].domain ? <><Icon name="check" size="sm" /> নিজের ডোমেইন</> : <><Icon name="x" size="sm" class="hp-no" /> নিজের ডোমেইন নেই</>}</li>
               </ul>
             </div>
@@ -495,7 +496,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
         <div class="h-faq">
           {[
             ["কম্পিউটার বা কোডিং জানতে হবে?", "না। ফেসবুকে পোস্ট দিতে পারলেই চালাতে পারবেন। মোবাইল দিয়েই পুরো দোকান চালানো যায় — প্যানেল অ্যাপের মতো ফোনে বসিয়ে নিলে নতুন অর্ডারের নোটিফিকেশনও পাবেন।"],
-            ["সত্যিই ফ্রি?", `হ্যাঁ। ফ্রি প্ল্যানে মাসে ${bn(P.free.orders)}টা কনফার্ম অর্ডার পর্যন্ত একদম ৳০, সব ফিচারসহ। বেশি অর্ডার হলে বা স্টাফ/নিজের ডোমেইন লাগলে পেইড প্ল্যান নিন।`],
+            ["সত্যিই ফ্রি?", `হ্যাঁ। ফ্রি প্ল্যানে মাসে ${bn(P.free.orders)}টা কনফার্ম অর্ডার পর্যন্ত একদম ৳০, সব ফিচারসহ। বেশি অর্ডার হলে বা স্টাফ/নিজের ডোমেইন লাগলে পেইড প্ল্যান নিন। শুধু খেয়াল রাখবেন: ফ্রি দোকান ৩০ দিন একদম ব্যবহার না হলে মুছে যায় (৭ দিন আগে জানানো হয়)।`],
             ["কোন ধরনের পণ্যের জন্য?", "যেকোনো পণ্য — পোশাক, স্কিনকেয়ার, খাবার, গ্যাজেট, কিচেন, শিশু পণ্য, হাতে বানানো জিনিস। ৬টা ধরনের রেডি দোকান আছে, বাকিগুলো নিজের মতো সাজিয়ে নিন।"],
             ["ফেক অর্ডার কীভাবে কমবে?", "ভুল নম্বর আর বারবার অর্ডার নিজে থেকে আটকায়। প্রতিটা অর্ডারে ক্রেতার আগের রেকর্ড দেখায় — কতবার নিয়েছে আর ফেরত দিয়েছে। ঝুঁকি থাকলে অগ্রিম ডেলিভারি চার্জ নিতে পারেন।"],
             ["অনলাইন পেমেন্ট নেওয়া যায়?", "ক্যাশ অন ডেলিভারি মূল। চাইলে ডেলিভারি চার্জ বা পুরো টাকা bKash/Nagad/Rocket-এ অগ্রিম নিতে পারেন — কাস্টমার Transaction ID দেয়, আপনি মিলিয়ে নেন। কার্ড পেমেন্ট এখনো নেই।"],
@@ -543,7 +544,7 @@ export const SignupPage = (p: { values?: Record<string, string>; errors?: Record
     <div class="wrap narrow">
       <div class="login-box wide">
         <h1>দোকান খুলুন</h1>
-        <p class="muted">১৪ দিন অথবা প্রথম ৫০টা অর্ডার ফ্রি। কোনো কার্ড লাগবে না।</p>
+        <p class="muted">১ মাস সব ফিচার ফ্রি। কোনো কার্ড লাগবে না।</p>
         {p.alert && <div class="alert alert-error">{p.alert}</div>}
         <form method="post" action="/signup" class="order-form" data-signup>
           <label class="field"><span>দোকানের নাম *</span><input type="text" name="shop_name" value={v.shop_name ?? ""} required maxlength={60} />{e.shop_name && <small class="error">{e.shop_name}</small>}</label>

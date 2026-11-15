@@ -7,7 +7,7 @@
  * - প্ল্যানের বাইরের স্টাফ: প্রতিজন মাসে staff_fee
  * - ব্যালেন্স মাইনাস হলে grace_days দিন সতর্কবার্তা, তারপর নতুন অর্ডার বন্ধ
  */
-import { cyclePrice, extraStaff, isPlan, overageCharge, planForShop, type PlanKey } from "./plans";
+import { cyclePrice, extraStaff, isPlan, overageCharge, planForShop, TRIAL_PLAN, type PlanKey } from "./plans";
 
 export type PlatformSettings = Record<string, string>;
 
@@ -245,6 +245,8 @@ export type ShopState = {
   grace_ends_at: string | null;
   /** এই মাসে প্ল্যানের কতটা অর্ডার হলো (চালু দোকানে) */
   usage?: { used: number; limit: number; extra: number; plan: string };
+  /** ছবির জায়গার সীমা, MB (ট্রায়ালে ট্রায়ালের প্ল্যানের) */
+  storage_mb?: number;
 };
 
 export function computeState(shop: BillingShop, s: PlatformSettings): ShopState {
@@ -255,6 +257,7 @@ export function computeState(shop: BillingShop, s: PlatformSettings): ShopState 
     trial_orders_left: shop.trial_orders_left,
     grace_ends_at: null as string | null,
     usage: undefined as ShopState["usage"],
+    storage_mb: planForShop(s, shop.created_at, shop.status === "trial" ? TRIAL_PLAN : shop.plan).storage,
   };
   if (shop.status === "active") {
     const p = planForShop(s, shop.created_at, shop.plan);

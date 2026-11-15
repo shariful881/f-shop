@@ -113,3 +113,18 @@ export async function r2Status(env: WorkerEnv): Promise<R2Status> {
 }
 
 export const setAutoPurge = (env: WorkerEnv, on: boolean) => set(env.PLATFORM_DB, "r2_auto_purge", on ? "1" : "0");
+
+/** দোকানের সব ছবি R2 থেকে মোছা (দোকানের ডাটা মোছার সময়) — ফেরত দেয় কয়টা মুছল */
+export async function deleteShopR2(env: WorkerEnv, shopId: string): Promise<number> {
+  if (!env.IMG_BUCKET) return 0;
+  let n = 0;
+  let cursor: string | undefined;
+  do {
+    const list = await env.IMG_BUCKET.list({ prefix: `shops/${shopId}/`, cursor, limit: 1000 });
+    const keys = list.objects.map((o) => o.key);
+    if (keys.length) await env.IMG_BUCKET.delete(keys);
+    n += keys.length;
+    cursor = list.truncated ? list.cursor : undefined;
+  } while (cursor);
+  return n;
+}

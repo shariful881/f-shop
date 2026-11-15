@@ -32,7 +32,9 @@ export function youtubeId(url: string | null | undefined): string | null {
 }
 
 export function imageUrl(key: string | null | undefined): string {
-  return key ? `/img/${key}` : "/img/placeholder.svg";
+  if (!key) return "/img/placeholder.svg";
+  // ডেমো/নিশের ছবি সব দোকানে এক জায়গা থেকে (সাইটের নিজের ফাইল) — দোকানের জায়গায় গোনা হয় না
+  return key.startsWith("demo/") ? `/demo-img/${key.slice(5)}` : `/img/${key}`;
 }
 
 export function discountPercent(price: number, compare: number | null): number {

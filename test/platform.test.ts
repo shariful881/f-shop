@@ -48,8 +48,8 @@ describe("সাইনআপ", () => {
     const s = await shopRow("rahim");
     expect(s).toMatchObject({ name: "রহিমের দোকান", owner_phone: "01712345678", owner_email: "rahim@example.com", status: "trial", trial_orders_left: 400, plan: "grow" });
     const days = (new Date(s!.trial_ends_at.replace(" ", "T") + "Z").getTime() - Date.now()) / 86400000;
-    expect(days).toBeGreaterThan(13.9);
-    expect(days).toBeLessThan(14.1);
+    expect(days).toBeGreaterThan(29.9); // ট্রায়াল ১ মাস
+    expect(days).toBeLessThan(30.1);
 
     // দোকানের নিজস্ব ডাটাবেস: মালিক, দোকানের নাম, যোগাযোগ নম্বর, নমুনা পণ্য
     const db = shopDb(s!.id);

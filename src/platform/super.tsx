@@ -14,7 +14,6 @@ import { NICHES, nicheByKey } from "../shop/lib/niches";
 import type { NicheImage } from "../shop/shop-do";
 
 /** ডেমো দোকানের আঁকা ছবি (demo/draw.py) — public repo থেকে */
-const DEMO_IMAGE_BASE = "https://raw.githubusercontent.com/shariful881/f-shop/main/demo/images";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
@@ -193,7 +192,9 @@ const FILTER_SQL: Record<string, string> = {
   trial: "s.status = 'trial'",
   active: "s.status = 'active'",
   suspended: "s.status = 'suspended'",
-  closed: "s.status = 'closed'",
+  closed: "s.status = 'closed' AND s.deleted_at IS NULL",
+  idle: "s.status = 'active' AND s.plan = 'free' AND s.demo_niche IS NULL AND s.deleted_at IS NULL AND MAX(COALESCE(s.last_login_at, ''), COALESCE(s.last_order_at, ''), s.created_at) <= datetime('now', '-23 days')",
+  deleted: "s.deleted_at IS NOT NULL",
   dues: "s.balance < 0",
   at_risk: "s.status = 'active' AND (s.last_order_at IS NULL OR s.last_order_at < datetime('now', '-14 days'))",
   trial_ending: "s.status = 'trial' AND s.trial_ends_at <= datetime('now', '+3 days')",
@@ -291,6 +292,7 @@ superApp.get("/shops/:id/export.json", async (c) => {
   if (!allowed(c, "shop.export")) return forbidden(c);
   const s = await loadShop(c, c.req.param("id"));
   if (!s) return c.notFound();
+  if (s.deleted_at) return c.text("এই দোকানের ডাটা মুছে ফেলা হয়েছে।", 410);
   const data = await c.env.SHOP.getByName(s.id).exportData(s.id);
   await audit(c, "shop.export", "shop", s.id, "পুরো ব্যাকআপ ডাউনলোড");
   return new Response(JSON.stringify(data), { headers: {
@@ -305,6 +307,7 @@ superApp.post("/shops/:id/restore", async (c) => {
   if (!allowed(c, "shop.restore")) return forbidden(c);
   const s = await loadShop(c, c.req.param("id"));
   if (!s) return c.notFound();
+  if (s.deleted_at) { flash(c, "error", "এই দোকানের ডাটা মুছে ফেলা হয়েছে — ফেরানো যায় না।"); return c.redirect(`/super/shops/${s.id}`, 303); }
   const b = await c.req.parseBody();
   const file = b.file;
   if (str(b.confirm, 80) !== s.slug) {
@@ -441,6 +444,7 @@ superApp.post("/shops/:id/impersonate", async (c) => {
   if (!allowed(c, "shop.impersonate")) return forbidden(c);
   const s = await loadShop(c, c.req.param("id"));
   if (!s) return c.redirect("/super/shops", 303);
+  if (s.deleted_at) { flash(c, "error", "এই দোকানের ডাটা মুছে ফেলা হয়েছে।"); return c.redirect(`/super/shops/${s.id}`, 303); }
   const token = await c.env.SHOP.getByName(s.id).ownerLoginToken(s.id);
   if (!token) {
     flash(c, "error", "দোকানে কোনো চালু মালিক অ্যাকাউন্ট নেই।");
@@ -646,6 +650,21 @@ superApp.get("/demos", async (c) => {
   return page(c, "ডেমো দোকান", "demos", <DemosPage rows={rows} support={ps.support_phone || ""} />);
 });
 
+/** আগে কপি হওয়া ডেমো ছবি সব দোকানে এক জায়গার ছবিতে বদলানো, কপি মোছা (একবারে ৪০টা দোকান) */
+superApp.post("/demos-share-images", async (c) => {
+  if (!allowed(c, "demos")) return forbidden(c);
+  const { results } = await c.env.PLATFORM_DB.prepare(
+    "SELECT id FROM shops WHERE (niche IS NOT NULL OR demo_niche IS NOT NULL) AND deleted_at IS NULL ORDER BY created_at LIMIT 40",
+  ).all<{ id: string }>();
+  let freed = 0, n = 0;
+  for (const r of results) {
+    try { freed += await c.env.SHOP.getByName(r.id).adoptSharedDemoImages(r.id); n++; } catch (e) { console.error("share images", r.id, e); }
+  }
+  await audit(c, "demo.share_images", null, null, `${n}টা দোকান, ${Math.round(freed / 1024)} KB খালি`);
+  flash(c, "ok", `${bn(n)}টা দোকান দেখা হলো — ${bn(Math.round(freed / 1024 / 102.4) / 10)} MB জায়গা খালি হয়েছে।`);
+  return c.redirect("/super/demos", 303);
+});
+
 superApp.post("/demos/:key", async (c) => {
   if (!allowed(c, "demos")) return forbidden(c);
   const n = nicheByKey(c.req.param("key"));
@@ -672,23 +691,11 @@ superApp.post("/demos/:key", async (c) => {
     shopId: shop.id, niche: n.key, phone, ownerEmail: `demo+${n.key}@${c.env.PLATFORM_DOMAIN}`, passwordHash: await hashPassword(pw),
     signupUrl: `https://${c.env.PLATFORM_DOMAIN}/signup?niche=${n.key}`,
   });
-  // repo-র demo/images থেকে যেসব ছবি নেই সেগুলো বসানো
+  // ডেমোর ছবি সাইটের নিজের ফাইল থেকে (public/demo-img) — কপি নয়; আগে কপি হয়ে থাকলে সেটাও বদলে কপি মুছে ফেলা
   const stub = c.env.SHOP.getByName(shop.id);
-  const miss = await stub.missingNicheImages();
-  const want: { file: string; product?: string; setting?: string }[] = [
-    ...miss.products.filter((sl) => sl.startsWith(`${n.key}-`)).map((sl) => ({ file: `${sl}.jpg`, product: sl })),
-    ...miss.banners.map((k) => ({ file: `${n.key}-banner-${k.slice(-1)}.jpg`, setting: k })),
-  ];
-  const images: NicheImage[] = [];
-  for (const w of want) {
-    try {
-      const res = await fetch(`${DEMO_IMAGE_BASE}/${w.file}`);
-      if (!res.ok) continue;
-      const key = `${w.setting ? w.setting.replace("_", "") : "p"}/${w.file}`;
-      images.push({ key, type: "image/jpeg", data: await res.arrayBuffer(), product: w.product, setting: w.setting });
-    } catch { /* ছবি না পেলে বাদ */ }
-  }
-  if (images.length) await stub.importNicheImages(shop.id, images);
+  await stub.adoptSharedDemoImages(shop.id);
+  const set = await stub.useSharedNicheImages(shop.id, n.key);
+  const images = { length: set }; // বার্তার জন্য: কতগুলো ছবি বসল
   clearShopCache();
   await audit(c, "demo.setup", "shop", shop.id, `${n.key}: ${r.products} পণ্য, ${images.length} নতুন ছবি`);
   flash(c, "ok", `${n.name} ডেমো দোকান তৈরি/আপডেট হয়েছে — ${bn(r.products)}টা পণ্য, ${bn(images.length)}টা নতুন ছবি বসেছে।`);
@@ -864,7 +871,7 @@ superApp.post("/account/logout-all", async (c) => {
 
 /* ---------- প্ল্যাটফর্ম সেটিংস ---------- */
 const NUM_KEYS = ["staff_fee", "min_topup", "trial_days", "trial_orders", "grace_days",
-  ...PLAN_KEYS.flatMap((k) => [`plan_${k}_price`, `plan_${k}_orders`, `plan_${k}_staff`])];
+  ...PLAN_KEYS.flatMap((k) => [`plan_${k}_price`, `plan_${k}_orders`, `plan_${k}_staff`, `plan_${k}_storage`])];
 const DEC_KEYS = PLAN_KEYS.map((k) => `plan_${k}_extra`);
 const TEXT_KEYS = ["bkash_number", "nagad_number", "support_phone"];
 
