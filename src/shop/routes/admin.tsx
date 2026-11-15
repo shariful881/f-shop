@@ -1294,6 +1294,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
   if (has("default_area")) v.default_area = ["inside", "outside", "none"].includes(String(b.default_area)) ? String(b.default_area) : "inside";
   if (has("order_prefix")) { const x = str(b.order_prefix, 6).toUpperCase(); v.order_prefix = /^[A-Z0-9-]{1,6}$/.test(x) ? x : "FS-"; }
   if (section === "seo") v.seo_noindex = b.seo_noindex ? "1" : "0";
+  if (section === "tracking") v.purchase_guard = b.purchase_guard ? "1" : "0";
   if (section === "payment") {
     for (const k of ["bkash", "nagad", "rocket"]) {
       const n = normalizePhone(str(b[`payment_${k}`], 20));

@@ -78,7 +78,7 @@ export const HELP: HelpArticle[] = [
 
   // মার্কেটিং
   { slug: "pixel", cat: "মার্কেটিং", title: "Facebook Pixel আর Conversions API", summary: "বিজ্ঞাপনের ফল ঠিকমতো মাপা আর খরচ কমানো।",
-    steps: ["Facebook Events Manager থেকে Pixel ID আর Conversions API-এর Access Token নিন।", "মেনু → পিক্সেল ও ট্র্যাকিং-এ দুটো বসিয়ে সেভ করুন।", "অর্ডার কনফার্ম করলে Facebook-এ Purchase ইভেন্ট নিজে থেকে যায় (ফেক অর্ডারে যায় না)।", "চাইলে GA4, GTM আর TikTok Pixel-ও দিতে পারেন।"], tips: ["অর্ডারের পাশে \"Purchase গেছে\" চিহ্ন দেখে নিশ্চিত হন।"], admin: "/admin/settings/tracking" },
+    steps: ["Facebook Events Manager থেকে Pixel ID আর Conversions API-এর Access Token নিন।", "মেনু → পিক্সেল ও ট্র্যাকিং-এ দুটো বসিয়ে সেভ করুন।", "অর্ডার কনফার্ম করলে Facebook-এ Purchase ইভেন্ট নিজে থেকে যায় (ফেক অর্ডারে যায় না) — এটাই \"Purchase গার্ড\", ডিফল্টে চালু। একই পেজে চাইলে বন্ধ করতে পারেন — তখন অর্ডার আসার সাথে সাথে Purchase যায়।", "চাইলে GA4, GTM আর TikTok Pixel-ও দিতে পারেন।"], tips: ["অর্ডারের পাশে \"Purchase গেছে\" চিহ্ন দেখে নিশ্চিত হন।"], admin: "/admin/settings/tracking" },
   { slug: "coupons", cat: "মার্কেটিং", title: "কুপন কোড", summary: "টাকায় বা শতাংশে ছাড়ের কোড।",
     steps: ["মেনু → কুপন → কোড, ধরন (টাকা/%) আর পরিমাণ দিন।", "চাইলে সর্বনিম্ন অর্ডার, কতবার ব্যবহার আর তারিখ ঠিক করুন।", "কাস্টমার চেকআউটে কোড দিলে ছাড় বসে যাবে।"], admin: "/admin/coupons" },
   { slug: "catalog-ads", cat: "মার্কেটিং", title: "ক্যাটালগ অ্যাড আর অ্যাডের আসল খরচ", summary: "Facebook/Google-এ পণ্যের ফিড, আর বাতিল-ফেরত বাদ দিয়ে প্রতি অর্ডারে আসল খরচ।",

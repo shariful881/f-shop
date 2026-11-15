@@ -100,6 +100,12 @@ export function trackServer(c: Ctx, eventName: string, eventId: string, customDa
 
 /* ---------------- Purchase ---------------- */
 
+/**
+ * Purchase গার্ড (ডিফল্ট চালু): অর্ডার এলে Purchase যায় না, দোকানদার কনফার্ম করলে তবেই যায় —
+ * ফেক অর্ডারকে Facebook বিক্রি ধরে না। বন্ধ করলে সাধারণ সাইটের মতো অর্ডার আসার সাথে সাথে যায়।
+ */
+export const purchaseGuardOn = (s: Settings) => s.purchase_guard !== "0";
+
 export type PurchaseResult = { ok: boolean; message: string };
 
 /**
@@ -108,11 +114,13 @@ export type PurchaseResult = { ok: boolean; message: string };
  * - event_id = purchase_{অর্ডার নম্বর}
  * - একই অর্ডারের Purchase দুবার যায় না; ফেক/বাতিল/নতুন অর্ডারের কখনো যায় না
  */
-export async function sendPurchase(db: D1Database, orderId: number, s: Settings): Promise<PurchaseResult> {
+export async function sendPurchase(db: D1Database, orderId: number, s: Settings, opts: { atOrder?: boolean } = {}): Promise<PurchaseResult> {
   const order = await db.prepare("SELECT * FROM orders WHERE id = ?").bind(orderId).first<Order>();
   if (!order) return { ok: false, message: "অর্ডার পাওয়া যায়নি" };
   if (order.purchase_sent_at) return { ok: true, message: "Purchase আগেই পাঠানো হয়েছে" };
-  if (order.status !== "confirmed" && order.status !== "shipped") {
+  // গার্ড বন্ধ থাকলে অর্ডার আসার মুহূর্তে (status = new) পাঠানো যায়; নইলে শুধু কনফার্ম/শিপড
+  const atOrder = !!opts.atOrder && !purchaseGuardOn(s) && order.status === "new";
+  if (!atOrder && order.status !== "confirmed" && order.status !== "shipped") {
     return { ok: false, message: "শুধু কনফার্ম বা শিপড অর্ডারের Purchase পাঠানো যায়" };
   }
 
@@ -126,7 +134,7 @@ export async function sendPurchase(db: D1Database, orderId: number, s: Settings)
   const claim = await db
     .prepare(
       `UPDATE orders SET purchase_sending_until = datetime('now', '+30 seconds')
-       WHERE id = ? AND purchase_sent_at IS NULL AND status IN ('confirmed', 'shipped')
+       WHERE id = ? AND purchase_sent_at IS NULL AND status IN (${atOrder ? "'new', " : ""}'confirmed', 'shipped')
          AND (purchase_sending_until IS NULL OR purchase_sending_until < datetime('now'))`,
     )
     .bind(orderId)

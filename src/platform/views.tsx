@@ -55,6 +55,7 @@ const FEATURE_TABS: { key: string; icon: IconName; title: string; short: string;
   {
     key: "orders", icon: "shield-check", title: "অর্ডার আর ফেক আটকানো", short: "ফেক আটকানো", sub: "বাংলাদেশে অনলাইন বিক্রির সবচেয়ে বড় সমস্যা — আসল ক্রেতা, কম ফেরত", hot: true,
     items: [
+      ["shield-check", "Facebook Purchase গার্ড", "ফেক অর্ডারকেও Facebook বিক্রি ধরে — ভুল লোককে অ্যাড দেখায়, খরচ বাড়ে", "অর্ডার এলে Purchase যায় না, অর্ডার \"নতুন\"-এ থাকে; আপনি কনফার্ম করলে তবেই Facebook-এ Purchase যায়। ফেক বা বাতিল অর্ডারের কখনো না — চালু/বন্ধ দোকানের সেটিংসে আপনার হাতে।"],
       ["shield-alert", "ফেক অর্ডার ব্লক", "ভুয়া নম্বরে অর্ডার, পার্সেল ফেরত", "ভুল নম্বর নেয় না, বারবার অর্ডার আটকায়; ফেক ধরলে নম্বর আর ডিভাইস ব্লক।"],
       ["users", "ক্রেতার রেকর্ড", "কে পার্সেল নেবে আর কে নেবে না, আগে জানা যায় না", "আগে কতবার নিয়েছে আর ফেরত দিয়েছে — সব SellxBD দোকান আর কুরিয়ারের রেকর্ড মিলিয়ে।"],
       ["hourglass", "অসম্পূর্ণ অর্ডার", "নম্বর লিখে অর্ডার না করেই চলে যায়", "সেই নম্বর তালিকায় আসে — কল বা WhatsApp করে এক ক্লিকে অর্ডার বানান।"],
@@ -77,7 +78,7 @@ const FEATURE_TABS: { key: string; icon: IconName; title: string; short: string;
   {
     key: "ads", icon: "megaphone", title: "অ্যাড আর মার্কেটিং", short: "অ্যাড", sub: "অ্যাডের প্রতিটা টাকার হিসাব",
     items: [
-      ["trending-up", "Pixel + Conversions API", "Facebook ফেক অর্ডারকেও বিক্রি ধরে, ভুল লোক আনে", "Purchase যায় শুধু আপনি কনফার্ম করলে — Facebook আসল ক্রেতা চিনতে শেখে, খরচ কমে।"],
+      ["trending-up", "Pixel + Conversions API", "অ্যাড ব্লকার আর iPhone-এ Pixel অনেক ইভেন্ট হারায়", "ব্রাউজার আর সার্ভার — দুই দিক থেকে ইভেন্ট, একই event_id; Purchase গার্ডের সাথে মিলে Facebook আসল ক্রেতা চেনে।"],
       ["boxes", "ক্যাটালগ ফিড", "প্রতিটা পণ্য হাতে হাতে Facebook-এ তোলা", "সব পণ্য নিজে থেকে Facebook আর Google ক্যাটালগে — দাম বা স্টক বদলালে সেখানেও বদলায়।"],
       ["calculator", "অ্যাডের আসল খরচ", "কোন অ্যাডে লাভ আর কোনটায় লোকসান বোঝা যায় না", "প্রতি কনফার্ম অর্ডারে কত খরচ আর খরচের কত গুণ বিক্রি — পণ্য ধরে আলাদা।"],
       ["chart-line", "GA4, GTM, TikTok", "কোথা থেকে কাস্টমার আসছে অজানা", "Google Analytics, Tag Manager আর TikTok Pixel — শুধু ID বসালেই চালু।"],
@@ -234,8 +235,9 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
               {t.hot && <p class="hp-hot-note"><Icon name="shield-alert" /> <span><b>বাংলাদেশে অনলাইন বিক্রির সবচেয়ে বড় সমস্যা ফেক অর্ডার আর পার্সেল ফেরত।</b> তাই এই ভাগটা SellxBD-এর সবচেয়ে শক্তিশালী — অর্ডার আসার মুহূর্ত থেকে পার্সেল পাঠানো পর্যন্ত প্রতিটা ধাপে পাহারা।</span></p>}
               <h3 class="hp-tab-h"><Icon name={t.icon} /> {t.title} <small>{t.sub}</small></h3>
               <div class="hp-feats">
-                {t.items.map(([ic, title, problem, d]) => (
-                  <div class="hp-feat">
+                {t.items.map(([ic, title, problem, d], j) => (
+                  <div class={`hp-feat${t.hot && j === 0 ? " hp-feat-star" : ""}`}>
+                    {t.hot && j === 0 && <span class="hp-star-badge"><Icon name="star" size="sm" /> ফেক অর্ডারের বিরুদ্ধে ১ নম্বর ঢাল</span>}
                     <span class="hp-ic"><Icon name={ic} /></span>
                     <div class="hp-feat-body">
                       <h4>{title}</h4>

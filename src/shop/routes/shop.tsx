@@ -21,7 +21,7 @@ import { deliveryCharge, minOrderAmount } from "../lib/settings";
 import { publicOrigin, clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
 import { bn, imageUrl, taka } from "../lib/format";
 import { page } from "../lib/render";
-import { newEventId, trackServer, type CustomData } from "../lib/capi";
+import { newEventId, purchaseGuardOn, sendPurchase, trackServer, type CustomData } from "../lib/capi";
 import { PixelHead, type BrowserEvent } from "../views/pixel";
 import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLocks, hitRateLimit, ORDER_RATE_LIMIT } from "../lib/order-guard";
 import { isUuid } from "../middleware/device";
@@ -585,8 +585,13 @@ shop.post("/order", async (c) => {
     }, products);
 
     // Lead: সার্ভার এখন (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
-    // (Purchase এখানে কখনো যায় না — শুধু অ্যাডমিন কনফার্ম করলে)
+    // Purchase: গার্ড চালু (ডিফল্ট) থাকলে এখানে যায় না — শুধু দোকানদার কনফার্ম করলে।
+    // গার্ড বন্ধ থাকলে এখনই সার্ভার থেকে যায় (ধন্যবাদ পেজে ব্রাউজার থেকেও, একই event_id)।
     trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: subtotal + delivery - (coupon?.discount ?? 0) });
+    if (!purchaseGuardOn(st)) {
+      const job = sendPurchase(c.env.DB, order.id, st, { atOrder: true }).catch((e) => { console.error("purchase at order", e); });
+      try { c.executionCtx.waitUntil(job); } catch { await job; }
+    }
 
     await markConverted(c.env.DB, v.phone, order.id);
     // দোকানদারের ফোনে নোটিফিকেশন (রেসপন্সের পরে)
@@ -798,7 +803,22 @@ shop.get("/thanks", async (c) => {
   if (!data) return c.redirect("/", 303);
   const s = c.var.settings;
   const o = data.order;
-  const head = pixel(c, [{
+  const guardOff = !purchaseGuardOn(s);
+  const head = pixel(c, [...(guardOff ? [{
+    name: "Purchase",
+    id: `purchase_${o.order_no}`,
+    once: true,
+    serverAlreadySent: true,
+    params: {
+      content_type: "product",
+      content_ids: data.items.map((i) => String(i.product_id ?? i.id)),
+      contents: data.items.map((i) => ({ id: String(i.product_id ?? i.id), quantity: i.qty || 1, item_price: i.price })),
+      num_items: data.items.reduce((n, i) => n + (i.qty || 1), 0),
+      value: o.total,
+      currency: "BDT",
+      order_id: o.order_no,
+    },
+  }] : []), {
     name: "Lead",
     id: `lead_${o.order_no}`,
     once: true,

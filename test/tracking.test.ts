@@ -242,3 +242,45 @@ describe("Purchase ইভেন্ট", () => {
     expect(row.purchase_response).toContain("সেট করা নেই");
   });
 });
+
+describe("Purchase গার্ড (চালু/বন্ধ)", () => {
+  async function order() {
+    const b = new Browser("198.51.100.45");
+    await b.get("/p/wooden-wall-shelf");
+    await b.order({ phone: "01712345679" });
+    return { b, o: (await lastOrder())! };
+  }
+
+  it("ডিফল্টে চালু: অর্ডারে Purchase যায় না, ধন্যবাদ পেজেও না; সেটিংসে সুইচ চালু দেখায়", async () => {
+    const { b } = await order();
+    await settle();
+    expect(named("Purchase")).toHaveLength(0);
+    const thanks = await (await b.get("/thanks")).text();
+    expect(thanks).not.toContain('"name":"Purchase"');
+    const page = await (await (await adminBrowser()).get("/admin/settings/tracking")).text();
+    expect(page).toContain("Purchase গার্ড চালু");
+  });
+
+  it("বন্ধ করলে: অর্ডার আসার সাথে সাথে সার্ভার থেকে একবার, ধন্যবাদ পেজে ব্রাউজার থেকে একই event_id; পরে কনফার্মে আবার যায় না", async () => {
+    const a = await adminBrowser();
+    await a.post("/admin/settings/tracking", { _section: "tracking", fb_pixel_id: "1234567890", fb_graph_version: "v26.0" }); // চেকবক্স না পাঠালে = বন্ধ
+    expect((await DB.prepare("SELECT value FROM settings WHERE key='purchase_guard'").first<{ value: string }>())!.value).toBe("0");
+
+    const { b, o } = await order();
+    await vi.waitFor(() => expect(named("Purchase")).toHaveLength(1));
+    expect(named("Purchase")[0].event_id).toBe(`purchase_${o.order_no}`);
+    expect((await lastOrder())!.purchase_sent_at).not.toBeNull();
+    expect((await lastOrder())!.status).toBe("new");
+
+    const thanks = await (await b.get("/thanks")).text();
+    expect(thanks).toContain(`"name":"Purchase","id":"purchase_${o.order_no}"`);
+
+    await setStatus(a, o.id, "confirmed");
+    await settle();
+    expect(named("Purchase")).toHaveLength(1);
+
+    // আবার চালু
+    await a.post("/admin/settings/tracking", { _section: "tracking", purchase_guard: "1", fb_pixel_id: "1234567890", fb_graph_version: "v26.0" });
+    expect((await DB.prepare("SELECT value FROM settings WHERE key='purchase_guard'").first<{ value: string }>())!.value).toBe("1");
+  });
+});

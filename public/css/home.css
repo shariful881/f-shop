@@ -315,3 +315,13 @@
   .hp-hot-note { font-size: .9rem; padding: 12px; }
 }
 .hp-tabs.js .hp-tablist { padding-top: 14px; }
+
+/* ফেক ট্যাবের প্রথম কার্ড — Purchase গার্ড, পুরো সারি জুড়ে */
+.hp-feat.hp-feat-star { grid-column: 1 / -1; position: relative; border: 2px solid #ea580c !important; background: linear-gradient(135deg, #fff7ed 0%, #fff 60%); box-shadow: 0 16px 36px rgba(234,88,12,.14); padding-top: 26px; }
+.hp-feat-star h4 { font-size: 1.2rem; }
+.hp-feat-star .hp-ic { background: #ea580c !important; color: #fff !important; }
+.hp-feat-star .hp-feat-fix { font-size: .98rem; color: #1e293b; }
+.hp-star-badge { position: absolute; top: -12px; left: 18px; display: inline-flex; align-items: center; gap: 5px; background: #ea580c; color: #fff; font-size: .76rem; font-weight: 800; padding: 3px 12px; border-radius: 999px; box-shadow: 0 0 0 3px #fff; }
+.hp-star-badge .ic { width: 13px; height: 13px; }
+@media (min-width: 980px) { .hp-feat.hp-feat-star { flex-direction: row; align-items: flex-start; gap: 18px; padding: 26px 24px 22px; } .hp-feat-star .hp-ic { width: 52px; height: 52px; } }
+@media (max-width: 639px) { .hp-feat.hp-feat-star { padding-top: 22px; } .hp-star-badge { left: 12px; font-size: .7rem; } }

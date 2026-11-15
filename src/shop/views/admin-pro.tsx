@@ -555,7 +555,27 @@ export const SettingsTrackingPage = ({ s }: { s: Settings }) => (
   <>
     <Tabs active="tracking" />
     <SettingsForm section="tracking" action="/admin/settings/tracking">
-      <Section title="Facebook Pixel + Conversions API" desc={<>ব্রাউজার আর সার্ভার — দুই দিক থেকে ইভেন্ট যায় (PageView, ViewContent, AddToCart, InitiateCheckout, Lead)। <b>Purchase যায় শুধু আপনি অর্ডার কনফার্ম করলে</b>, তাই ফেক অর্ডারে অ্যাড অপটিমাইজেশন নষ্ট হয় না।</>}>
+      <Section title="Purchase গার্ড — ফেক অর্ডারে Facebook ভুল শিখবে না" desc={<>সাধারণ ওয়েবসাইটে অর্ডার আসার সাথে সাথেই Facebook-এ <b>Purchase</b> চলে যায় — ফেক অর্ডারও। তখন Facebook ভাবে ফেক অর্ডার দেওয়া লোকেরাই আপনার ক্রেতা, আর তাদের মতো লোককেই বেশি অ্যাড দেখায়।</>}>
+        <div class={`pg-box wide ${s.purchase_guard !== "0" ? "on" : "off"}`}>
+          <label class="pg-switch">
+            <input type="checkbox" name="purchase_guard" value="1" checked={s.purchase_guard !== "0"} />
+            <span class="pg-track"><span class="pg-knob"></span></span>
+            <b>Purchase গার্ড {s.purchase_guard !== "0" ? "চালু" : "বন্ধ"}</b>
+          </label>
+          <div class="pg-modes">
+            <div class="pg-mode pg-mode-on">
+              <b>✓ চালু (পরামর্শ)</b>
+              <span>অর্ডার এলে Purchase <u>যায় না</u>, অর্ডার "নতুন"-এ থাকে। আপনি ফোন করে <b>কনফার্ম</b> করলে তবেই Facebook-এ Purchase যায়। ফেক/বাতিল অর্ডারের Purchase কখনো যায় না — Facebook শুধু আসল ক্রেতা চিনতে শেখে।</span>
+            </div>
+            <div class="pg-mode pg-mode-off">
+              <b>বন্ধ</b>
+              <span>সাধারণ সাইটের মতো অর্ডার আসার সাথে সাথে Purchase যায় (ব্রাউজার + সার্ভার, একই event_id)। ফেক অর্ডারও বিক্রি হিসেবে গোনা হবে। শুধু যদি আপনি ফোনে কনফার্ম না করেন বা অগ্রিম টাকা নিয়ে অর্ডার নেন, তখন বন্ধ রাখতে পারেন।</span>
+            </div>
+          </div>
+          <small class="pg-note">Lead, InitiateCheckout, AddToCart আগের মতোই সাথে সাথে যায় — শুধু Purchase-এর সময় বদলায়। Purchase যেতে Pixel ID আর Conversions API টোকেন দুটোই লাগবে।</small>
+        </div>
+      </Section>
+      <Section title="Facebook Pixel + Conversions API" desc={<>ব্রাউজার আর সার্ভার — দুই দিক থেকে ইভেন্ট যায় (PageView, ViewContent, AddToCart, InitiateCheckout, Lead, Purchase)। Purchase কখন যাবে তা উপরের <b>Purchase গার্ড</b> ঠিক করে।</>}>
         <F label="Pixel ID" hint="Events Manager → Data sources → আপনার Pixel → ID"><input type="text" name="fb_pixel_id" value={s.fb_pixel_id} inputmode="numeric" pattern="[0-9]*" maxlength={30} /></F>
         <F label={`CAPI Access Token ${s.fb_capi_token ? "(সেট করা আছে)" : "(সেট করা নেই)"}`} hint="Events Manager → Settings → Conversions API → Generate access token। ফাঁকা রাখলে আগেরটাই থাকবে।">
           <input type="password" name="fb_capi_token" value="" autocomplete="new-password" placeholder={s.fb_capi_token ? "••••••••••••" : ""} />

@@ -330,3 +330,21 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa-plan-set legend { font-weight: 700; padding: 0 4px; }
 .sa-plan-set .sa-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .sa-plan-set label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+
+/* Purchase গার্ড — চালু/বন্ধ সুইচ */
+.pg-box { border: 2px solid #99f6e4; background: #f0fdfa; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.pg-box.off { border-color: #fdba74; background: #fff7ed; }
+.pg-switch { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; font-size: 1.05rem; }
+.pg-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pg-track { width: 52px; height: 30px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background .2s; flex: none; }
+.pg-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform .2s; }
+.pg-switch input:checked + .pg-track { background: #0f766e; }
+.pg-switch input:checked + .pg-track .pg-knob { transform: translateX(22px); }
+.pg-switch input:focus-visible + .pg-track { outline: 3px solid #99f6e4; outline-offset: 2px; }
+.pg-modes { display: grid; gap: 10px; }
+@media (min-width: 720px) { .pg-modes { grid-template-columns: 1fr 1fr; } }
+.pg-mode { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: #475569; line-height: 1.6; }
+.pg-mode b { color: #0f172a; }
+.pg-box.on .pg-mode-on, .pg-box.off .pg-mode-off { border: 2px solid #0f766e; }
+.pg-box.off .pg-mode-off { border-color: #ea580c; }
+.pg-note { color: #64748b; }
