@@ -193,13 +193,20 @@ admin.get("/", async (c) => {
 /* ---------- অর্ডার ---------- */
 const PER_PAGE = 50;
 
+/** তারিখের সীমা — ঢাকার দিন ধরে (created_at UTC-তে থাকে) */
+const ORDER_RANGES = { all: 0, today: 1, "7": 7, "30": 30 } as const;
+type OrderRange = keyof typeof ORDER_RANGES;
+
 admin.get("/orders", async (c) => {
   const db = c.env.DB;
   const status = (STATUS_TABS as string[]).includes(c.req.query("status") || "") ? (c.req.query("status") as OrderStatus) : "new";
   const q = (c.req.query("q") || "").trim().slice(0, 100);
   const page = Math.max(1, toInt(c.req.query("page"), 1));
+  const range: OrderRange = (c.req.query("range") || "") in ORDER_RANGES ? (c.req.query("range") as OrderRange) : "all";
+  const days = ORDER_RANGES[range];
+  const dateCond = days ? `date(o.created_at, '+6 hours') >= date('now', '+6 hours', '-${days - 1} days')` : "1";
 
-  const { results: countRows } = await db.prepare("SELECT status, COUNT(*) n FROM orders GROUP BY status").all<{ status: string; n: number }>();
+  const { results: countRows } = await db.prepare(`SELECT status, COUNT(*) n FROM orders o WHERE ${dateCond} GROUP BY status`).all<{ status: string; n: number }>();
   const counts = Object.fromEntries(countRows.map((r) => [r.status, r.n]));
 
   let where = "o.status = ?";
@@ -213,13 +220,26 @@ admin.get("/orders", async (c) => {
   const { results } = await db
     .prepare(
       `SELECT o.*, (SELECT COALESCE(SUM(qty), 0) FROM order_items i WHERE i.order_id = o.id) AS item_count
-       FROM orders o WHERE ${where} ORDER BY o.id DESC LIMIT ? OFFSET ?`,
+       FROM orders o WHERE ${where} AND ${dateCond} ORDER BY o.id DESC LIMIT ? OFFSET ?`,
     )
     .bind(...binds, PER_PAGE + 1, (page - 1) * PER_PAGE)
     .all<Order & { item_count: number }>();
+  const orders = results.slice(0, PER_PAGE);
+
+  // কাস্টমারের আগের রেকর্ড: এই পাতার নম্বরগুলোর ডেলিভারি/বাতিল (একটাই কোয়েরি)
+  const phones = [...new Set(orders.map((o) => o.phone))];
+  const history: Record<string, { good: number; bad: number }> = {};
+  if (phones.length) {
+    const { results: h } = await db.prepare(
+      `SELECT phone, SUM(status IN ('confirmed', 'shipped')) good, SUM(status IN ('cancelled', 'fake')) bad
+       FROM orders WHERE phone IN (${phones.map(() => "?").join(",")}) GROUP BY phone`,
+    ).bind(...phones).all<{ phone: string; good: number; bad: number }>();
+    for (const r of h) history[r.phone] = { good: r.good, bad: r.bad };
+  }
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage orders={results.slice(0, PER_PAGE)} counts={counts} status={status} q={q} page={page} hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
+    <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history}
+      hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
 });
 
 /** কাস্টমার: ফোন নম্বর ধরে অর্ডারের হিসাব */
@@ -268,13 +288,11 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
     <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms} />);
 });
 
-admin.post("/orders/:id{[0-9]+}/status", async (c) => {
-  const id = toInt(c.req.param("id"));
-  const to = str((await c.req.parseBody()).status, 20) as OrderStatus;
+/** স্ট্যাটাস বদল + তার পরের কাজ (বিলিং, Purchase, SMS) — একটা আর একসাথে অনেক অর্ডার দুটোতেই */
+async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: boolean; message: string; purchaseFail?: string }> {
   const res = await changeStatus(c.env.DB, id, to);
-  if (!res.ok) {
-    flash(c, "error", res.message);
-  } else if (to === "confirmed") {
+  if (!res.ok) return { ok: false, message: res.message };
+  if (to === "confirmed") {
     // বিলিং: ট্রায়ালে ফ্রি অর্ডার কমে, চালু দোকানে প্রতি কনফার্ম অর্ডারে চার্জ (একবারই)
     try {
       await chargeConfirmedOrder(c.env.PLATFORM_DB, c.env.SHOP_ID, res.order.order_no);
@@ -285,14 +303,55 @@ admin.post("/orders/:id{[0-9]+}/status", async (c) => {
     // কনফার্ম হলে শুধু সার্ভার থেকে (CAPI) Purchase যায়
     const p = await sendPurchase(c.env.DB, id, c.var.settings);
     smsLater(c, id, "confirmed");
-    flash(c, p.ok ? "ok" : "error", p.ok ? "অর্ডার কনফার্ম হয়েছে, Facebook-এ Purchase গেছে।" : `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${p.message}`);
-  } else if (to === "cancelled" || to === "fake") {
-    flash(c, "ok", "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।");
-  } else {
-    if (to === "shipped") smsLater(c, id, "shipped");
-    flash(c, "ok", "স্ট্যাটাস বদলেছে।");
+    return p.ok
+      ? { ok: true, message: "অর্ডার কনফার্ম হয়েছে, Facebook-এ Purchase গেছে।" }
+      : { ok: true, message: `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${p.message}`, purchaseFail: p.message };
   }
+  if (to === "cancelled" || to === "fake") return { ok: true, message: "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।" };
+  if (to === "shipped") smsLater(c, id, "shipped");
+  return { ok: true, message: "স্ট্যাটাস বদলেছে।" };
+}
+
+admin.post("/orders/:id{[0-9]+}/status", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const to = str((await c.req.parseBody()).status, 20) as OrderStatus;
+  const r = await applyStatus(c, id, to);
+  flash(c, r.ok && !r.purchaseFail ? "ok" : "error", r.message);
   return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+/** একসাথে অনেক অর্ডারের স্ট্যাটাস। কনফার্মে বাইরের কল (বিলিং, Purchase) হয়, তাই একবারে সর্বোচ্চ ১০টা */
+export const BULK_CONFIRM_MAX = 10;
+admin.post("/orders/bulk-status", async (c) => {
+  const body = await c.req.parseBody({ all: true });
+  const to = str(body.to, 20) as OrderStatus;
+  const back = str(body.back, 300);
+  const backUrl = back.startsWith("/admin/orders") ? back : "/admin/orders";
+  if (!["confirmed", "cancelled", "fake", "shipped"].includes(to)) {
+    flash(c, "error", "ভুল স্ট্যাটাস।");
+    return c.redirect(backUrl, 303);
+  }
+  const raw = Array.isArray(body.ids) ? body.ids : body.ids != null ? [body.ids] : [];
+  const ids = [...new Set(raw.map((x) => toInt(String(x))).filter((n) => n > 0))].slice(0, 100);
+  if (!ids.length) {
+    flash(c, "error", "কোনো অর্ডার বাছাই করা হয়নি।");
+    return c.redirect(backUrl, 303);
+  }
+  if (to === "confirmed" && ids.length > BULK_CONFIRM_MAX) {
+    flash(c, "error", `একবারে সর্বোচ্চ ${bn(BULK_CONFIRM_MAX)}টা অর্ডার কনফার্ম করা যায় (প্রতিটায় Facebook-এ Purchase যায়)।`);
+    return c.redirect(backUrl, 303);
+  }
+  let done = 0;
+  const fails: string[] = [];
+  for (const id of ids) {
+    const r = await applyStatus(c, id, to);
+    if (r.ok) done++;
+    if (!r.ok || r.purchaseFail) fails.push(r.message);
+  }
+  const label = { confirmed: "কনফার্ম", cancelled: "বাতিল", fake: "ফেক", shipped: "শিপড" }[to as "confirmed"];
+  flash(c, fails.length ? "error" : "ok",
+    `${bn(done)}টা অর্ডার ${label} হয়েছে।` + (fails.length ? ` ${bn(fails.length)}টায় সমস্যা: ${[...new Set(fails)].slice(0, 2).join(" · ")}` : ""));
+  return c.redirect(backUrl, 303);
 });
 
 admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {

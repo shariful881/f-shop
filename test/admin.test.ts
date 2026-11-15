@@ -49,7 +49,7 @@ describe("অর্ডার তালিকা", () => {
     await orderAs(new Browser(), "01712345678");
     await orderAs(new Browser(), "01812345678");
     const html = await (await a.get("/admin/orders?status=new")).text();
-    expect(html).toMatch(/নতুন <span class="tab-count">2<\/span>/);
+    expect(html).toMatch(/নতুন <span class="tab-count">২<\/span>/);
     expect(html).toContain("FS-100001");
 
     const byPhone = await (await a.get("/admin/orders?q=" + encodeURIComponent("+8801812345678"))).text();

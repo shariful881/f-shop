@@ -106,6 +106,15 @@ export const PurchaseBadge = ({ o }: { o: Order }) => {
   return null;
 };
 
+const RANGE_LABEL = { all: "সব সময়", today: "আজ", "7": "৭ দিন", "30": "৩০ দিন" } as const;
+
+/** কাস্টমারের আগের ডেলিভারি/বাতিল থেকে ছোট চিহ্ন */
+const HistoryBadge = ({ h }: { h?: { good: number; bad: number } }) => {
+  if (!h || h.good + h.bad === 0) return <span class="badge">নতুন কাস্টমার</span>;
+  const tone = h.bad === 0 ? "ok" : h.good >= h.bad * 2 ? "warn" : "bad";
+  return <span class={`badge badge-${tone}`} title="আগের অর্ডার: ডেলিভারি / বাতিল-ফেক">✓{bn(h.good)} · ✕{bn(h.bad)}</span>;
+};
+
 export const OrdersPage = (p: {
   orders: (Order & { item_count: number })[];
   counts: Record<string, number>;
@@ -113,43 +122,73 @@ export const OrdersPage = (p: {
   q: string;
   page: number;
   hasMore: boolean;
+  range?: keyof typeof RANGE_LABEL;
+  history?: Record<string, { good: number; bad: number }>;
   couriers?: CourierKey[];
 }) => {
+  const range = p.range ?? "all";
   const courierBulk = !p.q && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
-  // ইনভয়েস/স্টিকার একসাথে প্রিন্ট সব তালিকায়
   const bulk = p.orders.length > 0;
+  const qs = (extra: Record<string, string | number>) => {
+    const u = new URLSearchParams({ status: p.status, range, ...(p.q ? { q: p.q } : {}) });
+    for (const [k, v] of Object.entries(extra)) u.set(k, String(v));
+    return `/admin/orders?${u}`;
+  };
+  const back = qs({ page: p.page });
+  // কোন স্ট্যাটাস থেকে কোথায় একসাথে নেওয়া যায়
+  const bulkTo: { to: OrderStatus; label: string; cls: string; ask?: string }[] =
+    p.q ? [] :
+    p.status === "new" ? [
+      { to: "confirmed", label: "কনফার্ম", cls: "btn-primary", ask: "বাছাই করা অর্ডার কনফার্ম করবেন? (একবারে সর্বোচ্চ ১০টা)" },
+      { to: "cancelled", label: "বাতিল", cls: "btn-outline", ask: "বাছাই করা অর্ডার বাতিল করবেন?" },
+      { to: "fake", label: "ফেক", cls: "btn-danger", ask: "বাছাই করা অর্ডার ফেক করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
+    ] :
+    p.status === "confirmed" ? [{ to: "shipped", label: "শিপড", cls: "btn-outline", ask: "বাছাই করা অর্ডার শিপড করবেন?" }] : [];
   return (
   <>
     <div class="tabs">
       {STATUS_TABS.map((s) => (
-        <a href={`/admin/orders?status=${s}`} class={!p.q && p.status === s ? "tab active" : "tab"}>
-          {STATUS_LABEL[s]} <span class="tab-count">{p.counts[s] ?? 0}</span>
+        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && p.status === s ? "tab active" : "tab"}>
+          {STATUS_LABEL[s]} <span class="tab-count">{bn(p.counts[s] ?? 0)}</span>
         </a>
       ))}
     </div>
-    <form method="get" action="/admin/orders" class="search">
-      <input type="search" name="q" value={p.q} placeholder="নম্বর / নাম / অর্ডার নং দিয়ে খুঁজুন" />
-      <button class="btn btn-outline">খুঁজুন</button>
-      {p.q && <a href="/admin/orders" class="btn-link">মুছুন</a>}
-    </form>
+    <div class="orders-tools">
+      <form method="get" action="/admin/orders" class="search">
+        <input type="hidden" name="range" value={range} />
+        <input type="search" name="q" value={p.q} placeholder="নম্বর / নাম / অর্ডার নং দিয়ে খুঁজুন" />
+        <button class="btn btn-outline"><Icon name="search" size="sm" /> খুঁজুন</button>
+        {p.q && <a href={`/admin/orders?range=${range}`} class="btn-link">মুছুন</a>}
+      </form>
+      <nav class="range-pills" aria-label="তারিখ">
+        {(["all", "today", "7", "30"] as const).map((r) => (
+          <a href={`/admin/orders?status=${p.status}&range=${r}${p.q ? `&q=${encodeURIComponent(p.q)}` : ""}`} class={r === range ? "active" : ""}>{RANGE_LABEL[r]}</a>
+        ))}
+      </nav>
+    </div>
     {p.q && <p class="muted">"{p.q}" — সব স্ট্যাটাসে খোঁজা হয়েছে</p>}
     {p.orders.length === 0 ? (
-      <div class="sa-card"><EmptyState icon="receipt" title="এই তালিকায় কোনো অর্ডার নেই" text="নতুন অর্ডার এলে এখানে দেখাবে। দোকান বা ল্যান্ডিং পেজের লিংক ফেসবুকে শেয়ার করুন।" /></div>
+      <div class="sa-card"><EmptyState icon="receipt" title="এই তালিকায় কোনো অর্ডার নেই" text={range === "all" ? "নতুন অর্ডার এলে এখানে দেখাবে। দোকান বা ল্যান্ডিং পেজের লিংক ফেসবুকে শেয়ার করুন।" : `${RANGE_LABEL[range]}-এ এই তালিকায় কিছু নেই — উপরে "সব সময়" বেছে দেখুন।`} /></div>
     ) : (
       <form method="post" action="/admin/orders/bulk-courier" id="bulk-form">
+      <input type="hidden" name="back" value={back} />
       {bulk && (
         <div class="bulk-bar">
           <label class="inline-check"><input type="checkbox" data-check-all /> সব বাছুন</label>
+          {bulkTo.map((b) => (
+            <button class={`btn btn-sm ${b.cls}`} formaction="/admin/orders/bulk-status" name="to" value={b.to} data-confirm={b.ask}>{b.label}</button>
+          ))}
           {courierBulk && (
             <>
               <select name="courier">
                 {(p.couriers ?? []).filter((k) => k !== "redx").map((k) => <option value={k}>{COURIER_NAME[k]}</option>)}
               </select>
-              <button class="btn btn-primary" data-confirm="বাছাই করা অর্ডারগুলো কুরিয়ারে পাঠাবেন?">বাছাই করা অর্ডার কুরিয়ারে পাঠান</button>
+              <button class="btn btn-sm btn-primary" data-confirm="বাছাই করা অর্ডারগুলো কুরিয়ারে পাঠাবেন?"><Icon name="truck" size="sm" /> কুরিয়ারে পাঠান</button>
             </>
           )}
-          <button class="btn btn-outline" formaction="/admin/orders/invoices" formmethod="get" formtarget="_blank"><Icon name="printer" size="sm" /> ইনভয়েস প্রিন্ট</button>
-          <button class="btn btn-outline" formaction="/admin/orders/invoices?size=sticker" formmethod="get" formtarget="_blank" name="size" value="sticker">🏷️ স্টিকার প্রিন্ট</button>
+          <span class="bulk-gap"></span>
+          <button class="btn btn-sm btn-outline" formaction="/admin/orders/invoices" formmethod="get" formtarget="_blank"><Icon name="printer" size="sm" /> ইনভয়েস</button>
+          <button class="btn btn-sm btn-outline" formaction="/admin/orders/invoices?size=sticker" formmethod="get" formtarget="_blank" name="size" value="sticker"><Icon name="tag" size="sm" /> স্টিকার</button>
         </div>
       )}
       <div class="table-wrap">
@@ -159,8 +198,8 @@ export const OrdersPage = (p: {
             {p.orders.map((o) => (
               <tr>
                 {bulk && <td><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
-                <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{o.item_count}টা পণ্য</small></td>
-                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a></td>
+                <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
+                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a></td>
                 <td>{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
                 <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
@@ -174,8 +213,8 @@ export const OrdersPage = (p: {
       </form>
     )}
     <div class="pager">
-      {p.page > 1 && <a class="btn btn-outline" href={`?status=${p.status}&q=${encodeURIComponent(p.q)}&page=${p.page - 1}`}>← আগের</a>}
-      {p.hasMore && <a class="btn btn-outline" href={`?status=${p.status}&q=${encodeURIComponent(p.q)}&page=${p.page + 1}`}>পরের →</a>}
+      {p.page > 1 && <a class="btn btn-outline" href={qs({ page: p.page - 1 })}>← আগের</a>}
+      {p.hasMore && <a class="btn btn-outline" href={qs({ page: p.page + 1 })}>পরের →</a>}
     </div>
   </>
   );

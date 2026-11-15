@@ -266,3 +266,35 @@ body.admin .set-save { gap: 10px; }
 body.admin .pf-card.seo-box { padding: 16px 18px; margin: 0; border: 1px solid var(--c-line); background: #fff; border-radius: var(--r-lg); }
 .pf-img { aspect-ratio: 4 / 3; max-height: 240px; }
 @media (max-width: 600px) { body.admin .set-save { padding-right: 76px; } }
+
+/* ---------- অর্ডার পেজ ---------- */
+.orders-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 0 0 var(--sp-3); }
+.orders-tools .search { flex: 1 1 320px; margin: 0; display: flex; gap: 8px; }
+.range-pills { display: inline-flex; background: #fff; border: 1px solid var(--c-line); border-radius: var(--r); padding: 3px; gap: 2px; }
+.range-pills a { padding: 6px 12px; border-radius: 7px; font-size: var(--fs-sm); font-weight: 600; color: var(--c-text); text-decoration: none; white-space: nowrap; }
+.range-pills a:hover { background: #f1f5f9; }
+.range-pills a.active { background: var(--c-brand); color: #fff; }
+body.admin .bulk-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; margin: 0 0 10px;
+  background: #fff; border: 1px solid var(--c-line); border-radius: var(--r-lg); }
+body.admin .bulk-bar select { min-height: 32px; border: 1px solid var(--c-line-strong); border-radius: var(--r-sm); padding: 0 8px; font: inherit; font-size: var(--fs-sm); }
+.bulk-gap { flex: 1; }
+.hist-link { text-decoration: none !important; }
+.hist-link .badge { margin-top: 3px; }
+@media (max-width: 600px) { .range-pills { width: 100%; justify-content: space-between; } .bulk-gap { display: none; } }
+
+/* ---------- ফোনে (B8) ---------- */
+@media (max-width: 700px) {
+  /* টেবিল চেপে না গিয়ে পাশে সরে (স্ক্রল) */
+  body.admin .table-wrap .table, body.admin .table-wrap .sa-table { min-width: 620px; }
+  body.admin .table-wrap { -webkit-overflow-scrolling: touch; }
+  /* ট্যাব এক লাইনে, পাশে সরানো যায় */
+  body.admin .tabs, body.admin .set-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; scrollbar-width: none; padding-bottom: 2px; }
+  body.admin .tabs::-webkit-scrollbar, body.admin .set-tabs::-webkit-scrollbar { display: none; }
+  body.admin .tab, body.admin .set-tabs a { flex: none; }
+  /* ব্যানার ছোট */
+  body.admin .banner { font-size: var(--fs-xs); padding: 7px 12px; gap: 4px; }
+  /* উপরের বারে শিরোনাম লুকানো থাকলে বারটা ছোট */
+  body.admin .sa-top { min-height: 52px; }
+  body.admin .sa-content h1 { font-size: var(--fs-lg); }
+  body.admin .page-head .actions, body.admin .detail-head .inline-actions { width: 100%; }
+}

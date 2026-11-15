@@ -163,7 +163,7 @@ describe("Steadfast", () => {
     const a = await setup(STEADFAST);
     const ids = [await confirmedOrder(a, "01712345671"), await confirmedOrder(a, "01712345672"), await confirmedOrder(a, "01712345673")];
     const list = await (await a.get("/admin/orders?status=confirmed")).text();
-    expect(list).toContain("বাছাই করা অর্ডার কুরিয়ারে পাঠান");
+    expect(list).toContain("কুরিয়ারে পাঠান");
     const body = new URLSearchParams();
     body.append("courier", "steadfast");
     for (const id of ids.slice(0, 2)) body.append("ids", String(id));
