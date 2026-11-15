@@ -34,3 +34,17 @@
   tabs.forEach(function (t) { t.addEventListener("click", function () { show(t.getAttribute("data-hp-tab")); }); });
   show(tabs[0].getAttribute("data-hp-tab"));
 })();
+
+/* মোবাইলে নিচের "দোকান খুলুন" বার — হিরো পার হলে দেখায়, একদম নিচে আর শেষ ডাকে লুকায় */
+(function () {
+  var bar = document.querySelector("[data-hp-sticky]");
+  if (!bar) return;
+  var hero = document.querySelector(".hp-hero"), fin = document.querySelector(".hp-final");
+  function tick() {
+    var past = hero ? hero.getBoundingClientRect().bottom < 0 : window.scrollY > 600;
+    var atEnd = fin ? fin.getBoundingClientRect().top < window.innerHeight : false;
+    bar.classList.toggle("show", past && !atEnd);
+  }
+  window.addEventListener("scroll", tick, { passive: true });
+  tick();
+})();
