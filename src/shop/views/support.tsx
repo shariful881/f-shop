@@ -4,13 +4,14 @@
  */
 import { CATEGORIES, PRIORITY, STATUS, type Message, type Ticket } from "../../platform/support";
 import { bn, dhakaTime } from "../lib/format";
+import { Icon } from "./icons";
 
 export const StatusTag = ({ s, team }: { s: string; team?: boolean }) => {
   const label = team ? ({ open: "খোলা", pending: "দোকানের অপেক্ষায়", resolved: "সমাধান", closed: "বন্ধ" } as Record<string, string>)[s] : STATUS[s];
   return <span class={`sx-st sx-st-${s}`}>{label ?? s}</span>;
 };
 export const PriorityTag = ({ p }: { p: string }) => (p === "normal" ? null : <span class={`sx-pri sx-pri-${p}`}>{PRIORITY[p]}</span>);
-export const ChannelTag = ({ c }: { c: string }) => <span class="sx-ch" title={c === "chat" ? "লাইভ চ্যাট" : "টিকেট"}>{c === "chat" ? "💬" : "🎫"}</span>;
+export const ChannelTag = ({ c }: { c: string }) => <span class="sx-ch" title={c === "chat" ? "লাইভ চ্যাট" : "টিকেট"}><Icon name={c === "chat" ? "message-circle" : "ticket"} size="sm" /></span>;
 
 /** একটা মেসেজ — viewer: কে দেখছে (নিজের মেসেজ ডানে) */
 export const Bubble = ({ m, viewer }: { m: Message; viewer: "shop" | "team" }) => {
@@ -19,7 +20,7 @@ export const Bubble = ({ m, viewer }: { m: Message; viewer: "shop" | "team" }) =
   return (
     <div class={`sx-msg ${mine ? "mine" : "theirs"}${m.internal ? " internal" : ""}`} data-id={m.id}>
       <div class="sx-bubble">
-        {m.internal ? <div class="sx-internal-tag">🔒 ভিতরের নোট — দোকান দেখবে না</div> : null}
+        {m.internal ? <div class="sx-internal-tag">ভিতরের নোট — দোকান দেখবে না</div> : null}
         {m.body && <div class="sx-body">{m.body}</div>}
         {m.attachment && <a href={m.attachment} target="_blank" rel="noopener" class="sx-att"><img src={m.attachment} alt="স্ক্রিনশট" loading="lazy" /></a>}
       </div>
@@ -43,8 +44,8 @@ export const ShopSupportList = (p: { tickets: Ticket[]; online: boolean; hours: 
         <h2>কীভাবে সাহায্য করতে পারি?</h2>
         <p>লাইভ চ্যাটে সাথে সাথে কথা বলুন, অথবা সমস্যার বিস্তারিত লিখে টিকেট দিন — স্ক্রিনশটসহ। আমাদের টিম উত্তর দিলে এখানেই দেখবেন।</p>
         <div class="sx-hero-actions">
-          <button type="button" class="sa-btn" data-sx-open="chat">💬 লাইভ চ্যাট</button>
-          <a href="/admin/support/new" class="sa-btn sa-btn-ghost">🎫 নতুন টিকেট</a>
+          <button type="button" class="sa-btn" data-sx-open="chat"><Icon name="message-circle" size="sm" /> লাইভ চ্যাট</button>
+          <a href="/admin/support/new" class="sa-btn sa-btn-ghost"><Icon name="ticket" size="sm" /> নতুন টিকেট</a>
         </div>
       </div>
       <div class="sx-status-card">
@@ -57,8 +58,8 @@ export const ShopSupportList = (p: { tickets: Ticket[]; online: boolean; hours: 
       </div>
     </div>
 
-    <TicketCard title="🎫 সাপোর্ট টিকেট" empty="এখনো কোনো টিকেট নেই। বড় সমস্যা হলে স্ক্রিনশটসহ টিকেট দিন।" tickets={p.tickets.filter((t) => t.channel === "ticket")} action={<a href="/admin/support/new" class="sa-btn sa-btn-sm">➕ নতুন টিকেট</a>} />
-    <TicketCard title="💬 লাইভ চ্যাট" empty="এখনো কোনো চ্যাট হয়নি। কোণার 💬 বাটনে চাপ দিয়ে কথা বলুন।" tickets={p.tickets.filter((t) => t.channel === "chat")} action={<button type="button" class="sa-btn sa-btn-ghost sa-btn-sm" data-sx-open="chat">চ্যাট খুলুন</button>} />
+    <TicketCard title="সাপোর্ট টিকেট" empty="এখনো কোনো টিকেট নেই। বড় সমস্যা হলে স্ক্রিনশটসহ টিকেট দিন।" tickets={p.tickets.filter((t) => t.channel === "ticket")} action={<a href="/admin/support/new" class="sa-btn sa-btn-sm">➕ নতুন টিকেট</a>} />
+    <TicketCard title="লাইভ চ্যাট" empty="এখনো কোনো চ্যাট হয়নি। কোণার সাপোর্ট বাটনে চাপ দিয়ে কথা বলুন।" tickets={p.tickets.filter((t) => t.channel === "chat")} action={<button type="button" class="sa-btn sa-btn-ghost sa-btn-sm" data-sx-open="chat">চ্যাট খুলুন</button>} />
   </div>
 );
 
@@ -95,7 +96,7 @@ export const ShopNewTicket = (p: { errors?: Record<string, string>; values?: Rec
   return (
     <div class="sx-wrap">
       <form method="post" action="/admin/support/new" enctype="multipart/form-data" class="sa-card sx-form">
-        <div class="sa-card-head"><h2>🎫 নতুন টিকেট</h2><a href="/admin/support" class="sa-link">← সব টিকেট</a></div>
+        <div class="sa-card-head"><h2>নতুন টিকেট</h2><a href="/admin/support" class="sa-link">← সব টিকেট</a></div>
         <div class="sx-grid2">
           <label class="field">সমস্যার ধরন
             <select name="category">{Object.entries(CATEGORIES).map(([k, l]) => <option value={k} selected={v.category === k}>{l}</option>)}</select>
@@ -165,7 +166,7 @@ export const ShopTicketPage = (p: { t: Ticket; msgs: Message[] }) => {
         <form method="post" action={`/admin/support/${t.id}/reply`} enctype="multipart/form-data" class="sx-reply" data-sx-reply>
           <textarea name="body" rows={3} maxlength={5000} placeholder={closed ? "আবার সমস্যা হলে লিখুন — টিকেটটি আবার খুলবে" : "উত্তর লিখুন…"} data-sx-typing></textarea>
           <div class="sx-reply-foot">
-            <label class="sx-attach">📎 স্ক্রিনশট<input type="file" name="attachment" accept="image/jpeg,image/png,image/webp" /></label>
+            <label class="sx-attach"><Icon name="paperclip" size="sm" /> স্ক্রিনশট<input type="file" name="attachment" accept="image/jpeg,image/png,image/webp" /></label>
             <button class="sa-btn">পাঠান</button>
           </div>
         </form>
@@ -178,7 +179,7 @@ export const ShopTicketPage = (p: { t: Ticket; msgs: Message[] }) => {
 export const ChatWidget = ({ shopName }: { shopName: string }) => (
   <div id="sx-widget" class="sx-widget" data-shop={shopName}>
     <button type="button" class="sx-fab" data-sx-open aria-label="সাপোর্ট">
-      <span class="sx-fab-ico">💬</span><span class="sx-fab-label">সাপোর্ট</span><span class="sx-fab-badge" hidden></span>
+      <span class="sx-fab-ico"><Icon name="message-circle" /></span><span class="sx-fab-label">সাপোর্ট</span><span class="sx-fab-badge" hidden></span>
     </button>
     <section class="sx-panel" hidden aria-label="SellxBD সাপোর্ট">
       <header class="sx-panel-head">
@@ -187,8 +188,8 @@ export const ChatWidget = ({ shopName }: { shopName: string }) => (
         <button type="button" class="sx-x" data-sx-close aria-label="বন্ধ">✕</button>
       </header>
       <nav class="sx-tabs" role="tablist">
-        <button type="button" role="tab" class="active" data-sx-tab="chat">💬 লাইভ চ্যাট<span class="sx-tab-badge" data-sx-badge-chat hidden></span></button>
-        <button type="button" role="tab" data-sx-tab="ticket">🎫 সাপোর্ট টিকেট<span class="sx-tab-badge" data-sx-badge-ticket hidden></span></button>
+        <button type="button" role="tab" class="active" data-sx-tab="chat"><Icon name="message-circle" size="sm" /> লাইভ চ্যাট<span class="sx-tab-badge" data-sx-badge-chat hidden></span></button>
+        <button type="button" role="tab" data-sx-tab="ticket"><Icon name="ticket" size="sm" /> সাপোর্ট টিকেট<span class="sx-tab-badge" data-sx-badge-ticket hidden></span></button>
       </nav>
 
       {/* ভাগ ১: লাইভ চ্যাট */}
@@ -199,7 +200,7 @@ export const ChatWidget = ({ shopName }: { shopName: string }) => (
         <div class="sx-typing" data-sx-typing-ind hidden>সাপোর্ট লিখছে<span>.</span><span>.</span><span>.</span></div>
         <form class="sx-panel-form" data-sx-chat-form>
           <textarea rows={1} maxlength={2000} placeholder="মেসেজ লিখুন…" required></textarea>
-          <button aria-label="পাঠান">➤</button>
+          <button aria-label="পাঠান"><Icon name="send" /></button>
         </form>
       </div>
 
@@ -209,7 +210,7 @@ export const ChatWidget = ({ shopName }: { shopName: string }) => (
           <div class="sx-tk-intro">
             <b>বড় সমস্যা? টিকেট দিন</b>
             <span>সমস্যার বিস্তারিত আর স্ক্রিনশট দিন — টিম দেখে এখানেই উত্তর দেবে, সমাধান না হওয়া পর্যন্ত খোলা থাকবে।</span>
-            <button type="button" class="sa-btn sa-btn-sm" data-sx-tk-new>➕ নতুন টিকেট</button>
+            <button type="button" class="sa-btn sa-btn-sm" data-sx-tk-new><Icon name="plus" size="sm" /> নতুন টিকেট</button>
           </div>
           <div class="sx-tk-items" data-sx-tk-items><div class="sx-muted sx-tk-empty">লোড হচ্ছে…</div></div>
           <a href="/admin/support" class="sx-tk-all">সব টিকেট দেখুন →</a>

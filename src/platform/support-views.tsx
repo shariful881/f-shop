@@ -5,6 +5,7 @@ import { bn, dhakaTime, taka } from "../shop/lib/format";
 import { CATEGORIES, PRIORITY, STATUS_TEAM, type Message, type Ticket } from "./support";
 import { ChannelTag, PriorityTag, StatusTag, Thread } from "../shop/views/support";
 import { ago, Kpi, StatusPill } from "./super-views";
+import { Icon } from "../shop/views/icons";
 
 export type InboxRow = Ticket & { shop_name: string; slug: string; agent_name: string | null };
 export type Metrics = { open: number; unassigned: number; mine: number; urgent: number; frt: number | null; resolved7: number; csat: number | null; rated: number; online: number };
@@ -49,8 +50,8 @@ export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: st
 
       <nav class="sx-channels">
         <a href={qs({ channel: "" })} class={!p.channel ? "active" : ""}>সব কথোপকথন</a>
-        <a href={qs({ channel: "chat" })} class={p.channel === "chat" ? "active" : ""}>💬 লাইভ চ্যাট{p.chCounts.chat > 0 && <span class="sa-badge">{bn(p.chCounts.chat)}</span>}</a>
-        <a href={qs({ channel: "ticket" })} class={p.channel === "ticket" ? "active" : ""}>🎫 সাপোর্ট টিকেট{p.chCounts.ticket > 0 && <span class="sa-badge">{bn(p.chCounts.ticket)}</span>}</a>
+        <a href={qs({ channel: "chat" })} class={p.channel === "chat" ? "active" : ""}><Icon name="message-circle" size="sm" /> লাইভ চ্যাট{p.chCounts.chat > 0 && <span class="sa-badge">{bn(p.chCounts.chat)}</span>}</a>
+        <a href={qs({ channel: "ticket" })} class={p.channel === "ticket" ? "active" : ""}><Icon name="ticket" size="sm" /> সাপোর্ট টিকেট{p.chCounts.ticket > 0 && <span class="sa-badge">{bn(p.chCounts.ticket)}</span>}</a>
       </nav>
 
       <div class="sa-card">
@@ -68,7 +69,7 @@ export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: st
         </div>
 
         {p.rows.length === 0 ? (
-          <p class="sa-empty">এখানে কোনো কথোপকথন নেই। 🎉</p>
+          <p class="sa-empty">এখানে কোনো কথোপকথন নেই।</p>
         ) : (
           <div class="sx-list" data-sx-inbox-list>
             {p.rows.map((t) => (
@@ -117,7 +118,7 @@ export const SuperTicketPage = (p: {
           {t.assigned_to !== p.meId && (
             <form method="post" action={`/super/support/${t.id}/update`}>
               <input type="hidden" name="assigned_to" value={p.meId} />
-              <button class="sa-btn sa-btn-sm">🙋 আমি নিচ্ছি</button>
+              <button class="sa-btn sa-btn-sm">আমি নিচ্ছি</button>
             </form>
           )}
         </div>
@@ -128,10 +129,10 @@ export const SuperTicketPage = (p: {
         <form method="post" action={`/super/support/${t.id}/reply`} class="sx-reply sx-reply-team" data-sx-reply data-shop-id={t.shop_id}>
           <div class="sx-reply-tabs">
             <label><input type="radio" name="internal" value="0" checked /> ↩ দোকানকে উত্তর</label>
-            <label><input type="radio" name="internal" value="1" /> 🔒 ভিতরের নোট</label>
+            <label><input type="radio" name="internal" value="1" /> <Icon name="lock" size="sm" /> ভিতরের নোট</label>
             {p.canned.length > 0 && (
               <select class="sx-canned" data-sx-canned aria-label="তৈরি উত্তর">
-                <option value="">⚡ তৈরি উত্তর…</option>
+                <option value="">তৈরি উত্তর…</option>
                 {p.canned.map((c) => <option value={c.body}>{c.title}</option>)}
               </select>
             )}
@@ -170,7 +171,7 @@ export const SuperTicketPage = (p: {
             {p.canEnter && (
               <form method="post" action={`/super/shops/${p.shop.id}/impersonate`} target="_blank">
                 <input type="hidden" name="reason" value={`সাপোর্ট টিকেট #${t.id}`} />
-                <button class="sa-btn sa-btn-sm">🔑 দোকানের প্যানেলে ঢুকুন</button>
+                <button class="sa-btn sa-btn-sm"><Icon name="key-round" size="sm" /> দোকানের প্যানেলে ঢুকুন</button>
               </form>
             )}
             <a href={`/super/shops/${p.shop.id}`} class="sa-btn sa-btn-ghost sa-btn-sm">দোকানের বিস্তারিত</a>
@@ -215,7 +216,7 @@ export const SuperTicketPage = (p: {
 export const CannedPage = (p: { list: Canned[]; edit?: Canned | null }) => (
   <div class="sx-split">
     <div class="sa-card">
-      <div class="sa-card-head"><h2>⚡ তৈরি উত্তর</h2><span class="sx-muted">উত্তর লেখার সময় এক ক্লিকে বসানো যায়</span></div>
+      <div class="sa-card-head"><h2>তৈরি উত্তর</h2><span class="sx-muted">উত্তর লেখার সময় এক ক্লিকে বসানো যায়</span></div>
       {p.list.length === 0 ? <p class="sa-empty">কোনো তৈরি উত্তর নেই।</p> : (
         <div class="sx-canned-list">
           {p.list.map((c) => (
@@ -247,7 +248,7 @@ export const SupportSettingsPage = (p: { s: Record<string, string> }) => {
   const token = p.s.telegram_bot_token || "";
   return (
     <form method="post" action="/super/support/settings" class="sa-card sx-form sx-narrow">
-      <div class="sa-card-head"><h2>⚙ সাপোর্ট সেটিংস</h2></div>
+      <div class="sa-card-head"><h2>সাপোর্ট সেটিংস</h2></div>
       <h3>অফিস সময় (বাংলাদেশ সময়)</h3>
       <p class="sx-muted">এই সময়ের বাইরে দোকানদার চ্যাট করলে অটো-উত্তর যাবে আর মেসেজ টিকেট হিসেবে জমা থাকবে। শুরু আর শেষ একই দিলে ২৪ ঘণ্টা খোলা (এখনকার নিয়ম)। ২৪ ঘণ্টায় টিমের কেউ অনলাইনে না থাকলে "সবাই ব্যস্ত" অটো-উত্তর যায়।</p>
       <div class="sx-grid2">

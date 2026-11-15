@@ -561,3 +561,14 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .lp-cta h2 { margin: 0 0 8px; font-size: 1.3rem; }
 .lp-sec.lp-has-fg .lp-guarantee p, .lp-sec.lp-has-fg .lp-compare td:last-child { color: var(--lp-fg); }
 .lp-sec.lp-has-btn .lp-steps li::before, .lp-sec.lp-has-btn .lp-g-ico { background: var(--lp-btn); color: var(--lp-btn-fg, #fff); }
+
+/* ---------- অ্যাডমিন: নিশ্চিত করার পপআপ আর টোস্ট ---------- */
+dialog.cfm { border: 0; border-radius: 14px; padding: 22px; max-width: 380px; width: calc(100% - 32px); box-shadow: 0 20px 50px rgba(15, 23, 42, .25); font: inherit; color: #0f172a; }
+dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
+.cfm-msg { margin: 0 0 18px; line-height: 1.6; font-size: 1rem; }
+.cfm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 1000; max-width: calc(100% - 32px); padding: 12px 18px; border-radius: 12px; font-weight: 600; box-shadow: 0 10px 30px rgba(15, 23, 42, .2); animation: toast-in .25s ease-out; transition: opacity .35s, transform .35s; }
+.toast-ok { background: #0f766e; color: #fff; }
+.toast-out { opacity: 0; transform: translate(-50%, 12px); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
+@media (max-width: 760px) { .toast { bottom: 76px; } }

@@ -38,6 +38,7 @@ import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from ".
 import { registerSupport } from "./support";
 import { customersCsv, ordersCsv, productsCsv } from "../lib/export";
 import { BackupPage, type StorageStats } from "../views/backup";
+import { UiKitPage } from "../views/ui";
 
 export const admin = new Hono<AppEnv>();
 
@@ -273,6 +274,9 @@ admin.get("/customers", async (c) => {
   return render(c, "কাস্টমার", "customers",
     <CustomersPage rows={results.slice(0, CUSTOMERS_PER_PAGE)} q={q} page={page} hasMore={results.length > CUSTOMERS_PER_PAGE} total={total?.n ?? 0} />);
 });
+
+/** ডিজাইন কম্পোনেন্টের নমুনা (মেনুতে নেই) */
+admin.get("/ui-kit", (c) => render(c, "ডিজাইন কম্পোনেন্ট", "ui-kit", <UiKitPage />));
 
 /** ব্যাকআপ ও স্টোরেজ পেজ */
 admin.get("/export", async (c) => {

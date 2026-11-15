@@ -5,6 +5,7 @@
 import { WARN_AT, type Usage } from "./usage";
 import type { Child } from "hono/jsx";
 import { ASSET_VERSION } from "../shop/views/layout";
+import { Icon, type IconName } from "../shop/views/icons";
 import { bn, dhakaTime, taka } from "../shop/lib/format";
 import type { SuperAdmin, SuperRole } from "./lib";
 import { PLATFORM_NAME } from "./views";
@@ -67,19 +68,19 @@ export function ago(utc: string | null | undefined): string {
 }
 
 /* ---------- লেআউট ---------- */
-const NAV: { key: string; href: string; icon: string; label: string; group?: string }[] = [
-  { key: "dashboard", href: "/super", icon: "▦", label: "ড্যাশবোর্ড" },
-  { key: "shops", href: "/super/shops", icon: "🏪", label: "দোকান" },
-  { key: "support", href: "/super/support", icon: "🛟", label: "সাপোর্ট" },
-  { key: "topups", href: "/super/topups", icon: "💳", label: "রিচার্জ" },
-  { key: "finance", href: "/super/finance", icon: "৳", label: "আয় ও হিসাব" },
-  { key: "announcements", href: "/super/announcements", icon: "📢", label: "ঘোষণা", group: "যোগাযোগ" },
-  { key: "templates", href: "/super/templates", icon: "🧩", label: "ল্যান্ডিং টেমপ্লেট" },
-  { key: "demos", href: "/super/demos", icon: "🛍️", label: "ডেমো দোকান" },
-  { key: "audit", href: "/super/audit", icon: "🧾", label: "অডিট লগ", group: "নিরাপত্তা" },
-  { key: "errors", href: "/super/errors", icon: "⚠", label: "এরর লগ" },
-  { key: "team", href: "/super/team", icon: "👥", label: "টিম" },
-  { key: "settings", href: "/super/settings", icon: "⚙", label: "প্ল্যাটফর্ম সেটিংস" },
+const NAV: { key: string; href: string; icon: IconName; label: string; group?: string }[] = [
+  { key: "dashboard", href: "/super", icon: "layout-dashboard", label: "ড্যাশবোর্ড" },
+  { key: "shops", href: "/super/shops", icon: "store", label: "দোকান" },
+  { key: "support", href: "/super/support", icon: "life-buoy", label: "সাপোর্ট" },
+  { key: "topups", href: "/super/topups", icon: "credit-card", label: "রিচার্জ" },
+  { key: "finance", href: "/super/finance", icon: "chart-line", label: "আয় ও হিসাব" },
+  { key: "announcements", href: "/super/announcements", icon: "megaphone", label: "ঘোষণা", group: "যোগাযোগ" },
+  { key: "templates", href: "/super/templates", icon: "layout-template", label: "ল্যান্ডিং টেমপ্লেট" },
+  { key: "demos", href: "/super/demos", icon: "package", label: "ডেমো দোকান" },
+  { key: "audit", href: "/super/audit", icon: "file-text", label: "অডিট লগ", group: "নিরাপত্তা" },
+  { key: "errors", href: "/super/errors", icon: "triangle-alert", label: "এরর লগ" },
+  { key: "team", href: "/super/team", icon: "users", label: "টিম" },
+  { key: "settings", href: "/super/settings", icon: "settings", label: "প্ল্যাটফর্ম সেটিংস" },
 ];
 
 export const SuperShell = (p: {
@@ -111,7 +112,7 @@ export const SuperShell = (p: {
             <>
               {n.group && (i === 0 || arr[i - 1]!.group !== n.group) && <div class="sa-nav-group">{n.group}</div>}
               <a href={n.href} class={p.active === n.key ? "active" : ""}>
-                <span class="sa-ico">{n.icon}</span>{n.label}
+                <span class="sa-ico"><Icon name={n.icon} /></span>{n.label}
                 {n.key === "topups" && (p.pendingTopups ?? 0) > 0 && <span class="sa-badge">{bn(p.pendingTopups!)}</span>}
                 {n.key === "support" && <span class="sa-badge" data-sx-nav-badge hidden={!p.openSupport}>{p.openSupport ? bn(p.openSupport) : ""}</span>}
               </a>
@@ -253,9 +254,9 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
       {(d.pending.topups > 0 || d.pending.failedDomains > 0 || d.dues.shops > 0) && (
         <div class="sa-todo">
           <b>আজকের কাজ:</b>
-          {d.pending.topups > 0 && can(role, "topups") && <a href="/super/topups">💳 {bn(d.pending.topups)}টা রিচার্জ অনুমোদনের অপেক্ষায় ({taka(d.pending.topupAmount)})</a>}
-          {d.dues.shops > 0 && <a href="/super/shops?filter=dues">⚠️ {bn(d.dues.shops)}টা দোকানের ব্যালেন্স মাইনাস</a>}
-          {d.pending.failedDomains > 0 && <a href="/super/shops?filter=domain_failed">🌐 {bn(d.pending.failedDomains)}টা ডোমেইনে সমস্যা</a>}
+          {d.pending.topups > 0 && can(role, "topups") && <a href="/super/topups"><Icon name="credit-card" size="sm" /> {bn(d.pending.topups)}টা রিচার্জ অনুমোদনের অপেক্ষায় ({taka(d.pending.topupAmount)})</a>}
+          {d.dues.shops > 0 && <a href="/super/shops?filter=dues"><Icon name="triangle-alert" size="sm" /> {bn(d.dues.shops)}টা দোকানের ব্যালেন্স মাইনাস</a>}
+          {d.pending.failedDomains > 0 && <a href="/super/shops?filter=domain_failed"><Icon name="globe" size="sm" /> {bn(d.pending.failedDomains)}টা ডোমেইনে সমস্যা</a>}
         </div>
       )}
 
@@ -324,7 +325,7 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
           )}
         </Card>
         <Card title="ঝুঁকিতে (১৪ দিন অর্ডার নেই)" action={<a href="/super/shops?filter=at_risk" class="sa-link">সব</a>}>
-          {d.atRisk.length === 0 ? <Empty text="কেউ নেই 🎉" /> : (
+          {d.atRisk.length === 0 ? <Empty text="কেউ নেই" /> : (
             <ul class="sa-list">{d.atRisk.map((s) => (
               <li><a href={`/super/shops/${s.id}`}>{s.name}</a><small>শেষ অর্ডার {ago(s.last_order_at)} · ব্যালেন্স {taka(s.balance)}</small></li>
             ))}</ul>
@@ -406,7 +407,7 @@ export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; 
                   <tr>
                     <td><a href={`/super/shops/${s.id}`}><b>{s.name}</b></a><br />
                       <a href={p.shopLink(s.slug)} target="_blank" rel="noopener" class="sa-muted">{s.slug} ↗</a>
-                      {s.domains && <><br /><small class="sa-tag">🌐 {s.domains}</small></>}</td>
+                      {s.domains && <><br /><small class="sa-tag"><Icon name="globe" size="sm" /> {s.domains}</small></>}</td>
                     <td>{s.owner_name || "—"}<br /><small class="sa-muted">{s.owner_phone}</small></td>
                     <td><StatusPill s={s.status} />{s.status === "trial" && <><br /><small class="sa-muted">শেষ {dhakaTime(s.trial_ends_at).slice(0, 10)}</small></>}</td>
                     <td class={`sa-r ${s.balance < 0 ? "sa-down" : ""}`}>{taka(s.balance)}</td>
@@ -417,7 +418,7 @@ export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; 
                     {p.canEnter && (
                       <td class="sa-r">
                         <form method="post" action={`/super/shops/${s.id}/impersonate`} target="_blank" class="sa-inline">
-                          <button class="sa-btn sa-btn-sm sa-btn-accent" title="পাসওয়ার্ড ছাড়া এই দোকানের অ্যাডমিন প্যানেলে ঢুকুন">🔑 ঢুকুন</button>
+                          <button class="sa-btn sa-btn-sm sa-btn-accent" title="পাসওয়ার্ড ছাড়া এই দোকানের অ্যাডমিন প্যানেলে ঢুকুন"><Icon name="key-round" size="sm" /> ঢুকুন</button>
                         </form>
                       </td>
                     )}
@@ -475,7 +476,7 @@ export const ShopDetailPage = (p: {
           <a href={p.shopLink} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost">দোকান দেখুন ↗</a>
           {can(r, "shop.impersonate") && (
             <form method="post" action={`/super/shops/${s.id}/impersonate`} target="_blank" class="sa-inline">
-              <button class="sa-btn sa-btn-accent">🔑 দোকানের প্যানেলে ঢুকুন</button>
+              <button class="sa-btn sa-btn-accent"><Icon name="key-round" size="sm" /> দোকানের প্যানেলে ঢুকুন</button>
             </form>
           )}
         </div>
@@ -808,7 +809,7 @@ export const ErrorsPage = (p: { rows: ErrorRow[]; showResolved: boolean; open: n
     <a class="sa-btn sa-btn-ghost sa-btn-sm" href={p.showResolved ? "/super/errors" : "/super/errors?all=1"}>{p.showResolved ? "শুধু খোলা" : "সমাধান হওয়াগুলোও"}</a>
   }>
     <p class="sa-muted">কোনো দোকানে বা প্ল্যাটফর্মে সার্ভারের ভুল হলে এখানে আসে। একই ভুল বারবার হলে একটাই লাইন, পাশে কতবার হয়েছে। ঠিক করার পরে "সমাধান" চাপুন — আবার হলে নিজে থেকে খুলে যাবে।</p>
-    {p.rows.length === 0 ? <Empty text="কোনো এরর নেই 🎉" /> : (
+    {p.rows.length === 0 ? <Empty text="কোনো এরর নেই" /> : (
       <div class="sa-table-wrap"><table class="sa-table">
         <thead><tr><th>এরর</th><th>কোথায়</th><th>কতবার</th><th>শেষ</th><th></th></tr></thead>
         <tbody>{p.rows.map((e) => (
@@ -976,7 +977,7 @@ export type DemoRow = { key: string; niche: string; name: string; theme: string;
 export const DemosPage = ({ rows, support }: { rows: DemoRow[]; support: string }) => (
   <Card title={`ডেমো দোকান (${bn(rows.filter((r) => r.shop).length)} / ${bn(rows.length)})`}>
     <p class="sa-muted">প্রতিটা নিশের একটা ডেমো দোকান — সাপোর্ট নম্বর {support || "(সেটিংসে বসান)"}, উপরে ডেমো বার, অর্ডার বন্ধ, বিল হয় না। "তৈরি / আপডেট" আবার চাপলে নতুন পণ্য বা পেজ যোগ হয়, আগের ছবি থাকে।
-      ছবি দিতে: "দোকানে ঢুকুন" → পণ্য → 🖼️ একসাথে ছবি (ফাইলের নাম যেমন <code>sutokotha-01.jpg</code>)। সাইনআপে এই নিশ বাছলে নতুন দোকানে এখানকার ছবি কপি হয়।</p>
+      ছবি দিতে: "দোকানে ঢুকুন" → পণ্য → একসাথে ছবি (ফাইলের নাম যেমন <code>sutokotha-01.jpg</code>)। সাইনআপে এই নিশ বাছলে নতুন দোকানে এখানকার ছবি কপি হয়।</p>
     <div class="sa-table-wrap"><table class="sa-table">
       <thead><tr><th>নিশ</th><th>দোকান</th><th>পণ্য</th><th></th></tr></thead>
       <tbody>{rows.map((r) => (

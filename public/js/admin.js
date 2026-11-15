@@ -1,10 +1,37 @@
 /* অ্যাডমিন: বাতিল/ফেক/মোছার আগে নিশ্চিত হওয়া (ফর্ম বা বাটনে data-confirm) */
+/* ব্রাউজারের সাদামাটা confirm-এর বদলে নিজেদের ডিজাইনের পপআপ (না চললে confirm-এ ফিরে যায়) */
+function askConfirm(msg, onYes) {
+  var dlg = document.createElement("dialog");
+  if (!dlg.showModal) { if (window.confirm(msg)) onYes(); return; }
+  dlg.className = "cfm";
+  dlg.innerHTML = '<p class="cfm-msg"></p><div class="cfm-actions"><button type="button" class="btn" data-no>না</button><button type="button" class="btn btn-primary" data-yes>হ্যাঁ, করুন</button></div>';
+  dlg.querySelector(".cfm-msg").textContent = msg;
+  document.body.appendChild(dlg);
+  var close = function () { dlg.close(); dlg.remove(); };
+  dlg.querySelector("[data-no]").onclick = close;
+  dlg.querySelector("[data-yes]").onclick = function () { close(); onYes(); };
+  dlg.addEventListener("cancel", function () { dlg.remove(); });
+  dlg.showModal();
+  dlg.querySelector("[data-yes]").focus();
+}
 document.addEventListener("submit", function (e) {
   var f = e.target;
   var btn = e.submitter;
+  if (f.__confirmed) { f.__confirmed = false; return; }
   var msg = (btn && btn.getAttribute && btn.getAttribute("data-confirm")) || (f.getAttribute && f.getAttribute("data-confirm"));
-  if (msg && !window.confirm(msg)) e.preventDefault();
+  if (!msg) return;
+  e.preventDefault();
+  askConfirm(msg, function () {
+    f.__confirmed = true;
+    if (f.requestSubmit) f.requestSubmit(btn && btn.form === f ? btn : undefined); else f.submit();
+  });
 });
+
+/* সেভ হলে ছোট টোস্ট — কয়েক সেকেন্ড পরে নিজে সরে যায় */
+(function () {
+  var t = document.querySelector("[data-toast]");
+  if (t) setTimeout(function () { t.classList.add("toast-out"); setTimeout(function () { t.remove(); }, 400); }, 4000);
+})();
 
 /* অর্ডার তালিকা: সব বাছুন */
 document.addEventListener("change", function (e) {

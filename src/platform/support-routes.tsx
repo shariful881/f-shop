@@ -3,6 +3,7 @@
  */
 import type { Hono } from "hono";
 import { str, toInt } from "../shop/lib/http";
+import { Icon } from "../shop/views/icons";
 import { clearSettingsCache, platformSettings } from "./billing";
 import { shopUrl, type PCtx, type PEnv } from "./lib";
 import {
@@ -86,8 +87,8 @@ export function registerSuperSupport(app: Hono<PEnv>, h: Helpers) {
     return h.page(c, "সাপোর্ট", "support",
       <InboxPage rows={rows!.results as InboxRow[]} m={metrics} view={view} q={q} channel={channel} counts={tabCounts} chCounts={{ chat: cc.chat ?? 0, ticket: cc.ticket ?? 0 }} />, 200,
       <>
-        <a href="/super/support/canned" class="sa-btn sa-btn-ghost sa-btn-sm">⚡ তৈরি উত্তর</a>
-        {h.allowed(c, "support.settings") && <a href="/super/support/settings" class="sa-btn sa-btn-ghost sa-btn-sm">⚙ সেটিংস</a>}
+        <a href="/super/support/canned" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="zap" size="sm" /> তৈরি উত্তর</a>
+        {h.allowed(c, "support.settings") && <a href="/super/support/settings" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="settings" size="sm" /> সেটিংস</a>}
       </>);
   });
 

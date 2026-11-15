@@ -118,6 +118,14 @@ export const ShopShell = (p: {
           </header>
           <main class="sa-content admin-main">{p.children}</main>
         </div>
+        <nav class="sa-tabbar" aria-label="দ্রুত মেনু">
+          <a href="/admin" class={p.active === "dashboard" ? "on" : ""}><Icon name="layout-dashboard" /><span>হোম</span></a>
+          <a href="/admin/orders" class={p.active === "orders" ? "on" : ""}><Icon name="receipt" /><span>অর্ডার</span>{(p.newOrders ?? 0) > 0 && <b class="sa-tab-badge">{bn(p.newOrders!)}</b>}</a>
+          {canAccess(p.role, "products")
+            ? <a href="/admin/products" class={p.active === "products" ? "on" : ""}><Icon name="package" /><span>পণ্য</span></a>
+            : <a href="/admin/customers" class={p.active === "customers" ? "on" : ""}><Icon name="users" /><span>কাস্টমার</span></a>}
+          <label for="sa-nav-toggle"><Icon name="menu" /><span>আরও</span></label>
+        </nav>
         <ChatWidget shopName={s.site_name || ""} />
         <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
         <script src={`/js/media.js?v=${ASSET_VERSION}`} defer></script>

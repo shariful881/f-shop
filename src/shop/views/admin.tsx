@@ -73,7 +73,9 @@ export const AdminLayout = (p: { title: string; settings: Settings; active?: str
       </head>
       <body class="admin admin-login">
         <main class="wrap admin-main">
-          {p.flash && <div class={`alert ${p.flash.type === "ok" ? "alert-ok" : "alert-error"}`}>{p.flash.text}</div>}
+          {p.flash && (p.flash.type === "ok"
+            ? <div class="toast toast-ok" role="status" data-toast>{p.flash.text}</div>
+            : <div class="alert alert-error" role="alert">{p.flash.text}</div>)}
           {p.children}
         </main>
       </body>
@@ -802,7 +804,7 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
               <p><strong>ধাপ ২:</strong> Nameserver অংশে আগের সব নেমসার্ভার মুছে এই দুটো বসান:</p>
               <div class="ns-box">{ns.map((n) => <code class="ns">{n}</code>)}</div>
               <p><strong>ধাপ ৩:</strong> সেভ করে নিচের বাটনে চাপুন। নেমসার্ভার ছড়াতে কয়েক মিনিট থেকে ২৪ ঘণ্টা লাগতে পারে — আমরা প্রতি ৩০ মিনিটে নিজে থেকেও যাচাই করি।</p>
-              <p class="muted">⚠️ এই ডোমেইনে ইমেইল বা অন্য কিছু চালালে আগে <a href="/admin/dns">DNS রেকর্ড</a> পেজে রেকর্ডগুলো ঠিক আছে কি না দেখে নিন।</p>
+              <p class="muted"><Icon name="triangle-alert" size="sm" /> এই ডোমেইনে ইমেইল বা অন্য কিছু চালালে আগে <a href="/admin/dns">DNS রেকর্ড</a> পেজে রেকর্ডগুলো ঠিক আছে কি না দেখে নিন।</p>
               <form method="post" action="/admin/domain/check" class="inline"><button class="btn btn-primary">এখনই যাচাই করুন</button></form>
               {p.domains[0]?.checked_at && <p class="muted">শেষ যাচাই: {dhakaTime(p.domains[0].checked_at)}</p>}
               {p.domains[0]?.error && <div class="alert alert-error">{p.domains[0].error}</div>}
