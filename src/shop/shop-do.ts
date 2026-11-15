@@ -80,7 +80,7 @@ export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "
  * এক দোকানের কোড অন্য দোকানের ডাটাবেস দেখতে পারে না।
  */
 /** ব্যাকআপ থেকে ফেরানোর টেবিল — আগে যার উপর অন্যরা নির্ভর করে */
-export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend", "reviews"];
+export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend", "reviews", "incomplete_orders"];
 
 export class ShopDO extends DurableObject<WorkerEnv> {
   readonly db: SqlDatabase;

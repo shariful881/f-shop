@@ -4,7 +4,8 @@ function askConfirm(msg, onYes) {
   var dlg = document.createElement("dialog");
   if (!dlg.showModal) { if (window.confirm(msg)) onYes(); return; }
   dlg.className = "cfm";
-  dlg.innerHTML = '<p class="cfm-msg"></p><div class="cfm-actions"><button type="button" class="btn" data-no>না</button><button type="button" class="btn btn-primary" data-yes>হ্যাঁ, করুন</button></div>';
+  var danger = /মুছ|বাতিল|ফেক|ব্লক|ফেরত|স্থায়ী|ফিরিয়ে|ফেরানো|সরিয়ে/.test(msg);
+  dlg.innerHTML = '<p class="cfm-msg"></p><div class="cfm-actions"><button type="button" class="btn" data-no>না</button><button type="button" class="btn ' + (danger ? 'btn-danger-solid' : 'btn-primary') + '" data-yes>হ্যাঁ, করুন</button></div>';
   dlg.querySelector(".cfm-msg").textContent = msg;
   document.body.appendChild(dlg);
   var close = function () { dlg.close(); dlg.remove(); };
@@ -12,7 +13,7 @@ function askConfirm(msg, onYes) {
   dlg.querySelector("[data-yes]").onclick = function () { close(); onYes(); };
   dlg.addEventListener("cancel", function () { dlg.remove(); });
   dlg.showModal();
-  dlg.querySelector("[data-yes]").focus();
+  dlg.querySelector("[data-no]").focus(); // ভুলে Enter চাপলে কিছু হবে না
 }
 document.addEventListener("submit", function (e) {
   var f = e.target;

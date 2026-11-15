@@ -133,7 +133,7 @@ export const SuperShell = (p: {
       <label for="sa-nav-toggle" class="sa-scrim" aria-hidden="true"></label>
       <div class="sa-main">
         <header class="sa-top">
-          <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু">☰</label>
+          <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু"><Icon name="menu" /></label>
           <h1>{p.title}</h1>
           <form method="get" action="/super/shops" class="sa-search">
             <input type="search" name="q" placeholder="দোকান, মোবাইল, ইমেইল, ডোমেইন খুঁজুন…" />

@@ -656,3 +656,6 @@ body.admin .ai-row .field { margin: 0; }
 /* ধাপ ৮: নোটিফিকেশন কার্ড */
 body.admin .push-card { border-left: 4px solid var(--c-primary, #0f766e); }
 body.admin .push-card [data-push-ios] { margin-top: 8px; }
+/* নিশ্চিত-পপআপ: মোছা/বাতিল/ফেকের "হ্যাঁ" লাল */
+body dialog.cfm .btn.btn-danger-solid { background: var(--c-danger, #dc2626) !important; border-color: var(--c-danger, #dc2626) !important; color: #fff !important; }
+body dialog.cfm .btn.btn-danger-solid:hover { filter: brightness(.92); }

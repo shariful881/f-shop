@@ -623,3 +623,7 @@ dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
 .blog-card p { margin: 0 0 8px; color: var(--muted, #64748b); font-size: .92rem; line-height: 1.6; }
 .blog-card small { color: var(--muted, #64748b); }
 .blog-post .blog-cover { width: 100%; border-radius: var(--radius); margin: 4px 0 6px; }
+/* নিশ্চিত-পপআপে মোছা/বাতিল/ফেকের বাটন লাল */
+dialog.cfm .btn-danger-solid { background: #dc2626; border-color: #dc2626; color: #fff; }
+dialog.cfm .btn-danger-solid:hover { background: #b91c1c; border-color: #b91c1c; }
+dialog.cfm .btn:focus-visible { outline: 3px solid rgba(15, 118, 110, .45); outline-offset: 2px; }

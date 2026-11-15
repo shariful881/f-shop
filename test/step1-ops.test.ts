@@ -38,12 +38,14 @@ describe("ব্যাকআপ থেকে দোকান ফেরানো"
   it("ডাটা মুছে গেলেও ব্যাকআপ আপলোড করে সব ফিরে আসে; ভুল slug বা অন্য দোকানের ফাইল চলে না", async () => {
     await adminBrowser();
     await new Browser().order({ name: "ফেরানো টেস্ট" });
+    await DB.prepare("DELETE FROM incomplete_orders").run();
+    await DB.prepare("INSERT INTO incomplete_orders (phone, name, status) VALUES ('01811111111', 'অসম্পূর্ণ টেস্ট', 'called')").run();
     const before = await DB.prepare("SELECT (SELECT COUNT(*) FROM products) p, (SELECT COUNT(*) FROM orders) o, (SELECT COUNT(*) FROM order_items) i").first<{ p: number; o: number; i: number }>();
     const owner = await member("own@t.com", "owner");
     const backup = await (await owner.fetch(`/super/shops/${DEMO_SHOP_ID}/export.json`, { base: P } as RequestInit)).text();
 
     // দুর্ঘটনা: সব পণ্য আর অর্ডার মুছে গেল
-    await DB.batch([DB.prepare("DELETE FROM order_items"), DB.prepare("DELETE FROM orders"), DB.prepare("DELETE FROM product_variants"), DB.prepare("DELETE FROM products")]);
+    await DB.batch([DB.prepare("DELETE FROM order_items"), DB.prepare("DELETE FROM orders"), DB.prepare("DELETE FROM product_variants"), DB.prepare("DELETE FROM products"), DB.prepare("DELETE FROM incomplete_orders")]);
     expect((await DB.prepare("SELECT COUNT(*) n FROM products").first<{ n: number }>())!.n).toBe(0);
 
     const send = (confirm: string, body = backup) => {
@@ -61,6 +63,7 @@ describe("ব্যাকআপ থেকে দোকান ফেরানো"
     const after = await DB.prepare("SELECT (SELECT COUNT(*) FROM products) p, (SELECT COUNT(*) FROM orders) o, (SELECT COUNT(*) FROM order_items) i").first<{ p: number; o: number; i: number }>();
     expect(after).toEqual(before);
     expect(await DB.prepare("SELECT name FROM orders WHERE name = 'ফেরানো টেস্ট'").first()).toBeTruthy();
+    expect(await DB.prepare("SELECT status FROM incomplete_orders WHERE name = 'অসম্পূর্ণ টেস্ট'").first<{ status: string }>()).toEqual({ status: "called" });
     // ইউজার মোছেনি, দোকান চলে
     expect((await DB.prepare("SELECT COUNT(*) n FROM users").first<{ n: number }>())!.n).toBeGreaterThan(0);
     expect((await new Browser().get("/")).status).toBe(200);
