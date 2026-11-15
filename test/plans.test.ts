@@ -24,7 +24,9 @@ describe("প্ল্যানের হিসাব", () => {
     expect(per.every((v) => v >= 1.99)).toBe(true);
     expect(per[0]! > per[1]! && per[1]! > per[2]!).toBe(true);
     expect([p.small, p.grow, p.big].every((x) => x.price / x.orders < x.extra)).toBe(true);
-    expect(cyclePrice(449, 12)).toBe(4490);
+    expect(cyclePrice(449, 12)).toBe(4580); // ১২ × ৪৪৯ − ১৫%
+    expect(cyclePrice(999, 12)).toBe(10190);
+    expect(cyclePrice(1999, 12)).toBe(20390);
     expect(cyclePrice(999, 6)).toBe(Math.round(999 * 6 * 0.9));
     expect(overageCharge(p.small, 150)).toBe(0);
     expect(overageCharge(p.big, 1010)).toBe(30); // ১০ × ৳৩

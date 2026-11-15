@@ -2,7 +2,7 @@
  * sellxbd.com-এর বাকি পেজ: দাম, আমাদের সম্পর্কে, যোগাযোগ, শর্তাবলি, প্রাইভেসি, রিফান্ড নীতি, হেল্প সেন্টার।
  * উপরের মেনু আর নিচের ফুটার সব পাবলিক পেজে একই।
  */
-import type { Plan, PlanKey } from "./plans";
+import { cyclePrice, type Plan, type PlanKey } from "./plans";
 import type { Child } from "hono/jsx";
 import { bn, taka } from "../shop/lib/format";
 import { HELP, HELP_CATS, type HelpArticle } from "./help";
@@ -85,6 +85,7 @@ export const PricingPage = ({ f }: { f: Fees }) => (
                 <h3>{pl.name}</h3>
                 <small class="p-plan-for">{pl.for}</small>
                 <div class="p-price-row"><b>{taka(pl.price)}</b><span>/ মাস</span></div>
+                {pl.price > 0 && <p class="p-yearly">বছরে নিলে <b>{taka(cyclePrice(pl.price, 12))}</b> <s>{taka(pl.price * 12)}</s> <span>১৫% ছাড়</span></p>}
                 <ul class="p-ticks">
                   <li>মাসে <b>{bn(pl.orders)}টা</b> কনফার্ম অর্ডার</li>
                   <li>এর বেশি হলে প্রতি অর্ডারে ৳{perOrder(pl.extra)}</li>
@@ -115,7 +116,7 @@ export const PricingPage = ({ f }: { f: Fees }) => (
               <li>আগে bKash/Nagad দিয়ে রিচার্জ — প্ল্যানের টাকা বিলের দিন কাটে।</li>
               <li>প্যাকেজে প্রতি অর্ডার ৳২–৩ — বড় প্যাকেজে সস্তা। সীমার পরে প্রতি অর্ডার ৳{bn(f.plans.small.extra)}/{bn(f.plans.grow.extra)}/{bn(f.plans.big.extra)}, মাস শেষে একবারে।</li>
               <li>সীমার ৮০% হলে আর শেষ হলে প্যানেলে আর ফোনে জানানো হয়।</li>
-              <li>৬ মাসে ১০% ছাড়, ১ বছরে ২ মাস ফ্রি।</li>
+              <li>১ বছরের প্যাকেজে ১৫% ছাড়, ৬ মাসে ১০% ছাড়।</li>
               <li>রিচার্জ না থাকলে দোকান ফ্রি প্ল্যানে চলে — বন্ধ হয় না।</li>
               <li>প্ল্যানের বাইরের স্টাফ ৳{bn(f.staff)}/মাস। প্রতিটা চার্জের হিসাব প্যানেলে।</li>
             </ul>

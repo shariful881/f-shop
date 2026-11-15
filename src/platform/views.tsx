@@ -1,4 +1,4 @@
-import type { Plan, PlanKey } from "./plans";
+import { cyclePrice, type Plan, type PlanKey } from "./plans";
 import type { Child } from "hono/jsx";
 import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -385,6 +385,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
               <h3>{P[k].name}</h3>
               <p class="hp-plan-for">{P[k].for}</p>
               <div class="hp-plan-price">{P[k].price ? taka(P[k].price) : "৳০"}<small>/মাস</small></div>
+              {P[k].price > 0 && <small class="hp-plan-year">বছরে {taka(cyclePrice(P[k].price, 12))} — ১৫% ছাড়</small>}
               <ul>
                 <li><Icon name="check" size="sm" /> মাসে {bn(P[k].orders)}টা কনফার্ম অর্ডার</li>
                 <li><Icon name="check" size="sm" /> {P[k].staff ? `${bn(P[k].staff)} জন স্টাফ` : "শুধু মালিক"}</li>
@@ -405,7 +406,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
           <ul class="hp-price-notes">
             <li><Icon name="gift" /> প্রথম {bn(f.trialDays)} দিন "{P.grow.name}" প্ল্যানের সব সুবিধা ফ্রি</li>
             <li><Icon name="rotate-ccw" /> রিচার্জ না করলে দোকান বন্ধ হয় না — ফ্রি প্ল্যানে চলতে থাকে</li>
-            <li><Icon name="wallet" /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ২ মাস ফ্রি</li>
+            <li><Icon name="wallet" /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ১৫% ছাড়</li>
             <li><Icon name="info" /> একটা ফেক পার্সেলের খরচেই অনেক সময় এক মাসের প্ল্যান চলে যায়</li>
             <li><a href="/pricing" class="hp-link">সব প্ল্যানের বিস্তারিত <Icon name="arrow-right" size="sm" /></a></li>
           </ul>

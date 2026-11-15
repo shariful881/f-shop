@@ -41,7 +41,8 @@ const LEGACY: Record<PlanKey, Plan> = {
 
 /** ট্রায়ালে কোন প্ল্যানের সুবিধা */
 export const TRIAL_PLAN: PlanKey = "grow";
-/** বাৎসরিক: ১২ মাসে ১০ মাসের দাম; ৬ মাসে ১০% ছাড় */
+/** বাৎসরিক: ১২ মাসে ১৫% ছাড়; ৬ মাসে ১০% ছাড় */
+export const YEARLY_OFF = 0.15;
 export const CYCLES = [1, 6, 12] as const;
 export type Cycle = (typeof CYCLES)[number];
 export const isCycle = (n: number): n is Cycle => (CYCLES as readonly number[]).includes(n);
@@ -85,7 +86,7 @@ export const planForShop = (s: PlatformSettings, shopCreatedAt: string | null | 
 
 /** এক বিলে কত টাকা (মাসিক দাম × মাস, ছাড়সহ) */
 export function cyclePrice(price: number, months: number): number {
-  if (months === 12) return price * 10;
+  if (months === 12) return Math.round(price * 12 * (1 - YEARLY_OFF));
   if (months === 6) return Math.round(price * 6 * 0.9);
   return price * Math.max(1, months);
 }

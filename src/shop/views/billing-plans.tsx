@@ -6,7 +6,7 @@ import { cheapestFor, CYCLES, cyclePrice, overageCharge, PLAN_KEYS, type Plan, t
 import { bn, dhakaTime, taka } from "../lib/format";
 import { Icon } from "./icons";
 
-const CYCLE_LABEL: Record<number, string> = { 1: "মাসিক", 6: "৬ মাস (১০% ছাড়)", 12: "১ বছর (২ মাস ফ্রি)" };
+const CYCLE_LABEL: Record<number, string> = { 1: "মাসিক", 6: "৬ মাস (১০% ছাড়)", 12: "১ বছর (১৫% ছাড়)" };
 const extraLabel = (p: Plan) => (p.key === "free" ? `${taka(p.extra)}/অর্ডার` : `${bn(p.extra)} টাকা/অর্ডার`);
 
 export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; oldPrices?: boolean; oldUntil?: string; shop: BillingShop; trial: boolean; staffFee: number; settings: Record<string, string> }) => {

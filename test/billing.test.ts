@@ -192,11 +192,11 @@ describe("প্ল্যানের বিল আর মাস শেষের
     expect(s.balance).toBe(100);
   });
 
-  it("বাৎসরিক প্যাকে ১০ মাসের দাম, পরের বিল ১২ মাস পরে", async () => {
+  it("বাৎসরিক প্যাকে ১৫% ছাড়, পরের বিল ১২ মাস পরে", async () => {
     await setShop({ balance: 5000, plan: "small", cycle_months: 12, next_bill_at: await yesterday() });
     await runDailyBilling(pdb());
     const s = await shop();
-    expect(s.balance).toBe(5000 - 4490);
+    expect(s.balance).toBe(5000 - 4580);
     const months = (new Date(s.next_bill_at.replace(" ", "T") + "Z").getTime() - Date.now()) / (30 * 86400000);
     expect(months).toBeGreaterThan(11);
   });
@@ -298,14 +298,14 @@ describe("প্ল্যান বদলে টাকা হারায় ন
   const until = async (mod: string) => (await pdb().prepare("SELECT datetime('now', ?) AS d").bind(mod).first<{ d: string }>())!.d;
 
   it("লম্বা মেয়াদ থেকে বড় প্ল্যানের মাসিকে: বাড়তি না-ব্যবহৃত টাকা ব্যালেন্সে ফেরে", async () => {
-    // ছোট দোকান ১২ মাস (৳৪৪৯০) এইমাত্র দেওয়া → বাড়ন্ত মাসিক ৳৯৯৯
+    // ছোট দোকান ১২ মাস (৳৪৫৮০) এইমাত্র দেওয়া → বাড়ন্ত মাসিক ৳৯৯৯
     await setShop({ plan: "small", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 100 });
     const a = await adminBrowser();
     await a.post("/admin/billing/plan", { plan: "grow", months: 1 });
     const s = await shop();
     expect(s).toMatchObject({ plan: "grow", cycle_months: 1 });
-    expect(s.balance).toBeGreaterThanOrEqual(100 + 4490 - 999 - 2);
-    expect(s.balance).toBeLessThanOrEqual(100 + 4490 - 999);
+    expect(s.balance).toBeGreaterThanOrEqual(100 + 4580 - 999 - 2);
+    expect(s.balance).toBeLessThanOrEqual(100 + 4580 - 999);
     const cr = await ledger("plan_change");
     expect(cr).toHaveLength(1);
     expect(cr[0]!.amount).toBeGreaterThan(3480);
@@ -322,16 +322,16 @@ describe("প্ল্যান বদলে টাকা হারায় ন
   });
 
   it("নিচে নামা বেছে রেখে মত বদলে উপরে উঠলে পুরো না-ব্যবহৃত টাকা ধরা হয়", async () => {
-    await setShop({ plan: "grow", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 10100 });
+    await setShop({ plan: "grow", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 10500 });
     const a = await adminBrowser();
     await a.post("/admin/billing/plan", { plan: "small", months: 1 });
     expect((await shop()).cycle_months).toBe(12);
-    // বড় ব্র্যান্ড ১২ মাস ৳১৯৯৯০ − বাড়ন্ত ১২ মাসের না-ব্যবহৃত ~৳৯৯৯০ ≈ ৳১০০০০
+    // বড় ব্র্যান্ড ১২ মাস ৳২০৩৯০ − বাড়ন্ত ১২ মাসের না-ব্যবহৃত ~৳১০১৯০ ≈ ৳১০২০০
     await a.post("/admin/billing/plan", { plan: "big", months: 12 });
     const s = await shop();
     expect(s).toMatchObject({ plan: "big", cycle_months: 12, plan_next: null, cycle_next: null });
-    expect(s.balance).toBeGreaterThanOrEqual(10100 - 10002);
-    expect(s.balance).toBeLessThanOrEqual(10100 - 9999);
+    expect(s.balance).toBeGreaterThanOrEqual(10500 - 10202);
+    expect(s.balance).toBeLessThanOrEqual(10500 - 10199);
   });
 
   it("বিলের দিন বেছে রাখা প্ল্যান আর মেয়াদ চালু হয়", async () => {
