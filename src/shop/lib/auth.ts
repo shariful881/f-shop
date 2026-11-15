@@ -94,6 +94,7 @@ export const SECTION_ROLES: Record<string, Role[]> = {
   orders: ["owner", "manager", "orders"],
   customers: ["owner", "manager", "orders"],
   incomplete: ["owner", "manager", "orders"],
+  push: ["owner", "manager", "orders"],
   export: ["owner", "manager"],
   products: ["owner", "manager"],
   inventory: ["owner", "manager"],

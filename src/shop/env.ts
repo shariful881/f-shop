@@ -13,6 +13,8 @@ export type Bindings = {
   CF_API_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
   WORKER_NAME?: string;
+  AI?: Ai;
+  IS_TEST?: boolean;
 };
 
 export type Variables = {
@@ -25,7 +27,7 @@ export type Variables = {
   /** প্রো থিমের ক্যাটাগরি মেনু */
   navCats?: { id: number; name: string }[];
   /** নিজের পেজ (মেনুতে) */
-  navPages?: { title: string; slug: string }[];
+  navPages?: { title: string; slug: string; href?: string }[];
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

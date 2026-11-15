@@ -1162,7 +1162,7 @@ export const TemplateGalleryPage = (p: { tab: "sellx" | "mine"; cards: TplCard[]
 };
 
 /** লাইভ এডিটর */
-export const LandingBuilderPage = (p: { product: Product; landingJson: string; labels: Record<string, string>; custom: boolean; products: { id: number; name: string; has: boolean }[]; fonts: Record<string, string> }) => (
+export const LandingBuilderPage = (p: { product: Product; landingJson: string; labels: Record<string, string>; custom: boolean; products: { id: number; name: string; has: boolean }[]; fonts: Record<string, string>; ai?: { canUndo: boolean; about: string } }) => (
   <>
     <div class="lb-top">
       <a href="/admin/landing" class="btn-link">← ল্যান্ডিং পেজ</a>
@@ -1178,6 +1178,22 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
         <button class="btn btn-outline btn-sm" id="lb-move" hidden>বদলান</button>
       </form>
     </div>
+    {p.ai && (
+      <details class="sa-card ai-box" open={!p.custom}>
+        <summary><Icon name="sparkles" size="sm" /> <b>AI দিয়ে লেখা বানান</b> <small class="muted">— পণ্য সম্পর্কে ২–৩ লাইন দিন, শিরোনাম, সুবিধা, তুলনা, প্রশ্নোত্তর বাংলায় তৈরি হয়ে যাবে</small></summary>
+        <form method="post" action={`/admin/products/${p.product.id}/landing/ai`} class="ai-form" data-ai-form>
+          <label class="field"><span>পণ্য সম্পর্কে আপনার কথা</span>
+            <textarea name="about" rows={3} maxlength={600} required minlength={10} placeholder="যেমন: সেগুন কাঠের হাতে বানানো ওয়াল শেলফ, ৩টা তাক, বই আর গাছ রাখার জন্য। পালিশ করা, পানিতে নষ্ট হয় না।">{p.ai.about}</textarea>
+          </label>
+          <div class="ai-row">
+            <label class="field"><span>লেখার ধরন</span><select name="tone"><option value="friendly">সহজ ও আন্তরিক</option><option value="premium">প্রিমিয়াম</option><option value="urgent">অফার/জরুরি</option></select></label>
+            <button class="btn btn-primary" data-ai-submit><Icon name="sparkles" size="sm" /> লেখা বানান</button>
+          </div>
+          <p class="muted small">ছবি, ভিডিও, অর্ডার ফর্ম আর ডিজাইন যেমন আছে থাকবে — শুধু লেখার অংশ বদলাবে। AI ভুল করতে পারে, পাবলিশের আগে পড়ে নিন। দিনে ১০ বার পর্যন্ত।</p>
+        </form>
+        {p.ai.canUndo && <form method="post" action={`/admin/products/${p.product.id}/landing/ai-undo`} data-confirm="AI-এর আগের লেখায় ফিরবেন? এর পরের পরিবর্তনগুলো মুছে যাবে।"><button class="btn-link">↶ আগের লেখায় ফিরুন</button></form>}
+      </details>
+    )}
     <p class="muted small lb-hint">প্রিভিউতে যেকোনো সেকশনে ক্লিক করুন — পাশে সেটার এডিট খুলে যাবে। দাম, ছবি আর ভ্যারিয়েন্ট বদলাতে <a href={`/admin/products/${p.product.id}/edit`}>পণ্য এডিট</a> করুন।</p>
     <div id="builder" class="lb" data-landing={p.landingJson} data-labels={JSON.stringify(p.labels)} data-fonts={JSON.stringify(p.fonts)}
       data-preview={`/admin/products/${p.product.id}/landing/preview`} data-template={`/admin/products/${p.product.id}/landing/save-template`}>

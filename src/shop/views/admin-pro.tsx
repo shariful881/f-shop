@@ -27,7 +27,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "reviews", href: "/admin/reviews", icon: "star", label: "রিভিউ" },
   { key: "theme", href: "/admin/design", icon: "palette", label: "থিম এডিটর", group: "অনলাইন স্টোর", perm: "settings" },
   { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
-  { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
+  { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ ও ব্লগ" },
   { key: "media", href: "/admin/media", icon: "image", label: "মিডিয়া" },
   { key: "coupons", href: "/admin/coupons", icon: "ticket", label: "কুপন", group: "মার্কেটিং" },
   { key: "ads", href: "/admin/ads", icon: "megaphone", label: "অ্যাড ও ক্যাটালগ" },
@@ -72,6 +72,11 @@ export const ShopShell = (p: {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex" />
         <title>{p.title} — {s.site_name || "দোকান"} অ্যাডমিন</title>
+        <link rel="manifest" href="/admin-manifest.webmanifest" />
+        <meta name="theme-color" content="#0f766e" />
+        <link rel="apple-touch-icon" href="/icons/app-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content={s.site_name || "দোকান"} />
         <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
         <link rel="stylesheet" href={`/css/super.css?v=${ASSET_VERSION}`} />
@@ -156,6 +161,7 @@ export type ShopDash = {
   setup: SetupStep[];
   storeUrl: string;
   lowStock?: { product_id: number; name: string; stock: number }[];
+  pushKey?: string;
 };
 
 const pct = (n: number) => `${bn((Math.round(n * 10) / 10).toString())}%`;
@@ -284,6 +290,18 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
             <ol class="sa-rank">{d.top.map((t) => <li><span>{t.product_name}</span><b>{n0(t.n)}টা</b></li>)}</ol>
           )}
         </section>
+        {d.pushKey && (
+          <section class="sa-card push-card" data-push data-key={d.pushKey}>
+            <div class="sa-card-head"><h2><Icon name="bell" size="sm" /> নতুন অর্ডারে ফোনে নোটিফিকেশন</h2></div>
+            <p class="sa-muted small" data-push-text>অর্ডার এলেই এই ফোনে/কম্পিউটারে নোটিফিকেশন আসবে — প্যানেল বন্ধ থাকলেও।</p>
+            <div class="quick-actions">
+              <button type="button" class="sa-btn sa-btn-sm" data-push-on hidden><Icon name="bell" size="sm" /> চালু করুন</button>
+              <button type="button" class="sa-btn sa-btn-ghost sa-btn-sm" data-push-test hidden>টেস্ট পাঠান</button>
+              <button type="button" class="sa-btn sa-btn-ghost sa-btn-sm" data-push-off hidden>এই ডিভাইসে বন্ধ</button>
+            </div>
+            <p class="sa-muted small" data-push-ios hidden>iPhone-এ: Safari-তে Share → "Add to Home Screen" দিয়ে প্যানেল হোম স্ক্রিনে বসান, তারপর সেখান থেকে খুলে চালু করুন।</p>
+          </section>
+        )}
         {(d.lowStock ?? []).length > 0 && canAccess(role, "inventory") && (
           <section class="sa-card low-stock-card">
             <div class="sa-card-head"><h2>স্টক কম বা শেষ</h2><a href="/admin/inventory?f=low" class="sa-link">ইনভেন্টরি →</a></div>
@@ -671,7 +689,7 @@ export const CfgField = ({ f, cfg, products, categories }: { f: Field; cfg: Cfg;
 };
 
 /* ---------- নিজের পেজ (আমাদের সম্পর্কে, রিটার্ন নীতি...) ---------- */
-export type PageRow = { id: number; title: string; slug: string; content: string; in_menu: number; is_active: number; sort_order: number };
+export type PageRow = { id: number; title: string; slug: string; content: string; in_menu: number; is_active: number; sort_order: number; kind: string; excerpt: string | null; image: string | null };
 
 export const PagesPage = ({ rows, edit, error }: { rows: PageRow[]; edit?: Partial<PageRow>; error?: string }) => (
   <div class="sa-grid-1-2">
@@ -679,11 +697,16 @@ export const PagesPage = ({ rows, edit, error }: { rows: PageRow[]; edit?: Parti
       <h2>{edit?.id ? "পেজ এডিট" : "নতুন পেজ"}</h2>
       {error && <div class="sa-alert sa-alert-err">{error}</div>}
       <form method="post" action={edit?.id ? `/admin/pages/${edit.id}` : "/admin/pages"} class="sa-form">
+        <label>ধরন</label>
+        <select name="kind"><option value="page" selected={edit?.kind !== "post"}>সাধারণ পেজ (আমাদের সম্পর্কে, নীতি...)</option><option value="post" selected={edit?.kind === "post"}>ব্লগ পোস্ট (/blog-এ দেখাবে)</option></select>
         <label>শিরোনাম</label><input type="text" name="title" required maxlength={80} value={edit?.title ?? ""} placeholder="যেমন: আমাদের সম্পর্কে" />
         <label>লিংকের নাম (ইংরেজিতে)</label><input type="text" name="slug" required maxlength={60} pattern="[a-z0-9-]+" value={edit?.slug ?? ""} placeholder="যেমন: about-us" />
         <small class="sa-muted">পেজের ঠিকানা হবে /page/{edit?.slug || "about-us"}। শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা আর হাইফেন।</small>
         <label>লেখা (HTML চলবে: &lt;b&gt;, &lt;h3&gt;, &lt;ul&gt;&lt;li&gt;, &lt;a&gt;)</label>
         <textarea name="content" rows={10} maxlength={20000}>{edit?.content ?? ""}</textarea>
+        <label>সারাংশ (ব্লগ পোস্টে — Google আর Facebook শেয়ারে দেখাবে)</label><textarea name="excerpt" rows={2} maxlength={300}>{edit?.excerpt ?? ""}</textarea>
+        <label>কভার ছবির লিংক (ব্লগ পোস্টে, ঐচ্ছিক)</label><input type="text" name="image" maxlength={500} value={edit?.image ?? ""} placeholder="https://... বা /img/..." />
+        <small class="sa-muted">ছবি "মিডিয়া" থেকে আপলোড করে লিংক কপি করে বসান। ব্লগ পোস্ট মেনুতে আলাদা দেখায় না — হেডারে "ব্লগ" লিংক নিজে থেকেই আসে।</small>
         <label class="small-check"><input type="checkbox" name="in_menu" value="1" checked={edit ? edit.in_menu !== 0 : true} /> মেনু আর ফুটারে দেখাবে</label>
         <label class="small-check"><input type="checkbox" name="is_active" value="1" checked={edit ? edit.is_active !== 0 : true} /> চালু</label>
         <label>ক্রম (ছোট সংখ্যা আগে)</label><input type="number" name="sort_order" value={String(edit?.sort_order ?? 0)} />
@@ -693,17 +716,17 @@ export const PagesPage = ({ rows, edit, error }: { rows: PageRow[]; edit?: Parti
     </section>
     <section class="sa-card">
       <h2>সব পেজ</h2>
-      <p class="sa-muted">যেমন: আমাদের সম্পর্কে, রিটার্ন ও রিফান্ড নীতি, ডেলিভারির নিয়ম, প্রাইভেসি পলিসি। মেনুতে দেখাতে "থিম কাস্টমাইজ → হেডার"-এ "নিজের পেজের মেনু" চালু রাখুন।</p>
+      <p class="sa-muted">যেমন: আমাদের সম্পর্কে, রিটার্ন ও রিফান্ড নীতি, ডেলিভারির নিয়ম, প্রাইভেসি পলিসি। আর ব্লগ পোস্ট — পণ্যের ব্যবহার, যত্নের টিপস — যাতে Google থেকে কাস্টমার আসে। মেনুতে দেখাতে "থিম কাস্টমাইজ → হেডার"-এ "নিজের পেজের মেনু" চালু রাখুন।</p>
       {rows.length === 0 ? <p class="sa-empty">এখনো কোনো পেজ নেই</p> : (
         <table class="sa-table">
           <thead><tr><th>পেজ</th><th>অবস্থা</th><th></th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr>
-              <td><b>{r.title}</b><br /><small class="sa-muted">/page/{r.slug}</small></td>
+              <td><b>{r.title}</b>{r.kind === "post" && <span class="sa-pill"> ব্লগ</span>}<br /><small class="sa-muted">/{r.kind === "post" ? "blog" : "page"}/{r.slug}</small></td>
               <td>{r.is_active ? <span class="sa-pill sa-st-active">চালু</span> : <span class="sa-pill sa-st-closed">বন্ধ</span>}{r.in_menu ? " · মেনুতে" : ""}</td>
               <td class="sa-row">
                 <a href={`/admin/pages/${r.id}`} class="sa-btn sa-btn-sm sa-btn-ghost">এডিট</a>
-                <a href={`/page/${r.slug}`} target="_blank" class="sa-btn sa-btn-sm sa-btn-ghost">দেখুন ↗</a>
+                <a href={`/${r.kind === "post" ? "blog" : "page"}/${r.slug}`} target="_blank" class="sa-btn sa-btn-sm sa-btn-ghost">দেখুন ↗</a>
                 <form method="post" action={`/admin/pages/${r.id}/delete`} data-confirm={`"${r.title}" পেজটি মুছবেন?`}><button class="sa-btn sa-btn-sm sa-btn-ghost">মুছুন</button></form>
               </td>
             </tr>

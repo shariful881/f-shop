@@ -14,7 +14,7 @@ import { AREA_LABEL, STATUS_LABEL, type Order, type OrderItem } from "../lib/ord
 import { ProductCard } from "./shop";
 
 export type NavCat = { id: number; name: string };
-export type NavPage = { title: string; slug: string };
+export type NavPage = { title: string; slug: string; href?: string };
 
 /* ---------- ছোট আইকন (নিজের আঁকা, হালকা SVG) ---------- */
 export const I = {
@@ -86,7 +86,7 @@ const Drawer = ({ s, nav, cfg, pages = [] }: { s: Settings; nav: NavCat[]; cfg: 
       <a href="/search">পণ্য খুঁজুন</a>
       <a href="/cart">কার্ট</a>
       {on(cfg, "track_link") && <a href="/track">অর্ডার ট্র্যাক করুন</a>}
-      {pages.map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}
+      {pages.map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}
       {s.contact_phone && <a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a>}
     </aside>
     <label for="px-drawer" class="px-scrim" aria-hidden="true"></label>
@@ -98,7 +98,7 @@ const NavRow = ({ nav, center, pages = [] }: { nav: NavCat[]; center?: boolean; 
     <div class={`wrap px-nav-in ${center ? "center" : ""}`}>
       <a href="/">হোম</a>
       {nav.map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
-      {pages.map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}
+      {pages.map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}
     </div>
   </nav>
 );
@@ -159,7 +159,7 @@ export const StoreHeader = ({ s, cfg, cartCount, nav, q, pages = [] }: { s: Sett
             <nav class="px-inline-nav px-only-desktop" aria-label="ক্যাটাগরি">
               <a href="/">হোম</a>
               {navCats.slice(0, 6).map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
-              {menuPages.slice(0, Math.max(0, 6 - navCats.length)).map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}
+              {menuPages.slice(0, Math.max(0, 6 - navCats.length)).map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}
             </nav>
           )}
           <div class="px-actions">
@@ -242,7 +242,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
               {nav.slice(0, 6).map((c) => <a href={`/c/${c.id}`}>{c.name}</a>)}
               <a href="/cart">কার্ট</a>
               {track && <a href="/track">অর্ডার ট্র্যাক</a>}
-              {pages.map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}
+              {pages.map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}
             </nav>
             <p class="px-fc-contact">
               {s.contact_phone && <a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a>}
@@ -275,7 +275,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
               </p>
             )}
             {s.store_address && <p class="muted">{s.store_address}</p>}
-            {pages.length > 0 && <p class="footer-links">{pages.map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}</p>}
+            {pages.length > 0 && <p class="footer-links">{pages.map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}</p>}
             {payRow}
             <p class="muted">{cfg.footer_copy || "ক্যাশ অন ডেলিভারি • পণ্য হাতে পেয়ে টাকা দিন"}</p>
             <div class="made-by"><a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener">SellxBD দিয়ে তৈরি</a></div>
@@ -309,7 +309,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
               <li><a href="/cart">আমার কার্ট</a></li>
               <li><a href="/search">পণ্য খুঁজুন</a></li>
               {track && <li><a href="/track">অর্ডার ট্র্যাক করুন</a></li>}
-              {pages.map((pg) => <li><a href={`/page/${pg.slug}`}>{pg.title}</a></li>)}
+              {pages.map((pg) => <li><a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a></li>)}
             </ul>
           </div>
           <div>

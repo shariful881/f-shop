@@ -237,4 +237,69 @@ document.addEventListener("click", function (e) {
     if (!box) return;
     cb.addEventListener("change", function () { box.hidden = !cb.checked; });
   });
+
+  /* AI দিয়ে লেখা: চাপার পর বাটন বন্ধ (২০–৩০ সেকেন্ড লাগে) */
+  document.querySelectorAll("[data-ai-form]").forEach(function (f) {
+    f.addEventListener("submit", function () {
+      var b = f.querySelector("[data-ai-submit]");
+      if (b) { b.disabled = true; b.textContent = "লেখা হচ্ছে… (২০–৩০ সেকেন্ড)"; }
+    });
+  });
+
+  /* ফোনের অ্যাপের মতো (PWA) আর নতুন অর্ডারের নোটিফিকেশন */
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/admin-sw.js", { scope: "/admin" }).catch(function () {});
+  }
+  var pc = document.querySelector("[data-push]");
+  if (pc) {
+    var txt = pc.querySelector("[data-push-text]"), on = pc.querySelector("[data-push-on]"), off = pc.querySelector("[data-push-off]"), test = pc.querySelector("[data-push-test]");
+    var ios = /iphone|ipad/i.test(navigator.userAgent) && !(window.navigator.standalone);
+    var keyBytes = function (b64) {
+      var pad = "=".repeat((4 - (b64.length % 4)) % 4), raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+      return Uint8Array.from(raw, function (ch) { return ch.charCodeAt(0); });
+    };
+    var post = function (url, body) {
+      return fetch(url, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) }).then(function (r) { return r.json(); });
+    };
+    var show = function (state) {
+      on.hidden = state !== "off"; off.hidden = state !== "on"; test.hidden = state !== "on";
+      if (state === "on") txt.textContent = "এই ডিভাইসে চালু আছে — নতুন অর্ডার এলেই নোটিফিকেশন আসবে।";
+      if (state === "denied") txt.textContent = "ব্রাউজারে নোটিফিকেশন বন্ধ করা আছে — ব্রাউজারের সাইট সেটিংস থেকে চালু করুন।";
+      if (state === "unsupported") txt.textContent = "এই ব্রাউজারে নোটিফিকেশন চলে না। Chrome বা Edge-এ খুলুন।";
+    };
+    if (ios) pc.querySelector("[data-push-ios]").hidden = false;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) show("unsupported");
+    else if (Notification.permission === "denied") show("denied");
+    else navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (sub) {
+        show(sub ? "on" : "off");
+        if (sub) post("/admin/push/subscribe", sub.toJSON());
+      });
+    });
+    on.addEventListener("click", function () {
+      on.disabled = true;
+      Notification.requestPermission().then(function (perm) {
+        if (perm !== "granted") { show("denied"); return; }
+        return navigator.serviceWorker.ready.then(function (reg) {
+          return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(pc.dataset.key) });
+        }).then(function (sub) { return post("/admin/push/subscribe", sub.toJSON()); }).then(function (r) {
+          show(r && r.ok ? "on" : "off");
+          if (window.toast) window.toast(r && r.ok ? "নোটিফিকেশন চালু হয়েছে" : "চালু করা যায়নি");
+        });
+      }).catch(function () { show("off"); }).finally(function () { on.disabled = false; });
+    });
+    off.addEventListener("click", function () {
+      navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+        if (!sub) return show("off");
+        var ep = sub.endpoint;
+        return sub.unsubscribe().then(function () { return post("/admin/push/unsubscribe", { endpoint: ep }); }).then(function () { show("off"); });
+      });
+    });
+    test.addEventListener("click", function () {
+      test.disabled = true;
+      post("/admin/push/test").then(function (r) {
+        txt.textContent = r && r.ok ? "টেস্ট পাঠানো হয়েছে — কয়েক সেকেন্ডে আসবে।" : "পাঠানো যায়নি, একটু পরে চেষ্টা করুন।";
+      }).finally(function () { test.disabled = false; });
+    });
+  }
 })();

@@ -35,6 +35,9 @@
     }
   ],
 
+  // Cloudflare Workers AI — ফ্রি সীমা দিনে ১০,০০০ neuron (AI ল্যান্ডিং পেজের লেখা)
+  "ai": { "binding": "AI" },
+
   // প্রতিটা দোকান = একটা Durable Object = দোকানের নিজস্ব আলাদা SQLite ডাটাবেস
   "durable_objects": {
     "bindings": [

@@ -58,6 +58,8 @@ import { ReviewsAdminPage } from "../views/reviews";
 import { profitReport, snapshotCost } from "../lib/profit";
 import { ProfitPage } from "../views/profit";
 import { waMessages } from "../lib/whatsapp";
+import { AI_SHOP_DAILY, applyCopy, generateCopy, TONE_LABEL } from "../lib/ai";
+import { allowedEndpoint, pushToShop, vapidKeys } from "../lib/push";
 import { adReport, usdRate } from "../lib/ads";
 import { feedItems } from "../lib/feed";
 
@@ -213,6 +215,7 @@ admin.get("/", async (c) => {
     products: { total: pr.total ?? 0, active: pr.active ?? 0 },
     setup,
     storeUrl: publicOrigin(c),
+    pushKey: (await vapidKeys(c.env.PLATFORM_DB)).publicKey,
     lowStock: (await inventoryRows(c.env.DB, "low")).concat(await inventoryRows(c.env.DB, "out")).filter((r) => r.is_active).slice(0, 6)
       .map((r) => ({ product_id: r.product_id, name: r.name + (r.label ? ` (${r.label})` : ""), stock: r.stock })),
   };
@@ -1633,13 +1636,16 @@ admin.post("/coupons/:id{[0-9]+}/delete", async (c) => {
 
 /* ---------- নিজের পেজ ---------- */
 async function pageRows(c: Ctx) {
-  return (await c.env.DB.prepare("SELECT * FROM pages ORDER BY sort_order, id").all<PageRow>()).results;
+  return (await c.env.DB.prepare("SELECT * FROM pages ORDER BY kind, sort_order, id DESC").all<PageRow>()).results;
 }
 function pageInput(b: Record<string, unknown>) {
   const v = {
     title: str(b.title, 80), slug: str(b.slug, 60).toLowerCase(), content: (typeof b.content === "string" ? b.content : "").slice(0, 20000),
     in_menu: b.in_menu ? 1 : 0, is_active: b.is_active ? 1 : 0, sort_order: toInt(b.sort_order, 0),
+    kind: b.kind === "post" ? "post" : "page", excerpt: str(b.excerpt, 300) || null,
+    image: /^(https:\/\/|\/)[^\s"'<>]{1,500}$/.test(str(b.image, 500)) ? str(b.image, 500) : null,
   };
+  if (v.kind === "post") v.in_menu = 0;
   const error = !v.title ? "শিরোনাম দিন" : !/^[a-z0-9-]{1,60}$/.test(v.slug) ? "লিংকের নাম শুধু ছোট হাতের ইংরেজি অক্ষর, সংখ্যা আর হাইফেন দিয়ে লিখুন" : "";
   return { v, error };
 }
@@ -1655,9 +1661,9 @@ const savePage = async (c: Ctx) => {
   if (error) return render(c, "পেজ", "pages", <PagesPage rows={await pageRows(c)} edit={{ ...v, id: id || undefined }} error={error} />, 422);
   const taken = await c.env.DB.prepare("SELECT id FROM pages WHERE slug = ? AND id != ?").bind(v.slug, id).first();
   if (taken) return render(c, "পেজ", "pages", <PagesPage rows={await pageRows(c)} edit={{ ...v, id: id || undefined }} error="এই লিংকের নামে আরেকটা পেজ আছে" />, 422);
-  if (id) await c.env.DB.prepare("UPDATE pages SET title=?, slug=?, content=?, in_menu=?, is_active=?, sort_order=? WHERE id=?").bind(v.title, v.slug, v.content, v.in_menu, v.is_active, v.sort_order, id).run();
-  else await c.env.DB.prepare("INSERT INTO pages (title, slug, content, in_menu, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?)").bind(v.title, v.slug, v.content, v.in_menu, v.is_active, v.sort_order).run();
-  flash(c, "ok", "পেজ সেভ হয়েছে।");
+  if (id) await c.env.DB.prepare("UPDATE pages SET title=?, slug=?, content=?, in_menu=?, is_active=?, sort_order=?, kind=?, excerpt=?, image=? WHERE id=?").bind(v.title, v.slug, v.content, v.in_menu, v.is_active, v.sort_order, v.kind, v.excerpt, v.image, id).run();
+  else await c.env.DB.prepare("INSERT INTO pages (title, slug, content, in_menu, is_active, sort_order, kind, excerpt, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(v.title, v.slug, v.content, v.in_menu, v.is_active, v.sort_order, v.kind, v.excerpt, v.image).run();
+  flash(c, "ok", v.kind === "post" ? "ব্লগ পোস্ট সেভ হয়েছে — /blog-এ দেখাবে।" : "পেজ সেভ হয়েছে।");
   return c.redirect("/admin/pages", 303);
 };
 admin.post("/pages", savePage);
@@ -1749,7 +1755,8 @@ admin.get("/products/:id{[0-9]+}/landing", async (c) => {
   if (!p) return c.redirect("/admin/products", 303);
   const landing = parseLanding(p.landing_json) ?? defaultLanding(p);
   return render(c, "ল্যান্ডিং পেজ", "landing",
-    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} products={await productChoices(c)} fonts={FONT_LABELS} />);
+    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} products={await productChoices(c)} fonts={FONT_LABELS}
+      ai={{ canUndo: `ai_prev_landing_${p.id}` in c.var.settings, about: c.var.settings.ai_last_about ?? "" }} />);
 });
 
 /** ডিজাইনটা অন্য পণ্যে সরানো (এখনকার পরিবর্তনসহ) */
@@ -1807,6 +1814,49 @@ admin.post("/products/:id{[0-9]+}/landing", async (c) => {
   } else {
     await c.env.DB.prepare("UPDATE products SET landing_json = ?, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(landing), id).run();
     flash(c, "ok", "ল্যান্ডিং পেজ সেভ হয়েছে।");
+  }
+  return c.redirect(`/admin/products/${id}/landing`, 303);
+});
+
+/** AI দিয়ে ল্যান্ডিং পেজের লেখা — আগেরটা রেখে দেওয়া হয় (এক ক্লিকে ফেরা যায়) */
+admin.post("/products/:id{[0-9]+}/landing/ai", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const p = await productById(c, id);
+  if (!p) return c.redirect("/admin/products", 303);
+  const b = await c.req.parseBody();
+  const about = str(b.about, 600);
+  const tone = String(b.tone) in TONE_LABEL ? String(b.tone) : "friendly";
+  if (about.length < 10) {
+    flash(c, "error", "পণ্য সম্পর্কে অন্তত ১–২ লাইন লিখুন (কী দিয়ে বানানো, কার জন্য, কী সুবিধা)");
+    return c.redirect(`/admin/products/${id}/landing`, 303);
+  }
+  const day = new Date().toISOString().slice(0, 10);
+  if (!(await hitRateLimit(c.env.DB, `ai:${day}`, AI_SHOP_DAILY, 86400))) {
+    flash(c, "error", `আজ AI দিয়ে ${bn(AI_SHOP_DAILY)} বার লেখা হয়ে গেছে — কাল আবার চেষ্টা করুন`);
+    return c.redirect(`/admin/products/${id}/landing`, 303);
+  }
+  const copy = await generateCopy(c.env, c.var.settings, p, about, tone);
+  if ("error" in copy) {
+    flash(c, "error", copy.error);
+    return c.redirect(`/admin/products/${id}/landing`, 303);
+  }
+  const current = parseLanding(p.landing_json) ?? defaultLanding(p);
+  const next = applyCopy(current, copy);
+  await saveSettings(c.env.DB, { [`ai_prev_landing_${id}`]: p.landing_json ?? "" , ai_last_about: about.slice(0, 600) });
+  await c.env.DB.prepare("UPDATE products SET landing_json = ?, short_desc = COALESCE(NULLIF(short_desc, ''), ?), updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(next), copy.subheadline || null, id).run();
+  flash(c, "ok", "AI লেখা বসিয়েছে — দেখে দরকার মতো ঠিক করে নিন। পছন্দ না হলে \"আগের লেখায় ফিরুন\" চাপুন।");
+  return c.redirect(`/admin/products/${id}/landing`, 303);
+});
+
+admin.post("/products/:id{[0-9]+}/landing/ai-undo", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const key = `ai_prev_landing_${id}`;
+  if (key in c.var.settings) {
+    const prev = c.var.settings[key] || null;
+    await c.env.DB.prepare("UPDATE products SET landing_json = ?, updated_at = datetime('now') WHERE id = ?").bind(prev, id).run();
+    await c.env.DB.prepare("DELETE FROM settings WHERE key = ?").bind(key).run();
+    flash(c, "ok", "আগের লেখায় ফেরানো হয়েছে।");
   }
   return c.redirect(`/admin/products/${id}/landing`, 303);
 });
@@ -1979,6 +2029,34 @@ admin.post("/ads/catalog", async (c) => {
   });
   flash(c, "ok", "ফিডের সেটিংস সেভ হয়েছে।");
   return c.redirect("/admin/ads/catalog", 303);
+});
+
+/* ---------- ফোনে নোটিফিকেশন (Web Push) ---------- */
+admin.post("/push/subscribe", async (c) => {
+  const b = await c.req.json<{ endpoint?: string; keys?: { p256dh?: string; auth?: string } }>().catch(() => ({} as never));
+  const endpoint = String(b?.endpoint ?? "");
+  const p256dh = String(b?.keys?.p256dh ?? "");
+  const auth = String(b?.keys?.auth ?? "");
+  if (!allowedEndpoint(endpoint) || !/^[A-Za-z0-9_-]{80,100}$/.test(p256dh) || !/^[A-Za-z0-9_-]{16,30}$/.test(auth)) return c.json({ ok: false }, 400);
+  await c.env.DB.prepare(
+    `INSERT INTO push_subs (user_id, endpoint, p256dh, auth, ua) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth`,
+  ).bind(c.var.admin!.id, endpoint, p256dh, auth, (c.req.header("user-agent") || "").slice(0, 200)).run();
+  // বেশি পুরনো থাকলে ছাঁটা (দোকানে সর্বোচ্চ ২০টা ডিভাইস)
+  await c.env.DB.prepare("DELETE FROM push_subs WHERE id NOT IN (SELECT id FROM push_subs ORDER BY id DESC LIMIT 20)").run();
+  return c.json({ ok: true });
+});
+
+admin.post("/push/unsubscribe", async (c) => {
+  const b = await c.req.json<{ endpoint?: string }>().catch(() => ({} as never));
+  await c.env.DB.prepare("DELETE FROM push_subs WHERE endpoint = ?").bind(String(b?.endpoint ?? "")).run();
+  return c.json({ ok: true });
+});
+
+admin.post("/push/test", async (c) => {
+  if (!(await hitRateLimit(c.env.DB, "push-test", 5, 60))) return c.json({ ok: false, sent: 0 }, 429);
+  const sent = await pushToShop(c.env.DB, c.env.PLATFORM_DB, { title: "টেস্ট নোটিফিকেশন ✓", body: `${c.var.settings.site_name || "দোকান"} — নতুন অর্ডার এলে এভাবে জানাবে`, url: "/admin/orders", tag: "test" });
+  return c.json({ ok: sent > 0, sent });
 });
 
 /* ---------- রিভিউ ---------- */

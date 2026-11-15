@@ -25,6 +25,7 @@ import m0019 from "../../migrations/shop/0019_stock.sql";
 import m0020 from "../../migrations/shop/0020_ads.sql";
 import m0021 from "../../migrations/shop/0021_advance.sql";
 import m0022 from "../../migrations/shop/0022_reviews_profit.sql";
+import m0023 from "../../migrations/shop/0023_push_blog.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
@@ -53,6 +54,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0020_ads", m0020],
   ["0021_advance", m0021],
   ["0022_reviews_profit", m0022],
+  ["0023_push_blog", m0023],
 ];
 
 export type SetupInput = {
@@ -319,6 +321,8 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       CF_API_TOKEN: this.env.CF_API_TOKEN,
       CF_ACCOUNT_ID: this.env.CF_ACCOUNT_ID,
       WORKER_NAME: this.env.WORKER_NAME,
+      AI: this.env.AI,
+      IS_TEST: this.env.TEST_MIGRATIONS !== undefined,
     };
     const execCtx = {
       waitUntil: (p: Promise<unknown>) => this.ctx.waitUntil(p),

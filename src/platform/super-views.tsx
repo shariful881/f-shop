@@ -38,6 +38,7 @@ export const PERMS: Record<string, SuperRole[]> = {
   announcements: ["owner", "admin"],
   templates: ["owner", "admin"],
   demos: ["owner", "admin"],
+  blog: ["owner", "admin"],
   audit: ["owner", "admin"],
   errors: ["owner", "admin"],
   team: ["owner"],
@@ -78,6 +79,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "announcements", href: "/super/announcements", icon: "megaphone", label: "ঘোষণা", group: "যোগাযোগ" },
   { key: "templates", href: "/super/templates", icon: "layout-template", label: "ল্যান্ডিং টেমপ্লেট" },
   { key: "demos", href: "/super/demos", icon: "package", label: "ডেমো দোকান" },
+  { key: "blog", href: "/super/blog", icon: "file-text", label: "ব্লগ" },
   { key: "audit", href: "/super/audit", icon: "file-text", label: "অডিট লগ", group: "নিরাপত্তা" },
   { key: "errors", href: "/super/errors", icon: "triangle-alert", label: "এরর লগ" },
   { key: "team", href: "/super/team", icon: "users", label: "টিম" },
@@ -771,7 +773,7 @@ export const AnnouncementsPage = ({ rows }: { rows: AnnRow[] }) => (
 export const ACTION_LABEL: Record<string, string> = {
   login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
   "shop.impersonate": "দোকানে সাপোর্ট লগইন", "shop.note": "নোট", "topup.approve": "রিচার্জ অনুমোদন", "topup.reject": "রিচার্জ বাতিল",
-  "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ",
+  "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ", "blog.save": "ব্লগ পোস্ট সেভ", "blog.delete": "ব্লগ পোস্ট মুছা",
   "team.add": "টিমে যোগ", "team.update": "টিম সদস্য বদল", "team.password": "পাসওয়ার্ড বদল", "export.shops": "দোকানের তালিকা ডাউনলোড",
 };
 
@@ -1010,5 +1012,45 @@ export const DemosPage = ({ rows, support }: { rows: DemoRow[]; support: string 
         </tr>
       ))}</tbody>
     </table></div>
+  </Card>
+);
+
+/* ---------- ব্লগ (ধাপ ৮) ---------- */
+export type BlogRow = { id: number; slug: string; title: string; excerpt: string; body_html: string; status: string; published_at: string | null; updated_at: string };
+export const BlogListPage = ({ rows }: { rows: BlogRow[] }) => (
+  <Card title="ব্লগ পোস্ট" action={<a class="sa-btn sa-btn-sm" href="/super/blog/new">+ নতুন পোস্ট</a>}>
+    <p class="sa-muted">sellxbd.com/blog-এ দেখায় — দোকান মালিকদের কাজের টিপস, যাতে Google থেকে নতুন মালিক আসে।</p>
+    {rows.length === 0 ? <Empty text="এখনো কোনো পোস্ট নেই" /> : (
+      <div class="sa-table-wrap"><table class="sa-table">
+        <thead><tr><th>শিরোনাম</th><th>অবস্থা</th><th>আপডেট</th><th></th></tr></thead>
+        <tbody>{rows.map((r) => (
+          <tr>
+            <td><b>{r.title}</b><br /><small class="sa-muted">/blog/{r.slug}</small></td>
+            <td>{r.status === "published" ? <span class="sa-pill sa-st-active">প্রকাশিত</span> : <span class="sa-pill sa-st-closed">খসড়া</span>}</td>
+            <td><small>{dhakaTime(r.updated_at)}</small></td>
+            <td class="sa-row">
+              <a class="sa-btn sa-btn-sm sa-btn-ghost" href={`/super/blog/${r.id}`}>এডিট</a>
+              {r.status === "published" && <a class="sa-btn sa-btn-sm sa-btn-ghost" href={`/blog/${r.slug}`} target="_blank" rel="noopener">দেখুন</a>}
+            </td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    )}
+  </Card>
+);
+
+export const BlogEditPage = ({ post, error }: { post?: Partial<BlogRow>; error?: string }) => (
+  <Card title={post?.id ? "পোস্ট এডিট" : "নতুন পোস্ট"}>
+    {error && <div class="sa-alert sa-alert-err">{error}</div>}
+    <form method="post" action={post?.id ? `/super/blog/${post.id}` : "/super/blog/new"} class="sa-form">
+      <label>শিরোনাম</label><input type="text" name="title" required maxlength={150} value={post?.title ?? ""} />
+      <label>লিংক (slug — ইংরেজি ছোট হাতের অক্ষর, সংখ্যা আর -)</label><input type="text" name="slug" required maxlength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={post?.slug ?? ""} placeholder="jemon-fake-order-komanor-upay" />
+      <label>সারাংশ (Google-এ দেখাবে, ১৬০ অক্ষরের মধ্যে ভালো)</label><textarea name="excerpt" rows={2} maxlength={300}>{post?.excerpt ?? ""}</textarea>
+      <label>লেখা (HTML — &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;a&gt;, &lt;img&gt; চলবে)</label><textarea name="body_html" rows={18} maxlength={60000} class="sa-mono">{post?.body_html ?? ""}</textarea>
+      <label>অবস্থা</label>
+      <select name="status"><option value="draft" selected={post?.status !== "published"}>খসড়া</option><option value="published" selected={post?.status === "published"}>প্রকাশিত</option></select>
+      <div class="sa-row"><button class="sa-btn">সেভ করুন</button><a class="sa-btn sa-btn-ghost" href="/super/blog">ফিরে যান</a></div>
+    </form>
+    {post?.id && <form method="post" action={`/super/blog/${post.id}/delete`} class="sa-form" style="margin-top:16px"><label><input type="checkbox" name="confirm" value="1" required /> মুছে ফেলা নিশ্চিত — ফেরত আনা যাবে না</label><button class="sa-btn sa-btn-sm sa-btn-danger">পোস্ট মুছুন</button></form>}
   </Card>
 );

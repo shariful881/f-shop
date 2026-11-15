@@ -5,7 +5,7 @@ import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "30";
+export const ASSET_VERSION = "31";
 
 export type LayoutProps = {
   title: string;
@@ -19,7 +19,7 @@ export type LayoutProps = {
   /** প্রো থিম: ক্যাটাগরি মেনু */
   nav?: NavCat[];
   /** নিজের পেজের মেনু */
-  pages?: { title: string; slug: string }[];
+  pages?: { title: string; slug: string; href?: string }[];
   /** প্রো থিম: ল্যান্ডিং/চেকআউটে নিচের মেনু লুকানো (অর্ডার বাটনের জায়গা) */
   bare?: boolean;
   /** সার্চ বক্সে আগের লেখা */

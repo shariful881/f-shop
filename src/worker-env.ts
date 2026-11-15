@@ -6,6 +6,8 @@ export type WorkerEnv = {
   SUPPORT: DurableObjectNamespace<import("./support-hub").SupportHub>;
   SHOP: DurableObjectNamespace<ShopDO>; // প্রতিটা দোকানের আলাদা ডাটাবেস
   ASSETS: Fetcher;
+  AI?: Ai;                        // Cloudflare Workers AI (ফ্রি সীমা)
+  TEST_MIGRATIONS?: unknown;      // শুধু টেস্টে থাকে
   PLATFORM_DOMAIN: string;        // যেমন ourdomain.com
   DEV_MODE?: string;
   WORKER_NAME?: string;           // এই Worker-এর নাম (wrangler.jsonc-এর name)

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { dateBn } from "../../platform/blog";
 import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
@@ -32,6 +33,7 @@ import { ownRecords, riskOf, sharedRecords } from "../lib/fraud";
 import { productReviews, reviewableOrder } from "../lib/reviews";
 import { ReviewPage, ReviewsBlock, type ReviewFormState } from "../views/reviews";
 import { imageStorageKey } from "../env";
+import { pushToShop } from "../lib/push";
 
 export const shop = new Hono<AppEnv>();
 
@@ -52,7 +54,9 @@ shop.use("*", async (c, next) => {
       return page(c, <ComingSoonPage s={c.var.settings} cfg={cfg} />);
     }
     c.set("navCats", await navCategories(c.env.DB));
-    c.set("navPages", (await c.env.DB.prepare("SELECT title, slug FROM pages WHERE is_active = 1 AND in_menu = 1 ORDER BY sort_order, id LIMIT 12").all<{ title: string; slug: string }>()).results);
+    const nav: { title: string; slug: string; href?: string }[] = (await c.env.DB.prepare("SELECT title, slug FROM pages WHERE is_active = 1 AND in_menu = 1 AND kind = 'page' ORDER BY sort_order, id LIMIT 12").all<{ title: string; slug: string }>()).results;
+    if (await c.env.DB.prepare("SELECT 1 FROM pages WHERE kind = 'post' AND is_active = 1 LIMIT 1").first()) nav.push({ title: "ব্লগ", slug: "blog", href: "/blog" });
+    c.set("navPages", nav);
   }
   await next();
 });
@@ -252,8 +256,9 @@ shop.get("/track", async (c) => {
 
 /* ---------- নিজের পেজ (আমাদের সম্পর্কে, রিটার্ন নীতি...) ---------- */
 shop.get("/page/:slug", async (c) => {
-  const pg = await c.env.DB.prepare("SELECT title, content FROM pages WHERE slug = ? AND is_active = 1").bind(str(c.req.param("slug"), 80)).first<{ title: string; content: string }>();
+  const pg = await c.env.DB.prepare("SELECT title, content, kind, slug FROM pages WHERE slug = ? AND is_active = 1").bind(str(c.req.param("slug"), 80)).first<{ title: string; content: string; kind: string; slug: string }>();
   if (!pg) return notFound(c);
+  if (pg.kind === "post") return c.redirect(`/blog/${pg.slug}`, 301);
   const s = c.var.settings;
   return page(c,
     <Layout title={`${pg.title} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
@@ -261,6 +266,46 @@ shop.get("/page/:slug", async (c) => {
     </Layout>,
   );
 });
+
+/* ---------- দোকানের ব্লগ (ধাপ ৮) ---------- */
+type PostRow = { title: string; slug: string; excerpt: string | null; image: string | null; content: string; created_at: string };
+shop.get("/blog", async (c) => {
+  const { results } = await c.env.DB.prepare("SELECT title, slug, excerpt, image, content, created_at FROM pages WHERE kind = 'post' AND is_active = 1 ORDER BY created_at DESC, id DESC LIMIT 60").all<PostRow>();
+  const s = c.var.settings;
+  return page(c,
+    <Layout title={`ব্লগ — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
+      <div class="wrap px-page"><h1 class="page-title">ব্লগ</h1>
+        {results.length === 0 ? <p class="muted">এখনো কোনো লেখা নেই।</p> : (
+          <div class="blog-grid">{results.map((p) => (
+            <a class="blog-card" href={`/blog/${p.slug}`}>
+              {p.image && <img src={p.image} alt="" loading="lazy" />}
+              <div><h2>{p.title}</h2><p>{p.excerpt || plainExcerpt(p.content)}</p><small>{dateBn(p.created_at)}</small></div>
+            </a>
+          ))}</div>
+        )}
+      </div>
+    </Layout>,
+  );
+});
+shop.get("/blog/:slug{[a-z0-9-]+}", async (c) => {
+  const pg = await c.env.DB.prepare("SELECT title, slug, excerpt, image, content, created_at FROM pages WHERE slug = ? AND kind = 'post' AND is_active = 1").bind(c.req.param("slug")).first<PostRow>();
+  if (!pg) return notFound(c);
+  const s = c.var.settings;
+  const desc = pg.excerpt || plainExcerpt(pg.content);
+  const head = <>{pixel(c)}<meta name="description" content={desc} /><meta property="og:title" content={pg.title} /><meta property="og:description" content={desc} />{pg.image && <meta property="og:image" content={pg.image} />}</>;
+  return page(c,
+    <Layout title={`${pg.title} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages}>
+      <article class="wrap narrow px-page blog-post">
+        <p class="muted"><a href="/blog">← ব্লগ</a> · {dateBn(pg.created_at)}</p>
+        <h1 class="page-title">{pg.title}</h1>
+        {pg.image && <img class="blog-cover" src={pg.image} alt="" />}
+        <div class="details" dangerouslySetInnerHTML={{ __html: sanitizeHtml(pg.content) }} />
+        <p><a class="btn btn-primary" href="/">পণ্য দেখুন →</a></p>
+      </article>
+    </Layout>,
+  );
+});
+const plainExcerpt = (h: string) => { const t = h.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim(); return t.length > 160 ? t.slice(0, 157) + "…" : t; };
 
 /* কাস্টমারের ইনভয়েস ডাউনলোড (অর্ডার নম্বর + মোবাইল মিললে) */
 shop.get("/track/invoice", async (c) => {
@@ -544,6 +589,14 @@ shop.post("/order", async (c) => {
     trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: subtotal + delivery - (coupon?.discount ?? 0) });
 
     await markConverted(c.env.DB, v.phone, order.id);
+    // দোকানদারের ফোনে নোটিফিকেশন (রেসপন্সের পরে)
+    const pushJob = pushToShop(c.env.DB, c.env.PLATFORM_DB, {
+      title: `নতুন অর্ডার ${order.order_no}`,
+      body: `৳${(subtotal + delivery - (coupon?.discount ?? 0)).toLocaleString("en-IN")} · ${values.name} · ${products.map((x) => x.name).join(", ").slice(0, 80)}`,
+      url: `/admin/orders/${order.id}`,
+      tag: order.order_no,
+    }).catch(() => 0);
+    try { c.executionCtx.waitUntil(pushJob); } catch { await pushJob; }
     if (source === "cart") clearCart(c);
     setCookie(c, "lo", order.order_no, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 });
     return c.redirect("/thanks", 303);
@@ -617,6 +670,34 @@ shop.post("/t/ic", async (c) => {
   if (p) trackServer(c, "InitiateCheckout", eventId, productData([p]));
   return c.body(null, 204);
 });
+
+/* ---------- দোকানদারের প্যানেল ফোনের অ্যাপের মতো (PWA) ---------- */
+shop.get("/admin-manifest.webmanifest", (c) => {
+  const name = c.var.settings.site_name || "দোকান";
+  return c.json({
+    name: `${name} — অ্যাডমিন`, short_name: name.slice(0, 12), start_url: "/admin", scope: "/admin", display: "standalone",
+    background_color: "#ffffff", theme_color: "#0f766e", lang: "bn",
+    icons: [{ src: "/icons/app-192.png", sizes: "192x192", type: "image/png" }, { src: "/icons/app-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
+  }, 200, { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" });
+});
+
+const ADMIN_SW = `self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("fetch", () => {});
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(d.title || "নতুন অর্ডার", { body: d.body || "", tag: d.tag || undefined, icon: "/icons/app-192.png", badge: "/icons/app-192.png", data: { url: d.url || "/admin/orders" }, renotify: true }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/admin/orders";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    for (const w of list) { if (w.url.indexOf("/admin") >= 0 && "focus" in w) { w.navigate(url); return w.focus(); } }
+    return self.clients.openWindow(url);
+  }));
+});`;
+shop.get("/admin-sw.js", (c) => c.body(ADMIN_SW, 200, { "Content-Type": "text/javascript; charset=utf-8", "Service-Worker-Allowed": "/admin", "Cache-Control": "no-cache" }));
 
 /* ---------- রিভিউ: শুধু যে কিনেছে (অর্ডার নম্বর + মোবাইল) ---------- */
 const REVIEW_IMG: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
@@ -702,7 +783,10 @@ shop.get("/sitemap.xml", async (c) => {
   const origin = publicOrigin(c);
   const { results } = await c.env.DB.prepare("SELECT slug, updated_at FROM products WHERE is_active = 1 ORDER BY id DESC LIMIT 5000").all<{ slug: string; updated_at: string }>();
   const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  const urls = [`<url><loc>${esc(origin)}/</loc></url>`, ...results.map((p) => `<url><loc>${esc(`${origin}/p/${encodeURIComponent(p.slug)}`)}</loc><lastmod>${p.updated_at.slice(0, 10)}</lastmod></url>`)];
+  const pg = (await c.env.DB.prepare("SELECT slug, kind FROM pages WHERE is_active = 1 LIMIT 500").all<{ slug: string; kind: string }>()).results;
+  const urls = [`<url><loc>${esc(origin)}/</loc></url>`, ...results.map((p) => `<url><loc>${esc(`${origin}/p/${encodeURIComponent(p.slug)}`)}</loc><lastmod>${p.updated_at.slice(0, 10)}</lastmod></url>`),
+    ...(pg.some((x) => x.kind === "post") ? [`<url><loc>${esc(origin)}/blog</loc></url>`] : []),
+    ...pg.map((x) => `<url><loc>${esc(`${origin}/${x.kind === "post" ? "blog" : "page"}/${x.slug}`)}</loc></url>`)];
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`, 200,
     { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" });
 });

@@ -7,8 +7,9 @@ import {
 } from "./lib";
 import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage } from "./views";
 import { num, platformSettings } from "./billing";
-import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
-import { helpBySlug } from "./help";
+import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
+import { helpBySlug, HELP } from "./help";
+import { publishedPosts, postBySlug } from "./blog";
 import { superApp } from "./super";
 import { sameOriginPost, securityHeaders } from "../shop/middleware/base";
 import { logError } from "./errors";
@@ -63,6 +64,29 @@ platformApp.get("/privacy", (c) => publicPage(c, "প্রাইভেসি �
 platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />));
 platformApp.notFound((c) => publicPage(c as PCtx, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404));
 platformApp.get("/help", (c) => publicPage(c, "হেল্প সেন্টার", () => <HelpIndexPage q={(c.req.query("q") || "").slice(0, 60)} />));
+/* ---------- ব্লগ, sitemap, robots ---------- */
+platformApp.get("/blog", async (c) => {
+  const posts = await publishedPosts(c.env.PLATFORM_DB);
+  return publicPage(c, "ব্লগ", () => <BlogIndexPage posts={posts} />);
+});
+platformApp.get("/blog/:slug{[a-z0-9-]+}", async (c) => {
+  const post = await postBySlug(c.env.PLATFORM_DB, c.req.param("slug"));
+  if (!post) return publicPage(c, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404);
+  const more = (await publishedPosts(c.env.PLATFORM_DB, 6)).filter((x) => x.id !== post.id).slice(0, 4);
+  const f = await loadFees(c);
+  return html(c, <PLayout title={`${post.title} — ${PLATFORM_NAME}`} nav={publicNav} description={post.excerpt}><BlogPostPage post={post} more={more} /><SiteFooter support={f.support} /></PLayout>);
+});
+
+platformApp.get("/robots.txt", (c) => c.text(`User-agent: *\nDisallow: /super\nDisallow: /admin\nSitemap: https://${c.env.PLATFORM_DOMAIN}/sitemap.xml\n`, 200, { "Cache-Control": "public, max-age=3600" }));
+platformApp.get("/sitemap.xml", async (c) => {
+  const base = `https://${c.env.PLATFORM_DOMAIN}`;
+  const fixed = ["/", "/pricing", "/about", "/contact", "/help", "/blog", "/terms", "/privacy", "/refund", ...HELP.map((h) => `/help/${h.slug}`)];
+  const posts = await publishedPosts(c.env.PLATFORM_DB, 500);
+  const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const urls = [...fixed.map((p) => `<url><loc>${esc(base + p)}</loc></url>`), ...posts.map((p) => `<url><loc>${esc(`${base}/blog/${p.slug}`)}</loc><lastmod>${p.updated_at.slice(0, 10)}</lastmod></url>`)];
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`, 200, { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" });
+});
+
 platformApp.get("/help/:slug{[a-z0-9-]+}", (c) => {
   const a = helpBySlug(c.req.param("slug"));
   if (!a) return c.redirect("/help", 302);
@@ -232,7 +256,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=30"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=31"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

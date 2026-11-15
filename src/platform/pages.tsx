@@ -7,6 +7,8 @@ import type { Child } from "hono/jsx";
 import { bn, taka } from "../shop/lib/format";
 import { HELP, HELP_CATS, type HelpArticle } from "./help";
 import { PLATFORM_NAME } from "./views";
+import { dateBn, type BlogPost } from "./blog";
+import { sanitizeHtml } from "../shop/lib/sanitize";
 
 export type Fees = { plans: Record<PlanKey, Plan>; staff: number; trialDays: number; trialOrders: number; support: string };
 
@@ -14,6 +16,7 @@ export const PublicNav = () => (
   <>
     <a href="/pricing" class="p-nav-link">দাম</a>
     <a href="/#ready" class="p-nav-link p-hide-sm">ডেমো</a>
+    <a href="/blog" class="p-nav-link">ব্লগ</a>
     <a href="/help" class="p-nav-link">সাহায্য</a>
     <a href="/signup" class="p-nav-cta">ফ্রি দোকান খুলুন</a>
   </>
@@ -37,6 +40,7 @@ export const SiteFooter = ({ support }: { support?: string }) => (
       <nav>
         <b>সাহায্য</b>
         <a href="/help">হেল্প সেন্টার</a>
+        <a href="/blog">ব্লগ</a>
         <a href="/help/open-shop">কীভাবে দোকান খুলবেন</a>
         <a href="/help/landing-page">ল্যান্ডিং পেজ বানানো</a>
         <a href="/contact">যোগাযোগ</a>
@@ -312,5 +316,48 @@ export const PlatformNotFoundPage = () => (
     <section class="p-section"><div class="wrap p-narrow p-prose">
       <p class="nf-links"><a class="btn btn-primary" href="/">হোম পেজ</a> <a class="btn" href="/help">হেল্প সেন্টার</a> <a class="btn" href="/pricing">দাম</a></p>
     </div></section>
+  </>
+);
+
+
+/* ---------- ব্লগ ---------- */
+export const BlogIndexPage = ({ posts }: { posts: BlogPost[] }) => (
+  <>
+    <PageHero kicker="ব্লগ" title="অনলাইনে বিক্রির টিপস" sub="ফেসবুক সেলারদের জন্য সহজ বাংলায় — অর্ডার, অ্যাড, কুরিয়ার আর লাভ।" />
+    <section class="p-section">
+      <div class="wrap p-narrow">
+        {posts.length === 0 ? <p class="muted">শিগগির নতুন লেখা আসছে।</p> : (
+          <div class="p-blog-list">
+            {posts.map((x) => (
+              <article class="p-blog-card">
+                <small class="muted">{dateBn(x.published_at)}</small>
+                <h2><a href={`/blog/${x.slug}`}>{x.title}</a></h2>
+                <p>{x.excerpt}</p>
+                <a href={`/blog/${x.slug}`} class="p-link">পুরোটা পড়ুন →</a>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  </>
+);
+
+export const BlogPostPage = ({ post, more }: { post: BlogPost; more: BlogPost[] }) => (
+  <>
+    <section class="p-hero p-hero-sm">
+      <div class="wrap p-narrow">
+        <a href="/blog" class="p-back">← ব্লগ</a>
+        <h1>{post.title}</h1>
+        <p class="muted">{dateBn(post.published_at)}</p>
+      </div>
+    </section>
+    <section class="p-section">
+      <article class="wrap p-narrow p-prose" dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.body_html) }} />
+      <div class="wrap p-narrow">
+        <div class="p-tip"><b>নিজের অনলাইন দোকান খুলুন</b><p>কোড ছাড়া কয়েক মিনিটে — অর্ডার, কুরিয়ার, ফেক অর্ডার ব্লক সব এক জায়গায়। <a href="/signup">ফ্রি শুরু করুন →</a></p></div>
+        {more.length > 0 && <><h2>আরও পড়ুন</h2><ul>{more.map((x) => <li><a href={`/blog/${x.slug}`}>{x.title}</a></li>)}</ul></>}
+      </div>
+    </section>
   </>
 );

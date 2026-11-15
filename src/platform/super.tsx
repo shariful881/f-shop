@@ -19,10 +19,12 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
+import { slugOk } from "./blog";
+import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -523,6 +525,68 @@ superApp.post("/announcements/:id/toggle", async (c) => {
   await c.env.PLATFORM_DB.prepare("UPDATE announcements SET active = 1 - active WHERE id = ?").bind(id).run();
   await audit(c, "announcement.toggle", "announcement", String(id));
   return c.redirect("/super/announcements", 303);
+});
+
+/* ---------- ব্লগ (ধাপ ৮) ---------- */
+function blogInput(b: Record<string, unknown>) {
+  return {
+    title: str(b.title, 150),
+    slug: str(b.slug, 80).toLowerCase(),
+    excerpt: str(b.excerpt, 300),
+    body_html: sanitizeHtml(String(b.body_html ?? "").slice(0, 60000)),
+    status: b.status === "published" ? "published" : "draft",
+  };
+}
+async function saveBlog(c: PCtx, id: number | null) {
+  const v = blogInput(await c.req.parseBody());
+  const db = c.env.PLATFORM_DB;
+  const fail = (error: string) => page(c, id ? "পোস্ট এডিট" : "নতুন পোস্ট", "blog", <BlogEditPage post={{ ...v, id: id ?? undefined }} error={error} />);
+  if (!v.title) return fail("শিরোনাম দিন।");
+  if (!slugOk(v.slug)) return fail("লিংকে শুধু ইংরেজি ছোট হাতের অক্ষর, সংখ্যা আর মাঝে - দিন।");
+  if (v.body_html.replace(/<[^>]*>/g, "").trim().length < 20) return fail("লেখা আরেকটু বড় করুন।");
+  const dup = await db.prepare("SELECT id FROM blog_posts WHERE slug = ? AND id != ?").bind(v.slug, id ?? 0).first();
+  if (dup) return fail("এই লিংকে আরেকটা পোস্ট আছে — অন্য slug দিন।");
+  let newId = id;
+  if (id) {
+    await db.prepare(
+      "UPDATE blog_posts SET title=?, slug=?, excerpt=?, body_html=?, status=?, published_at = CASE WHEN ?='published' THEN COALESCE(published_at, datetime('now')) ELSE published_at END, updated_at=datetime('now') WHERE id=?",
+    ).bind(v.title, v.slug, v.excerpt, v.body_html, v.status, v.status, id).run();
+  } else {
+    const r = await db.prepare(
+      "INSERT INTO blog_posts (slug, title, excerpt, body_html, status, published_at) VALUES (?, ?, ?, ?, ?, CASE WHEN ?='published' THEN datetime('now') END) RETURNING id",
+    ).bind(v.slug, v.title, v.excerpt, v.body_html, v.status, v.status).first<{ id: number }>();
+    newId = r?.id ?? null;
+  }
+  await audit(c, "blog.save", "blog", String(newId ?? ""), v.title);
+  flash(c, "ok", v.status === "published" ? "পোস্ট প্রকাশিত — /blog-এ দেখাচ্ছে।" : "খসড়া সেভ হয়েছে।");
+  return c.redirect(`/super/blog/${newId}`, 303);
+}
+superApp.get("/blog", async (c) => {
+  if (!allowed(c, "blog")) return forbidden(c);
+  const { results } = await c.env.PLATFORM_DB.prepare("SELECT * FROM blog_posts ORDER BY id DESC LIMIT 200").all<BlogRow>();
+  return page(c, "ব্লগ", "blog", <BlogListPage rows={results} />);
+});
+superApp.get("/blog/new", (c) => {
+  if (!allowed(c, "blog")) return forbidden(c);
+  return page(c, "নতুন পোস্ট", "blog", <BlogEditPage />);
+});
+superApp.post("/blog/new", (c) => (allowed(c, "blog") ? saveBlog(c, null) : forbidden(c)));
+superApp.get("/blog/:id{[0-9]+}", async (c) => {
+  if (!allowed(c, "blog")) return forbidden(c);
+  const post = await c.env.PLATFORM_DB.prepare("SELECT * FROM blog_posts WHERE id = ?").bind(toInt(c.req.param("id"))).first<BlogRow>();
+  if (!post) return c.redirect("/super/blog", 303);
+  return page(c, "পোস্ট এডিট", "blog", <BlogEditPage post={post} />);
+});
+superApp.post("/blog/:id{[0-9]+}", (c) => (allowed(c, "blog") ? saveBlog(c, toInt(c.req.param("id"))) : forbidden(c)));
+superApp.post("/blog/:id{[0-9]+}/delete", async (c) => {
+  if (!allowed(c, "blog")) return forbidden(c);
+  const id = toInt(c.req.param("id"));
+  const b = await c.req.parseBody();
+  if (b.confirm !== "1") return c.redirect(`/super/blog/${id}`, 303);
+  await c.env.PLATFORM_DB.prepare("DELETE FROM blog_posts WHERE id = ?").bind(id).run();
+  await audit(c, "blog.delete", "blog", String(id));
+  flash(c, "ok", "পোস্ট মুছে ফেলা হয়েছে।");
+  return c.redirect("/super/blog", 303);
 });
 
 /* ---------- ল্যান্ডিং টেমপ্লেট ---------- */

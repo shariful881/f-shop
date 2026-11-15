@@ -9,13 +9,13 @@ import { SiteFooter } from "./pages";
 
 export type PFlash = { type: "ok" | "error"; text: string } | null;
 
-export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean }) => (
+export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean; description?: string }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{p.title}</title>
-      <meta name="description" content="ফেসবুক সেলারদের নিজের অনলাইন দোকান — রেডি দোকান, ৪টা থিম, ল্যান্ডিং পেজ, ফেক অর্ডার আটকানো, Pixel + CAPI, Steadfast/Pathao/RedX, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট। চার্জ শুধু কনফার্ম অর্ডারে।" />
+      <meta name="description" content={p.description || "ফেসবুক সেলারদের নিজের অনলাইন দোকান — রেডি দোকান, ৪টা থিম, ল্যান্ডিং পেজ, ফেক অর্ডার আটকানো, Pixel + CAPI, Steadfast/Pathao/RedX, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট। চার্জ শুধু কনফার্ম অর্ডারে।"} />
       <meta name="theme-color" content="#0f766e" />
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
