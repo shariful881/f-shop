@@ -34,6 +34,7 @@ beforeEach(async () => {
   await pdb().batch([
     pdb().prepare("DELETE FROM ledger"),
     pdb().prepare("DELETE FROM topups"),
+    pdb().prepare("DELETE FROM platform_settings WHERE key LIKE 'plan_%'"),
     pdb().prepare("UPDATE shops SET status = 'active', balance = 0, low_balance_since = NULL, next_bill_at = datetime('now', '+20 days'), trial_orders_left = 50, trial_ends_at = datetime('now', '+14 days'), staff_count = 0, plan = 'small', plan_next = NULL, cycle_months = 1, period_orders = 0, usage_reset_at = datetime('now', '+20 days') WHERE id = ?").bind(DEMO_SHOP_ID),
   ]);
   clearShopCache();
@@ -246,8 +247,9 @@ describe("বিলিং পেজ", () => {
     expect((await a.post("/admin/billing/plan", { plan: "grow", months: 1 })).status).toBe(303);
     const s = await shop();
     expect(s.plan).toBe("grow");
-    expect(s.balance).toBeGreaterThanOrEqual(1000 - 600 - 1);
-    expect(s.balance).toBeLessThanOrEqual(1000 - 600 + 1);
+    // মেয়াদের আসল দিন ধরে (৩০/৩১ দিনের মাস) ফেরত ~৳১৯৩–১৯৯
+    expect(s.balance).toBeGreaterThanOrEqual(1000 - 607);
+    expect(s.balance).toBeLessThanOrEqual(1000 - 599);
     expect((await ledger("plan_change"))).toHaveLength(1);
   });
 
@@ -288,3 +290,75 @@ async function superBrowser() {
   await b.fetch("/super/login", { method: "POST", base: P, body: new URLSearchParams({ email: "boss@test.com", password: "bosspass123" }) } as RequestInit);
   return b;
 }
+
+describe("প্ল্যান বদলে টাকা হারায় না (রিভিউ ধাপ ২)", () => {
+  const until = async (mod: string) => (await pdb().prepare("SELECT datetime('now', ?) AS d").bind(mod).first<{ d: string }>())!.d;
+
+  it("লম্বা মেয়াদ থেকে বড় প্ল্যানের মাসিকে: বাড়তি না-ব্যবহৃত টাকা ব্যালেন্সে ফেরে", async () => {
+    // ছোট দোকান ১২ মাস (৳৩৯৯০) এইমাত্র দেওয়া → বাড়ন্ত মাসিক ৳৭৯৯
+    await setShop({ plan: "small", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 100 });
+    const a = await adminBrowser();
+    await a.post("/admin/billing/plan", { plan: "grow", months: 1 });
+    const s = await shop();
+    expect(s).toMatchObject({ plan: "grow", cycle_months: 1 });
+    expect(s.balance).toBeGreaterThanOrEqual(100 + 3990 - 799 - 2);
+    expect(s.balance).toBeLessThanOrEqual(100 + 3990 - 799);
+    const cr = await ledger("plan_change");
+    expect(cr).toHaveLength(1);
+    expect(cr[0]!.amount).toBeGreaterThan(3180);
+  });
+
+  it("একই প্ল্যানে মেয়াদ কমানো পরের বিলে; এখনকার মেয়াদ বদলায় না", async () => {
+    const end = await until("+12 months");
+    await setShop({ plan: "grow", cycle_months: 12, next_bill_at: end, balance: 50 });
+    const a = await adminBrowser();
+    await a.post("/admin/billing/plan", { plan: "grow", months: 1 });
+    const s = await shop();
+    expect(s).toMatchObject({ plan: "grow", cycle_months: 12, plan_next: "grow", cycle_next: 1, next_bill_at: end, balance: 50 });
+    expect(await (await a.get("/admin/billing")).text()).toContain("মাসিক চালু হবে");
+  });
+
+  it("নিচে নামা বেছে রেখে মত বদলে উপরে উঠলে পুরো না-ব্যবহৃত টাকা ধরা হয়", async () => {
+    await setShop({ plan: "grow", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 7100 });
+    const a = await adminBrowser();
+    await a.post("/admin/billing/plan", { plan: "small", months: 1 });
+    expect((await shop()).cycle_months).toBe(12);
+    // বড় ব্র্যান্ড ১২ মাস ৳১৪৯৯০ − বাড়ন্ত ১২ মাসের না-ব্যবহৃত ~৳৭৯৯০ ≈ ৳৭০০০
+    await a.post("/admin/billing/plan", { plan: "big", months: 12 });
+    const s = await shop();
+    expect(s).toMatchObject({ plan: "big", cycle_months: 12, plan_next: null, cycle_next: null });
+    expect(s.balance).toBeGreaterThanOrEqual(7100 - 7002);
+    expect(s.balance).toBeLessThanOrEqual(7100 - 6999);
+  });
+
+  it("বিলের দিন বেছে রাখা প্ল্যান আর মেয়াদ চালু হয়", async () => {
+    await setShop({ plan: "grow", cycle_months: 12, plan_next: "small", cycle_next: 6, next_bill_at: await until("-1 minute"), balance: 5000 });
+    await runDailyBilling(pdb());
+    const s = await shop();
+    expect(s).toMatchObject({ plan: "small", cycle_months: 6, plan_next: null, cycle_next: null });
+    expect(s.balance).toBe(5000 - Math.round(399 * 6 * 0.9));
+  });
+
+  it("একই প্ল্যান আবার বাছলে বেছে রাখা বদল বাতিল", async () => {
+    await setShop({ plan: "grow", cycle_months: 1, balance: 0 });
+    const a = await adminBrowser();
+    await a.post("/admin/billing/plan", { plan: "small", months: 1 });
+    expect((await shop()).plan_next).toBe("small");
+    await a.post("/admin/billing/plan", { plan: "grow", months: 1 });
+    expect((await shop())).toMatchObject({ plan_next: null, cycle_next: null });
+  });
+
+  it("স্থগিত দোকানের বিল কাটে না; আবার চালু করলে মাঝের মাসের নয়, আজ থেকে একটা বিল", async () => {
+    await setShop({ status: "suspended", plan: "small", cycle_months: 1, next_bill_at: await until("-75 days"), balance: 2000 });
+    await runDailyBilling(pdb());
+    expect((await shop()).balance).toBe(2000);
+    await pdb().prepare("INSERT OR REPLACE INTO super_admins (email, name, role, password_hash, active) VALUES ('o@x.com', 'o', 'owner', ?, 1)").bind(await hashPassword("teampass123", 1000)).run();
+    const b = new Browser();
+    await b.fetch("/super/login", { method: "POST", base: P, body: new URLSearchParams({ email: "o@x.com", password: "teampass123" }) } as RequestInit);
+    await b.fetch(`/super/shops/${DEMO_SHOP_ID}/status`, { method: "POST", base: P, body: new URLSearchParams({ status: "active" }) } as RequestInit);
+    await runDailyBilling(pdb());
+    const s = await shop();
+    expect(s.balance).toBe(2000 - 399);
+    expect((await ledger("monthly"))).toHaveLength(1);
+  });
+});
