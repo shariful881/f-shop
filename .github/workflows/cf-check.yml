@@ -1,0 +1,17 @@
+# এককালীন: Cloudflare অ্যাকাউন্টের অবস্থা দেখা (শুধু পড়া, কিছু বদলায় না)
+name: CF check
+on:
+  push:
+    branches: [cf-check]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      RAW_CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          export CLOUDFLARE_API_TOKEN=$(printf '%s\n' "$RAW_CF_TOKEN" | awk 'NF{print $1; exit}')
+          node scripts/cf-check.mjs
