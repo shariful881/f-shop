@@ -339,6 +339,10 @@ superApp.post("/shops/:id/status", async (c) => {
   if (!before) return c.redirect("/super/shops", 303);
   if (before.status !== status) {
     await c.env.PLATFORM_DB.prepare("UPDATE shops SET status = ?, status_changed_at = datetime('now') WHERE id = ?").bind(status, id).run();
+    // স্থগিত থাকার সময় বিল কাটে না; আবার চালু হলে বিলের দিন পেরিয়ে গিয়ে থাকলে আজ থেকে নতুন বিল (মাঝের মাসগুলোর নয়)
+    if (before.status === "suspended" && status === "active") {
+      await c.env.PLATFORM_DB.prepare("UPDATE shops SET next_bill_at = datetime('now') WHERE id = ? AND next_bill_at IS NOT NULL AND next_bill_at < datetime('now')").bind(id).run();
+    }
     clearShopCache();
     await audit(c, "shop.status", "shop", id, `${before.status} → ${status}${str(b.reason, 200) ? ` (${str(b.reason, 200)})` : ""}`);
   }

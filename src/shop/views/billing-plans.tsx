@@ -24,7 +24,7 @@ export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; shop: BillingShop; 
           <small class="muted">{p.trial ? "ট্রায়ালের পরে চালু হবে" : "এখনকার প্ল্যান"}</small>
           <h2>{cur.name} <span class="muted">— {cur.price ? `${taka(cur.price)}/মাস` : "ফ্রি"}</span></h2>
           {!p.trial && p.shop.next_bill_at && <p class="muted">পরের বিল: {dhakaTime(p.shop.next_bill_at)}{p.shop.cycle_months > 1 ? ` · ${bn(p.shop.cycle_months)} মাসের প্যাক` : ""}</p>}
-          {nextPlan && <p class="plan-note"><Icon name="info" size="sm" /> পরের বিলের দিন থেকে "{nextPlan.name}" প্ল্যান চালু হবে।</p>}
+          {nextPlan && <p class="plan-note"><Icon name="info" size="sm" /> পরের বিলের দিন থেকে "{nextPlan.name}" {(p.shop.cycle_next ?? 1) > 1 ? `${bn(p.shop.cycle_next!)} মাসের প্যাক` : "মাসিক"} চালু হবে। মত বদলালে এখনকার প্ল্যান আবার বাছুন।</p>}
         </div>
       </div>
       {!p.trial && (
@@ -35,7 +35,7 @@ export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; shop: BillingShop; 
           {saving > 0 && best.plan.key !== cur.key && <p class="plan-tip"><Icon name="trending-up" size="sm" /> এই মাসে যত অর্ডার, তাতে "{best.plan.name}" প্ল্যানে {taka(saving)} বাঁচত।</p>}
         </div>
       )}
-      <form method="post" action="/admin/billing/plan" class="plan-form" data-confirm="প্ল্যান বদলাবেন? বড় প্ল্যানে গেলে আগের প্ল্যানের বাকি দিনের টাকা বাদ দিয়ে বাকিটা এখনই কাটবে।">
+      <form method="post" action="/admin/billing/plan" class="plan-form" data-confirm="প্ল্যান বদলাবেন? বড় প্ল্যান বা লম্বা মেয়াদে গেলে এখনই চালু হবে — আগের প্ল্যানের না-ব্যবহৃত টাকা বাদ যাবে, বেশি থাকলে ব্যালেন্সে ফেরত যাবে। ছোট প্ল্যান বা ছোট মেয়াদ চালু হবে পরের বিলের দিন।">
         <div class="plan-cards">
           {PLAN_KEYS.map((k) => {
             const pl = p.plans[k];
