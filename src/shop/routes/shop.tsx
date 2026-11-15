@@ -29,6 +29,9 @@ import { SOLD_OUT_MSG, soldOut, variantsForSale } from "../lib/stock";
 import { feedItems, feedOn, toFeedCsv, toRss } from "../lib/feed";
 import { advanceAmount, advanceConfig, needsAdvance, normalizeTrx, payMethods } from "../lib/payment";
 import { ownRecords, riskOf, sharedRecords } from "../lib/fraud";
+import { productReviews, reviewableOrder } from "../lib/reviews";
+import { ReviewPage, ReviewsBlock, type ReviewFormState } from "../views/reviews";
+import { imageStorageKey } from "../env";
 
 export const shop = new Hono<AppEnv>();
 
@@ -120,7 +123,8 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
   return page(c,
     <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
-      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
+      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related}
+        reviews={reviewsOn(c) ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id)} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} /> : undefined} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     status,
   );
@@ -151,6 +155,7 @@ async function renderProduct(c: Ctx, p: Product, error?: string) {
     <Layout title={p.meta_title || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <ProductPage p={p} images={images} variants={variants} s={s} cfg={cfg} related={rel.results} category={cat} error={error}
+        reviews={reviewsOn(c) ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id)} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} /> : undefined}
         closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     error ? 422 : 200,
@@ -611,6 +616,61 @@ shop.post("/t/ic", async (c) => {
   const [p] = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
   if (p) trackServer(c, "InitiateCheckout", eventId, productData([p]));
   return c.body(null, 204);
+});
+
+/* ---------- রিভিউ: শুধু যে কিনেছে (অর্ডার নম্বর + মোবাইল) ---------- */
+const REVIEW_IMG: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const reviewsOn = (c: Ctx) => c.var.settings.reviews_enabled !== "0";
+
+async function renderReview(c: Ctx, f: ReviewFormState, status: 200 | 422 | 429 = 200) {
+  const s = c.var.settings;
+  return page(c,
+    <Layout title="রিভিউ দিন" settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
+      <ReviewPage f={f} />
+    </Layout>, status);
+}
+
+shop.get("/review", async (c) => {
+  if (!reviewsOn(c)) return notFound(c);
+  const orderNo = str(c.req.query("o"), 30).toUpperCase();
+  const phone = normalizePhone(str(c.req.query("p"), 20));
+  if (!orderNo || !phone) return renderReview(c, { orderNo, phone: c.req.query("p") ?? "" });
+  if (!(await hitRateLimit(c.env.DB, `review:${clientIp(c)}`, 30, 3600))) return renderReview(c, { orderNo, error: "অনেকবার চেষ্টা হয়েছে, পরে আবার চেষ্টা করুন" }, 429);
+  const r = await reviewableOrder(c.env.DB, orderNo, phone);
+  if ("error" in r) return renderReview(c, { orderNo, phone, error: r.error }, 422);
+  return renderReview(c, { orderNo, phone, order: r.order, items: r.items });
+});
+
+shop.post("/review", async (c) => {
+  if (!reviewsOn(c)) return notFound(c);
+  if (!(await hitRateLimit(c.env.DB, `review-post:${clientIp(c)}`, 10, 3600))) return renderReview(c, { error: "অনেকবার চেষ্টা হয়েছে, পরে আবার চেষ্টা করুন" }, 429);
+  const b = await c.req.parseBody();
+  const orderNo = str(b.o, 30).toUpperCase();
+  const phone = normalizePhone(str(b.p, 20));
+  if (!phone) return renderReview(c, { orderNo, error: "সঠিক মোবাইল নম্বর দিন" }, 422);
+  const r = await reviewableOrder(c.env.DB, orderNo, phone);
+  if ("error" in r) return renderReview(c, { orderNo, phone, error: r.error }, 422);
+  const values = { product_id: str(b.product_id, 10), rating: str(b.rating, 1), body: str(b.body, 1000), name: str(b.name, 60) };
+  const again = (error: string) => renderReview(c, { orderNo, phone, order: r.order, items: r.items, values, error }, 422);
+  const item = r.items.find((i) => i.product_id === toInt(values.product_id));
+  const rating = toInt(values.rating);
+  if (!item) return again("পণ্য বাছাই করুন");
+  if (item.done) return again("এই পণ্যের রিভিউ আগেই দেওয়া হয়েছে");
+  if (rating < 1 || rating > 5) return again("তারা বাছাই করুন");
+  if (!values.name) return again("আপনার নাম লিখুন");
+  let image: string | null = null;
+  const file = b.image;
+  if (file instanceof File && file.size > 0) {
+    const ext = REVIEW_IMG[file.type];
+    if (!ext) return again("ছবি JPG, PNG বা WebP হতে হবে");
+    if (file.size > 2 * 1024 * 1024) return again("ছবি ২ MB-এর কম হতে হবে");
+    image = `rv/${crypto.randomUUID()}.${ext}`;
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, image), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+  }
+  await c.env.DB.prepare("INSERT OR IGNORE INTO reviews (product_id, order_id, name, rating, body, image) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(item.product_id, r.order.id, values.name, rating, values.body || null, image).run();
+  item.done = 1;
+  return renderReview(c, { orderNo, phone, done: true, items: r.items });
 });
 
 /* ---------- ক্যাটালগ ফিড (Facebook / Google) ---------- */

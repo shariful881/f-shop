@@ -16,6 +16,7 @@ import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
 import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
+import { waLink, type WaMsg } from "../lib/whatsapp";
 import { bn } from "../lib/format";
 import { ShopShell } from "./admin-pro";
 
@@ -220,7 +221,7 @@ export const OrdersPage = (p: {
               <tr>
                 {bulk && <td><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
                 <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
-                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a> <RiskBadge r={p.risk?.[o.phone]} /></td>
+                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a> <a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="wa-mini" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a> <RiskBadge r={p.risk?.[o.phone]} /></td>
                 <td>{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
                 <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
@@ -362,7 +363,7 @@ const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
   );
 };
 
-export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord }) => {
+export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord; wa?: WaMsg[] }) => {
   const o = p.order;
   return (
     <>
@@ -391,6 +392,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
           <dl class="kv">
             <dt>নাম</dt><dd>{o.name}</dd>
             <dt>মোবাইল</dt><dd><a href={`tel:${o.phone}`}>{o.phone}</a> {p.blocked.phone && <span class="pill pill-bad">ব্লক</span>}</dd>
+            {(p.wa ?? []).length > 0 && <><dt>WhatsApp</dt><dd class="wa-btns">{p.wa!.map((m, i) => <a href={waLink(o.phone, m.text)} target="_blank" rel="noopener" class={`btn btn-sm ${i === 0 ? "btn-wa" : "btn-outline"}`}><Icon name="message-circle" size="sm" /> {m.label}</a>)}</dd></>}
             <dt>ঠিকানা</dt><dd>{o.address}</dd>
             <dt>এলাকা</dt><dd>{AREA_LABEL[o.area]}</dd>
             {o.email && <><dt>ইমেইল</dt><dd><a href={`mailto:${o.email}`}>{o.email}</a></dd></>}

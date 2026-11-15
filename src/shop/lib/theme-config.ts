@@ -286,6 +286,7 @@ export function themeConfig(s: Settings, theme: ThemeKey = themeOf(s)): Cfg {
   // পুরনো "ঘোষণা" সেটিং (থিম কাস্টমাইজের আগে)
   if (!cfg.announcement && s.announcement) cfg.announcement = s.announcement;
   cfg._free_min = String(freeDeliveryMin(s));
+  cfg._reviews = s.reviews_enabled === "0" ? "0" : "1";
   return cfg;
 }
 

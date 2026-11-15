@@ -12,7 +12,7 @@ import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
 import { sanitizeHtml } from "../lib/sanitize";
 import { ProductCard } from "./shop";
 
-export const ProductPage = (p: { p: Product; images: string[]; variants: Variant[]; s: Settings; cfg: Cfg; related: Product[]; category?: { id: number; name: string } | null; error?: string; closed?: string }) => {
+export const ProductPage = (p: { p: Product; images: string[]; variants: Variant[]; s: Settings; cfg: Cfg; related: Product[]; category?: { id: number; name: string } | null; error?: string; closed?: string; reviews?: unknown }) => {
   const { p: prod, s, cfg } = p;
   const off = discountPercent(prod.price, prod.compare_price);
   const yt = youtubeId(prod.youtube_url);
@@ -68,6 +68,7 @@ export const ProductPage = (p: { p: Product; images: string[]; variants: Variant
 
         <div class="pp-info" id="buy">
           <h1 class="pp-title">{prod.name}</h1>
+          {(prod.rating_count ?? 0) > 0 && p.reviews ? <a href="#reviews" class="pp-stars"><span class="stars-on">{"★".repeat(Math.round(prod.rating_avg ?? 0))}{"☆".repeat(5 - Math.round(prod.rating_avg ?? 0))}</span> {bn(prod.rating_avg ?? 0)} ({bn(prod.rating_count!)}টা রিভিউ)</a> : null}
           {prod.headline && prod.headline !== prod.name && <p class="pp-headline">{prod.headline}</p>}
           <div class="pp-price">
             <span class="price big" data-pp-price data-base={String(prod.price)}>{minPrice !== maxPrice ? `${taka(minPrice)} – ${taka(maxPrice)}` : taka(prod.price)}</span>
@@ -133,6 +134,8 @@ export const ProductPage = (p: { p: Product; images: string[]; variants: Variant
           {prod.details_html && <div class="details" dangerouslySetInnerHTML={{ __html: sanitizeHtml(prod.details_html) }} />}
         </section>
       )}
+
+      {p.reviews ? <>{p.reviews}</> : null}
 
       {p.related.length > 0 && (
         <section class="pd-related">

@@ -22,6 +22,8 @@ export type Product = {
   stock?: number;
   low_stock?: number;
   cost_price?: number | null;
+  rating_avg?: number;
+  rating_count?: number;
   /** কার্টের লাইনে: কতটা কেনা যায় (স্টক না গুনলে null) */
   stock_left?: number | null;
   /** হোম/তালিকায়: কতগুলো চালু ভ্যারিয়েন্ট আছে */

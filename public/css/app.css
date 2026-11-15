@@ -592,3 +592,24 @@ dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
 .pay-num { font-family: ui-monospace, monospace; font-size: 1.05rem; letter-spacing: .03em; }
 .pay-method small { color: #64748b; width: 100%; }
 .trx-input { text-transform: uppercase; letter-spacing: .05em; }
+
+/* ধাপ ৭: রিভিউ */
+.stars-on { color: #f59e0b; letter-spacing: 1px; }
+.card-stars { font-size: .85rem; margin: 2px 0; }
+.card-stars small { color: #64748b; }
+.pp-stars { display: inline-block; margin: 2px 0 6px; color: #475569; text-decoration: none; font-size: .92rem; }
+.reviews-block { margin: 28px 0; }
+.reviews-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.reviews-avg { display: flex; align-items: center; gap: 8px; }
+.reviews-avg b { font-size: 1.6rem; }
+.reviews-avg small { color: #64748b; }
+.reviews-list { display: grid; gap: 12px; margin: 12px 0; }
+.review { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; background: #fff; }
+.review-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
+.review-verified { color: #15803d; font-size: .78rem; background: #dcfce7; border-radius: 999px; padding: 1px 8px; }
+.review p { margin: 6px 0; }
+.review-img img { border-radius: 8px; object-fit: cover; }
+.review-reply { background: #f8fafc; border-left: 3px solid var(--brand); padding: 6px 10px; border-radius: 6px; font-size: .92rem; }
+.review-page { padding: 24px 0; }
+.rating-pick { display: flex; flex-direction: column; gap: 4px; }
+.rating-pick label { display: flex; gap: 8px; align-items: center; cursor: pointer; color: #f59e0b; font-size: 1.15rem; }

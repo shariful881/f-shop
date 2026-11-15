@@ -53,6 +53,11 @@ import { applyOrderStock, checkOrderStock, inventoryRows, inventorySummary, rece
 import { InventoryPage } from "../views/inventory";
 import { AdsPage, CatalogPage } from "../views/ads";
 import { codAmount } from "../lib/payment";
+import { adminReviews, refreshRating, reviewCounts, REVIEW_TABS, type ReviewStatus } from "../lib/reviews";
+import { ReviewsAdminPage } from "../views/reviews";
+import { profitReport, snapshotCost } from "../lib/profit";
+import { ProfitPage } from "../views/profit";
+import { waMessages } from "../lib/whatsapp";
 import { adReport, usdRate } from "../lib/ads";
 import { feedItems } from "../lib/feed";
 
@@ -427,7 +432,7 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
   const record = { own: own[o.phone], shared: shared[o.phone], courier: cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings) };
   return render(c, o.order_no, "orders",
     <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
-      record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} />);
+      record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} wa={waMessages(o, data.items, c.var.settings, publicOrigin(c))} />);
 });
 
 /** স্ট্যাটাস বদল + তার পরের কাজ (বিলিং, Purchase, SMS) — একটা আর একসাথে অনেক অর্ডার দুটোতেই */
@@ -439,7 +444,7 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
   }
   const res = await changeStatus(c.env.DB, id, to);
   if (!res.ok) return { ok: false, message: res.message };
-  if (to === "confirmed") await applyOrderStock(c.env.DB, id);
+  if (to === "confirmed") { await snapshotCost(c.env.DB, id); await applyOrderStock(c.env.DB, id); }
   if (to === "cancelled") await restoreOrderStock(c.env.DB, id, "cancel");
   if (to === "confirmed") {
     // বিলিং: ট্রায়ালে ফ্রি অর্ডার কমে, চালু দোকানে প্রতি কনফার্ম অর্ডারে চার্জ (একবারই)
@@ -1974,6 +1979,55 @@ admin.post("/ads/catalog", async (c) => {
   });
   flash(c, "ok", "ফিডের সেটিংস সেভ হয়েছে।");
   return c.redirect("/admin/ads/catalog", 303);
+});
+
+/* ---------- রিভিউ ---------- */
+admin.get("/reviews", async (c) => {
+  const q = c.req.query("status") || "pending";
+  const status = (q in REVIEW_TABS ? q : "pending") as ReviewStatus;
+  const [rows, counts] = await Promise.all([adminReviews(c.env.DB, status), reviewCounts(c.env.DB)]);
+  return render(c, "রিভিউ", "reviews", <ReviewsAdminPage rows={rows} status={status} counts={counts} enabled={c.var.settings.reviews_enabled !== "0"} link={`${publicOrigin(c)}/review`} />);
+});
+
+admin.post("/reviews/settings", async (c) => {
+  await saveSettings(c.env.DB, { reviews_enabled: (await c.req.parseBody()).reviews_enabled ? "1" : "0" });
+  flash(c, "ok", "সেভ হয়েছে।");
+  return c.redirect("/admin/reviews", 303);
+});
+
+admin.post("/reviews/:id{[0-9]+}", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const b = await c.req.parseBody();
+  const row = await c.env.DB.prepare("SELECT product_id, status, image FROM reviews WHERE id = ?").bind(id).first<{ product_id: number; status: string; image: string | null }>();
+  if (!row) return c.redirect("/admin/reviews", 303);
+  const to = String(b.status);
+  if (to === "delete") {
+    await c.env.DB.prepare("DELETE FROM reviews WHERE id = ?").bind(id).run();
+    if (row.image) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, row.image)).catch(() => {});
+    flash(c, "ok", "রিভিউ মুছে ফেলা হয়েছে।");
+  } else if (to === "approved" || to === "hidden") {
+    await c.env.DB.prepare("UPDATE reviews SET status = ?, reply = ? WHERE id = ?").bind(to, str(b.reply, 500) || null, id).run();
+    flash(c, "ok", to === "approved" ? "রিভিউ দোকানে দেখাচ্ছে।" : "রিভিউ লুকানো হলো।");
+  }
+  await refreshRating(c.env.DB, row.product_id);
+  return c.redirect(`/admin/reviews?status=${row.status}`, 303);
+});
+
+/* ---------- লাভের হিসাব ---------- */
+admin.get("/profit", async (c) => {
+  const r = resolveRange(c.req.query("range") || "30", c.req.query("from"), c.req.query("to"));
+  return render(c, "লাভের হিসাব", "profit", <ProfitPage r={await profitReport(c.env.DB, c.var.settings, r)} />);
+});
+
+admin.post("/profit/settings", async (c) => {
+  const b = await c.req.parseBody();
+  const v = (k: string, max: number) => String(Math.max(0, Math.min(max, Number(str(b[k], 10)) || 0)));
+  await saveSettings(c.env.DB, {
+    profit_ship_inside: v("profit_ship_inside", 5000), profit_ship_outside: v("profit_ship_outside", 5000),
+    profit_return_cost: v("profit_return_cost", 5000), profit_cod_pct: v("profit_cod_pct", 10),
+  });
+  flash(c, "ok", "খরচের হিসাব সেভ হয়েছে।");
+  return c.redirect(c.req.header("referer")?.includes("/admin/profit") ? new URL(c.req.header("referer")!).pathname + new URL(c.req.header("referer")!).search : "/admin/profit", 303);
 });
 
 admin.get("/reports", async (c) => {

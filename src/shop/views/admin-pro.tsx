@@ -20,9 +20,11 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "incomplete", href: "/admin/incomplete", icon: "hourglass", label: "অসম্পূর্ণ অর্ডার" },
   { key: "customers", href: "/admin/customers", icon: "users", label: "কাস্টমার" },
   { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
+  { key: "profit", href: "/admin/profit", icon: "wallet", label: "লাভের হিসাব" },
   { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "পণ্য" },
   { key: "inventory", href: "/admin/inventory", icon: "boxes", label: "ইনভেন্টরি" },
   { key: "categories", href: "/admin/categories", icon: "folder", label: "ক্যাটাগরি" },
+  { key: "reviews", href: "/admin/reviews", icon: "star", label: "রিভিউ" },
   { key: "theme", href: "/admin/design", icon: "palette", label: "থিম এডিটর", group: "অনলাইন স্টোর", perm: "settings" },
   { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
   { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
@@ -46,7 +48,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
 /** প্যানেলের প্রতিটা পেজের পাশে "কীভাবে?" — sellxbd.com/help-এর গাইড */
 const HELP_BASE = "https://sellxbd.com/help";
 const HELP_FOR: Record<string, string> = {
-  dashboard: "setup-checklist", orders: "orders", incomplete: "incomplete-orders", customers: "customers", reports: "reports", products: "add-product",
+  dashboard: "setup-checklist", orders: "orders", incomplete: "incomplete-orders", customers: "customers", reports: "reports", profit: "profit", reviews: "reviews", products: "add-product",
   inventory: "inventory", categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
   coupons: "coupons", ads: "catalog-ads", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", payment: "advance-payment", blacklist: "fake-orders",
   settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", export: "backup", support: "support",
