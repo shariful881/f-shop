@@ -5,6 +5,7 @@ import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired
 import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
 import { refreshShopStorage } from "./platform/usage";
+import { runShopCleanup } from "./platform/cleanup";
 
 export { ShopDO } from "./shop/shop-do";
 export { SupportHub } from "./support-hub";
@@ -63,6 +64,7 @@ export default {
     } else {
       ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
       ctx.waitUntil(refreshShopStorage(env).then((n) => console.log("storage checked", n)).catch((e) => console.error("storage refresh", e)));
+      ctx.waitUntil(runShopCleanup(env).then((r) => console.log("shop cleanup", r)).catch((e) => console.error("shop cleanup", e)));
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;
@@ -86,6 +88,8 @@ export async function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Requ
 
 async function serveImage(env: WorkerEnv, shop: ShopRow, request: Request, ctx: ExecutionContext) {
   const url = new URL(request.url);
+  // ডেমোর ছবি সব দোকানে এক জায়গা থেকে (সাইটের নিজের ফাইল)
+  if (url.pathname.startsWith("/img/demo/")) return Response.redirect(`${url.origin}/demo-img/${url.pathname.slice(10)}`, 301);
   const cacheKey = new Request(`${url.origin}${url.pathname}`, { method: "GET" });
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const hit = cache ? await cache.match(cacheKey).catch(() => undefined) : undefined;

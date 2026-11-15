@@ -17,6 +17,7 @@ export type Plan = {
   extra: number;   // সীমার পরে প্রতি অর্ডার ৳ (দশমিক হতে পারে; মাস শেষে মোট হিসাব করে উপরের পূর্ণ টাকায়)
   staff: number;   // মালিক ছাড়া কতজন স্টাফ প্ল্যানে আছে
   domain: boolean; // নিজের ডোমেইন
+  storage: number; // ছবির জায়গা, MB
   for: string;
 };
 
@@ -25,10 +26,10 @@ export type Plan = {
  * সীমার পরে বাড়তি অর্ডার ৳৫/৪/৩ (ফ্রি-তে ৳৮, যাতে প্ল্যানের ক্রম ঠিক থাকে)।
  */
 const DEFAULTS: Record<PlanKey, Plan> = {
-  free: { key: "free", name: "ফ্রি", price: 0, orders: 30, extra: 8, staff: 0, domain: false, for: "নতুন বিক্রেতা, পরীক্ষা" },
-  small: { key: "small", name: "ছোট দোকান", price: 449, orders: 150, extra: 5, staff: 1, domain: true, for: "ফেসবুক পেজের বিক্রেতা" },
-  grow: { key: "grow", name: "বাড়ন্ত", price: 999, orders: 400, extra: 4, staff: 4, domain: true, for: "নিয়মিত অ্যাড চালান যারা" },
-  big: { key: "big", name: "বড় ব্র্যান্ড", price: 1999, orders: 1000, extra: 3, staff: 14, domain: true, for: "দল আর গুদাম আছে যাদের" },
+  free: { key: "free", name: "ফ্রি", price: 0, orders: 30, extra: 8, staff: 0, domain: false, storage: 50, for: "নতুন বিক্রেতা, পরীক্ষা" },
+  small: { key: "small", name: "ছোট দোকান", price: 449, orders: 150, extra: 5, staff: 1, domain: true, storage: 300, for: "ফেসবুক পেজের বিক্রেতা" },
+  grow: { key: "grow", name: "বাড়ন্ত", price: 999, orders: 400, extra: 4, staff: 4, domain: true, storage: 1024, for: "নিয়মিত অ্যাড চালান যারা" },
+  big: { key: "big", name: "বড় ব্র্যান্ড", price: 1999, orders: 1000, extra: 3, staff: 14, domain: true, storage: 3072, for: "দল আর গুদাম আছে যাদের" },
 };
 
 /** আগের দাম — নতুন দাম আসার আগে খোলা দোকানে ৩০ দিন (settings old_prices_until পর্যন্ত) এটাই চলে */
@@ -62,6 +63,7 @@ export function plans(s: PlatformSettings): Record<PlanKey, Plan> {
       orders: Math.round(f(s, `plan_${k}_orders`, d.orders)),
       extra: f(s, `plan_${k}_extra`, d.extra),
       staff: Math.round(f(s, `plan_${k}_staff`, d.staff)),
+      storage: Math.round(f(s, `plan_${k}_storage`, d.storage)),
     };
   }
   return out;
@@ -109,4 +111,10 @@ export function cheapestFor(s: PlatformSettings | Record<PlanKey, Plan>, orders:
     if (!best || cost < best.cost) best = { plan: p, cost };
   }
   return best!;
+}
+
+/** ছবির জায়গা লেখায়: ৫০ MB, ১ GB */
+export function storageLabel(mb: number): string {
+  const bn = (n: number) => n.toLocaleString("bn-BD");
+  return mb >= 1024 ? `${bn(Math.round((mb / 1024) * 10) / 10)} GB` : `${bn(mb)} MB`;
 }

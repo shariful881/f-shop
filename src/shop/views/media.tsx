@@ -1,3 +1,4 @@
+import { storageLabel } from "../../platform/plans";
 /**
  * মিডিয়া পেজ — দোকানের সব ছবি: ফোল্ডার, খোঁজা, কোথায় ব্যবহার হচ্ছে, জায়গা, আপলোড, মোছা।
  */
@@ -8,8 +9,9 @@ import { EmptyState, PageHead } from "./ui";
 
 const kb = (n: number) => (n < 1024 * 1024 ? `${bn(Math.round(n / 1024))} KB` : `${bn(Number(mb(n)))} MB`);
 
-export const MediaPage = (p: { items: MediaItem[]; total: number; bytes: number; hasMore: boolean; folder: MediaFolder | "unused" | ""; q: string; page: number }) => {
-  const pct = Math.min(100, Math.round((p.bytes / MEDIA_SOFT_LIMIT) * 100));
+export const MediaPage = (p: { items: MediaItem[]; total: number; bytes: number; hasMore: boolean; folder: MediaFolder | "unused" | ""; q: string; page: number; limit?: number }) => {
+  const limit = p.limit || MEDIA_SOFT_LIMIT;
+  const pct = Math.min(100, Math.round((p.bytes / limit) * 100));
   const qs = (extra: Record<string, string | number>) => {
     const u = new URLSearchParams();
     if (p.folder) u.set("folder", p.folder);
@@ -39,10 +41,11 @@ export const MediaPage = (p: { items: MediaItem[]; total: number; bytes: number;
       <div class="media-usage sa-card">
         <div>
           <strong>{bn(p.total)}টা ছবি</strong> · {kb(p.bytes)} ব্যবহার হয়েছে
-          <small class="muted"> (প্রস্তাবিত সীমা {bn(MEDIA_SOFT_LIMIT / 1024 / 1024)} MB)</small>
+          <small class="muted"> (প্ল্যানের সীমা {storageLabel(Math.round(limit / 1024 / 1024))})</small>
         </div>
         <div class={`media-meter${pct >= 80 ? " warn" : ""}`}><i style={`width:${pct}%`}></i></div>
-        {pct >= 80 && <small class="muted">জায়গা প্রায় শেষ — "অব্যবহৃত" থেকে পুরনো ছবি মুছে দিন।</small>}
+        {pct >= 100 ? <small class="error">জায়গা শেষ — নতুন ছবি রাখা যাবে না। "অব্যবহৃত" থেকে পুরনো ছবি মুছুন বা <a href="/admin/billing">বড় প্ল্যান নিন</a>।</small>
+          : pct >= 80 && <small class="muted">জায়গার {bn(pct)}% ব্যবহার হয়েছে — "অব্যবহৃত" থেকে পুরনো ছবি মুছে দিন বা <a href="/admin/billing">বড় প্ল্যান নিন</a>।</small>}
       </div>
 
       <div class="orders-tools">

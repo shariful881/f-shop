@@ -12,7 +12,7 @@ const PER_RUN = 10;
 
 export async function refreshShopStorage(env: WorkerEnv, limit = PER_RUN): Promise<number> {
   const { results } = await env.PLATFORM_DB.prepare(
-    "SELECT id FROM shops ORDER BY db_checked_at IS NOT NULL, db_checked_at LIMIT ?",
+    "SELECT id FROM shops WHERE deleted_at IS NULL ORDER BY db_checked_at IS NOT NULL, db_checked_at LIMIT ?",
   ).bind(limit).all<{ id: string }>();
   let n = 0;
   for (const s of results) {

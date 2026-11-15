@@ -359,7 +359,7 @@ export type ShopRow = {
   id: string; slug: string; name: string; owner_name: string | null; owner_phone: string | null; owner_email: string | null;
   status: string; trial_ends_at: string | null; trial_orders_left: number; created_at: string; domains: string | null;
   balance: number; confirmed_orders: number; last_order_at: string | null; last_login_at: string | null; staff_count: number;
-  plan?: string; period_orders?: number; plan_next?: string | null;
+  plan?: string; period_orders?: number; plan_next?: string | null; deleted_at?: string | null; delete_warned?: string | null;
   next_bill_at: string | null; low_balance_since: string | null; activated_at: string | null; first_topup_at: string | null; status_changed_at: string | null;
 };
 
@@ -369,6 +369,8 @@ export const SHOP_FILTERS: Record<string, string> = {
   active: "চালু",
   suspended: "স্থগিত",
   closed: "বন্ধ",
+  idle: "মোছার পথে",
+  deleted: "মুছে ফেলা",
   dues: "ব্যালেন্স মাইনাস",
   at_risk: "ঝুঁকিতে",
   trial_ending: "ট্রায়াল শেষ হচ্ছে",
@@ -477,6 +479,7 @@ export const ShopDetailPage = (p: {
           <div class="sa-crumb"><a href="/super/shops">দোকান</a> / {s.slug}</div>
           <h2>{s.name} <StatusPill s={s.status} /></h2>
           <p class="sa-muted">{s.owner_name} · {s.owner_phone} · {s.owner_email} · তৈরি {dhakaTime(s.created_at)}</p>
+          {s.deleted_at && <p class="sa-alert sa-alert-err">দোকানের সব ডাটা {dhakaTime(s.deleted_at)}-এ মুছে ফেলা হয়েছে ({s.delete_warned === "super" ? "সুপার অ্যাডমিন" : "৩০ দিন অচল বা বন্ধ"})। শুধু দোকানদারের তথ্য, প্ল্যান আর লেনদেন আছে।</p>}
         </div>
         <div class="sa-head-actions">
           <a href={p.shopLink} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost">দোকান দেখুন ↗</a>
@@ -917,6 +920,7 @@ export const SettingsPage = ({ s }: { s: Record<string, string> }) => (
                 <label>অর্ডার/মাস<input type="number" min="0" name={`plan_${k}_orders`} value={String(pl.orders)} required /></label>
                 <label>বাড়তি প্রতি অর্ডার ৳<input type="number" min="0" step="0.05" name={`plan_${k}_extra`} value={String(pl.extra)} required /></label>
                 <label>স্টাফ (মালিক ছাড়া)<input type="number" min="0" name={`plan_${k}_staff`} value={String(pl.staff)} required /></label>
+                <label>ছবির জায়গা (MB)<input type="number" min="10" name={`plan_${k}_storage`} value={String(pl.storage)} required /></label>
               </div>
             </fieldset>
           );
@@ -997,7 +1001,8 @@ export type DemoRow = { key: string; niche: string; name: string; theme: string;
 export const DemosPage = ({ rows, support }: { rows: DemoRow[]; support: string }) => (
   <Card title={`ডেমো দোকান (${bn(rows.filter((r) => r.shop).length)} / ${bn(rows.length)})`}>
     <p class="sa-muted">প্রতিটা নিশের একটা ডেমো দোকান — সাপোর্ট নম্বর {support || "(সেটিংসে বসান)"}, উপরে ডেমো বার, অর্ডার বন্ধ, বিল হয় না। "তৈরি / আপডেট" আবার চাপলে নতুন পণ্য বা পেজ যোগ হয়, আগের ছবি থাকে।
-      ছবি দিতে: "দোকানে ঢুকুন" → পণ্য → একসাথে ছবি (ফাইলের নাম যেমন <code>sutokotha-01.jpg</code>)। সাইনআপে এই নিশ বাছলে নতুন দোকানে এখানকার ছবি কপি হয়।</p>
+      ডেমোর ছবি সাইটের নিজের ফাইল থেকে আসে (repo-র <code>public/demo-img</code>) — সাইনআপে নিশ বাছলে নতুন দোকানে কপি হয় না, সব দোকান এক জায়গার ছবি দেখায়, দোকানের জায়গায় গোনা হয় না।</p>
+    <form method="post" action="/super/demos-share-images" class="sa-form" style="margin:8px 0 14px"><button class="sa-btn sa-btn-sm sa-btn-ghost">আগের দোকানে কপি হওয়া ডেমো ছবি এক জায়গায় আনুন (জায়গা খালি)</button></form>
     <div class="sa-table-wrap"><table class="sa-table">
       <thead><tr><th>নিশ</th><th>দোকান</th><th>পণ্য</th><th></th></tr></thead>
       <tbody>{rows.map((r) => (

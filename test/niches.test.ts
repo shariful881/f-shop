@@ -146,35 +146,37 @@ describe("ডেমো দোকান", () => {
     await pdb().prepare("DELETE FROM shops WHERE id = 'x-1'").run();
   });
 
-  it("ডেমোর ছবি নতুন দোকানে কপি হয় (নিশ + নমুনা পণ্য বাছলে)", async () => {
-    await spost(await superB(), "/super/demos/khatibari");
-    const demo = (await pdb().prepare("SELECT id FROM shops WHERE demo_niche = 'khatibari'").first<{ id: string }>())!;
-    await shopStub(demo.id).importNicheImages(demo.id, [
-      { key: "p/honey.png", type: "image/png", data: PNG.slice().buffer, product: "khatibari-01" },
-      { key: "banner1/b.png", type: "image/png", data: PNG.slice().buffer, setting: "banner_1" },
-    ]);
+  it("ডেমোর ছবি নতুন দোকানে কপি হয় না — এক জায়গার ছবি (নিশ + নমুনা পণ্য বাছলে)", async () => {
     await signup({ slug: "modhushop", niche: "khatibari" });
     const s = (await pdb().prepare("SELECT id FROM shops WHERE slug = 'modhushop'").first<{ id: string }>())!;
-    expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'khatibari-01'").first()) as any).image).toBe("p/honey.png");
-    expect(await setting(s.id, "banner_1")).toBe("banner1/b.png");
-    const img = await new Browser().fetch("/img/p/honey.png", { base: "https://modhushop.ourdomain.com" } as RequestInit);
-    expect(img.status).toBe(200);
+    expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'khatibari-01'").first()) as any).image).toBe("demo/khatibari-01.jpg");
+    expect(await setting(s.id, "banner_1")).toBe("demo/khatibari-banner-1.jpg");
+    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM images").first())!.n).toBe(0);
+    const html = await (await new Browser(freshIp()).fetch("/", { base: "https://modhushop.ourdomain.com" } as RequestInit)).text();
+    expect(html).toContain("/demo-img/khatibari-");
+    const old = await new Browser().fetch("/img/demo/khatibari-01.jpg", { base: "https://modhushop.ourdomain.com" } as RequestInit);
+    expect(old.status).toBe(301);
+    expect(old.headers.get("location")).toMatch(/\/demo-img\/khatibari-01\.jpg$/);
+    expect(ghHits.length).toBe(0);
   });
 });
 
-describe("ডেমোর আঁকা ছবি repo থেকে", () => {
-  it("তৈরি/আপডেটের সময় যেসব ছবি নেই সেগুলো demo/images থেকে বসে; আবার চাপলে আর আনে না", async () => {
-    ghFiles = { "gadgetpara-01.jpg": PNG, "gadgetpara-banner-1.jpg": PNG };
+describe("ডেমোর ছবি এক জায়গায়", () => {
+  it("ডেমো দোকান তৈরিতে GitHub থেকে কিছু আনে না; আগের কপি এক জায়গার ছবিতে বদলে মুছে যায়", async () => {
     const b = await superB();
     await spost(b, "/super/demos/gadgetpara");
-    expect(ghHits.length).toBe(23); // ২০ পণ্য + ৩ ব্যানার
-    expect(ghHits[0]).toBe("https://raw.githubusercontent.com/shariful881/f-shop/main/demo/images/gadgetpara-01.jpg");
+    expect(ghHits.length).toBe(0);
     const s = (await pdb().prepare("SELECT id FROM shops WHERE demo_niche = 'gadgetpara'").first<{ id: string }>())!;
-    expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'gadgetpara-01'").first()) as any).image).toBe("p/gadgetpara-01.jpg");
-    expect(await setting(s.id, "banner_1")).toBe("banner1/gadgetpara-banner-1.jpg");
-    ghHits.length = 0;
-    await spost(b, "/super/demos/gadgetpara");
-    expect(ghHits.length).toBe(21); // শুধু যেগুলো এখনো নেই
+    expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'gadgetpara-01'").first()) as any).image).toBe("demo/gadgetpara-01.jpg");
+    expect(await setting(s.id, "banner_1")).toBe("demo/gadgetpara-banner-1.jpg");
+
+    // পুরনো দোকান: ছবি কপি হয়ে আছে
+    await shopDb(s.id).prepare("UPDATE products SET image = NULL WHERE slug = 'gadgetpara-02'").run();
+    await shopStub(s.id).importNicheImages(s.id, [{ key: "p/gadgetpara-02.jpg", type: "image/jpeg", data: PNG.slice().buffer, product: "gadgetpara-02" }]);
+    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM images WHERE key LIKE 'p/%'").first())!.n).toBe(1);
+    await spost(b, "/super/demos-share-images");
+    expect(((await shopDb(s.id).prepare("SELECT image FROM products WHERE slug = 'gadgetpara-02'").first()) as any).image).toBe("demo/gadgetpara-02.jpg");
+    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM images WHERE key LIKE 'p/%'").first())!.n).toBe(0);
   });
 });
 

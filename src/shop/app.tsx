@@ -1,4 +1,7 @@
 import { errorPageHtml } from "./lib/error-page";
+import { ImageQuotaError } from "./lib/images";
+import { mb } from "./lib/media";
+import { flash } from "./routes/admin";
 import { logError } from "../platform/errors";
 import { Hono } from "hono";
 import type { AppEnv } from "./env";
@@ -31,6 +34,7 @@ shopApp.use("*", async (c, next) => {
 shopApp.get("/img/*", async (c) => {
   const key = c.req.path.slice(5);
   if (!/^[a-z0-9/_.-]+$/i.test(key) || key.includes("..")) return c.text("not found", 404);
+  if (key.startsWith("demo/")) return c.redirect(`/demo-img/${key.slice(5)}`, 301);
   const img = await c.env.IMAGES.get(key);
   if (!img) return c.text("not found", 404);
   return new Response(img.body, {
@@ -70,6 +74,17 @@ shopApp.route("/", shop);
 shopApp.notFound((c) => notFound(c));
 
 shopApp.onError(async (err, c) => {
+  if (err instanceof ImageQuotaError) {
+    // প্ল্যানের ছবির জায়গা শেষ — ভুল নয়, দোকানদারকে পরিষ্কার বার্তা
+    const text = `ছবির জায়গা শেষ — ব্যবহার ${mb(err.usedBytes)} MB, প্ল্যানের সীমা ${mb(err.limitBytes)} MB। মিডিয়া থেকে অব্যবহৃত ছবি মুছুন বা বড় প্ল্যান নিন।`;
+    const path = new URL(c.req.url).pathname;
+    if (path === "/admin/upload-image" || (c.req.header("accept") || "").includes("json")) return c.json({ message: text }, 413);
+    flash(c, "error", text);
+    const back = c.req.header("referer") || "";
+    let to = "/admin/media";
+    try { const u = new URL(back); if (u.host === new URL(c.req.url).host && u.pathname.startsWith("/admin")) to = u.pathname + u.search; } catch { /* থাক */ }
+    return c.redirect(to, 303);
+  }
   console.error(err);
   await logError(c.env.PLATFORM_DB, { shopId: c.req.header("x-fshop-id"), method: c.req.method, path: new URL(c.req.url).pathname, err });
   return c.html(errorPageHtml("shop"), 500);

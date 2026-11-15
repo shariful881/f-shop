@@ -55,3 +55,34 @@ export class SqlImageStore implements ImageStore {
     ]);
   }
 }
+
+/** প্ল্যানের ছবির জায়গা শেষ — নতুন ছবি রাখা যায় না */
+export class ImageQuotaError extends Error {
+  constructor(public usedBytes: number, public limitBytes: number) {
+    super("ছবির জায়গা শেষ");
+  }
+}
+
+/** ক্রেতার রিভিউর ছবি (rv/…) সীমায় আটকায় না — ক্রেতার অর্ডারের অভিজ্ঞতা নষ্ট হবে না */
+const quotaFree = (k: string) => k.startsWith("rv/");
+
+/** দোকানের সব ছবি মিলিয়ে কত বাইট */
+export async function imageBytes(db: SqlDatabase | D1Database, exceptKey?: string): Promise<number> {
+  const r = await (db as D1Database).prepare("SELECT COALESCE(SUM(size), 0) b FROM images WHERE key != ?").bind(exceptKey ?? "").first<{ b: number }>();
+  return r?.b ?? 0;
+}
+
+/** প্ল্যানের সীমা দেখে তবেই রাখে; একই নামের ছবি বদলালে পুরনোটার জায়গা বাদ দিয়ে হিসাব */
+export class QuotaImageStore implements ImageStore {
+  constructor(private readonly inner: ImageStore, private readonly db: SqlDatabase, private readonly limitBytes: number) {}
+  async put(key: string, data: ArrayBuffer, opts?: { httpMetadata?: { contentType?: string } }) {
+    const k = localKey(key);
+    if (!quotaFree(k) && this.limitBytes > 0) {
+      const used = await imageBytes(this.db, k);
+      if (used + data.byteLength > this.limitBytes) throw new ImageQuotaError(used, this.limitBytes);
+    }
+    return this.inner.put(key, data, opts);
+  }
+  get(key: string) { return this.inner.get(key); }
+  delete(key: string) { return this.inner.delete(key); }
+}
