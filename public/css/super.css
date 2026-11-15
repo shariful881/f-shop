@@ -353,3 +353,11 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa-r2 h4 { margin: 0 0 6px; font-size: 14px; }
 .sa-r2-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .sa-r2-btns form { margin: 0; }
+/* যাচাই আর সন্দেহ */
+.sa-check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.sa-check input { width: auto; }
+.sa-verify { margin-bottom: 16px; }
+.sa-verify-risk { border-color: #fca5a5; background: #fef2f2; }
+.sa-verify-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.sa-verify p { margin: 8px 0 0; }
+.sa-verify .sa-pill { margin-right: 4px; }

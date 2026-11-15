@@ -537,7 +537,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
 };
 
 /* ---------- সাইনআপ ---------- */
-export const SignupPage = (p: { values?: Record<string, string>; errors?: Record<string, string>; alert?: string; domain: string }) => {
+export const SignupPage = (p: { values?: Record<string, string>; errors?: Record<string, string>; alert?: string; domain: string; turnstile?: string; verify?: { email: boolean; phone: boolean } }) => {
   const v = p.values ?? {};
   const e = p.errors ?? {};
   return (
@@ -565,6 +565,14 @@ export const SignupPage = (p: { values?: Record<string, string>; errors?: Record
             <small class="muted">বাছলে ক্যাটাগরি, থিম, রং, ডেলিভারি চার্জ আর পলিসি পেজ আগে থেকে সাজানো থাকবে।</small>
           </label>
           <label class="small-check"><input type="checkbox" name="seed_demo" value="1" checked={v.seed_demo !== "0"} /> নমুনা পণ্য দিয়ে শুরু করুন (পরে মুছে ফেলা যাবে)</label>
+          {p.verify && (p.verify.email || p.verify.phone) && (
+            <p class="muted small">দোকান খোলার পর {p.verify.email && p.verify.phone ? "ইমেইল আর মোবাইল" : p.verify.email ? "ইমেইল" : "মোবাইল"} যাচাই করলে অর্ডার নেওয়া চালু হবে — প্রতারণা ঠেকাতে, যাতে সব দোকানের ক্রেতা নিরাপদ থাকে।</p>
+          )}
+          {p.turnstile && <>
+            <div class="cf-turnstile" data-sitekey={p.turnstile} data-language="bn" data-theme="light" style="margin:6px 0 12px"></div>
+            {e.turnstile && <small class="error">{e.turnstile}</small>}
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+          </>}
           <button class="btn btn-primary btn-block btn-lg" data-submit>দোকান তৈরি করুন</button>
         </form>
       </div>

@@ -11,10 +11,11 @@ import { shop, notFound } from "./routes/shop";
 import { device } from "./middleware/device";
 import { admin } from "./routes/admin";
 import { fbCookies } from "./middleware/fb-cookies";
-import { getCookie } from "hono/cookie";
+import { getCookie, setCookie } from "hono/cookie";
 import { sessionUser } from "./lib/auth";
 import { ADMIN_COOKIE } from "./middleware/admin-auth";
 import { themeOf } from "./lib/settings";
+import { confirmEmailLink } from "../platform/verify";
 
 /** একটা দোকানের পুরো অ্যাপ — প্রতিটা দোকানের Durable Object-এর ভিতরে চলে */
 export const shopApp = new Hono<AppEnv>();
@@ -28,6 +29,18 @@ shopApp.use("*", async (c, next) => {
   }
   c.set("shopState", state);
   await next();
+  // যাচাই বাকি দোকানের পাবলিক পেজ Google-এ নয়
+  if (state.reason === "unverified" && !c.req.path.startsWith("/admin")) c.header("X-Robots-Tag", "noindex, nofollow");
+});
+
+/** ইমেইলের যাচাই লিংক (লগইন লাগে না — লিংকের টোকেনই প্রমাণ) */
+shopApp.get("/verify/email", async (c) => {
+  const ok = await confirmEmailLink(c.env, c.env.SHOP_ID, c.req.query("t") || "");
+  if (ok) c.header("x-fshop-clear-cache", "1");
+  setCookie(c, "flash", encodeURIComponent(JSON.stringify(ok
+    ? { type: "ok", text: "ইমেইল যাচাই হয়েছে ✓" }
+    : { type: "error", text: "লিংকটা কাজ করছে না (মেয়াদ শেষ বা আগেই ব্যবহার হয়েছে) — নতুন লিংক পাঠান" })), { path: "/admin", httpOnly: true, sameSite: "Lax", secure: new URL(c.req.url).protocol === "https:", maxAge: 60 });
+  return c.redirect("/admin/verify", 303);
 });
 
 /** ছবি: দোকানের নিজের ডাটাবেস থেকে (key-তে uuid থাকে, তাই চিরকাল cache) */

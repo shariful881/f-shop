@@ -693,3 +693,14 @@ body.admin .mo-row[hidden], body.admin .mo-items [data-mo-add][hidden], body.adm
 body.admin .price-edit { margin-top: 10px; border-top: 1px dashed var(--c-line); padding-top: 10px; }
 body.admin .price-edit summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--c-brand); }
 body.admin .price-edit-form { margin-top: 10px; }
+
+/* দোকান যাচাই */
+body.admin .verify-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 12px 0; }
+body.admin .verify-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 16px; }
+body.admin .verify-card.ok { border-color: var(--c-ok); }
+body.admin .verify-card form { margin-top: 10px; }
+body.admin .verify-otp { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+body.admin .verify-otp .field { flex: 1 1 160px; margin: 0; }
+body.admin .verify-otp input { letter-spacing: 4px; font-size: 18px; }
+body.admin .verify-done { display: flex; align-items: center; gap: 8px; color: var(--c-ok); }
+body.admin .verify-grid + p { margin-bottom: 80px; }

@@ -55,7 +55,14 @@ export default {
       return serveImage(env, shop, request, ctx);
     }
 
-    return withR2Images(env, shop, request, await forwardToShop(env, shop, request));
+    let res = await forwardToShop(env, shop, request);
+    // দোকান বললে (যেমন যাচাই শেষ) দোকানের তথ্যের cache মুছে দেওয়া — নতুন অবস্থা সাথে সাথে
+    if (res.headers.has("x-fshop-clear-cache")) {
+      clearShopCache();
+      res = new Response(res.body, res);
+      res.headers.delete("x-fshop-clear-cache");
+    }
+    return withR2Images(env, shop, request, res);
   },
 
   /** প্রতিদিন একবার: ট্রায়াল শেষ, মাসিক চার্জ */

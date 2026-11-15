@@ -18,13 +18,14 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
+import { SUSPICIOUS_SQL } from "./verify";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
 import { slugOk } from "./blog";
 import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -182,6 +183,7 @@ superApp.get("/", async (c) => {
     cron: { daily: cron.cron_daily_at ?? null, domains: cron.cron_domains_at ?? null },
     usage: await platformUsage(c.env.PLATFORM_DB),
     r2: await r2Status(c.env),
+    suspicious: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${SUSPICIOUS_SQL}`).first<{ n: number }>())?.n ?? 0,
   };
   return page(c, "ড্যাশবোর্ড", "dashboard", <DashboardPage d={d} role={me(c).role} />);
 });
@@ -201,6 +203,7 @@ const FILTER_SQL: Record<string, string> = {
   paying: "s.first_topup_at IS NOT NULL",
   custom_domain: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id)",
   domain_failed: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id AND d.status = 'failed')",
+  suspicious: SUSPICIOUS_SQL,
 };
 const SORT_SQL: Record<string, string> = {
   new: "s.created_at DESC", old: "s.created_at ASC", orders: "s.confirmed_orders DESC", balance_low: "s.balance ASC",
@@ -367,6 +370,25 @@ superApp.post("/r2/purge", async (c) => {
     flash(c, "ok", `চালু হয়েছে — এখন ${bn(r.purged)}টা পুরনো কপি মোছা হলো, বাকিগুলো প্রতি ৩০ মিনিটে।`);
   } else flash(c, "ok", "পুরনো কপি মোছা বন্ধ।");
   return c.redirect("/super", 303);
+});
+
+/* ---------- যাচাই আর সন্দেহ ---------- */
+superApp.post("/shops/:id/verify", async (c) => {
+  if (!allowed(c, "shop.status")) return forbidden(c);
+  const id = c.req.param("id");
+  await c.env.PLATFORM_DB.prepare("UPDATE shops SET email_verified = 1, phone_verified = 1 WHERE id = ?").bind(id).run();
+  clearShopCache();
+  await audit(c, "shop.verify", "shop", id, "সুপার অ্যাডমিন যাচাই করা ধরেছেন");
+  flash(c, "ok", "দোকান যাচাই করা ধরা হয়েছে — এখন অর্ডার নিতে পারবে।");
+  return c.redirect(`/super/shops/${id}`, 303);
+});
+superApp.post("/shops/:id/risk-clear", async (c) => {
+  if (!allowed(c, "shop.status")) return forbidden(c);
+  const id = c.req.param("id");
+  await c.env.PLATFORM_DB.prepare("UPDATE shops SET risk_cleared = 1 WHERE id = ?").bind(id).run();
+  await audit(c, "shop.risk_clear", "shop", id);
+  flash(c, "ok", "সন্দেহজনক তালিকা থেকে বাদ দেওয়া হলো।");
+  return c.redirect(`/super/shops/${id}`, 303);
 });
 
 superApp.post("/shops/:id/status", async (c) => {
@@ -904,7 +926,32 @@ const TEXT_KEYS = ["bkash_number", "nagad_number", "support_phone"];
 
 superApp.get("/settings", async (c) => {
   if (!allowed(c, "settings")) return forbidden(c);
-  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <SettingsPage s={await platformSettings(c.env.PLATFORM_DB, true)} />);
+  const ps = await platformSettings(c.env.PLATFORM_DB, true);
+  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /></>);
+});
+
+superApp.post("/settings/security", async (c) => {
+  if (!allowed(c, "settings")) return forbidden(c);
+  const b = await c.req.parseBody();
+  const db = c.env.PLATFORM_DB;
+  const vals: [string, string][] = [
+    ["turnstile_site_key", str(b.turnstile_site_key, 120)],
+    ["verify_email", b.verify_email === "1" ? "1" : "0"],
+    ["verify_email_from", str(b.verify_email_from, 120)],
+    ["verify_phone", b.verify_phone === "1" ? "1" : "0"],
+    ["sms_provider", ["bulksmsbd", "smsnetbd"].includes(str(b.sms_provider, 20)) ? str(b.sms_provider, 20) : "bulksmsbd"],
+    ["sms_sender_id", str(b.sms_sender_id, 30)],
+  ];
+  // গোপন কী: খালি রাখলে আগেরটাই থাকে
+  for (const k of ["turnstile_secret", "sms_api_key"]) { const v = str(b[k], 200); if (v) vals.push([k, v]); }
+  const before = await platformSettings(db, true);
+  await db.batch(vals.map(([k, v]) => db.prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v)));
+  clearSettingsCache();
+  const secret = new Set(["turnstile_secret", "sms_api_key"]);
+  const changed = vals.filter(([k, v]) => (before[k] ?? "") !== v).map(([k, v]) => (secret.has(k) ? `${k}: বদলেছে` : `${k}: ${before[k] ?? ""} → ${v}`));
+  if (changed.length) await audit(c, "settings.security", "settings", null, changed.join(", "));
+  flash(c, "ok", "নিরাপত্তা সেটিংস সেভ হয়েছে।");
+  return c.redirect("/super/settings", 303);
 });
 
 superApp.post("/settings", async (c) => {

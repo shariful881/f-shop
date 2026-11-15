@@ -14,6 +14,7 @@ export type Bindings = {
   CF_ACCOUNT_ID?: string;
   WORKER_NAME?: string;
   AI?: Ai;
+  EMAIL?: import("../worker-env").WorkerEnv["EMAIL"];
   IS_TEST?: boolean;
 };
 

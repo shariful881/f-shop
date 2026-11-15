@@ -5,6 +5,7 @@ import type { PCtx, PEnv } from "./lib";
 import {
   createSuperSession, destroySuperSession, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
+import { checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
 import { DEFAULT_DESC, HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
 import { num, platformSettings } from "./billing";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
@@ -191,12 +192,12 @@ platformApp.get("/", async (c) => {
 });
 
 /* ---------- সাইনআপ ---------- */
-platformApp.get("/signup", (c) => {
+platformApp.get("/signup", async (c) => {
   const niche = nicheByKey(c.req.query("niche"))?.key ?? "";
-  return html(c, <PLayout title={`দোকান খুলুন, ১৪ দিন ফ্রি — ${PLATFORM_NAME}`} nav={publicNav}
-    description="২ মিনিটে নিজের অনলাইন দোকান খুলুন — কোনো কোড বা কার্ড লাগবে না। রেডি দোকান, ফেক অর্ডার আটকানো, কুরিয়ার আর Pixel সব সাথেই। ১৪ দিন ফ্রি।"
+  return html(c, <PLayout title={`দোকান খুলুন, ১ মাস ফ্রি — ${PLATFORM_NAME}`} nav={publicNav}
+    description="২ মিনিটে নিজের অনলাইন দোকান খুলুন — কোনো কোড বা কার্ড লাগবে না। রেডি দোকান, ফেক অর্ডার আটকানো, কুরিয়ার আর Pixel সব সাথেই। ১ মাস ফ্রি।"
     seo={{ canonical: canon(c, "/signup"), jsonLd: [crumbs(c, [["দোকান খুলুন", "/signup"]])] }}>
-    <SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} /></PLayout>);
+    <SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} {...await signupGuardProps(c)} /></PLayout>);
 });
 
 /** লাইভ চেক: ঠিকানাটি খালি আছে কি না */
@@ -207,6 +208,12 @@ platformApp.get("/signup/check", async (c) => {
   if (await slugTaken(c.env, slug)) return c.json({ ok: false, message: "এই ঠিকানা আগেই নেওয়া হয়েছে" });
   return c.json({ ok: true, message: `${slug}.${c.env.PLATFORM_DOMAIN} খালি আছে ✓` });
 });
+
+/** সাইনআপ পেজে Turnstile আর কোন যাচাই লাগবে */
+async function signupGuardProps(c: PCtx) {
+  const ps = await platformSettings(c.env.PLATFORM_DB);
+  return { turnstile: turnstileKeys(ps)?.site, verify: verifyNeeds(c.env, ps) };
+}
 
 platformApp.post("/signup", async (c) => {
   const b = await c.req.parseBody();
@@ -220,8 +227,9 @@ platformApp.post("/signup", async (c) => {
     niche: nicheByKey(str(b.niche, 30))?.key ?? "",
   };
   const password = typeof b.password === "string" ? b.password : "";
+  const guard = await signupGuardProps(c);
   const fail = (errors: Record<string, string>, alert?: string, status: 422 | 429 = 422) =>
-    html(c, <PLayout title="দোকান খুলুন" nav={publicNav}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={values} errors={errors} alert={alert} /></PLayout>, status);
+    html(c, <PLayout title="দোকান খুলুন" nav={publicNav} seo={{ noindex: true }}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={values} errors={errors} alert={alert} {...guard} /></PLayout>, status);
 
   if (!(await platformRateLimit(c.env, `signup:${clientIp(c)}`, 5, 3600))) {
     return fail({}, "এক ঘণ্টায় অনেকবার চেষ্টা হয়েছে। পরে আবার চেষ্টা করুন।", 429);
@@ -237,15 +245,23 @@ platformApp.post("/signup", async (c) => {
   if (!phone) errors.phone = "সঠিক মোবাইল নম্বর লিখুন";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email!)) errors.email = "সঠিক ইমেইল লিখুন";
   if (password.length < 8) errors.password = "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে";
+  const ps = await platformSettings(c.env.PLATFORM_DB);
+  const ts = turnstileKeys(ps);
+  if (ts && !(await checkTurnstile(ts.secret, str(b["cf-turnstile-response"], 4000), clientIp(c)))) {
+    errors.turnstile = "আপনি মানুষ কিনা যাচাই হয়নি — বক্সটায় টিক দিয়ে আবার চেষ্টা করুন";
+  }
   if (Object.keys(errors).length) return fail(errors);
 
   const id = crypto.randomUUID();
-  const ps = await platformSettings(c.env.PLATFORM_DB);
+  const needs = verifyNeeds(c.env, ps);
+  const risk = await riskFlags(c.env, { shop_name: values.shop_name!, slug: values.slug!, email: values.email!, phone: phone!, ip: clientIp(c) });
   try {
     await c.env.PLATFORM_DB.prepare(
-      `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left, niche, plan, usage_reset_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?, ?, ?, datetime('now', '+1 month'))`,
-    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 30), num(ps, "trial_orders", 400), values.niche || null, TRIAL_PLAN).run();
+      `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left, niche, plan, usage_reset_at,
+         email_verified, phone_verified, signup_ip, risk)
+       VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?, ?, ?, datetime('now', '+1 month'), ?, ?, ?, ?)`,
+    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 30), num(ps, "trial_orders", 400), values.niche || null, TRIAL_PLAN,
+      needs.email ? 0 : 1, needs.phone ? 0 : 1, clientIp(c) || null, risk.join(",") || null).run();
   } catch {
     return fail({ slug: "এই ঠিকানা আগেই নেওয়া হয়েছে" });
   }
@@ -268,6 +284,8 @@ platformApp.post("/signup", async (c) => {
     } catch (err) { console.error("niche images", err); }
   }
   clearShopCache();
+  // ইমেইল যাচাইয়ের লিংক সাথে সাথে (ফোনের কোড দোকানদার নিজে চাইলে — SMS-এর খরচ বাঁচে)
+  if (needs.email) c.executionCtx.waitUntil(sendEmailLink(c.env, id, shopUrl(c.env, values.slug!, "")).catch((e) => console.error("signup email", e)));
   return c.redirect(shopUrl(c.env, values.slug!, `/admin/auto-login?t=${token}`), 303);
 });
 
@@ -339,7 +357,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=41"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=42"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

@@ -65,6 +65,9 @@ import { allowedEndpoint, pushToShop, vapidKeys } from "../lib/push";
 import { adReport, usdRate } from "../lib/ads";
 import { feedItems } from "../lib/feed";
 
+import { confirmPhoneOtp, loadShop as loadVerifyShop, platformSms, sendEmailLink, sendPhoneOtp } from "../../platform/verify";
+import { VerifyPage } from "../views/verify";
+
 export const admin = new Hono<AppEnv>();
 
 /* ---------- ফ্ল্যাশ মেসেজ ---------- */
@@ -1492,6 +1495,34 @@ async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; va
       plan={plan} errors={form?.errors} values={form?.values} />,
     form ? 422 : 200);
 }
+
+/* ---------- দোকান যাচাই (ইমেইল + মোবাইল) ---------- */
+async function renderVerify(c: Ctx, otpSent = false) {
+  const pdb = c.env.PLATFORM_DB;
+  const [ps, shop] = await Promise.all([platformSettings(pdb), loadVerifyShop(c.env, c.env.SHOP_ID)]);
+  // সাথে সাথে নতুন অবস্থা (Worker-এর cache ৩০ সেকেন্ড পুরনো হতে পারে)
+  const state = { ...c.var.shopState, verify: { email: !!shop?.email_verified, phone: !!shop?.phone_verified } };
+  return render(c, "দোকান যাচাই", "verify",
+    <VerifyPage state={state} email={shop?.owner_email ?? ""} phone={shop?.owner_phone ?? ""} emailReady={!!c.env.EMAIL} smsReady={!!platformSms(ps)} otpSent={otpSent} />);
+}
+admin.get("/verify", (c) => renderVerify(c, c.req.query("sent") === "1"));
+admin.post("/verify/email", async (c) => {
+  const r = await sendEmailLink(c.env, c.env.SHOP_ID, new URL(c.req.url).origin);
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect("/admin/verify", 303);
+});
+admin.post("/verify/phone/send", async (c) => {
+  const r = await sendPhoneOtp(c.env, c.env.SHOP_ID);
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect("/admin/verify?sent=1", 303);
+});
+admin.post("/verify/phone", async (c) => {
+  const code = String((await c.req.parseBody()).code ?? "").replace(/[০-৯]/g, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+  const r = await confirmPhoneOtp(c.env, c.env.SHOP_ID, code);
+  flash(c, r.ok ? "ok" : "error", r.message);
+  if (r.ok) c.header("x-fshop-clear-cache", "1");
+  return c.redirect(r.ok ? "/admin/verify" : "/admin/verify?sent=1", 303);
+});
 
 admin.get("/billing", (c) => renderBilling(c));
 

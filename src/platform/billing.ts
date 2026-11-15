@@ -27,6 +27,9 @@ export type BillingShop = {
   period_orders: number;
   usage_reset_at: string | null;
   created_at: string;
+  /** 0 = যাচাই বাকি (না থাকলে যাচাই করা ধরা হয়) */
+  email_verified?: number;
+  phone_verified?: number;
 };
 
 let settingsCache: { at: number; value: PlatformSettings } | null = null;
@@ -238,7 +241,9 @@ function sqlNow(): string {
 export type ShopState = {
   status: string;
   accepting: boolean;
-  reason: "ok" | "trial" | "low_balance" | "blocked_balance" | "suspended";
+  reason: "ok" | "trial" | "low_balance" | "blocked_balance" | "suspended" | "unverified";
+  /** যাচাই বাকি থাকলে কোনটা বাকি (reason "unverified") */
+  verify?: { email: boolean; phone: boolean };
   balance: number;
   trial_ends_at: string | null;
   trial_orders_left: number;
@@ -264,6 +269,10 @@ export function computeState(shop: BillingShop, s: PlatformSettings): ShopState 
     base.usage = { used: shop.period_orders ?? 0, limit: p.orders, extra: p.extra, plan: p.name };
   }
   if (shop.status === "suspended") return { ...base, accepting: false, reason: "suspended" };
+  // নতুন দোকানের ইমেইল/ফোন যাচাই বাকি: দোকান চলে, কিন্তু অর্ডার নেয় না আর Google-এ যায় না
+  if (shop.email_verified === 0 || shop.phone_verified === 0) {
+    return { ...base, accepting: false, reason: "unverified", verify: { email: shop.email_verified !== 0, phone: shop.phone_verified !== 0 } };
+  }
   if (shop.status === "trial") return { ...base, accepting: true, reason: "trial" };
   if (shop.balance < 0 && shop.low_balance_since) {
     const since = new Date(shop.low_balance_since.replace(" ", "T") + "Z").getTime();

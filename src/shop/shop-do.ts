@@ -448,6 +448,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       CF_ACCOUNT_ID: this.env.CF_ACCOUNT_ID,
       WORKER_NAME: this.env.WORKER_NAME,
       AI: this.env.AI,
+      EMAIL: this.env.EMAIL,
       IS_TEST: this.env.TEST_MIGRATIONS !== undefined,
     };
     const execCtx = {

@@ -2,6 +2,7 @@
  * সুপার অ্যাডমিন প্যানেল — পুরো প্ল্যাটফর্ম চালানোর কন্ট্রোল সেন্টার।
  * সাইডবার লেআউট, ড্যাশবোর্ড (KPI + চার্ট), দোকান, দোকানের ৩৬০° ভিউ, ফাইন্যান্স, রিচার্জ, ঘোষণা, অডিট লগ, টিম, সেটিংস।
  */
+import { RISK_LABEL } from "./verify";
 import { WARN_AT, type Usage } from "./usage";
 import { plans } from "./plans";
 import type { Child } from "hono/jsx";
@@ -240,6 +241,7 @@ export type DashData = {
   recentAudit: AuditRow[];
   cron: { daily: string | null; domains: string | null };
   usage: Usage;
+  suspicious: number;
   r2: import("./r2").R2Status;
 };
 
@@ -255,11 +257,12 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
   const sRev = delta(d.revenue.month, d.revenue.lastMonth);
   return (
     <>
-      {(d.pending.topups > 0 || d.pending.failedDomains > 0 || d.dues.shops > 0) && (
+      {(d.pending.topups > 0 || d.pending.failedDomains > 0 || d.dues.shops > 0 || d.suspicious > 0) && (
         <div class="sa-todo">
           <b>আজকের কাজ:</b>
           {d.pending.topups > 0 && can(role, "topups") && <a href="/super/topups"><Icon name="credit-card" size="sm" /> {bn(d.pending.topups)}টা রিচার্জ অনুমোদনের অপেক্ষায় ({taka(d.pending.topupAmount)})</a>}
           {d.dues.shops > 0 && <a href="/super/shops?filter=dues"><Icon name="triangle-alert" size="sm" /> {bn(d.dues.shops)}টা দোকানের ব্যালেন্স মাইনাস</a>}
+          {d.suspicious > 0 && <a href="/super/shops?filter=suspicious"><Icon name="shield-check" size="sm" /> {bn(d.suspicious)}টা সন্দেহজনক নতুন দোকান দেখুন</a>}
           {d.pending.failedDomains > 0 && <a href="/super/shops?filter=domain_failed"><Icon name="globe" size="sm" /> {bn(d.pending.failedDomains)}টা ডোমেইনে সমস্যা</a>}
         </div>
       )}
@@ -362,6 +365,7 @@ export type ShopRow = {
   status: string; trial_ends_at: string | null; trial_orders_left: number; created_at: string; domains: string | null;
   balance: number; confirmed_orders: number; last_order_at: string | null; last_login_at: string | null; staff_count: number;
   plan?: string; period_orders?: number; plan_next?: string | null; deleted_at?: string | null; delete_warned?: string | null;
+  email_verified?: number; phone_verified?: number; signup_ip?: string | null; risk?: string | null; risk_cleared?: number;
   next_bill_at: string | null; low_balance_since: string | null; activated_at: string | null; first_topup_at: string | null; status_changed_at: string | null;
 };
 
@@ -379,6 +383,7 @@ export const SHOP_FILTERS: Record<string, string> = {
   paying: "পেইড",
   custom_domain: "নিজের ডোমেইন",
   domain_failed: "ডোমেইনে সমস্যা",
+  suspicious: "সন্দেহজনক",
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
 
@@ -500,6 +505,8 @@ export const ShopDetailPage = (p: {
         <Kpi label="আমাদের আয় (মোট)" value={taka(p.revenue.lifetime)} sub={`মোট রিচার্জ ${taka(p.revenue.topups)}`} />
         <Kpi label="শেষ লগইন" value={ago(s.last_login_at)} sub={`${bn(s.staff_count)} জন বাড়তি স্টাফ`} />
       </div>
+
+      <VerifyRiskBox s={s} canEdit={can(r, "shop.status")} />
 
       {p.live && <LiveStats l={p.live} />}
 
@@ -953,6 +960,49 @@ export const SettingsPage = ({ s }: { s: Record<string, string> }) => (
   </form>
 );
 
+/** সাইনআপের পাহারা — Turnstile, ইমেইল/ফোন যাচাই, প্ল্যাটফর্মের SMS */
+export const SecuritySettings = ({ s, emailBinding }: { s: Record<string, string>; emailBinding: boolean }) => {
+  const set = (k: string) => !!(s[k] || "").trim();
+  return (
+    <form method="post" action="/super/settings/security" class="sa-grid-2" style="margin-top:16px">
+      <Card title="সাইনআপে বট আটকানো (Cloudflare Turnstile)">
+        <div class="sa-form">
+          <p class="sa-muted"><small>Cloudflare ড্যাশবোর্ড → Turnstile → Add widget (ডোমেইন sellxbd.com) থেকে দুটো কী। দুটো দিলেই সাইনআপে চালু।</small></p>
+          <label>Site key</label><input type="text" name="turnstile_site_key" value={s.turnstile_site_key || ""} autocomplete="off" />
+          <label>Secret key {set("turnstile_secret") && <small class="sa-muted">(দেওয়া আছে — বদলাতে নতুনটা লিখুন)</small>}</label>
+          <input type="password" name="turnstile_secret" value="" placeholder={set("turnstile_secret") ? "••••••••" : ""} autocomplete="new-password" />
+        </div>
+      </Card>
+      <Card title="নতুন দোকানের যাচাই">
+        <div class="sa-form">
+          <label class="sa-check"><input type="checkbox" name="verify_email" value="1" checked={s.verify_email === "1"} /> ইমেইল যাচাই (লিংক)</label>
+          <small class="sa-muted">{emailBinding ? "ইমেইল পাঠানোর ব্যবস্থা যুক্ত আছে।" : "ইমেইল পাঠানোর ব্যবস্থা (Cloudflare Email Sending) এখনো যুক্ত হয়নি — চালু রাখলেও লাগবে না।"}</small>
+          <label>যে ঠিকানা থেকে ইমেইল যাবে</label><input type="email" name="verify_email_from" value={s.verify_email_from || ""} placeholder="no-reply@sellxbd.com" />
+          <label class="sa-check"><input type="checkbox" name="verify_phone" value="1" checked={s.verify_phone === "1"} /> মোবাইল যাচাই (SMS-এ OTP)</label>
+          <small class="sa-muted">যাচাই বাকি দোকান চলে কিন্তু অর্ডার নেয় না আর Google-এ যায় না। নিচে SMS না দিলে মোবাইল যাচাই লাগবে না।</small>
+        </div>
+      </Card>
+      <Card title="প্ল্যাটফর্মের SMS (OTP-র জন্য)">
+        <div class="sa-form">
+          <label>গেটওয়ে</label>
+          <select name="sms_provider">
+            <option value="bulksmsbd" selected={(s.sms_provider || "bulksmsbd") === "bulksmsbd"}>BulkSMSBD</option>
+            <option value="smsnetbd" selected={s.sms_provider === "smsnetbd"}>SMS.net.bd (Alpha SMS)</option>
+          </select>
+          <label>API Key {set("sms_api_key") && <small class="sa-muted">(দেওয়া আছে — বদলাতে নতুনটা লিখুন)</small>}</label>
+          <input type="password" name="sms_api_key" value="" placeholder={set("sms_api_key") ? "••••••••" : ""} autocomplete="new-password" />
+          <label>Sender ID</label><input type="text" name="sms_sender_id" value={s.sms_sender_id || ""} />
+          <small class="sa-muted">প্রতি OTP-তে একটা SMS (প্রায় ৳০.৩০–০.৫০)। একটা দোকানে দিনে সর্বোচ্চ ৫টা।</small>
+        </div>
+      </Card>
+      <Card title="সেভ">
+        <p class="sa-muted">কী আর API Key অডিট লগে লেখা হয় না, শুধু "বদলেছে" লেখা থাকে।</p>
+        <button class="sa-btn sa-btn-block">নিরাপত্তা সেটিংস সেভ করুন</button>
+      </Card>
+    </form>
+  );
+};
+
 /* ---------- ল্যান্ডিং টেমপ্লেট (সব দোকানে ফ্রি) ---------- */
 export type TplRow = { id: number; name: string; category: string; description: string | null; json: string; active: number; sort_order: number; updated_at: string };
 
@@ -1093,3 +1143,37 @@ const R2Box = ({ r, owner }: { r: import("./r2").R2Status; owner: boolean }) => 
     )}
   </div>
 );
+
+/** দোকানের যাচাই আর সন্দেহের কারণ — সুপার অ্যাডমিনের দোকান পাতায় */
+const VerifyRiskBox = ({ s, canEdit }: { s: ShopRow; canEdit: boolean }) => {
+  const flags = (s.risk || "").split(",").filter(Boolean);
+  const unverified = s.email_verified === 0 || s.phone_verified === 0;
+  if (!flags.length && !unverified) return null;
+  return (
+    <div class={`sa-card sa-verify ${flags.length && !s.risk_cleared ? "sa-verify-risk" : ""}`}>
+      <div class="sa-verify-row">
+        <span>ইমেইল {s.email_verified === 0 ? <span class="sa-pill sa-st-suspended">যাচাই বাকি</span> : <span class="sa-pill sa-st-active">যাচাই হয়েছে</span>}</span>
+        <span>মোবাইল {s.phone_verified === 0 ? <span class="sa-pill sa-st-suspended">যাচাই বাকি</span> : <span class="sa-pill sa-st-active">যাচাই হয়েছে</span>}</span>
+        {s.signup_ip && <span class="sa-muted">সাইনআপের IP: {s.signup_ip}</span>}
+      </div>
+      {flags.length > 0 && (
+        <p>সন্দেহের কারণ: {flags.map((f) => <span class="sa-pill sa-st-closed">{RISK_LABEL[f] ?? f}</span>)}{s.risk_cleared ? <small class="sa-muted"> — আপনি দেখে ঠিক আছে বলেছেন</small> : null}</p>
+      )}
+      {unverified && <p class="sa-muted"><small>যাচাই বাকি থাকলে দোকান অর্ডার নেয় না আর Google-এ যায় না। দোকানদারের সাথে কথা বলে নিশ্চিত হলে নিজে যাচাই করে দিতে পারেন।</small></p>}
+      {canEdit && (
+        <div class="sa-r2-btns">
+          {unverified && (
+            <form method="post" action={`/super/shops/${s.id}/verify`} data-confirm="দোকানের ইমেইল আর মোবাইল যাচাই করা ধরবেন? দোকান সাথে সাথে অর্ডার নিতে পারবে।">
+              <button class="sa-btn sa-btn-sm">যাচাই করা ধরুন</button>
+            </form>
+          )}
+          {flags.length > 0 && !s.risk_cleared && (
+            <form method="post" action={`/super/shops/${s.id}/risk-clear`}>
+              <button class="sa-btn sa-btn-sm sa-btn-ghost">দেখেছি, ঠিক আছে</button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

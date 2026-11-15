@@ -33,6 +33,11 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
       return <div class="banner banner-warn"><Icon name="triangle-alert" size="sm" /> ব্যালেন্স {taka(state.balance)}। {dhakaTime(state.grace_ends_at)} এর মধ্যে রিচার্জ না করলে দোকানে নতুন অর্ডার নেওয়া বন্ধ হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
     case "blocked_balance":
       return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> ব্যালেন্স {taka(state.balance)} — দোকানে নতুন অর্ডার নেওয়া বন্ধ আছে। রিচার্জ করলে সাথে সাথে চালু হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
+    case "unverified": {
+      const v = state.verify ?? { email: true, phone: true };
+      const left = [!v.email && "ইমেইল", !v.phone && "মোবাইল"].filter(Boolean).join(" আর ");
+      return <div class="banner banner-warn"><Icon name="shield-check" size="sm" /> {left} যাচাই বাকি — যাচাই না হওয়া পর্যন্ত দোকানে অর্ডার নেওয়া বন্ধ আর Google-এ দেখাবে না। পণ্য, পেজ সব সাজাতে পারবেন। <a href="/admin/verify">এখনই যাচাই করুন</a></div>;
+    }
     case "suspended":
       return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> দোকানটি সাময়িকভাবে স্থগিত করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।</div>;
     default: {

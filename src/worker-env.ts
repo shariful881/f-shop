@@ -8,7 +8,11 @@ export type WorkerEnv = {
   ASSETS: Fetcher;
   AI?: Ai;                        // Cloudflare Workers AI (ফ্রি সীমা)
   IMG_BUCKET?: R2Bucket;          // দোকানের ছবি (R2) — চালু না থাকলে ছবি শুধু দোকানের ডাটাবেসে
-  IMG_PUBLIC_URL?: string;        // R2-র পাবলিক ঠিকানা, যেমন https://img.sellxbd.com
+  IMG_PUBLIC_URL?: string;
+  /** Cloudflare Email Sending (send_email binding) — দোকানদারের ইমেইল যাচাই */
+  EMAIL?: {
+    send(m: { to: string | string[]; from: string | { email: string; name?: string }; subject: string; html?: string; text?: string }): Promise<{ messageId?: string }>;
+  };        // R2-র পাবলিক ঠিকানা, যেমন https://img.sellxbd.com
   TEST_MIGRATIONS?: unknown;      // শুধু টেস্টে থাকে
   PLATFORM_DOMAIN: string;        // যেমন ourdomain.com
   DEV_MODE?: string;
