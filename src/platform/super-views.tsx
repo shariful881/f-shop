@@ -1071,6 +1071,14 @@ const R2Box = ({ r, owner }: { r: import("./r2").R2Status; owner: boolean }) => 
       {r.configured && <li><span class={r.publicOk ? "sa-dot-ok" : "sa-dot-warn"}></span>পাবলিক ঠিকানা <small>{r.publicOk ? "কাজ করছে" : "যাচাই হয়নি / কাজ করছে না"}</small></li>}
       {r.configured && <li><span class={r.onR2 >= r.total ? "sa-dot-ok" : "sa-dot-warn"}></span>দোকানের ছবি R2 থেকে <small>{bn(r.onR2)}/{bn(r.total)}টা দোকান{r.purged ? ` · পুরনো কপি মোছা ${bn(r.purged)}টার` : ""}</small></li>}
     </ul>
+    {owner && r.configured && !r.publicOk && r.checkToken && (
+      <form method="post" action="/super/r2/confirm" data-r2-check>
+        <input type="hidden" name="token" value={r.checkToken} />
+        <img src={`${r.publicUrl.replace(/\/+$/, "")}/_check/${r.checkToken}.png`} alt="" width={1} height={1}
+          onload="this.closest('form').submit()" onerror="var n=this.closest('form').querySelector('[data-r2-msg]');if(n)n.textContent='ব্রাউজার থেকেও ছবি আসেনি — img ডোমেইন কয়েক মিনিট পরে আবার যাচাই করুন'" />
+        <small class="sa-muted" data-r2-msg>ব্রাউজার দিয়ে ছবির ঠিকানা যাচাই হচ্ছে…</small>
+      </form>
+    )}
     {owner && r.configured && (
       <div class="sa-r2-btns">
         <form method="post" action="/super/r2/check"><button class="sa-btn sa-btn-sm">ঠিকানা যাচাই</button></form>

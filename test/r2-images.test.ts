@@ -91,3 +91,17 @@ describe("দোকানের ছবি R2-তে", () => {
     expect(await env.IMG_BUCKET!.head(R2("p/never.jpg"))).toBeNull();
   });
 });
+
+describe("ছবির ঠিকানা ব্রাউজারে যাচাই", () => {
+  it("টোকেন মিললে ঠিকানা চালু, না মিললে নয়", async () => {
+    const { prepareBrowserCheck, confirmBrowserCheck } = await import("../src/platform/r2");
+    await env.PLATFORM_DB.prepare("UPDATE platform_settings SET value = '0' WHERE key = 'r2_public_ok'").run();
+    const t = await prepareBrowserCheck(env);
+    expect(await env.IMG_BUCKET!.head(`_check/${t}.png`)).not.toBeNull();
+    expect(await confirmBrowserCheck(env, "wrong")).toBe(false);
+    expect(await confirmBrowserCheck(env, t!)).toBe(true);
+    const v = await env.PLATFORM_DB.prepare("SELECT value FROM platform_settings WHERE key = 'r2_public_ok'").first<{ value: string }>();
+    expect(v!.value).toBe("1");
+    expect(await confirmBrowserCheck(env, t!)).toBe(false); // একবারই
+  });
+});

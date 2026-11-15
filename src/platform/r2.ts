@@ -27,10 +27,12 @@ export async function verifyR2Public(env: WorkerEnv): Promise<{ ok: boolean; mes
     const text = r.ok ? (await r.text()).trim() : "";
     const ok = text === token;
     await set(env.PLATFORM_DB, "r2_public_ok", ok ? "1" : "0");
+    if (!ok) await prepareBrowserCheck(env);
     await set(env.PLATFORM_DB, "r2_checked_at", new Date().toISOString());
-    return { ok, message: ok ? "পাবলিক ঠিকানা কাজ করছে" : `পাবলিক ঠিকানা থেকে পড়া যায়নি (HTTP ${r.status}) — img ডোমেইন R2 bucket-এ যুক্ত হয়েছে কিনা দেখুন` };
+    return { ok, message: ok ? "পাবলিক ঠিকানা কাজ করছে" : `সার্ভার থেকে পড়া যায়নি (HTTP ${r.status}) — এখন আপনার ব্রাউজার দিয়ে যাচাই হচ্ছে, পেজটা একটু খোলা রাখুন` };
   } catch (e) {
     await set(env.PLATFORM_DB, "r2_public_ok", "0");
+    await prepareBrowserCheck(env);
     return { ok: false, message: `পাবলিক ঠিকানায় যাওয়া যায়নি: ${(e as Error).message}` };
   }
 }
@@ -97,7 +99,32 @@ export async function r2Cron(env: WorkerEnv) {
   console.log("r2 purge", await purgeShopsLocal(env));
 }
 
-export type R2Status = { configured: boolean; publicOk: boolean; publicUrl: string; autoPurge: boolean; total: number; onR2: number; purged: number };
+/** 1×1 স্বচ্ছ PNG */
+const PIXEL = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="), (c) => c.charCodeAt(0));
+
+/**
+ * Worker থেকে নিজের zone-এর img ঠিকানা পড়া সবসময় যায় না (Cloudflare 403 দেয়),
+ * তাই সুপার অ্যাডমিনের ব্রাউজারে একটা ছোট ছবি লোড করে যাচাই — ছবি এলে ঠিকানা কাজ করছে।
+ */
+export async function prepareBrowserCheck(env: WorkerEnv): Promise<string | null> {
+  if (!env.IMG_BUCKET) return null;
+  const token = crypto.randomUUID();
+  await env.IMG_BUCKET.put(`_check/${token}.png`, PIXEL, { httpMetadata: { contentType: "image/png", cacheControl: "no-store" } });
+  await set(env.PLATFORM_DB, "r2_check_token", token);
+  return token;
+}
+
+/** ব্রাউজারে ছবি এলে: টোকেন মিললে ঠিকানা কাজ করছে */
+export async function confirmBrowserCheck(env: WorkerEnv, token: string): Promise<boolean> {
+  const want = await get(env.PLATFORM_DB, "r2_check_token");
+  if (!want || token !== want) return false;
+  await set(env.PLATFORM_DB, "r2_public_ok", "1");
+  await set(env.PLATFORM_DB, "r2_check_token", "");
+  await set(env.PLATFORM_DB, "r2_checked_at", new Date().toISOString());
+  return true;
+}
+
+export type R2Status = { configured: boolean; publicOk: boolean; publicUrl: string; autoPurge: boolean; total: number; onR2: number; purged: number; checkToken: string };
 
 export async function r2Status(env: WorkerEnv): Promise<R2Status> {
   const c = await env.PLATFORM_DB.prepare(
@@ -108,6 +135,7 @@ export async function r2Status(env: WorkerEnv): Promise<R2Status> {
     publicOk: (await get(env.PLATFORM_DB, "r2_public_ok")) === "1",
     publicUrl: env.IMG_PUBLIC_URL || "",
     autoPurge: (await get(env.PLATFORM_DB, "r2_auto_purge")) === "1",
+    checkToken: await get(env.PLATFORM_DB, "r2_check_token"),
     total: c?.total ?? 0, onR2: c?.on_r2 ?? 0, purged: c?.purged ?? 0,
   };
 }

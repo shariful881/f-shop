@@ -18,7 +18,7 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
-import { purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
+import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
 import { slugOk } from "./blog";
 import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
@@ -339,6 +339,16 @@ superApp.post("/r2/check", async (c) => {
   if (!allowed(c, "r2")) return forbidden(c);
   const r = await verifyR2Public(c.env);
   flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect("/super", 303);
+});
+superApp.post("/r2/confirm", async (c) => {
+  if (!allowed(c, "r2")) return forbidden(c);
+  const ok = await confirmBrowserCheck(c.env, String((await c.req.parseBody()).token ?? ""));
+  if (ok) {
+    await audit(c, "r2.public_ok", null, null, "ব্রাউজারে যাচাই");
+    const r = await syncShopsToR2(c.env, 5, 2);
+    flash(c, "ok", `ছবির ঠিকানা কাজ করছে ✓ — কপি শুরু: ${bn(r.copied)}টা ছবি, ${bn(r.done)}টা দোকান এখন R2 থেকে। বাকিগুলো প্রতি ৩০ মিনিটে।`);
+  } else flash(c, "error", "যাচাই মেলেনি — আবার \"ঠিকানা যাচাই\" চাপুন।");
   return c.redirect("/super", 303);
 });
 superApp.post("/r2/sync", async (c) => {
