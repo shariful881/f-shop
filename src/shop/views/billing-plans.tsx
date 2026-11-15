@@ -6,15 +6,15 @@ import { cheapestFor, CYCLES, cyclePrice, overageCharge, PLAN_KEYS, type Plan, t
 import { bn, dhakaTime, taka } from "../lib/format";
 import { Icon } from "./icons";
 
-const CYCLE_LABEL: Record<number, string> = { 1: "মাসিক", 6: "৬ মাস (১০% ছাড়)", 12: "১ বছর (২ মাস ফ্রি)" };
+const CYCLE_LABEL: Record<number, string> = { 1: "মাসিক", 6: "৬ মাস (১০% ছাড়)", 12: "১ বছর (১৫% ছাড়)" };
 const extraLabel = (p: Plan) => (p.key === "free" ? `${taka(p.extra)}/অর্ডার` : `${bn(p.extra)} টাকা/অর্ডার`);
 
-export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; shop: BillingShop; trial: boolean; staffFee: number; settings: Record<string, string> }) => {
+export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; oldPrices?: boolean; oldUntil?: string; shop: BillingShop; trial: boolean; staffFee: number; settings: Record<string, string> }) => {
   const cur = p.plans[(PLAN_KEYS as string[]).includes(p.shop.plan) ? (p.shop.plan as PlanKey) : "free"];
   const used = p.shop.period_orders;
   const pct = Math.min(100, Math.round((used / Math.max(1, cur.orders)) * 100));
   const over = overageCharge(cur, used);
-  const best = cheapestFor(p.settings, used);
+  const best = cheapestFor(p.plans, used);
   const saving = cur.price + over - best.cost;
   const nextPlan = p.shop.plan_next && (PLAN_KEYS as string[]).includes(p.shop.plan_next) ? p.plans[p.shop.plan_next as PlanKey] : null;
   return (
@@ -24,6 +24,7 @@ export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; shop: BillingShop; 
           <small class="muted">{p.trial ? "ট্রায়ালের পরে চালু হবে" : "এখনকার প্ল্যান"}</small>
           <h2>{cur.name} <span class="muted">— {cur.price ? `${taka(cur.price)}/মাস` : "ফ্রি"}</span></h2>
           {!p.trial && p.shop.next_bill_at && <p class="muted">পরের বিল: {dhakaTime(p.shop.next_bill_at)}{p.shop.cycle_months > 1 ? ` · ${bn(p.shop.cycle_months)} মাসের প্যাক` : ""}</p>}
+          {p.oldPrices && <p class="plan-note"><Icon name="info" size="sm" /> আপনার দোকান {p.oldUntil ? dhakaTime(p.oldUntil).split(",")[0] : "৩০ দিন"} পর্যন্ত আগের দামে চলছে। তারপর নতুন দাম: প্যাকেজে প্রতি অর্ডার ৳২–৩, সীমার পরে ৳৩–৫।</p>}
           {nextPlan && <p class="plan-note"><Icon name="info" size="sm" /> পরের বিলের দিন থেকে "{nextPlan.name}" {(p.shop.cycle_next ?? 1) > 1 ? `${bn(p.shop.cycle_next!)} মাসের প্যাক` : "মাসিক"} চালু হবে। মত বদলালে এখনকার প্ল্যান আবার বাছুন।</p>}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import type { Plan, PlanKey } from "./plans";
+import { cyclePrice, type Plan, type PlanKey } from "./plans";
 import type { Child } from "hono/jsx";
 import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -387,6 +387,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
               <h3>{P[k].name}</h3>
               <p class="hp-plan-for">{P[k].for}</p>
               <div class="hp-plan-price">{P[k].price ? taka(P[k].price) : "৳০"}<small>/মাস</small></div>
+              {P[k].price > 0 && <small class="hp-plan-year">বছরে {taka(cyclePrice(P[k].price, 12))} — ১৫% ছাড়</small>}
               <ul>
                 <li><Icon name="check" size="sm" /> মাসে {bn(P[k].orders)}টা কনফার্ম অর্ডার</li>
                 <li><Icon name="check" size="sm" /> {P[k].staff ? `${bn(P[k].staff)} জন স্টাফ` : "শুধু মালিক"}</li>
@@ -407,7 +408,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
           <ul class="hp-price-notes">
             <li><Icon name="gift" /> প্রথম {bn(f.trialDays)} দিন "{P.grow.name}" প্ল্যানের সব সুবিধা ফ্রি</li>
             <li><Icon name="rotate-ccw" /> রিচার্জ না করলে দোকান বন্ধ হয় না — ফ্রি প্ল্যানে চলতে থাকে</li>
-            <li><Icon name="wallet" /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ২ মাস ফ্রি</li>
+            <li><Icon name="wallet" /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ১৫% ছাড়</li>
             <li><Icon name="info" /> একটা ফেক পার্সেলের খরচেই অনেক সময় এক মাসের প্ল্যান চলে যায়</li>
             <li><a href="/pricing" class="hp-link">সব প্ল্যানের বিস্তারিত <Icon name="arrow-right" size="sm" /></a></li>
           </ul>
@@ -448,7 +449,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
             ["কোন ধরনের পণ্যের জন্য?", "যেকোনো পণ্য — পোশাক, স্কিনকেয়ার, খাবার, গ্যাজেট, কিচেন, শিশু পণ্য, হাতে বানানো জিনিস। ৬টা ধরনের রেডি দোকান আছে, বাকিগুলো নিজের মতো সাজিয়ে নিন।"],
             ["ফেক অর্ডার কীভাবে কমবে?", "ভুল নম্বর আর বারবার অর্ডার নিজে থেকে আটকায়। প্রতিটা অর্ডারে ক্রেতার আগের রেকর্ড দেখায় — কতবার নিয়েছে আর ফেরত দিয়েছে। ঝুঁকি থাকলে অগ্রিম ডেলিভারি চার্জ নিতে পারেন।"],
             ["অনলাইন পেমেন্ট নেওয়া যায়?", "ক্যাশ অন ডেলিভারি মূল। চাইলে ডেলিভারি চার্জ বা পুরো টাকা bKash/Nagad/Rocket-এ অগ্রিম নিতে পারেন — কাস্টমার Transaction ID দেয়, আপনি মিলিয়ে নেন। কার্ড পেমেন্ট এখনো নেই।"],
-            ["টাকা কাটে কীভাবে?", `আগে bKash/Nagad দিয়ে রিচার্জ করবেন। প্ল্যানের টাকা (৳${bn(P.small.price)} থেকে) বিলের দিন কাটে; সীমার বেশি অর্ডার হলে মাস শেষে অল্প বাড়তি। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
+            ["টাকা কাটে কীভাবে?", `আগে bKash/Nagad দিয়ে রিচার্জ করবেন। প্ল্যানের টাকা (৳${bn(P.small.price)} থেকে) বিলের দিন কাটে; সীমার বেশি অর্ডার হলে মাস শেষে প্রতি অর্ডারে ৳${bn(P.small.extra)}/${bn(P.grow.extra)}/${bn(P.big.extra)} (প্ল্যান অনুযায়ী) — সীমার কাছে গেলে আগেই জানানো হয়। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
             ["নিজের ডোমেইন ব্যবহার করা যাবে?", "হ্যাঁ, পেইড প্ল্যানে। প্যানেলে ডোমেইন যোগ করলে দুটো নেমসার্ভার পাবেন, ডোমেইন প্যানেলে বসালেই চালু। ডোমেইন না থাকলে ফ্রি subdomain।"],
             ["কোন কোন কুরিয়ার আর SMS আছে?", "কুরিয়ার: Steadfast, Pathao আর RedX — নিজের মার্চেন্ট অ্যাকাউন্ট, পার্সেলের টাকা সরাসরি আপনার কাছে। SMS: BulkSMSBD, SMS.net.bd অথবা যেকোনো গেটওয়ের লিংক।"],
             ["আমার আর কাস্টমারের তথ্য কি নিরাপদ?", "প্রতিটা দোকানের তথ্য আলাদা ডাটাবেসে থাকে, অন্য দোকান দেখতে পায় না। ক্রেতার রেকর্ডে নম্বর গোপন কোডে রাখা হয়, দোকানের নাম দেখায় না। যখন খুশি সব তথ্য CSV-তে নামাতে পারেন।"],

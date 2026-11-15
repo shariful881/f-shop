@@ -48,7 +48,7 @@ const publicNav = <PublicNav />;
 async function loadFees(c: PCtx): Promise<Fees> {
   const s = await platformSettings(c.env.PLATFORM_DB);
   const support = /^01[3-9]\d{8}$/.test(s.support_phone || "") ? s.support_phone! : "";
-  return { plans: plans(s), staff: num(s, "staff_fee", 49), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 1500), support };
+  return { plans: plans(s), staff: num(s, "staff_fee", 49), trialDays: num(s, "trial_days", 14), trialOrders: num(s, "trial_orders", 400), support };
 }
 
 /** পাবলিক পেজ: মেনু + পেজ + ফুটার */
@@ -159,7 +159,7 @@ platformApp.post("/signup", async (c) => {
     await c.env.PLATFORM_DB.prepare(
       `INSERT INTO shops (id, slug, name, owner_name, owner_phone, owner_email, status, trial_ends_at, trial_orders_left, niche, plan, usage_reset_at)
        VALUES (?, ?, ?, ?, ?, ?, 'trial', datetime('now', '+' || ? || ' days'), ?, ?, ?, datetime('now', '+1 month'))`,
-    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 14), num(ps, "trial_orders", 1500), values.niche || null, TRIAL_PLAN).run();
+    ).bind(id, values.slug, values.shop_name, values.owner_name, phone, values.email, num(ps, "trial_days", 14), num(ps, "trial_orders", 400), values.niche || null, TRIAL_PLAN).run();
   } catch {
     return fail({ slug: "এই ঠিকানা আগেই নেওয়া হয়েছে" });
   }
@@ -257,7 +257,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=37"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=38"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

@@ -16,7 +16,7 @@ export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
   const section = c.req.path.split("/")[2] || "orders";
   if (!canAccess(user.role, section)) {
     return c.html(
-      `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>অনুমতি নেই</title><link rel="stylesheet" href="/css/app.css?v=37"></head><body><main class="wrap narrow empty"><h1>এই পেজ দেখার অনুমতি আপনার নেই</h1><p><a class="btn btn-primary" href="/admin/orders">অর্ডারে ফিরে যান</a></p></main></body></html>`,
+      `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>অনুমতি নেই</title><link rel="stylesheet" href="/css/app.css?v=38"></head><body><main class="wrap narrow empty"><h1>এই পেজ দেখার অনুমতি আপনার নেই</h1><p><a class="btn btn-primary" href="/admin/orders">অর্ডারে ফিরে যান</a></p></main></body></html>`,
       403,
     );
   }

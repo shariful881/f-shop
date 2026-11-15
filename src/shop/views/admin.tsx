@@ -35,8 +35,13 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
       return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> ব্যালেন্স {taka(state.balance)} — দোকানে নতুন অর্ডার নেওয়া বন্ধ আছে। রিচার্জ করলে সাথে সাথে চালু হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
     case "suspended":
       return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> দোকানটি সাময়িকভাবে স্থগিত করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।</div>;
-    default:
-      return null;
+    default: {
+      const u = state.usage;
+      if (!u || !u.limit || u.used < Math.ceil(u.limit * 0.8)) return null;
+      return u.used >= u.limit
+        ? <div class="banner banner-warn"><Icon name="triangle-alert" size="sm" /> এই মাসে "{u.plan}" প্ল্যানের {bn(u.limit)}টা অর্ডার শেষ ({bn(u.used)}টা হয়েছে) — এখন প্রতি কনফার্ম অর্ডারে {taka(u.extra)}। বড় প্ল্যানে গেলে সস্তা হতে পারে। <a href="/admin/billing">প্ল্যান দেখুন</a></div>
+        : <div class="banner banner-info"><Icon name="info" size="sm" /> এই মাসে প্ল্যানের {bn(u.used)}/{bn(u.limit)}টা অর্ডার হয়েছে। সীমার পরে প্রতি অর্ডারে {taka(u.extra)}। <a href="/admin/billing">প্ল্যান দেখুন</a></div>;
+    }
   }
 };
 

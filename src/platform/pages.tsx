@@ -2,7 +2,7 @@
  * sellxbd.com-এর বাকি পেজ: দাম, আমাদের সম্পর্কে, যোগাযোগ, শর্তাবলি, প্রাইভেসি, রিফান্ড নীতি, হেল্প সেন্টার।
  * উপরের মেনু আর নিচের ফুটার সব পাবলিক পেজে একই।
  */
-import type { Plan, PlanKey } from "./plans";
+import { cyclePrice, type Plan, type PlanKey } from "./plans";
 import type { Child } from "hono/jsx";
 import { bn, taka } from "../shop/lib/format";
 import { HELP, HELP_CATS, type HelpArticle } from "./help";
@@ -85,6 +85,7 @@ export const PricingPage = ({ f }: { f: Fees }) => (
                 <h3>{pl.name}</h3>
                 <small class="p-plan-for">{pl.for}</small>
                 <div class="p-price-row"><b>{taka(pl.price)}</b><span>/ মাস</span></div>
+                {pl.price > 0 && <p class="p-yearly">বছরে নিলে <b>{taka(cyclePrice(pl.price, 12))}</b> <s>{taka(pl.price * 12)}</s> <span>১৫% ছাড়</span></p>}
                 <ul class="p-ticks">
                   <li>মাসে <b>{bn(pl.orders)}টা</b> কনফার্ম অর্ডার</li>
                   <li>এর বেশি হলে প্রতি অর্ডারে ৳{perOrder(pl.extra)}</li>
@@ -113,16 +114,18 @@ export const PricingPage = ({ f }: { f: Fees }) => (
             <h3>কীভাবে কাটে</h3>
             <ul class="p-plain">
               <li>আগে bKash/Nagad দিয়ে রিচার্জ — প্ল্যানের টাকা বিলের দিন কাটে।</li>
-              <li>৬ মাসে ১০% ছাড়, ১ বছরে ২ মাস ফ্রি।</li>
+              <li>প্যাকেজে প্রতি অর্ডার ৳২–৩ — বড় প্যাকেজে সস্তা। সীমার পরে প্রতি অর্ডার ৳{bn(f.plans.small.extra)}/{bn(f.plans.grow.extra)}/{bn(f.plans.big.extra)}, মাস শেষে একবারে।</li>
+              <li>সীমার ৮০% হলে আর শেষ হলে প্যানেলে আর ফোনে জানানো হয়।</li>
+              <li>১ বছরের প্যাকেজে ১৫% ছাড়, ৬ মাসে ১০% ছাড়।</li>
               <li>রিচার্জ না থাকলে দোকান ফ্রি প্ল্যানে চলে — বন্ধ হয় না।</li>
               <li>প্ল্যানের বাইরের স্টাফ ৳{bn(f.staff)}/মাস। প্রতিটা চার্জের হিসাব প্যানেলে।</li>
             </ul>
           </div>
           <div class="p-price-card p-calc" data-calc data-plans={JSON.stringify(PLAN_ORDER.map((k) => ({ n: f.plans[k].name, p: f.plans[k].price, o: f.plans[k].orders, e: f.plans[k].extra })))}>
             <h3>আমার কোন প্ল্যান লাগবে?</h3>
-            <label>মাসে কনফার্ম অর্ডার <input type="number" min="0" max="100000" value="300" data-calc-orders /></label>
+            <label>মাসে কনফার্ম অর্ডার <input type="number" min="0" max="100000" value="150" data-calc-orders /></label>
             <p class="p-calc-out">সবচেয়ে সস্তা: <b data-calc-plan>{f.plans.small.name}</b> — <b data-calc-total>৳{bn(f.plans.small.price)}</b> / মাস</p>
-            <small>অর্ডারপ্রতি মাত্র <span data-calc-per>৳{(Math.round((f.plans.small.price / 300) * 100) / 100).toLocaleString("bn-BD")}</span></small>
+            <small>অর্ডারপ্রতি মাত্র <span data-calc-per>৳{(Math.round((f.plans.small.price / f.plans.small.orders) * 100) / 100).toLocaleString("bn-BD")}</span></small>
           </div>
         </div>
       </div>

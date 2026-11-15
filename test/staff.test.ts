@@ -133,13 +133,13 @@ describe("রোল অনুযায়ী অনুমতি", () => {
     expect((await b.get("/admin/products")).status).toBe(200);
   });
 
-  it("মাসিক বিলে প্ল্যানের বাইরের স্টাফ যোগ হয় (ছোট দোকান ৩৯৯ + ১ × ৪৯)", async () => {
+  it("মাসিক বিলে প্ল্যানের বাইরের স্টাফ যোগ হয় (ছোট দোকান ৪৪৯ + ১ × ৪৯)", async () => {
     const owner = await adminBrowser();
     await addStaff(owner, "orders", "a@shop.test");
     await addStaff(owner, "manager", "b@shop.test");
     const { runDailyBilling } = await import("../src/platform/billing");
     await pdb().prepare("UPDATE shops SET balance = 1000, next_bill_at = datetime('now', '-1 hour') WHERE id = ?").bind(DEMO_SHOP_ID).run();
     await runDailyBilling(pdb());
-    expect((await shop()).balance).toBe(1000 - 399 - 49);
+    expect((await shop()).balance).toBe(1000 - 449 - 49);
   });
 });

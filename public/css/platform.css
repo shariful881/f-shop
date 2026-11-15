@@ -323,3 +323,9 @@ a.p-contact-card:hover { border-color: #0f766e; }
 .p-blog-card small { color: #64748b; }
 .p-link { color: #0f766e; font-weight: 700; text-decoration: none; }
 .p-link:hover { text-decoration: underline; }
+/* বাৎসরিক দাম (১৫% ছাড়) */
+.p-yearly { margin: -4px 0 12px; font-size: .9rem; color: #475569; }
+.p-yearly b { color: #0f766e; }
+.p-yearly s { color: #94a3b8; margin: 0 4px; }
+.p-yearly span { background: #fff7ed; color: #c2410c; border-radius: 999px; padding: 1px 8px; font-size: .78rem; font-weight: 700; }
+.hp-plan-year { display: block; margin-top: 2px; color: #0f766e; font-weight: 600; font-size: .82rem; }

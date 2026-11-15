@@ -28,7 +28,7 @@ import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerR
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
 import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
-import { extraStaff, isCycle, isPlan, planOf, plans } from "../../platform/plans";
+import { extraStaff, isCycle, isPlan, onOldPrices, planForShop, plansForShop } from "../../platform/plans";
 import { PlanPanel } from "../views/billing-plans";
 import { clearShopCache } from "../../platform/resolve";
 import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/customers";
@@ -552,6 +552,7 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
     try {
       await chargeConfirmedOrder(c.env.PLATFORM_DB, c.env.SHOP_ID, res.order.order_no);
       clearShopCache(); // একই Worker-এ পরের রিকোয়েস্টে নতুন ব্যালেন্স (অন্য জায়গায় সর্বোচ্চ ৩০ সেকেন্ড দেরি)
+      later(c, usageAlert(c));
     } catch (e) {
       console.error("billing error", e);
     }
@@ -1461,6 +1462,21 @@ admin.post("/settings/:section{[a-z]+}", (c) => {
   return saveSettingsForm(c, section);
 });
 
+/* প্ল্যানের সীমার ৮০% আর ১০০%-এ ফোনে নোটিফিকেশন (একবারই — ঠিক সেই অর্ডারে) */
+async function usageAlert(c: Ctx) {
+  const shop = await billingShop(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  if (!shop || shop.status !== "active") return;
+  const plan = planForShop(await platformSettings(c.env.PLATFORM_DB), shop.created_at, shop.plan);
+  const n = shop.period_orders, warnAt = Math.ceil(plan.orders * 0.8);
+  if (n !== warnAt && n !== plan.orders) return;
+  const full = n === plan.orders;
+  await pushToShop(c.env.DB, c.env.PLATFORM_DB, {
+    title: full ? `প্ল্যানের ${bn(plan.orders)}টা অর্ডার শেষ` : `প্ল্যানের ৮০% অর্ডার হয়ে গেছে`,
+    body: full ? `এই মাসে এখন থেকে প্রতি কনফার্ম অর্ডারে ${taka(plan.extra)} — বড় প্ল্যানে গেলে সস্তা হতে পারে।` : `${bn(n)}/${bn(plan.orders)}টা অর্ডার। সীমার পরে প্রতি অর্ডারে ${taka(plan.extra)}।`,
+    url: "/admin/billing", tag: "plan-usage",
+  });
+}
+
 /* ---------- বিলিং ---------- */
 async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; values: Record<string, string> }) {
   const pdb = c.env.PLATFORM_DB;
@@ -1470,7 +1486,7 @@ async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; va
     pdb.prepare("SELECT id, type, amount, balance_after, ref, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 AND type != 'plan_order' ORDER BY id DESC LIMIT 200").bind(shopId),
     pdb.prepare("SELECT id, amount, method, sender, trx_id, status, created_at FROM topups WHERE shop_id = ? ORDER BY id DESC LIMIT 20").bind(shopId),
   ]);
-  const plan = shop ? <PlanPanel plans={plans(fees)} shop={shop} trial={c.var.shopState.status === "trial"} staffFee={toInt(fees.staff_fee, 49)} settings={fees} /> : null;
+  const plan = shop ? <PlanPanel plans={plansForShop(fees, shop.created_at)} oldPrices={onOldPrices(fees, shop.created_at)} oldUntil={fees.old_prices_until} shop={shop} trial={c.var.shopState.status === "trial"} staffFee={toInt(fees.staff_fee, 49)} settings={fees} /> : null;
   return render(c, "বিলিং ও প্ল্যান", "billing",
     <BillingPage state={c.var.shopState} fees={fees} ledger={ledger!.results as LedgerRow[]} topups={topups!.results as TopupRow[]}
       plan={plan} errors={form?.errors} values={form?.values} />,
@@ -1554,7 +1570,7 @@ admin.post("/staff", async (c) => {
   // প্ল্যানের বাইরের স্টাফ হলে চলতি মাসের চার্জ (ট্রায়ালে নয়)
   const bshop = await billingShop(c.env.PLATFORM_DB, c.env.SHOP_ID);
   const fees = await platformSettings(c.env.PLATFORM_DB);
-  const beyond = bshop ? extraStaff(planOf(fees, bshop.plan), bshop.staff_count) > 0 : false;
+  const beyond = bshop ? extraStaff(planForShop(fees, bshop.created_at, bshop.plan), bshop.staff_count) > 0 : false;
   if (c.var.shopState.status !== "trial" && beyond) {
     const fee = toInt(fees.staff_fee, 49);
     if (fee > 0) {
@@ -1621,7 +1637,7 @@ admin.post("/domain", async (c) => {
   if (!n.domain) return renderDomain(c, { value: input, error: n.error! });
   if (c.var.shopState.status !== "trial") {
     const bs = await billingShop(c.env.PLATFORM_DB, c.env.SHOP_ID);
-    if (bs && !planOf(await platformSettings(c.env.PLATFORM_DB), bs.plan).domain) {
+    if (bs && !planForShop(await platformSettings(c.env.PLATFORM_DB), bs.created_at, bs.plan).domain) {
       return renderDomain(c, { value: input, error: "নিজের ডোমেইন ফ্রি প্ল্যানে নেই। বিলিং → \"ছোট দোকান\" বা উপরের প্ল্যান নিন (৳৩৯৯/মাস থেকে)।" });
     }
   }
