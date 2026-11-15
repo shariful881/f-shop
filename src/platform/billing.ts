@@ -7,7 +7,7 @@
  * - প্ল্যানের বাইরের স্টাফ: প্রতিজন মাসে staff_fee
  * - ব্যালেন্স মাইনাস হলে grace_days দিন সতর্কবার্তা, তারপর নতুন অর্ডার বন্ধ
  */
-import { cyclePrice, extraStaff, isPlan, overageCharge, planOf, type PlanKey } from "./plans";
+import { cyclePrice, extraStaff, isPlan, overageCharge, planForShop, type PlanKey } from "./plans";
 
 export type PlatformSettings = Record<string, string>;
 
@@ -26,6 +26,7 @@ export type BillingShop = {
   cycle_months: number;
   period_orders: number;
   usage_reset_at: string | null;
+  created_at: string;
 };
 
 let settingsCache: { at: number; value: PlatformSettings } | null = null;
@@ -46,7 +47,7 @@ export const num = (s: PlatformSettings, key: string, def: number) => {
   return Number.isFinite(n) && n >= 0 ? n : def;
 };
 
-const SHOP_COLS = "id, status, balance, trial_ends_at, trial_orders_left, next_bill_at, low_balance_since, staff_count, plan, plan_next, cycle_next, cycle_months, period_orders, usage_reset_at";
+const SHOP_COLS = "id, status, balance, trial_ends_at, trial_orders_left, next_bill_at, low_balance_since, staff_count, plan, plan_next, cycle_next, cycle_months, period_orders, usage_reset_at, created_at";
 
 export async function billingShop(db: D1Database, shopId: string) {
   return db.prepare(`SELECT ${SHOP_COLS} FROM shops WHERE id = ?`).bind(shopId).first<BillingShop>();
@@ -82,12 +83,12 @@ async function renewPlan(db: D1Database, shop: BillingShop, s: PlatformSettings,
   const scheduled = isPlan(shop.plan_next);
   let key: PlanKey = scheduled ? (shop.plan_next as PlanKey) : isPlan(shop.plan) ? shop.plan : "free";
   let months = key === "free" ? 1 : (scheduled && shop.cycle_next) || shop.cycle_months || 1;
-  let plan = planOf(s, key);
+  let plan = planForShop(s, shop.created_at, key);
   const staffFee = num(s, "staff_fee", 49);
   let price = cyclePrice(plan.price, months);
   let staff = extraStaff(plan, shop.staff_count) * staffFee * months;
   if (key !== "free" && shop.balance < price + staff) {
-    key = "free"; months = 1; plan = planOf(s, "free");
+    key = "free"; months = 1; plan = planForShop(s, shop.created_at, "free");
     price = 0; staff = extraStaff(plan, shop.staff_count) * staffFee;
   }
   await db.prepare("UPDATE shops SET plan = ?, plan_next = NULL, cycle_next = NULL, cycle_months = ? WHERE id = ?").bind(key, months, shop.id).run();
@@ -214,7 +215,10 @@ export async function runDailyBilling(db: D1Database): Promise<{ trialsEnded: nu
     `SELECT ${SHOP_COLS} FROM shops WHERE status IN ('active', 'suspended') AND usage_reset_at IS NOT NULL AND usage_reset_at <= datetime('now')`,
   ).all<BillingShop>();
   for (const shop of usage) {
-    const plan = planOf(s, shop.plan);
+    // মাসটা যেদিন শুরু হয়েছিল সেদিনের দাম (আগের দামের সময়ে শুরু হওয়া মাস আগের দামেই)
+    const periodStart = new Date(shop.usage_reset_at!.replace(" ", "T") + "Z");
+    periodStart.setUTCMonth(periodStart.getUTCMonth() - 1);
+    const plan = planForShop(s, shop.created_at, shop.plan, periodStart.getTime());
     const fee = overageCharge(plan, shop.period_orders);
     if (fee > 0) {
       await applyLedger(db, shop.id, "overage", -fee, `over:${shop.usage_reset_at!.slice(0, 10)}`,
@@ -239,6 +243,8 @@ export type ShopState = {
   trial_ends_at: string | null;
   trial_orders_left: number;
   grace_ends_at: string | null;
+  /** এই মাসে প্ল্যানের কতটা অর্ডার হলো (চালু দোকানে) */
+  usage?: { used: number; limit: number; extra: number; plan: string };
 };
 
 export function computeState(shop: BillingShop, s: PlatformSettings): ShopState {
@@ -248,7 +254,12 @@ export function computeState(shop: BillingShop, s: PlatformSettings): ShopState 
     trial_ends_at: shop.trial_ends_at,
     trial_orders_left: shop.trial_orders_left,
     grace_ends_at: null as string | null,
+    usage: undefined as ShopState["usage"],
   };
+  if (shop.status === "active") {
+    const p = planForShop(s, shop.created_at, shop.plan);
+    base.usage = { used: shop.period_orders ?? 0, limit: p.orders, extra: p.extra, plan: p.name };
+  }
   if (shop.status === "suspended") return { ...base, accepting: false, reason: "suspended" };
   if (shop.status === "trial") return { ...base, accepting: true, reason: "trial" };
   if (shop.balance < 0 && shop.low_balance_since) {
@@ -293,12 +304,12 @@ export async function changePlan(db: D1Database, shopId: string, key: PlanKey, m
   const shop = await billingShop(db, shopId);
   if (!shop) return { ok: false, message: "দোকান পাওয়া যায়নি" };
   if (key === "free") months = 1;
-  const next = planOf(s, key);
+  const next = planForShop(s, shop.created_at, key);
   if (shop.status === "trial") {
     await db.prepare("UPDATE shops SET plan = ?, cycle_months = ?, plan_next = NULL, cycle_next = NULL WHERE id = ?").bind(key, months, shopId).run();
     return { ok: true, message: `ট্রায়াল শেষে "${next.name}" প্ল্যান চালু হবে।` };
   }
-  const cur = planOf(s, shop.plan);
+  const cur = planForShop(s, shop.created_at, shop.plan);
   const curMonths = cur.key === "free" ? 1 : shop.cycle_months || 1;
   if (cur.key === key && curMonths === months) {
     await db.prepare("UPDATE shops SET plan_next = NULL, cycle_next = NULL WHERE id = ?").bind(shopId).run();

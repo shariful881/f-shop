@@ -61,9 +61,9 @@ describe("ট্রায়াল", () => {
     const s = await shop();
     expect(s.status).toBe("active");
     expect(s.plan).toBe("grow");
-    expect(s.balance).toBe(1000 - 799);
+    expect(s.balance).toBe(1000 - 999);
     expect(s.next_bill_at).toBeTruthy();
-    expect((await ledger("monthly")).map((l) => l.amount)).toEqual([-799]);
+    expect((await ledger("monthly")).map((l) => l.amount)).toEqual([-999]);
   });
 
   it("ট্রায়ালের সময় শেষ, ব্যালেন্স নেই → দোকান বন্ধ হয় না, ফ্রি প্ল্যানে চলে", async () => {
@@ -173,13 +173,13 @@ describe("প্ল্যানের বিল আর মাস শেষের
   const yesterday = async () => (await pdb().prepare("SELECT datetime('now', '-1 day') AS d").first<{ d: string }>())!.d;
 
   it("বিলের দিন প্ল্যানের দাম + প্ল্যানের বাইরের স্টাফ কাটে, পরের মাসে যায়; দুবার চালালেও একবার", async () => {
-    await setShop({ balance: 1000, plan: "grow", staff_count: 6, next_bill_at: await yesterday() });
+    await setShop({ balance: 2000, plan: "grow", staff_count: 6, next_bill_at: await yesterday() });
     const r1 = await runDailyBilling(pdb());
     const r2 = await runDailyBilling(pdb());
     expect(r1.monthsCharged).toBe(1);
     expect(r2.monthsCharged).toBe(0);
     const s = await shop();
-    expect(s.balance).toBe(1000 - 799 - 2 * 49); // বাড়ন্তে ৪ জন ধরা, বাকি ২ জন × ৪৯
+    expect(s.balance).toBe(2000 - 999 - 2 * 49); // বাড়ন্তে ৪ জন ধরা, বাকি ২ জন × ৪৯
     expect(s.plan).toBe("grow");
     expect(new Date(s.next_bill_at.replace(" ", "T") + "Z").getTime()).toBeGreaterThan(Date.now());
   });
@@ -196,25 +196,29 @@ describe("প্ল্যানের বিল আর মাস শেষের
     await setShop({ balance: 5000, plan: "small", cycle_months: 12, next_bill_at: await yesterday() });
     await runDailyBilling(pdb());
     const s = await shop();
-    expect(s.balance).toBe(5000 - 3990);
+    expect(s.balance).toBe(5000 - 4490);
     const months = (new Date(s.next_bill_at.replace(" ", "T") + "Z").getTime() - Date.now()) / (30 * 86400000);
     expect(months).toBeGreaterThan(11);
   });
 
   it("মাস শেষে সীমার বেশি অর্ডারের চার্জ একবারে, তারপর গোনা শূন্য", async () => {
-    await setShop({ balance: 500, plan: "small", period_orders: 340, usage_reset_at: await yesterday() });
+    await setShop({ balance: 500, plan: "small", period_orders: 160, usage_reset_at: await yesterday() });
     await runDailyBilling(pdb());
     await runDailyBilling(pdb());
     const s = await shop();
-    expect(s.balance).toBe(500 - 40); // ৩০০-এর বেশি ৪০টা × ৳১
+    expect(s.balance).toBe(500 - 50); // ১৫০-এর বেশি ১০টা × ৳৫
     expect(s.period_orders).toBe(0);
-    expect((await ledger("overage")).map((l) => l.amount)).toEqual([-40]);
+    expect((await ledger("overage")).map((l) => l.amount)).toEqual([-50]);
   });
 
-  it("দশমিক রেট উপরের পূর্ণ টাকায় (বাড়ন্ত: ৳০.৫০)", async () => {
-    await setShop({ balance: 0, plan: "grow", period_orders: 1503, usage_reset_at: await yesterday() });
+  it("প্ল্যান অনুযায়ী বাড়তি অর্ডারের রেট (বাড়ন্ত: ৳৪, বড় ব্র্যান্ড: ৳৩)", async () => {
+    await setShop({ balance: 0, plan: "grow", period_orders: 403, usage_reset_at: await yesterday() });
     await runDailyBilling(pdb());
-    expect((await shop()).balance).toBe(-2); // ৩ × ০.৫ = ১.৫ → ২
+    expect((await shop()).balance).toBe(-12); // ৩ × ৳৪
+    const twoDaysAgo = (await pdb().prepare("SELECT datetime('now', '-2 days') AS d").first<{ d: string }>())!.d;
+    await setShop({ balance: 0, plan: "big", period_orders: 1010, usage_reset_at: twoDaysAgo });
+    await runDailyBilling(pdb());
+    expect((await shop()).balance).toBe(-30); // ১০ × ৳৩
   });
 
   it("ট্রায়ালের মেয়াদ শেষ হওয়া দোকান cron-এ চালু হয়", async () => {
@@ -233,23 +237,22 @@ describe("বিলিং পেজ", () => {
     const a = await adminBrowser();
     const html = await (await a.get("/admin/billing")).text();
     expect(html).toContain("ছোট দোকান");
-    expect(html).toContain("১২০ / ৩০০");
+    expect(html).toContain("১২০ / ১৫০");
     expect(html).toContain("বাড়ন্ত");
     expect(html).not.toContain("অন্য দোকানের রিচার্জ");
     expect(html).not.toContain("৭৭৭");
   });
 
   it("বড় প্ল্যানে গেলে এখনই চালু, আগের প্ল্যানের বাকি দিনের টাকা বাদ যায়", async () => {
-    // ছোট দোকানের ৩০ দিনের মেয়াদের ১৫ দিন বাকি → ৳১৯৯ ফেরত হিসাব; বাড়ন্ত ৭৯৯ − ১৯৯ = ৬০০
+    // ছোট দোকানের (৳৪৪৯) মেয়াদের ১৫ দিন বাকি → ~৳২১৭–২৪০ বাদ; বাড়ন্ত ৳৯৯৯ − সেটা
     const half = (await pdb().prepare("SELECT datetime('now', '+15 days') AS d").first<{ d: string }>())!.d;
     await setShop({ plan: "small", cycle_months: 1, next_bill_at: half, balance: 1000 });
     const a = await adminBrowser();
     expect((await a.post("/admin/billing/plan", { plan: "grow", months: 1 })).status).toBe(303);
     const s = await shop();
     expect(s.plan).toBe("grow");
-    // মেয়াদের আসল দিন ধরে (৩০/৩১ দিনের মাস) ফেরত ~৳১৯৩–১৯৯
-    expect(s.balance).toBeGreaterThanOrEqual(1000 - 607);
-    expect(s.balance).toBeLessThanOrEqual(1000 - 599);
+    expect(s.balance).toBeGreaterThanOrEqual(1000 - 999 + 217);
+    expect(s.balance).toBeLessThanOrEqual(1000 - 999 + 241);
     expect((await ledger("plan_change"))).toHaveLength(1);
   });
 
@@ -295,17 +298,17 @@ describe("প্ল্যান বদলে টাকা হারায় ন
   const until = async (mod: string) => (await pdb().prepare("SELECT datetime('now', ?) AS d").bind(mod).first<{ d: string }>())!.d;
 
   it("লম্বা মেয়াদ থেকে বড় প্ল্যানের মাসিকে: বাড়তি না-ব্যবহৃত টাকা ব্যালেন্সে ফেরে", async () => {
-    // ছোট দোকান ১২ মাস (৳৩৯৯০) এইমাত্র দেওয়া → বাড়ন্ত মাসিক ৳৭৯৯
+    // ছোট দোকান ১২ মাস (৳৪৪৯০) এইমাত্র দেওয়া → বাড়ন্ত মাসিক ৳৯৯৯
     await setShop({ plan: "small", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 100 });
     const a = await adminBrowser();
     await a.post("/admin/billing/plan", { plan: "grow", months: 1 });
     const s = await shop();
     expect(s).toMatchObject({ plan: "grow", cycle_months: 1 });
-    expect(s.balance).toBeGreaterThanOrEqual(100 + 3990 - 799 - 2);
-    expect(s.balance).toBeLessThanOrEqual(100 + 3990 - 799);
+    expect(s.balance).toBeGreaterThanOrEqual(100 + 4490 - 999 - 2);
+    expect(s.balance).toBeLessThanOrEqual(100 + 4490 - 999);
     const cr = await ledger("plan_change");
     expect(cr).toHaveLength(1);
-    expect(cr[0]!.amount).toBeGreaterThan(3180);
+    expect(cr[0]!.amount).toBeGreaterThan(3480);
   });
 
   it("একই প্ল্যানে মেয়াদ কমানো পরের বিলে; এখনকার মেয়াদ বদলায় না", async () => {
@@ -319,16 +322,16 @@ describe("প্ল্যান বদলে টাকা হারায় ন
   });
 
   it("নিচে নামা বেছে রেখে মত বদলে উপরে উঠলে পুরো না-ব্যবহৃত টাকা ধরা হয়", async () => {
-    await setShop({ plan: "grow", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 7100 });
+    await setShop({ plan: "grow", cycle_months: 12, next_bill_at: await until("+12 months"), balance: 10100 });
     const a = await adminBrowser();
     await a.post("/admin/billing/plan", { plan: "small", months: 1 });
     expect((await shop()).cycle_months).toBe(12);
-    // বড় ব্র্যান্ড ১২ মাস ৳১৪৯৯০ − বাড়ন্ত ১২ মাসের না-ব্যবহৃত ~৳৭৯৯০ ≈ ৳৭০০০
+    // বড় ব্র্যান্ড ১২ মাস ৳১৯৯৯০ − বাড়ন্ত ১২ মাসের না-ব্যবহৃত ~৳৯৯৯০ ≈ ৳১০০০০
     await a.post("/admin/billing/plan", { plan: "big", months: 12 });
     const s = await shop();
     expect(s).toMatchObject({ plan: "big", cycle_months: 12, plan_next: null, cycle_next: null });
-    expect(s.balance).toBeGreaterThanOrEqual(7100 - 7002);
-    expect(s.balance).toBeLessThanOrEqual(7100 - 6999);
+    expect(s.balance).toBeGreaterThanOrEqual(10100 - 10002);
+    expect(s.balance).toBeLessThanOrEqual(10100 - 9999);
   });
 
   it("বিলের দিন বেছে রাখা প্ল্যান আর মেয়াদ চালু হয়", async () => {
@@ -336,7 +339,7 @@ describe("প্ল্যান বদলে টাকা হারায় ন
     await runDailyBilling(pdb());
     const s = await shop();
     expect(s).toMatchObject({ plan: "small", cycle_months: 6, plan_next: null, cycle_next: null });
-    expect(s.balance).toBe(5000 - Math.round(399 * 6 * 0.9));
+    expect(s.balance).toBe(5000 - Math.round(449 * 6 * 0.9));
   });
 
   it("একই প্ল্যান আবার বাছলে বেছে রাখা বদল বাতিল", async () => {
@@ -358,7 +361,21 @@ describe("প্ল্যান বদলে টাকা হারায় ন
     await b.fetch(`/super/shops/${DEMO_SHOP_ID}/status`, { method: "POST", base: P, body: new URLSearchParams({ status: "active" }) } as RequestInit);
     await runDailyBilling(pdb());
     const s = await shop();
-    expect(s.balance).toBe(2000 - 399);
+    expect(s.balance).toBe(2000 - 449);
     expect((await ledger("monthly"))).toHaveLength(1);
+  });
+});
+
+describe("প্ল্যানের সীমার সতর্কবার্তা", () => {
+  it("৮০%-এ জানায়, সীমা শেষ হলে বাড়তি রেট দেখায়; কম হলে কিছু নয়", async () => {
+    const a = await adminBrowser();
+    await setShop({ plan: "small", period_orders: 100 });
+    expect(await (await a.get("/admin")).text()).not.toContain("প্ল্যানের ১০০/১৫০");
+    await setShop({ plan: "small", period_orders: 120 });
+    expect(await (await a.get("/admin")).text()).toContain("প্ল্যানের ১২০/১৫০টা অর্ডার");
+    await setShop({ plan: "small", period_orders: 152 });
+    const html = await (await a.get("/admin")).text();
+    expect(html).toContain("১৫০টা অর্ডার শেষ");
+    expect(html).toContain("৳৫");
   });
 });

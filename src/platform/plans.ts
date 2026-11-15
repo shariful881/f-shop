@@ -20,11 +20,23 @@ export type Plan = {
   for: string;
 };
 
+/**
+ * ১৫ নভেম্বর ২০২৬ (বিকেল) থেকে — প্যাকেজে প্রতি অর্ডার কমপক্ষে ৳২, বড় প্যাকেজে সস্তা;
+ * সীমার পরে বাড়তি অর্ডার ৳৫/৪/৩ (ফ্রি-তে ৳৮, যাতে প্ল্যানের ক্রম ঠিক থাকে)।
+ */
 const DEFAULTS: Record<PlanKey, Plan> = {
-  free: { key: "free", name: "ফ্রি", price: 0, orders: 30, extra: 3, staff: 0, domain: false, for: "নতুন বিক্রেতা, পরীক্ষা" },
-  small: { key: "small", name: "ছোট দোকান", price: 399, orders: 300, extra: 1, staff: 1, domain: true, for: "ফেসবুক পেজের বিক্রেতা" },
-  grow: { key: "grow", name: "বাড়ন্ত", price: 799, orders: 1500, extra: 0.5, staff: 4, domain: true, for: "নিয়মিত অ্যাড চালান যারা" },
-  big: { key: "big", name: "বড় ব্র্যান্ড", price: 1499, orders: 5000, extra: 0.3, staff: 14, domain: true, for: "দল আর গুদাম আছে যাদের" },
+  free: { key: "free", name: "ফ্রি", price: 0, orders: 30, extra: 8, staff: 0, domain: false, for: "নতুন বিক্রেতা, পরীক্ষা" },
+  small: { key: "small", name: "ছোট দোকান", price: 449, orders: 150, extra: 5, staff: 1, domain: true, for: "ফেসবুক পেজের বিক্রেতা" },
+  grow: { key: "grow", name: "বাড়ন্ত", price: 999, orders: 400, extra: 4, staff: 4, domain: true, for: "নিয়মিত অ্যাড চালান যারা" },
+  big: { key: "big", name: "বড় ব্র্যান্ড", price: 1999, orders: 1000, extra: 3, staff: 14, domain: true, for: "দল আর গুদাম আছে যাদের" },
+};
+
+/** আগের দাম — নতুন দাম আসার আগে খোলা দোকানে ৩০ দিন (settings old_prices_until পর্যন্ত) এটাই চলে */
+const LEGACY: Record<PlanKey, Plan> = {
+  free: { ...DEFAULTS.free, orders: 30, extra: 3 },
+  small: { ...DEFAULTS.small, price: 399, orders: 300, extra: 1 },
+  grow: { ...DEFAULTS.grow, price: 799, orders: 1500, extra: 0.5 },
+  big: { ...DEFAULTS.big, price: 1499, orders: 5000, extra: 0.3 },
 };
 
 /** ট্রায়ালে কোন প্ল্যানের সুবিধা */
@@ -56,6 +68,21 @@ export function plans(s: PlatformSettings): Record<PlanKey, Plan> {
 
 export const planOf = (s: PlatformSettings, key: string | null | undefined): Plan => plans(s)[isPlan(key) ? key : "free"];
 
+const ts = (v: string | null | undefined) => (v ? new Date(v.replace(" ", "T") + "Z").getTime() : NaN);
+
+/** এই দোকান এখনো আগের দামে আছে কি না (নতুন দামের আগে খোলা, আর ৩০ দিনের সময় শেষ হয়নি) */
+export function onOldPrices(s: PlatformSettings, shopCreatedAt: string | null | undefined, now = Date.now()): boolean {
+  const from = ts(s.new_prices_from), until = ts(s.old_prices_until), created = ts(shopCreatedAt);
+  return Number.isFinite(from) && Number.isFinite(until) && Number.isFinite(created) && created < from && now < until;
+}
+
+/** দোকানের জন্য প্রযোজ্য প্ল্যানগুলো (আগের দামের দোকানে আগের দাম) */
+export function plansForShop(s: PlatformSettings, shopCreatedAt: string | null | undefined, now = Date.now()): Record<PlanKey, Plan> {
+  return onOldPrices(s, shopCreatedAt, now) ? LEGACY : plans(s);
+}
+export const planForShop = (s: PlatformSettings, shopCreatedAt: string | null | undefined, key: string | null | undefined, now = Date.now()): Plan =>
+  plansForShop(s, shopCreatedAt, now)[isPlan(key) ? key : "free"];
+
 /** এক বিলে কত টাকা (মাসিক দাম × মাস, ছাড়সহ) */
 export function cyclePrice(price: number, months: number): number {
   if (months === 12) return price * 10;
@@ -73,9 +100,10 @@ export function overageCharge(plan: Plan, orders: number): number {
 export const extraStaff = (plan: Plan, staffCount: number) => Math.max(0, staffCount - plan.staff);
 
 /** মাসে এত অর্ডারে কোন প্ল্যান সবচেয়ে সস্তা (দোকানদারকে পরামর্শ দিতে) */
-export function cheapestFor(s: PlatformSettings, orders: number): { plan: Plan; cost: number } {
+export function cheapestFor(s: PlatformSettings | Record<PlanKey, Plan>, orders: number): { plan: Plan; cost: number } {
   let best: { plan: Plan; cost: number } | null = null;
-  for (const p of Object.values(plans(s))) {
+  const all = "free" in s && typeof (s as Record<PlanKey, Plan>).free === "object" ? (s as Record<PlanKey, Plan>) : plans(s as PlatformSettings);
+  for (const p of Object.values(all)) {
     const cost = p.price + overageCharge(p, orders);
     if (!best || cost < best.cost) best = { plan: p, cost };
   }

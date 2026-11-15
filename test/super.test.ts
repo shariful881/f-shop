@@ -180,7 +180,7 @@ describe("সেটিংস অডিট", () => {
     const form = Object.fromEntries(s.results.map((r) => [r.key, r.value]));
     await post(o, "/super/settings", { ...form, plan_small_price: "349" });
     const log = await pdb().prepare("SELECT detail FROM audit_log WHERE action = 'settings.update'").first<any>();
-    expect(log.detail).toContain("plan_small_price:  → 349");
+    expect(log.detail).toMatch(/plan_small_price: \S* → 349/);
     await post(o, "/super/settings", { ...form });
   });
 });

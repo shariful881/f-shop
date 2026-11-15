@@ -32,7 +32,7 @@ async function shopRow(slug: string) {
 describe("প্ল্যাটফর্মের হোম পেজ", () => {
   it("দাম আর সাইনআপ বাটন দেখায়", async () => {
     const html = await (await new Browser().fetch("/", { base: P } as RequestInit)).text();
-    expect(html).toContain("৳৩৯৯");
+    expect(html).toContain("৳৪৪৯");
     expect(html).toContain('href="/signup"');
   });
 });
@@ -46,7 +46,7 @@ describe("সাইনআপ", () => {
     expect(loc).toMatch(/^https:\/\/rahim\.ourdomain\.com\/admin\/auto-login\?t=[0-9a-f]{64}$/);
 
     const s = await shopRow("rahim");
-    expect(s).toMatchObject({ name: "রহিমের দোকান", owner_phone: "01712345678", owner_email: "rahim@example.com", status: "trial", trial_orders_left: 1500, plan: "grow" });
+    expect(s).toMatchObject({ name: "রহিমের দোকান", owner_phone: "01712345678", owner_email: "rahim@example.com", status: "trial", trial_orders_left: 400, plan: "grow" });
     const days = (new Date(s!.trial_ends_at.replace(" ", "T") + "Z").getTime() - Date.now()) / 86400000;
     expect(days).toBeGreaterThan(13.9);
     expect(days).toBeLessThan(14.1);

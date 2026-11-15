@@ -113,6 +113,8 @@ export const PricingPage = ({ f }: { f: Fees }) => (
             <h3>কীভাবে কাটে</h3>
             <ul class="p-plain">
               <li>আগে bKash/Nagad দিয়ে রিচার্জ — প্ল্যানের টাকা বিলের দিন কাটে।</li>
+              <li>প্যাকেজে প্রতি অর্ডার ৳২–৩ — বড় প্যাকেজে সস্তা। সীমার পরে প্রতি অর্ডার ৳{bn(f.plans.small.extra)}/{bn(f.plans.grow.extra)}/{bn(f.plans.big.extra)}, মাস শেষে একবারে।</li>
+              <li>সীমার ৮০% হলে আর শেষ হলে প্যানেলে আর ফোনে জানানো হয়।</li>
               <li>৬ মাসে ১০% ছাড়, ১ বছরে ২ মাস ফ্রি।</li>
               <li>রিচার্জ না থাকলে দোকান ফ্রি প্ল্যানে চলে — বন্ধ হয় না।</li>
               <li>প্ল্যানের বাইরের স্টাফ ৳{bn(f.staff)}/মাস। প্রতিটা চার্জের হিসাব প্যানেলে।</li>
@@ -120,9 +122,9 @@ export const PricingPage = ({ f }: { f: Fees }) => (
           </div>
           <div class="p-price-card p-calc" data-calc data-plans={JSON.stringify(PLAN_ORDER.map((k) => ({ n: f.plans[k].name, p: f.plans[k].price, o: f.plans[k].orders, e: f.plans[k].extra })))}>
             <h3>আমার কোন প্ল্যান লাগবে?</h3>
-            <label>মাসে কনফার্ম অর্ডার <input type="number" min="0" max="100000" value="300" data-calc-orders /></label>
+            <label>মাসে কনফার্ম অর্ডার <input type="number" min="0" max="100000" value="150" data-calc-orders /></label>
             <p class="p-calc-out">সবচেয়ে সস্তা: <b data-calc-plan>{f.plans.small.name}</b> — <b data-calc-total>৳{bn(f.plans.small.price)}</b> / মাস</p>
-            <small>অর্ডারপ্রতি মাত্র <span data-calc-per>৳{(Math.round((f.plans.small.price / 300) * 100) / 100).toLocaleString("bn-BD")}</span></small>
+            <small>অর্ডারপ্রতি মাত্র <span data-calc-per>৳{(Math.round((f.plans.small.price / f.plans.small.orders) * 100) / 100).toLocaleString("bn-BD")}</span></small>
           </div>
         </div>
       </div>
