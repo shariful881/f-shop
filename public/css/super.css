@@ -348,3 +348,8 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .pg-box.on .pg-mode-on, .pg-box.off .pg-mode-off { border: 2px solid #0f766e; }
 .pg-box.off .pg-mode-off { border-color: #ea580c; }
 .pg-note { color: #64748b; }
+/* ছবি R2-তে */
+.sa-r2 { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--sa-line, #e2e8f0); }
+.sa-r2 h4 { margin: 0 0 6px; font-size: 14px; }
+.sa-r2-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sa-r2-btns form { margin: 0; }

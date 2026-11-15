@@ -7,6 +7,8 @@ export type WorkerEnv = {
   SHOP: DurableObjectNamespace<ShopDO>; // প্রতিটা দোকানের আলাদা ডাটাবেস
   ASSETS: Fetcher;
   AI?: Ai;                        // Cloudflare Workers AI (ফ্রি সীমা)
+  IMG_BUCKET?: R2Bucket;          // দোকানের ছবি (R2) — চালু না থাকলে ছবি শুধু দোকানের ডাটাবেসে
+  IMG_PUBLIC_URL?: string;        // R2-র পাবলিক ঠিকানা, যেমন https://img.sellxbd.com
   TEST_MIGRATIONS?: unknown;      // শুধু টেস্টে থাকে
   PLATFORM_DOMAIN: string;        // যেমন ourdomain.com
   DEV_MODE?: string;

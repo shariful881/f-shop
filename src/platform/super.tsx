@@ -19,6 +19,7 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
+import { purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
 import { slugOk } from "./blog";
 import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
@@ -181,6 +182,7 @@ superApp.get("/", async (c) => {
     recentAudit: rows<AuditRow>(10),
     cron: { daily: cron.cron_daily_at ?? null, domains: cron.cron_domains_at ?? null },
     usage: await platformUsage(c.env.PLATFORM_DB),
+    r2: await r2Status(c.env),
   };
   return page(c, "ড্যাশবোর্ড", "dashboard", <DashboardPage d={d} role={me(c).role} />);
 });
@@ -327,6 +329,31 @@ superApp.post("/shops/:id/restore", async (c) => {
     flash(c, "error", `ফেরানো যায়নি: ${e instanceof Error ? e.message.slice(0, 120) : "অজানা সমস্যা"}`);
   }
   return c.redirect(`/super/shops/${s.id}`, 303);
+});
+
+/* ---------- ছবি R2-তে ---------- */
+superApp.post("/r2/check", async (c) => {
+  if (!allowed(c, "r2")) return forbidden(c);
+  const r = await verifyR2Public(c.env);
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect("/super", 303);
+});
+superApp.post("/r2/sync", async (c) => {
+  if (!allowed(c, "r2")) return forbidden(c);
+  const r = await syncShopsToR2(c.env, 5, 2);
+  flash(c, "ok", `${bn(r.copied)}টা ছবি কপি হয়েছে, ${bn(r.done)}টা দোকান এখন R2 থেকে ছবি দেখাচ্ছে। বাকিগুলো প্রতি ৩০ মিনিটে নিজে চলবে।`);
+  return c.redirect("/super", 303);
+});
+superApp.post("/r2/purge", async (c) => {
+  if (!allowed(c, "r2")) return forbidden(c);
+  const on = (await c.req.parseBody()).on === "1";
+  await setAutoPurge(c.env, on);
+  await audit(c, "r2.purge", null, null, on ? "চালু" : "বন্ধ");
+  if (on) {
+    const r = await purgeShopsLocal(c.env, 5, 2);
+    flash(c, "ok", `চালু হয়েছে — এখন ${bn(r.purged)}টা পুরনো কপি মোছা হলো, বাকিগুলো প্রতি ৩০ মিনিটে।`);
+  } else flash(c, "ok", "পুরনো কপি মোছা বন্ধ।");
+  return c.redirect("/super", 303);
 });
 
 superApp.post("/shops/:id/status", async (c) => {

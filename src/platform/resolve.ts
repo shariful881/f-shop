@@ -2,9 +2,9 @@ import type { WorkerEnv } from "../worker-env";
 
 import type { BillingShop } from "./billing";
 
-export type ShopRow = BillingShop & { slug: string; name: string; seed_demo: number };
+export type ShopRow = BillingShop & { slug: string; name: string; seed_demo: number; images_r2?: number };
 
-const COLS = "s.id, s.slug, s.name, s.status, s.seed_demo, s.balance, s.trial_ends_at, s.trial_orders_left, s.next_bill_at, s.low_balance_since, s.staff_count, s.plan, s.period_orders, s.created_at";
+const COLS = "s.id, s.slug, s.name, s.status, s.seed_demo, s.balance, s.trial_ends_at, s.trial_orders_left, s.next_bill_at, s.low_balance_since, s.staff_count, s.plan, s.period_orders, s.created_at, s.images_r2";
 
 /** একই Worker-এ বারবার ডাটাবেসে না গিয়ে ৩০ সেকেন্ড মনে রাখা */
 const cache = new Map<string, { at: number; shop: ShopRow | null }>();

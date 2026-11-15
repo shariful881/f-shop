@@ -26,7 +26,8 @@ import m0020 from "../../migrations/shop/0020_ads.sql";
 import m0021 from "../../migrations/shop/0021_advance.sql";
 import m0022 from "../../migrations/shop/0022_reviews_profit.sql";
 import m0023 from "../../migrations/shop/0023_push_blog.sql";
-import { SqlImageStore } from "./lib/images";
+import m0024 from "../../migrations/shop/0024_images_r2.sql";
+import { MirrorImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
 import { NICHE_LOGOS } from "./data/logos";
@@ -55,6 +56,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0021_advance", m0021],
   ["0022_reviews_profit", m0022],
   ["0023_push_blog", m0023],
+  ["0024_images_r2", m0024],
 ];
 
 export type SetupInput = {
@@ -107,6 +109,55 @@ export class ShopDO extends DurableObject<WorkerEnv> {
         sql.exec("INSERT INTO _migrations (name) VALUES (?)", name);
       });
     }
+  }
+
+  /** ছবির জায়গা: R2 চালু থাকলে দোকানের ডাটাবেস + R2, নইলে শুধু ডাটাবেস */
+  images(shopId = this.shopId): ImageStore {
+    const bucket = this.env.IMG_BUCKET;
+    if (!bucket || !shopId) return new SqlImageStore(this.db);
+    // R2-তে না গেলে দোকানটা আবার Worker থেকে ছবি দেখাবে (নিজের কপি থেকে) — ছবি ভাঙবে না
+    return new MirrorImageStore(this.db, bucket, shopId, async () => {
+      await this.env.PLATFORM_DB.prepare("UPDATE shops SET images_r2 = 0 WHERE id = ? AND images_r2 = 1").bind(shopId).run();
+    });
+  }
+
+  /** R2-তে এখনো না যাওয়া ছবি কপি করা (একবারে limit-টা)। remaining = আরও কতগুলো বাকি */
+  async syncImagesToR2(shopId: string, limit = 100): Promise<{ copied: number; missing: number; remaining: number; total: number }> {
+    await this.ensureInit(shopId, false);
+    const bucket = this.env.IMG_BUCKET;
+    if (!bucket) throw new Error("R2 নেই");
+    const local = new SqlImageStore(this.db);
+    const { results } = await this.db.prepare("SELECT key FROM images WHERE r2 = 0 AND key NOT LIKE 'support/%' ORDER BY key LIMIT ?").bind(limit).all<{ key: string }>();
+    let copied = 0, missing = 0;
+    for (const { key } of results) {
+      const img = await local.get(key);
+      if (!img) {
+        // নিজের কপি নেই — R2-তে থাকলে ঠিক আছে, নইলে বাদ (ভাঙা ছবি)
+        const there = await bucket.head(r2Key(shopId, key));
+        await this.db.prepare("UPDATE images SET r2 = ? WHERE key = ?").bind(there ? 1 : 2, key).run();
+        if (!there) missing++;
+        continue;
+      }
+      await bucket.put(r2Key(shopId, key), img.body, { httpMetadata: { contentType: img.type, cacheControl: R2_CACHE } });
+      await this.db.prepare("UPDATE images SET r2 = 1 WHERE key = ?").bind(key).run();
+      copied++;
+    }
+    const left = await this.db.prepare("SELECT COUNT(*) n FROM images WHERE r2 = 0 AND key NOT LIKE 'support/%'").first<{ n: number }>();
+    const all = await this.db.prepare("SELECT COUNT(*) n FROM images WHERE key NOT LIKE 'support/%'").first<{ n: number }>();
+    return { copied, missing, remaining: left?.n ?? 0, total: all?.n ?? 0 };
+  }
+
+  /** R2-তে নিশ্চিত থাকা ছবির নিজের কপি মুছে জায়গা খালি করা (images-এর তথ্য থাকে, মিডিয়া লাইব্রেরি ঠিক থাকে) */
+  async purgeLocalImages(shopId: string, limit = 200): Promise<{ purged: number; remaining: number }> {
+    await this.ensureInit(shopId, false);
+    const { results } = await this.db.prepare(
+      "SELECT key FROM images WHERE r2 = 1 AND key NOT LIKE 'support/%' AND EXISTS (SELECT 1 FROM image_chunks c WHERE c.key = images.key) LIMIT ?",
+    ).bind(limit).all<{ key: string }>();
+    for (const { key } of results) await this.db.prepare("DELETE FROM image_chunks WHERE key = ?").bind(key).run();
+    const left = await this.db.prepare(
+      "SELECT COUNT(*) n FROM images WHERE r2 = 1 AND key NOT LIKE 'support/%' AND EXISTS (SELECT 1 FROM image_chunks c WHERE c.key = images.key)",
+    ).first<{ n: number }>();
+    return { purged: results.length, remaining: left?.n ?? 0 };
   }
 
   /** প্রথমবার: দোকানের আইডি মনে রাখা, দরকার হলে নমুনা ডাটা */
@@ -165,7 +216,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     const cur = await this.db.prepare("SELECT value FROM settings WHERE key = 'logo'").first<{ value: string }>();
     if (logo && !cur?.value) {
       const key = `logo/${n.key}.png`;
-      await new SqlImageStore(this.db).put(key, Uint8Array.from(atob(logo), (ch) => ch.charCodeAt(0)).buffer, { httpMetadata: { contentType: "image/png" } });
+      await this.images().put(key, Uint8Array.from(atob(logo), (ch) => ch.charCodeAt(0)).buffer, { httpMetadata: { contentType: "image/png" } });
       await set("logo", key).run();
     }
     const p = await this.db.prepare("SELECT COUNT(*) n, COALESCE(SUM(image IS NOT NULL AND image != ''), 0) img FROM products").first<{ n: number; img: number }>();
@@ -181,7 +232,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
 
   /** ডেমো দোকানের পণ্য আর ব্যানারের ছবি (নতুন দোকানে কপির জন্য) */
   async exportNicheImages(): Promise<NicheImage[]> {
-    const store = new SqlImageStore(this.db);
+    const store = this.images();
     const { results } = await this.db.prepare("SELECT slug, image FROM products WHERE image IS NOT NULL AND image != ''").all<{ slug: string; image: string }>();
     const banners = await this.db.prepare("SELECT key, value FROM settings WHERE key IN ('banner_1', 'banner_2', 'banner_3') AND value != ''").all<{ key: string; value: string }>();
     const out: NicheImage[] = [];
@@ -195,7 +246,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   /** নতুন দোকানে ডেমোর ছবি বসানো — শুধু যে পণ্যের slug মেলে আর যার ছবি নেই */
   async importNicheImages(shopId: string, images: NicheImage[]) {
     await this.ensureInit(shopId, false);
-    const store = new SqlImageStore(this.db);
+    const store = this.images();
     for (const im of images) {
       if (im.product) {
         const p = await this.db.prepare("SELECT id FROM products WHERE slug = ? AND (image IS NULL OR image = '')").bind(im.product).first<{ id: number }>();
@@ -312,7 +363,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
 
     const env = {
       DB: this.db.asD1(),
-      IMAGES: new SqlImageStore(this.db),
+      IMAGES: this.images(shopId),
       PLATFORM_DB: this.env.PLATFORM_DB,
       SUPPORT: this.env.SUPPORT,
       SHOP_ID: shopId,
