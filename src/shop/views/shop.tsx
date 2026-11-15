@@ -435,7 +435,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     <div class="summary">
       {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}{(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}</span><span>{taka(i.price * (i.qty || 1))}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
-      {order.discount > 0 && <div><span>কুপন ছাড় ({order.coupon_code})</span><span>-{taka(order.discount)}</span></div>}
+      {order.discount > 0 && <div><span>{order.coupon_code ? `কুপন ছাড় (${order.coupon_code})` : "ছাড়"}</span><span>-{taka(order.discount)}</span></div>}
       {order.pay_trx ? <>
         <div class="summary-total"><span>মোট</span><span>{taka(order.total)}</span></div>
         <div><span>অগ্রিম পাঠিয়েছেন (TrxID {order.pay_trx})</span><span>-{taka(order.advance_amount ?? 0)}</span></div>

@@ -689,3 +689,7 @@ body.admin .mo-confirm input { margin-top: 4px; flex: none; }
   body.admin .mo-form .btn-primary[type], body.admin .mo-form > .btn-primary { width: 100%; justify-content: center; min-height: 46px; }
 }
 body.admin .mo-row[hidden], body.admin .mo-items [data-mo-add][hidden], body.admin .mo-total[hidden] { display: none; }
+/* অর্ডারের পাতায় ছাড়/ডেলিভারি চার্জ বদলানো */
+body.admin .price-edit { margin-top: 10px; border-top: 1px dashed var(--c-line); padding-top: 10px; }
+body.admin .price-edit summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--c-brand); }
+body.admin .price-edit-form { margin-top: 10px; }

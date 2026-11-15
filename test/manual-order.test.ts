@@ -72,3 +72,33 @@ describe("নতুন অর্ডার নিজে লেখা", () => {
     expect((await DB.prepare("SELECT COUNT(*) n FROM orders").first<{ n: number }>())!.n).toBe(1);
   });
 });
+
+describe("আসা অর্ডারে ছাড় দেওয়া", () => {
+  async function order(status = "new", consignment: string | null = null) {
+    const r = await DB.prepare(
+      `INSERT INTO orders (order_no, name, phone, address, area, subtotal, delivery_charge, total, status, consignment_id)
+       VALUES ('P1', 'ক্রেতা', '01711111111', 'ঢাকা', 'inside', 1000, 60, 1060, ?, ?) RETURNING id`,
+    ).bind(status, consignment).first<{ id: number }>();
+    return r!.id;
+  }
+
+  it("৮০ টাকা ছাড় দিলে মোট কমে, পাতায় দেখায়; ০ দিলে ফেরে", async () => {
+    const id = await order();
+    const a = await adminBrowser();
+    expect(await (await a.get(`/admin/orders/${id}`)).text()).toContain("ছাড় বা ডেলিভারি চার্জ বদলান");
+    await a.fetch(`/admin/orders/${id}/price`, { method: "POST", body: form([["discount", "80"], ["delivery", "60"]]) });
+    let o = await DB.prepare("SELECT discount, total FROM orders WHERE id = ?").bind(id).first<any>();
+    expect(o).toEqual({ discount: 80, total: 980 });
+    expect(await (await a.get(`/admin/orders/${id}`)).text()).toContain("-৳৮০");
+    await a.fetch(`/admin/orders/${id}/price`, { method: "POST", body: form([["discount", "0"], ["delivery", "120"]]) });
+    o = await DB.prepare("SELECT discount, delivery_charge, total FROM orders WHERE id = ?").bind(id).first<any>();
+    expect(o).toEqual({ discount: 0, delivery_charge: 120, total: 1120 });
+  });
+
+  it("কুরিয়ারে পাঠানো বা শিপড অর্ডারে বদলায় না", async () => {
+    const id = await order("confirmed", "CN1");
+    const a = await adminBrowser();
+    await a.fetch(`/admin/orders/${id}/price`, { method: "POST", body: form([["discount", "80"], ["delivery", "60"]]) });
+    expect((await DB.prepare("SELECT total FROM orders WHERE id = ?").bind(id).first<any>()).total).toBe(1060);
+  });
+});

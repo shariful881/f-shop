@@ -366,6 +366,9 @@ const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
   );
 };
 
+/** দাম/ছাড় বদলানো যায়: নতুন বা কনফার্ম, আর কুরিয়ারে যায়নি */
+export const priceEditable = (o: Pick<Order, "status" | "consignment_id">) => (o.status === "new" || o.status === "confirmed") && !o.consignment_id;
+
 export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord; wa?: WaMsg[] }) => {
   const o = p.order;
   return (
@@ -410,10 +413,25 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
             <tbody>
               {p.items.map((i) => <tr><td>{i.product_name}{i.variant_label ? <strong> ({i.variant_label})</strong> : ""} × {bn(i.qty || 1)}{(i.qty || 1) > 1 ? <small class="muted"> (প্রতিটা {taka(i.price)})</small> : ""}</td><td class="right">{taka(i.price * (i.qty || 1))}</td></tr>)}
               <tr><td>ডেলিভারি চার্জ</td><td class="right">{taka(o.delivery_charge)}</td></tr>
-              {o.discount > 0 && <tr><td>কুপন ছাড় ({o.coupon_code})</td><td class="right">-{taka(o.discount)}</td></tr>}
+              {o.discount > 0 && <tr><td>{o.coupon_code ? `কুপন ছাড় (${o.coupon_code})` : "ছাড়"}</td><td class="right">-{taka(o.discount)}</td></tr>}
               <tr class="total"><td>মোট</td><td class="right">{taka(o.total)}</td></tr>
             </tbody>
           </table>
+          {priceEditable(o) ? (
+            <details class="price-edit">
+              <summary><Icon name="pencil" size="sm" /> ছাড় বা ডেলিভারি চার্জ বদলান</summary>
+              <form method="post" action={`/admin/orders/${o.id}/price`} class="admin-form price-edit-form">
+                <div class="form-grid">
+                  <label class="field"><span>ছাড় (৳)</span><input type="number" name="discount" min={0} max={o.subtotal + o.delivery_charge} value={String(o.discount)} inputmode="numeric" /></label>
+                  <label class="field"><span>ডেলিভারি চার্জ (৳)</span><input type="number" name="delivery" min={0} max={100000} value={String(o.delivery_charge)} inputmode="numeric" /></label>
+                </div>
+                <p class="muted small">ছাড়ের ঘরে মোট ছাড় লিখুন (যেমন ৮০)। ছাড় তুলে দিতে ০ লিখুন। মোট টাকা নিজে থেকে বদলাবে — কুরিয়ারের COD, ইনভয়েস আর হিসাবে নতুন টাকাই যাবে।</p>
+                <button class="btn btn-primary btn-sm"><Icon name="check" size="sm" /> সেভ করুন</button>
+              </form>
+            </details>
+          ) : (o.status === "new" || o.status === "confirmed") && o.consignment_id ? (
+            <p class="muted small">কুরিয়ারে পাঠানো হয়ে গেছে — এখন দাম বদলালে কুরিয়ারের COD মিলবে না, তাই বদলানো বন্ধ।</p>
+          ) : null}
         </section>
 
         {o.pay_trx && <PaymentPanel o={o} />}

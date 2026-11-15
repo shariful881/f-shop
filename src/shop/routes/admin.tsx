@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
+import { priceEditable } from "../views/admin";
 import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
 import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
@@ -376,7 +377,7 @@ admin.post("/orders/new", async (c) => {
   const discount = Math.min(sub + del, Math.max(0, toInt(values.discount, 0)));
   const order = await createOrder(db, {
     name: values.name, phone: v.phone, address: values.address, area: v.area, note: values.note,
-    deliveryCharge: del, discount, couponCode: discount ? "নিজে দেওয়া ছাড়" : null,
+    deliveryCharge: del, discount, couponCode: null,
     deviceId: null, ip: clientIp(c), userAgent: `নিজে লেখা অর্ডার: ${MANUAL_SOURCES[source]} (${c.var.admin?.email ?? "অ্যাডমিন"})`.slice(0, 500),
     fbp: null, fbc: null, sourceUrl: `manual:${source}`, prefix: orderPrefix(s),
   }, lines);
@@ -611,6 +612,31 @@ admin.post("/orders/bulk-status", async (c) => {
   flash(c, fails.length ? "error" : "ok",
     `${bn(done)}টা অর্ডার ${label} হয়েছে।` + (fails.length ? ` ${bn(fails.length)}টায় সমস্যা: ${[...new Set(fails)].slice(0, 2).join(" · ")}` : ""));
   return c.redirect(backUrl, 303);
+});
+
+/** ছাড় আর ডেলিভারি চার্জ বদলানো (ফোনে কথা বলে ছাড় দিলে) — মোট নতুন করে হিসাব */
+admin.post("/orders/:id{[0-9]+}/price", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const db = c.env.DB;
+  const o = await db.prepare("SELECT id, status, consignment_id, subtotal, delivery_charge, discount, advance_amount, pay_status FROM orders WHERE id = ?").bind(id).first<Order>();
+  if (!o) return c.redirect("/admin/orders", 303);
+  if (!priceEditable(o)) {
+    flash(c, "error", "কুরিয়ারে পাঠানো বা শেষ হয়ে যাওয়া অর্ডারের দাম বদলানো যায় না।");
+    return c.redirect(`/admin/orders/${id}`, 303);
+  }
+  const b = await c.req.parseBody();
+  const delivery = Math.min(100000, Math.max(0, toInt(String(b.delivery ?? o.delivery_charge), o.delivery_charge)));
+  const discount = Math.min(o.subtotal + delivery, Math.max(0, toInt(String(b.discount ?? 0), 0)));
+  const total = o.subtotal + delivery - discount;
+  if (o.pay_status === "verified" && (o.advance_amount ?? 0) > total) {
+    flash(c, "error", `অগ্রিম ${taka(o.advance_amount!)} পাওয়া গেছে — মোট এর চেয়ে কম করা যায় না।`);
+    return c.redirect(`/admin/orders/${id}`, 303);
+  }
+  // ছাড় তুলে দিলে কুপনের নামও যায়
+  await db.prepare("UPDATE orders SET delivery_charge = ?, discount = ?, total = ?, coupon_code = CASE WHEN ? > 0 THEN coupon_code ELSE NULL END WHERE id = ?")
+    .bind(delivery, discount, total, discount, id).run();
+  flash(c, "ok", `সেভ হয়েছে — ছাড় ${taka(discount)}, ডেলিভারি ${taka(delivery)}, নতুন মোট ${taka(total)}।`);
+  return c.redirect(`/admin/orders/${id}`, 303);
 });
 
 admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {

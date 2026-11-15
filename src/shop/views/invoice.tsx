@@ -56,7 +56,7 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
       <div class="iv-sum">
         <div><span>পণ্যের দাম</span><span>{taka(subtotal)}</span></div>
         <div><span>ডেলিভারি চার্জ</span><span>{taka(o.delivery_charge)}</span></div>
-        {o.discount > 0 && <div><span>কুপন ছাড় ({o.coupon_code})</span><span>-{taka(o.discount)}</span></div>}
+        {o.discount > 0 && <div><span>{o.coupon_code ? `কুপন ছাড় (${o.coupon_code})` : "ছাড়"}</span><span>-{taka(o.discount)}</span></div>}
         {o.pay_status === "verified" && (o.advance_amount ?? 0) > 0 ? <>
           <div><span>মোট</span><span>{taka(o.total)}</span></div>
           <div><span>অগ্রিম পরিশোধ ({PAY_NAME[o.pay_method as PayKey] ?? o.pay_method})</span><span>-{taka(o.advance_amount!)}</span></div>
