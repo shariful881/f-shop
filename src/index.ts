@@ -5,6 +5,7 @@ import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired
 import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
 import { refreshShopStorage } from "./platform/usage";
+import { r2Cron } from "./platform/r2";
 
 export { ShopDO } from "./shop/shop-do";
 export { SupportHub } from "./support-hub";
@@ -53,7 +54,7 @@ export default {
       return serveImage(env, shop, request, ctx);
     }
 
-    return forwardToShop(env, shop, request);
+    return withR2Images(env, shop, request, await forwardToShop(env, shop, request));
   },
 
   /** প্রতিদিন একবার: ট্রায়াল শেষ, মাসিক চার্জ */
@@ -63,6 +64,7 @@ export default {
     } else {
       ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
       ctx.waitUntil(refreshShopStorage(env).then((n) => console.log("storage checked", n)).catch((e) => console.error("storage refresh", e)));
+      ctx.waitUntil(r2Cron(env).catch((e) => console.error("r2 cron", e)));
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;
@@ -84,8 +86,36 @@ export async function forwardToShop(env: WorkerEnv, shop: ShopRow, request: Requ
   return stub.fetch(new Request(request, { headers }));
 }
 
+/** এই দোকানের ছবি R2-র পাবলিক ঠিকানা থেকে দেখানো যায় কিনা (সব ছবি কপি হয়ে যাচাই হলে) */
+export const r2Base = (env: WorkerEnv, shop: Pick<ShopRow, "id" | "images_r2">) =>
+  env.IMG_BUCKET && env.IMG_PUBLIC_URL && (shop.images_r2 ?? 0) >= 1 ? `${env.IMG_PUBLIC_URL.replace(/\/+$/, "")}/shops/${shop.id}/` : null;
+
+/** /img/… (placeholder আর সাপোর্টের ছবি বাদে) — আগে উদ্ধৃতি, বন্ধনী, ফাঁকা, কমা বা = থাকলে */
+const IMG_RE = /(["'(\s,=])\/img\/(?!placeholder\.svg|support\/|home\/)/g;
+
+/**
+ * দোকানের পাবলিক পেজের HTML-এ ছবির ঠিকানা /img/… → https://img.<domain>/shops/<id>/…
+ * তাহলে ছবিতে Worker চলে না (দিনের ১,০০,০০০ রিকোয়েস্টে গোনা হয় না)। প্যানেল (/admin) আগের মতো।
+ */
+export async function withR2Images(env: WorkerEnv, shop: ShopRow, request: Request, res: Response): Promise<Response> {
+  const base = r2Base(env, shop);
+  if (!base || request.method !== "GET" || res.status !== 200) return res;
+  if (new URL(request.url).pathname.startsWith("/admin")) return res;
+  if (!(res.headers.get("content-type") || "").includes("text/html")) return res;
+  const html = (await res.text()).replace(IMG_RE, `$1${base}`);
+  const headers = new Headers(res.headers);
+  headers.delete("content-length");
+  return new Response(html, { status: res.status, statusText: res.statusText, headers });
+}
+
 async function serveImage(env: WorkerEnv, shop: ShopRow, request: Request, ctx: ExecutionContext) {
   const url = new URL(request.url);
+  // R2-তে থাকলে সেখানে পাঠানো (পুরনো লিংক, ফিড, প্যানেলের JS) — দোকানের Durable Object জাগাতে হয় না
+  const base = r2Base(env, shop);
+  const key = url.pathname.slice(5);
+  if (base && /^[a-z0-9/_.-]+$/i.test(key) && !key.includes("..") && !key.startsWith("support/")) {
+    return new Response(null, { status: 301, headers: { location: base + key, "Cache-Control": "public, max-age=86400" } });
+  }
   const cacheKey = new Request(`${url.origin}${url.pathname}`, { method: "GET" });
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const hit = cache ? await cache.match(cacheKey).catch(() => undefined) : undefined;

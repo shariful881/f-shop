@@ -15,7 +15,9 @@
     "PLATFORM_DOMAIN": "sellxbd.com",
     "WORKER_NAME": "f-shop",
     // Cloudflare Account ID (দোকানদারের নিজের ডোমেইন ফিচারের জন্য)। CF_API_TOKEN secret হিসেবে বসে (ডিপ্লয়ের সময়)
-    "CF_ACCOUNT_ID": "4d64812aec0633769e58643fa48e5dae"
+    "CF_ACCOUNT_ID": "4d64812aec0633769e58643fa48e5dae",
+    // দোকানের ছবির পাবলিক ঠিকানা (R2 bucket-এর custom domain) — ছবিতে Worker চলে না
+    "IMG_PUBLIC_URL": "https://img.sellxbd.com"
   },
 
   // মূল ডোমেইন আর সব দোকানের subdomain এই Worker-এ আসে
@@ -37,6 +39,9 @@
 
   // Cloudflare Workers AI — ফ্রি সীমা দিনে ১০,০০০ neuron (AI ল্যান্ডিং পেজের লেখা)
   "ai": { "binding": "AI" },
+
+  // দোকানের ছবি (R2)। CI-তে scripts/ensure-r2.mjs bucket না পেলে (R2 চালু না থাকলে) এই অংশ বাদ দিয়ে ডিপ্লয় করে
+  "r2_buckets": [{ "binding": "IMG_BUCKET", "bucket_name": "sellxbd-images" }],
 
   // প্রতিটা দোকান = একটা Durable Object = দোকানের নিজস্ব আলাদা SQLite ডাটাবেস
   "durable_objects": {

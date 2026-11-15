@@ -240,6 +240,7 @@ export type DashData = {
   recentAudit: AuditRow[];
   cron: { daily: string | null; domains: string | null };
   usage: Usage;
+  r2: import("./r2").R2Status;
 };
 
 const delta = (cur: number, prev: number) => {
@@ -311,6 +312,7 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
           </ul>
           {d.usage.warn && <p class="sa-alert sa-alert-err">ফ্রি প্ল্যানের জায়গার ৮০% পার হয়েছে। অব্যবহৃত ছবি মোছা বা Workers Paid ($৫/মাস) নেওয়ার সময় হয়েছে।</p>}
           <p class="sa-muted"><small>দৈনিক অনুরোধের হিসাব Cloudflare ড্যাশবোর্ড → Workers → f-shop-এ দেখা যায় (ফ্রিতে দিনে ১ লাখ)।</small></p>
+          <R2Box r={d.r2} owner={role === "owner"} />
         </Card>
       </div>
 
@@ -1053,4 +1055,28 @@ export const BlogEditPage = ({ post, error }: { post?: Partial<BlogRow>; error?:
     </form>
     {post?.id && <form method="post" action={`/super/blog/${post.id}/delete`} class="sa-form" style="margin-top:16px"><label><input type="checkbox" name="confirm" value="1" required /> মুছে ফেলা নিশ্চিত — ফেরত আনা যাবে না</label><button class="sa-btn sa-btn-sm sa-btn-danger">পোস্ট মুছুন</button></form>}
   </Card>
+);
+
+/** দোকানের ছবি R2-তে — অবস্থা আর বোতাম */
+const R2Box = ({ r, owner }: { r: import("./r2").R2Status; owner: boolean }) => (
+  <div class="sa-r2">
+    <h4>ছবি R2-তে (img ডোমেইন)</h4>
+    <ul class="sa-sys">
+      <li><span class={r.configured ? "sa-dot-ok" : "sa-dot-warn"}></span>R2 bucket <small>{r.configured ? `চালু · ${r.publicUrl}` : "চালু হয়নি — Cloudflare-এ R2 চালু করে টোকেনে R2 অনুমতি দিন, পরের ডিপ্লয়ে নিজে যুক্ত হবে"}</small></li>
+      {r.configured && <li><span class={r.publicOk ? "sa-dot-ok" : "sa-dot-warn"}></span>পাবলিক ঠিকানা <small>{r.publicOk ? "কাজ করছে" : "যাচাই হয়নি / কাজ করছে না"}</small></li>}
+      {r.configured && <li><span class={r.onR2 >= r.total ? "sa-dot-ok" : "sa-dot-warn"}></span>দোকানের ছবি R2 থেকে <small>{bn(r.onR2)}/{bn(r.total)}টা দোকান{r.purged ? ` · পুরনো কপি মোছা ${bn(r.purged)}টার` : ""}</small></li>}
+    </ul>
+    {owner && r.configured && (
+      <div class="sa-r2-btns">
+        <form method="post" action="/super/r2/check"><button class="sa-btn sa-btn-sm">ঠিকানা যাচাই</button></form>
+        {r.publicOk && r.onR2 < r.total && <form method="post" action="/super/r2/sync"><button class="sa-btn sa-btn-sm">এখনই কপি চালান</button></form>}
+        {r.publicOk && (
+          <form method="post" action="/super/r2/purge" data-confirm={r.autoPurge ? "পুরনো কপি মোছা বন্ধ করবেন?" : "R2-তে কপি হওয়া ছবির পুরনো কপি দোকানের ডাটাবেস থেকে মুছবে (জায়গা খালি হবে)। ছবি R2 থেকেই দেখাবে। চালু করবেন?"}>
+            <input type="hidden" name="on" value={r.autoPurge ? "0" : "1"} />
+            <button class={`sa-btn sa-btn-sm${r.autoPurge ? "" : " sa-btn-ghost"}`}>{r.autoPurge ? "পুরনো কপি মোছা: চালু (বন্ধ করুন)" : "পুরনো কপি মুছে জায়গা খালি করুন"}</button>
+          </form>
+        )}
+      </div>
+    )}
+  </div>
 );

@@ -29,6 +29,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+      - name: দোকানের ছবির R2 (bucket, img ডোমেইন) — না থাকলে R2 ছাড়াই ডিপ্লয়
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        run: node scripts/ensure-r2.mjs
+
       - name: ডাটাবেস migrate + Cloudflare-এ ডিপ্লয়
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
         run: npm run deploy
