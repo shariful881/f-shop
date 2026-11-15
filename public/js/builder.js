@@ -181,6 +181,69 @@
           box.appendChild(field("কত মিনিট", el("input", { type: "number", min: 1, value: d.minutes || 120, oninput: function (e) { d.minutes = +e.target.value; } })));
         }
         break;
+      case "image":
+        d.images = d.images || [];
+        var ib = el("div", { class: "b-images" });
+        var drawI = function () {
+          ib.innerHTML = "";
+          if (d.images[0]) ib.appendChild(el("div", { class: "b-img" }, [el("img", { src: "/img/" + d.images[0], alt: "" }),
+            el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.images = []; drawI(); changed(); } })]));
+        };
+        drawI();
+        box.appendChild(ib);
+        box.appendChild(field("ছবি (চওড়া ব্যানার বা পোস্টার)", upload(function (k) { d.images = [k]; drawI(); changed(); }, "free")));
+        box.appendChild(field("নিচের ছোট লেখা (ঐচ্ছিক)", text(d, "title", "", 200)));
+        break;
+      case "before_after":
+        box.appendChild(field("শিরোনাম (ঐচ্ছিক)", text(d, "title", "যেমন: ব্যবহারের আগে ও পরে", 120)));
+        d.images = d.images || []; d.labels = d.labels || ["আগে", "পরে"];
+        [0, 1].forEach(function (i) {
+          var slot = el("div", { class: "b-card" });
+          var drawS = function () {
+            slot.innerHTML = "";
+            slot.appendChild(el("div", { class: "b-row" }, [el("strong", { text: i ? "পরের ছবি" : "আগের ছবি" }), text(d.labels, String(i), i ? "পরে" : "আগে", 40)]));
+            if (d.images[i]) slot.appendChild(el("div", { class: "b-img" }, [el("img", { src: "/img/" + d.images[i], alt: "" }),
+              el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.images[i] = ""; drawS(); changed(); } })]));
+            slot.appendChild(upload(function (k) { d.images[i] = k; drawS(); changed(); }, "1:1"));
+          };
+          drawS();
+          box.appendChild(slot);
+        });
+        break;
+      case "steps":
+        box.appendChild(field("শিরোনাম", text(d, "title", "কীভাবে অর্ডার করবেন", 120)));
+        box.appendChild(field("ধাপগুলো (ক্রম অনুযায়ী)", stringList(d, "items", "যেমন: নিচের ফর্মে নাম-ঠিকানা দিন")));
+        break;
+      case "comparison":
+        box.appendChild(field("শিরোনাম", text(d, "title", "কেন আমাদেরটা আলাদা", 120)));
+        d.labels = d.labels || ["আমাদের পণ্য", "অন্যরা"];
+        box.appendChild(el("div", { class: "b-row" }, [text(d.labels, "0", "আমাদের পণ্য", 40), text(d.labels, "1", "অন্যরা", 40)]));
+        d.rows = d.rows || [];
+        var cw = el("div", { class: "b-list" });
+        var drawC = function () {
+          cw.innerHTML = "";
+          d.rows.forEach(function (r, i) {
+            cw.appendChild(el("div", { class: "b-card" }, [
+              el("div", { class: "b-row" }, [text(r, "label", "বিষয় (যেমন: কাপড়ের মান)", 120),
+                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.rows.splice(i, 1); drawC(); changed(); } })]),
+              el("div", { class: "b-row" }, [text(r, "us", "আমাদের (ফাঁকা = ✓)", 120), text(r, "them", "অন্যরা (ফাঁকা = ✕)", 120)]),
+            ]));
+          });
+          cw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ সারি যোগ করুন", onclick: function () { d.rows.push({ label: "", us: "", them: "" }); drawC(); } }));
+        };
+        drawC();
+        box.appendChild(cw);
+        break;
+      case "guarantee":
+        box.appendChild(field("গ্যারান্টির লেখা", text(d, "title", "১০০% সন্তুষ্টির গ্যারান্টি", 160)));
+        box.appendChild(field("বিস্তারিত", area(d, "subheadline", "যেমন: পণ্য পছন্দ না হলে ডেলিভারি ম্যানের সামনেই ফেরত দিন", 3)));
+        break;
+      case "cta":
+        box.appendChild(field("লেখা (ঐচ্ছিক)", text(d, "headline", "যেমন: আজই অর্ডার করলে ফ্রি ডেলিভারি", 200)));
+        box.appendChild(field("বাটনের লেখা", text(d, "button_text", "এখনই অর্ডার করুন", 60)));
+        var cb2 = el("input", { type: "checkbox", checked: d.show_price !== false, onchange: function (e) { d.show_price = e.target.checked; } });
+        box.appendChild(el("label", { class: "small-check" }, [cb2, " দাম দেখাবে"]));
+        break;
       case "order_form":
         box.appendChild(field("ফর্মের উপরের লেখা", text(d, "title", "অর্ডার করতে নিচের ফর্মটি পূরণ করুন", 200)));
         box.appendChild(el("p", { class: "muted", text: "অর্ডার ফর্ম সবসময় থাকে, শুধু জায়গা বদলানো যায়।" }));
@@ -267,11 +330,19 @@
         if (e.target.closest("button, input, label")) return;
         openSection(open ? null : sec.id, true);
       } }, [
+        el("span", { class: "lb-handle", title: "টেনে ক্রম বদলান", text: "⋮⋮", "data-i": String(i) }),
         el("strong", { text: (open ? "▾ " : "▸ ") + (i + 1) + ". " + LABEL[sec.type] }),
         el("span", { class: "b-actions" }, [
           isForm ? null : el("label", { class: "small-check", title: "চালু/বন্ধ" }, [el("input", { type: "checkbox", checked: sec.enabled !== false, onchange: function (e) { sec.enabled = e.target.checked; card.classList.toggle("off", !e.target.checked); changed(); } }), " চালু"]),
           el("button", { type: "button", class: "btn btn-outline btn-sm", text: "↑", title: "উপরে", onclick: function () { move(i, -1); } }),
           el("button", { type: "button", class: "btn btn-outline btn-sm", text: "↓", title: "নিচে", onclick: function () { move(i, 1); } }),
+          isForm ? null : el("button", { type: "button", class: "btn btn-outline btn-sm", text: "⧉", title: "কপি করুন", onclick: function () {
+            var copy = JSON.parse(JSON.stringify(sec));
+            copy.id = Math.random().toString(36).slice(2, 10);
+            state.sections.splice(i + 1, 0, copy);
+            openSection(copy.id, true);
+            changed();
+          } }),
           isForm ? null : el("button", { type: "button", class: "btn-link danger", text: "মুছুন", onclick: function () { if (confirm("সেকশনটি মুছবেন?")) { state.sections.splice(i, 1); drawSections(); changed(); } } }),
         ]),
       ]);
@@ -295,12 +366,103 @@
     if (fromPanel) scrollPreviewTo(id);
   }
 
+  /* ---------- টেনে ক্রম বদল (⋮⋮) ---------- */
+  var dragFrom = null;
+  list.addEventListener("pointerdown", function (e) {
+    var h = e.target.closest(".lb-handle");
+    if (!h) return;
+    e.preventDefault();
+    dragFrom = h.closest(".b-section");
+    dragFrom.classList.add("dragging");
+    list.setPointerCapture(e.pointerId);
+  });
+  list.addEventListener("pointermove", function (e) {
+    if (!dragFrom) return;
+    var over = document.elementFromPoint(e.clientX, e.clientY);
+    var card = over && over.closest && over.closest("#sections > .b-section");
+    if (!card || card === dragFrom) return;
+    var r = card.getBoundingClientRect();
+    list.insertBefore(dragFrom, e.clientY > r.top + r.height / 2 ? card.nextElementSibling : card);
+  });
+  function dragEnd() {
+    if (!dragFrom) return;
+    dragFrom.classList.remove("dragging");
+    dragFrom = null;
+    var order = Array.prototype.map.call(list.children, function (c) { return c.getAttribute("data-id"); });
+    state.sections.sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
+    drawSections();
+    changed();
+  }
+  list.addEventListener("pointerup", dragEnd);
+  list.addEventListener("pointercancel", dragEnd);
+
+  /* ---------- আগের অবস্থা / পরের অবস্থা (Ctrl+Z / Ctrl+Y) ---------- */
+  var history = [JSON.stringify(state)], hIdx = 0, restoring = false;
+  var undoBtn = document.getElementById("lb-undo"), redoBtn = document.getElementById("lb-redo");
+  function syncUndo() {
+    if (undoBtn) undoBtn.disabled = hIdx <= 0;
+    if (redoBtn) redoBtn.disabled = hIdx >= history.length - 1;
+  }
+  function snapshot() {
+    if (restoring) return;
+    var cur = JSON.stringify(state);
+    if (cur === history[hIdx]) return;
+    history = history.slice(0, hIdx + 1);
+    history.push(cur);
+    if (history.length > 60) history.shift();
+    hIdx = history.length - 1;
+    syncUndo();
+  }
+  function go(step) {
+    var j = hIdx + step;
+    if (j < 0 || j >= history.length) return;
+    hIdx = j;
+    restoring = true;
+    state = JSON.parse(history[hIdx]);
+    drawPageStyle();
+    drawSections();
+    changed();
+    restoring = false;
+    syncUndo();
+  }
+  if (undoBtn) undoBtn.addEventListener("click", function () { go(-1); });
+  if (redoBtn) redoBtn.addEventListener("click", function () { go(1); });
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return; // লেখার ঘরে ব্রাউজারের নিজের undo
+    var k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) { e.preventDefault(); go(-1); }
+    else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); go(1); }
+  });
+
+  /* ---------- নিজে থেকে সেভ ---------- */
+  var autoTimer = null;
+  function autosave() {
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(function () {
+      if (!dirty) return;
+      var fd = new FormData();
+      fd.append("landing_json", JSON.stringify(state));
+      fd.append("ajax", "1");
+      if (statusEl) statusEl.textContent = "সেভ হচ্ছে…";
+      fetch(form.action, { method: "POST", body: fd, credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) throw new Error();
+          dirty = false;
+          if (statusEl) statusEl.textContent = "নিজে থেকে সেভ হয়েছে ✓";
+        })
+        .catch(function () { if (statusEl) statusEl.textContent = "সেভ হয়নি — নিচের \"সেভ করুন\" চাপুন"; });
+    }, 2500);
+  }
+
   /* ---------- লাইভ প্রিভিউ ---------- */
   var timer = null, seq = 0, pendingScroll = null;
   function changed() {
     dirty = true;
     clearTimeout(timer);
-    timer = setTimeout(refresh, 400);
+    timer = setTimeout(function () { snapshot(); refresh(); autosave(); }, 400);
   }
   function refresh() {
     var my = ++seq;
@@ -315,7 +477,7 @@
         var doc = frame.contentDocument;
         pendingScroll = doc && doc.scrollingElement ? doc.scrollingElement.scrollTop : 0;
         frame.srcdoc = html;
-        if (statusEl) statusEl.textContent = dirty ? "সেভ হয়নি" : "";
+        if (statusEl && dirty) statusEl.textContent = "বদল হয়েছে…";
       })
       .catch(function () { if (statusEl) statusEl.textContent = "প্রিভিউ আপডেট হয়নি"; });
   }

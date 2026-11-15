@@ -57,6 +57,65 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
       case "text":
         // ফাঁকা থাকলে পণ্যের বিস্তারিত (পণ্য স্টোরেজ থেকে)
         return d.html || prod.details_html ? <div class="details" dangerouslySetInnerHTML={{ __html: d.html || sanitizeHtml(prod.details_html || "") }} /> : null;
+      case "image": {
+        const k = d.images?.[0];
+        if (!k) return null;
+        return (
+          <figure class="lp-image">
+            <img src={imageUrl(k)} alt={d.title || prod.name} loading="lazy" width="1200" height="600" />
+            {d.title && <figcaption>{d.title}</figcaption>}
+          </figure>
+        );
+      }
+      case "before_after": {
+        const [a, b] = d.images ?? [];
+        if (!a && !b) return null;
+        return (
+          <section class="lp-box lp-ba">
+            {d.title && <h2>{d.title}</h2>}
+            <div class="lp-ba-grid">
+              {[a, b].map((k, i) => (
+                <figure>
+                  {k ? <img src={imageUrl(k)} alt={d.labels?.[i] ?? ""} loading="lazy" width="600" height="600" /> : <span class="lp-ba-empty"></span>}
+                  <figcaption class={i ? "after" : "before"}>{d.labels?.[i]}</figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        );
+      }
+      case "steps":
+        return d.items?.length ? (
+          <section class="lp-box lp-steps">
+            {d.title && <h2>{d.title}</h2>}
+            <ol>{d.items.map((x) => <li>{x}</li>)}</ol>
+          </section>
+        ) : null;
+      case "comparison":
+        return d.rows?.length ? (
+          <section class="lp-box lp-compare">
+            {d.title && <h2>{d.title}</h2>}
+            <table>
+              <thead><tr><th></th><th class="us">{d.labels?.[0]}</th><th>{d.labels?.[1]}</th></tr></thead>
+              <tbody>{d.rows.map((r) => <tr><td>{r.label}</td><td class="us">{r.us || "✓"}</td><td>{r.them || "✕"}</td></tr>)}</tbody>
+            </table>
+          </section>
+        ) : null;
+      case "guarantee":
+        return (
+          <section class="lp-guarantee">
+            <span class="lp-g-ico" aria-hidden="true">✓</span>
+            <div><h2>{d.title}</h2>{d.subheadline && <p>{d.subheadline}</p>}</div>
+          </section>
+        );
+      case "cta":
+        return (
+          <section class="lp-cta">
+            {d.headline && <h2>{d.headline}</h2>}
+            {d.show_price && priceRow}
+            <a href="#order" class="btn btn-primary btn-block btn-lg">{d.button_text}</a>
+          </section>
+        );
       case "benefits":
         return d.items?.length ? (
           <section class="lp-box lp-benefits">

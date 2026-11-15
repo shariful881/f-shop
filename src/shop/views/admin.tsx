@@ -1079,6 +1079,10 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
         <div class="lb-devices">
           <button type="button" class="chip active" data-device="mobile">মোবাইল</button>
           <button type="button" class="chip" data-device="desktop">ডেস্কটপ</button>
+          <span class="lb-undo">
+            <button type="button" class="chip" id="lb-undo" title="আগের অবস্থায় (Ctrl+Z)" disabled>↶ আগের</button>
+            <button type="button" class="chip" id="lb-redo" title="আবার (Ctrl+Y)" disabled>↷ পরের</button>
+          </span>
           <span class="muted small" id="lb-status"></span>
         </div>
         <div class="lb-frame-wrap mobile" id="lb-frame-wrap"><iframe id="lb-frame" title="প্রিভিউ"></iframe></div>

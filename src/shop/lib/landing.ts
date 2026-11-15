@@ -6,12 +6,18 @@ import { sanitizeHtml } from "./sanitize";
 import { youtubeId } from "./format";
 import type { Product } from "./products";
 
-export const SECTION_TYPES = ["hero", "gallery", "video", "text", "benefits", "reviews", "faq", "countdown", "trust", "order_form"] as const;
+export const SECTION_TYPES = ["hero", "gallery", "image", "video", "text", "benefits", "before_after", "steps", "comparison", "reviews", "guarantee", "faq", "countdown", "cta", "trust", "order_form"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 export const SECTION_LABEL: Record<SectionType, string> = {
   hero: "বড় শিরোনাম",
   gallery: "ছবির গ্যালারি",
+  image: "বড় ছবি / ব্যানার",
+  before_after: "আগে-পরে (দুই ছবি)",
+  steps: "কীভাবে অর্ডার করবেন (ধাপ)",
+  comparison: "তুলনা (আমাদের বনাম অন্যরা)",
+  guarantee: "গ্যারান্টি",
+  cta: "মাঝে অর্ডারের বাটন",
   video: "ভিডিও",
   text: "লেখা / বিস্তারিত",
   benefits: "সুবিধার তালিকা",
@@ -51,6 +57,7 @@ export type Section = {
     title?: string; images?: string[]; youtube_url?: string; html?: string;
     items?: string[]; reviews?: Review[]; faqs?: { q: string; a: string }[];
     mode?: "fixed" | "evergreen"; ends_at?: string; minutes?: number;
+    labels?: string[]; rows?: { label: string; us: string; them: string }[];
   };
 };
 export type Landing = { sections: Section[]; style?: PageStyle };
@@ -154,6 +161,36 @@ export function normalizeLanding(input: unknown): Landing {
       }
       case "order_form":
         data.title = s(d.title, 200) || "অর্ডার করতে নিচের ফর্মটি পূরণ করুন";
+        break;
+      case "image":
+        data.images = (Array.isArray(d.images) ? d.images : []).map(imgKey).filter(Boolean).slice(0, 1);
+        data.title = s(d.title, 200);
+        break;
+      case "before_after":
+        data.title = s(d.title, 120);
+        data.images = (Array.isArray(d.images) ? d.images : []).map(imgKey).slice(0, 2);
+        data.labels = [0, 1].map((i) => s(Array.isArray(d.labels) ? d.labels[i] : "", 40) || (i ? "পরে" : "আগে"));
+        break;
+      case "steps":
+        data.title = s(d.title, 120);
+        data.items = (Array.isArray(d.items) ? d.items : []).map((x) => s(x, 200)).filter(Boolean).slice(0, 8);
+        break;
+      case "comparison":
+        data.title = s(d.title, 120);
+        data.labels = [0, 1].map((i) => s(Array.isArray(d.labels) ? d.labels[i] : "", 40) || (i ? "অন্যরা" : "আমাদের পণ্য"));
+        data.rows = (Array.isArray(d.rows) ? d.rows : []).slice(0, 12).map((r) => {
+          const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>;
+          return { label: s(o.label, 120), us: s(o.us, 120), them: s(o.them, 120) };
+        }).filter((r) => r.label);
+        break;
+      case "guarantee":
+        data.title = s(d.title, 160) || "১০০% সন্তুষ্টির গ্যারান্টি";
+        data.subheadline = s(d.subheadline, 600);
+        break;
+      case "cta":
+        data.headline = s(d.headline, 200);
+        data.button_text = s(d.button_text, 60) || "এখনই অর্ডার করুন";
+        data.show_price = d.show_price !== false;
         break;
     }
     const style = normalizeStyle(it.style);

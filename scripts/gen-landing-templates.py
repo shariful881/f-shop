@@ -1,0 +1,110 @@
+"""নিশ ধরে নতুন ল্যান্ডিং টেমপ্লেট (নতুন সেকশনসহ) → migrations/platform/0010_niche_landing_templates.sql
+চালাতে: python3 scripts/gen-landing-templates.py"""
+import json
+
+def sec(i, t, data, style=None, enabled=True):
+    s = {"id": i, "type": t, "enabled": enabled, "data": data}
+    if style:
+        s["style"] = style
+    return s
+
+ORDER = lambda bg, btn: sec("order", "order_form", {"title": "অর্ডার করতে নিচের ফর্মটি পূরণ করুন"}, {"bg": bg, "btn_bg": btn, "btn_color": "#ffffff"})
+STEPS = sec("steps", "steps", {"title": "কীভাবে অর্ডার করবেন", "items": ["নিচের ফর্মে নাম, মোবাইল আর ঠিকানা দিন", "আমরা ফোন করে অর্ডার কনফার্ম করব", "১–৩ দিনে পণ্য হাতে পেয়ে টাকা দিন"]})
+COD = ["ক্যাশ অন ডেলিভারি", "সারাদেশে হোম ডেলিভারি", "পণ্য দেখে নেওয়ার সুযোগ"]
+
+T = []
+
+T.append(("থ্রি-পিস ও শাড়ি (প্রিমিয়াম)", "ফ্যাশন", "বড় ছবি, কাপড়ের মানের তুলনা, গ্যারান্টি — থ্রি-পিস, শাড়ি, কুর্তি", {"style": {"font": "anek"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "আরামদায়ক কাপড়, নিখুঁত সেলাই — ঈদের সেরা কালেকশন", "show_price": True, "button_text": "এখনই অর্ডার করুন"}, {"bg": "#500724", "color": "#ffffff", "btn_bg": "#db2777", "btn_color": "#ffffff", "align": "center"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "এই কালেকশনে যা পাচ্ছেন", "items": ["১০০% সুতি / জর্জেট — যেমন ছবি তেমন পণ্য", "রং ওঠে না, ধোয়ার পরও নতুনের মতো", "সব সাইজ পাওয়া যায় (M থেকে XXL)", "গিফট প্যাকেজিং"]}),
+    sec("comparison", "comparison", {"title": "কেন আমাদের থেকে নেবেন", "labels": ["আমাদের", "সাধারণ দোকান"], "rows": [{"label": "কাপড়ের মান", "us": "প্রিমিয়াম", "them": "সাধারণ"}, {"label": "ছবির মতো পণ্য", "us": "✓", "them": "অনেক সময় না"}, {"label": "দেখে নিয়ে টাকা", "us": "✓", "them": "✕"}]}),
+    sec("reviews", "reviews", {"title": "কাস্টমারদের মতামত", "reviews": []}, enabled=False),
+    sec("guarantee", "guarantee", {"title": "পছন্দ না হলে ফেরত", "subheadline": "ডেলিভারি ম্যানের সামনেই পণ্য দেখে নিন — পছন্দ না হলে শুধু ডেলিভারি চার্জ দিয়ে ফেরত দিন।"}),
+    sec("cta", "cta", {"headline": "স্টক সীমিত — আজই অর্ডার করুন", "button_text": "অর্ডার করুন", "show_price": True}, {"bg": "#fdf2f8"}),
+    STEPS, ORDER("#fdf2f8", "#be185d"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "সাইজ মিলবে তো?", "a": "অর্ডার কনফার্মের সময় ফোনে আপনার মাপ জেনে নেব।"}, {"q": "ডেলিভারি কত দিনে?", "a": "ঢাকায় ১–২ দিন, বাইরে ২–৪ দিন।"}]}),
+]}))
+
+T.append(("খাঁটি মধু ও ঘি", "ফুড/অর্গানিক", "বিশুদ্ধতার প্রমাণ, ধাপ আর গ্যারান্টি — মধু, ঘি, সরিষার তেল, খেজুর", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "সুন্দরবনের খাঁটি মধু — কোনো ভেজাল নেই, সরাসরি চাষির কাছ থেকে", "show_price": True, "button_text": "খাঁটি মধু অর্ডার করুন"}, {"bg": "#78350f", "color": "#fffbeb", "btn_bg": "#f59e0b", "btn_color": "#1c1917"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "কেন আমাদের মধু আলাদা", "items": ["১০০% প্রাকৃতিক, চিনি মেশানো নেই", "ল্যাব টেস্ট করা", "ফুড-গ্রেড বোতলে প্যাক", "ভেজাল প্রমাণ করতে পারলে টাকা ফেরত"]}),
+    sec("video", "video", {"youtube_url": ""}, enabled=False),
+    sec("comparison", "comparison", {"title": "খাঁটি বনাম বাজারের মধু", "labels": ["আমাদের মধু", "বাজারের মধু"], "rows": [{"label": "চিনি / সিরাপ", "us": "নেই", "them": "অনেক সময় থাকে"}, {"label": "শীতে জমে যাওয়া", "us": "স্বাভাবিক", "them": "জমে না"}, {"label": "উৎস", "us": "সরাসরি চাষি", "them": "অজানা"}]}),
+    sec("guarantee", "guarantee", {"title": "ভেজাল হলে পুরো টাকা ফেরত", "subheadline": "যেকোনো ল্যাবে পরীক্ষা করে ভেজাল প্রমাণ করতে পারলে আমরা পুরো টাকা ফেরত দেব।"}),
+    STEPS, ORDER("#fffbeb", "#b45309"),
+    sec("trust", "trust", {"title": "", "items": COD}),
+]}))
+
+T.append(("স্কিনকেয়ার — আগে-পরে", "কসমেটিক্স", "আগে-পরে ছবি, ব্যবহারের ধাপ, অরিজিনাল গ্যারান্টি — ক্রিম, সিরাম, ফেসওয়াশ", {"style": {"font": "anek"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "মাত্র ৭ দিনে উজ্জ্বল, দাগহীন ত্বক — ১০০% অরিজিনাল", "show_price": True, "button_text": "এখনই অর্ডার করুন"}, {"bg": "#fdf2f8", "color": "#831843", "btn_bg": "#db2777", "btn_color": "#ffffff"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("before_after", "before_after", {"title": "ব্যবহারের আগে ও পরে", "images": ["", ""], "labels": ["আগে", "৭ দিন পরে"]}),
+    sec("benefits", "benefits", {"title": "যা করে", "items": ["দাগ ও ছোপ হালকা করে", "ত্বক নরম ও উজ্জ্বল রাখে", "সব ধরনের ত্বকে মানানসই", "প্যারাবেন-মুক্ত"]}),
+    sec("steps-use", "steps", {"title": "কীভাবে ব্যবহার করবেন", "items": ["মুখ ধুয়ে শুকিয়ে নিন", "অল্প পরিমাণ নিয়ে আলতো করে লাগান", "রাতে ঘুমানোর আগে ব্যবহার করুন"]}),
+    sec("reviews", "reviews", {"title": "যারা ব্যবহার করেছেন", "reviews": []}, enabled=False),
+    sec("guarantee", "guarantee", {"title": "১০০% অরিজিনাল পণ্যের নিশ্চয়তা", "subheadline": "নকল প্রমাণ হলে দ্বিগুণ টাকা ফেরত।"}),
+    ORDER("#fdf2f8", "#be185d"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "কত দিনে ফল পাব?", "a": "সাধারণত ৭–১৪ দিনে পরিবর্তন চোখে পড়ে।"}, {"q": "পার্শ্বপ্রতিক্রিয়া আছে?", "a": "প্রথমে হাতে অল্প লাগিয়ে পরীক্ষা করে নিন।"}]}),
+]}))
+
+T.append(("গ্যাজেট — ফিচার তুলনা", "গ্যাজেট", "ডার্ক ডিজাইন, ফিচারের তুলনা, ওয়ারেন্টি — ইয়ারবাড, স্মার্টওয়াচ, চার্জার", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "প্রিমিয়াম কোয়ালিটি, বাজেটের দামে — ৬ মাসের ওয়ারেন্টি", "show_price": True, "button_text": "অর্ডার করুন"}, {"bg": "#0f172a", "color": "#e2e8f0", "btn_bg": "#2563eb", "btn_color": "#ffffff"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("video", "video", {"youtube_url": ""}, enabled=False),
+    sec("benefits", "benefits", {"title": "ফিচার", "items": ["দীর্ঘ ব্যাটারি — একবার চার্জে সারাদিন", "টাইপ-সি ফাস্ট চার্জিং", "ব্লুটুথ ৫.৩ — দ্রুত কানেক্ট", "পানি ও ঘাম প্রতিরোধী"]}),
+    sec("comparison", "comparison", {"title": "এই দামে আর কোথাও পাবেন না", "labels": ["আমাদের", "অন্যরা"], "rows": [{"label": "ওয়ারেন্টি", "us": "৬ মাস", "them": "নেই"}, {"label": "ব্যাটারি", "us": "৩০ ঘণ্টা", "them": "১০–১৫ ঘণ্টা"}, {"label": "দেখে নিয়ে টাকা", "us": "✓", "them": "✕"}]}, {"bg": "#f8fafc"}),
+    sec("guarantee", "guarantee", {"title": "৬ মাসের রিপ্লেসমেন্ট ওয়ারেন্টি", "subheadline": "কোনো সমস্যা হলে নতুন পণ্য দিয়ে দেব।"}),
+    sec("countdown", "countdown", {"title": "অফার শেষ হতে বাকি", "mode": "evergreen", "minutes": 180}),
+    ORDER("#f8fafc", "#1d4ed8"),
+    sec("trust", "trust", {"title": "", "items": COD}),
+]}))
+
+T.append(("ঘর সাজানো ও হস্তশিল্প", "অন্যান্য", "বড় ছবি, মাপ ও ব্যবহার, গিফটের উপযোগী — কাঠের পণ্য, ডেকোর, হস্তশিল্প", {"style": {"font": "tiro"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "হাতে বানানো, টেকসই — আপনার ঘরে আনুন প্রাকৃতিক সৌন্দর্য", "show_price": True, "button_text": "অর্ডার করুন"}, {"bg": "#fffbeb", "color": "#451a03", "btn_bg": "#92400e", "btn_color": "#ffffff"}),
+    sec("image", "image", {"images": [], "title": ""}, enabled=False),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "বিশেষত্ব", "items": ["প্রাকৃতিক কাঠ / উপাদানে তৈরি", "দক্ষ কারিগরের হাতে বানানো", "উপহার দেওয়ার জন্য সুন্দর প্যাকেজিং", "সহজে পরিষ্কার করা যায়"]}),
+    sec("text", "text", {"html": ""}),
+    sec("cta", "cta", {"headline": "প্রিয়জনকে উপহার দিন", "button_text": "অর্ডার করুন", "show_price": False}, {"bg": "#fef3c7"}),
+    sec("guarantee", "guarantee", {"title": "ভাঙা পৌঁছালে নতুন পাঠাব", "subheadline": "ডেলিভারিতে ক্ষতি হলে কোনো খরচ ছাড়াই নতুন পণ্য।"}),
+    STEPS, ORDER("#fffbeb", "#92400e"),
+]}))
+
+T.append(("রান্নাঘরের দরকারি জিনিস", "অন্যান্য", "সমস্যা-সমাধান, ব্যবহারের ধাপ, ভিডিও — কিচেন টুল, অর্গানাইজার", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "রান্নার সময় অর্ধেক — প্রতিদিনের কাজ এখন সহজ", "show_price": True, "button_text": "আজই অর্ডার করুন"}, {"bg": "#7c2d12", "color": "#fff7ed", "btn_bg": "#f97316", "btn_color": "#ffffff"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("video", "video", {"youtube_url": ""}, enabled=False),
+    sec("benefits", "benefits", {"title": "কী সুবিধা পাবেন", "items": ["সময় বাঁচায়", "ফুড-গ্রেড, নিরাপদ উপাদান", "সহজে ধোয়া যায়", "অল্প জায়গায় রাখা যায়"]}),
+    sec("steps-use", "steps", {"title": "ব্যবহার একদম সহজ", "items": ["প্যাকেট খুলে ধুয়ে নিন", "ছবির মতো সেট করুন", "ব্যবহার শেষে ধুয়ে রেখে দিন"]}),
+    sec("countdown", "countdown", {"title": "অফার শেষ হতে বাকি", "mode": "evergreen", "minutes": 120}, enabled=False),
+    ORDER("#fff7ed", "#c2410c"),
+    sec("trust", "trust", {"title": "", "items": COD}),
+]}))
+
+T.append(("বাচ্চাদের খেলনা ও দোলনা", "বেবি প্রোডাক্ট", "নিরাপত্তা আগে, মায়েদের মতামত, গ্যারান্টি — খেলনা, দোলনা, বেবি গিয়ার", {"style": {"font": "baloo"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "আপনার সোনামণির জন্য নিরাপদ, আরামদায়ক — মায়েদের পছন্দের", "show_price": True, "button_text": "অর্ডার করুন"}, {"bg": "#e0f2fe", "color": "#0c4a6e", "btn_bg": "#0284c7", "btn_color": "#ffffff"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("benefits", "benefits", {"title": "নিরাপত্তাই প্রথম", "items": ["বিষমুক্ত, নরম উপাদান", "ধারালো কোনা নেই", "শক্ত ও টেকসই", "সহজে ভাঁজ করে রাখা যায়"]}),
+    sec("reviews", "reviews", {"title": "মায়েদের মতামত", "reviews": []}, enabled=False),
+    sec("guarantee", "guarantee", {"title": "৭ দিনের রিপ্লেসমেন্ট", "subheadline": "কোনো ত্রুটি থাকলে ৭ দিনের মধ্যে বদলে দেব।"}),
+    STEPS, ORDER("#f0f9ff", "#0369a1"),
+    sec("faq", "faq", {"title": "সাধারণ প্রশ্ন", "faqs": [{"q": "কত বয়সের বাচ্চার জন্য?", "a": "পণ্যের বিবরণে বয়স দেওয়া আছে, ফোনেও জেনে নিতে পারেন।"}]}),
+]}))
+
+T.append(("এক পাতার দ্রুত অফার", "সাধারণ", "ছোট আর দ্রুত — বিজ্ঞাপন থেকে আসা ক্রেতার জন্য: ছবি, অফার, ফর্ম", {"style": {"font": "hind"}, "sections": [
+    sec("hero", "hero", {"headline": "", "subheadline": "আজকের বিশেষ অফার — স্টক শেষ হওয়ার আগেই নিন", "show_price": True, "button_text": "এখনই অর্ডার করুন"}, {"bg": "#b91c1c", "color": "#ffffff", "btn_bg": "#facc15", "btn_color": "#111827"}),
+    sec("gallery", "gallery", {"images": []}),
+    sec("countdown", "countdown", {"title": "অফার শেষ হতে বাকি", "mode": "evergreen", "minutes": 60}, {"btn_bg": "#b91c1c"}),
+    sec("trust", "trust", {"title": "", "items": COD}),
+    ORDER("#fef2f2", "#b91c1c"),
+]}))
+
+lines = ["-- নিশ ধরে নতুন ল্যান্ডিং টেমপ্লেট (নতুন সেকশন: আগে-পরে, তুলনা, ধাপ, গ্যারান্টি, মাঝের বাটন, বড় ছবি)",
+         "-- scripts/gen-landing-templates.py দিয়ে তৈরি"]
+for i, (name, cat, desc, data) in enumerate(T):
+    js = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("'", "''")
+    lines.append(f"INSERT INTO landing_templates (name, category, description, json, sort_order) VALUES ('{name}', '{cat}', '{desc}', '{js}', {20 + i});")
+open("migrations/platform/0010_niche_landing_templates.sql", "w").write("\n".join(lines) + "\n")
+print(len(T), "templates")

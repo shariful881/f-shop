@@ -1482,7 +1482,14 @@ function landingFromBody(raw: unknown) {
 
 admin.post("/products/:id{[0-9]+}/landing", async (c) => {
   const id = toInt(c.req.param("id"));
-  const landing = landingFromBody((await c.req.parseBody()).landing_json);
+  const body = await c.req.parseBody();
+  const landing = landingFromBody(body.landing_json);
+  // বিল্ডারের নিজে থেকে সেভ (পেজ না বদলে)
+  if (body.ajax === "1") {
+    if (!landing) return c.json({ ok: false }, 400);
+    await c.env.DB.prepare("UPDATE products SET landing_json = ?, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(landing), id).run();
+    return c.json({ ok: true });
+  }
   if (!landing) {
     flash(c, "error", "সেভ করা যায়নি, আবার চেষ্টা করুন");
   } else {

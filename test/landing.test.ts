@@ -118,3 +118,57 @@ describe("ল্যান্ডিং পেজ বিল্ডার", () => {
     expect(html).not.toContain("steal()");
   });
 });
+
+describe("ল্যান্ডিং: নতুন সেকশন", () => {
+  it("আগে-পরে, ধাপ, তুলনা, গ্যারান্টি, মাঝের বাটন, বড় ছবি — যাচাই আর দেখানো", async () => {
+    const { normalizeLanding } = await import("../src/shop/lib/landing");
+    const l = normalizeLanding({ sections: [
+      { type: "before_after", data: { title: "আগে-পরে", images: ["p/a.jpg", "p/b.jpg", "p/c.jpg"], labels: ["", "৭ দিন পরে"] } },
+      { type: "steps", data: { title: "ধাপ", items: ["ফর্ম পূরণ", "", "ফোনে কনফার্ম"] } },
+      { type: "comparison", data: { rows: [{ label: "মান", us: "", them: "" }, { label: "" }] } },
+      { type: "guarantee", data: { subheadline: "ফেরত দিন" } },
+      { type: "cta", data: { headline: "আজই নিন" } },
+      { type: "image", data: { images: ["../x.jpg", "p/ok.jpg"] } },
+    ] });
+    const by = (t: string) => l.sections.find((x) => x.type === t)!.data;
+    expect(by("before_after").images).toEqual(["p/a.jpg", "p/b.jpg"]);
+    expect(by("before_after").labels).toEqual(["আগে", "৭ দিন পরে"]);
+    expect(by("steps").items).toEqual(["ফর্ম পূরণ", "ফোনে কনফার্ম"]);
+    expect(by("comparison").rows).toHaveLength(1);
+    expect(by("comparison").labels).toEqual(["আমাদের পণ্য", "অন্যরা"]);
+    expect(by("guarantee").title).toBe("১০০% সন্তুষ্টির গ্যারান্টি");
+    expect(by("cta").button_text).toBe("এখনই অর্ডার করুন");
+    expect(by("image").images).toEqual(["p/ok.jpg"]); // ভুল key বাদ, একটাই ছবি
+  });
+});
+
+describe("ল্যান্ডিং: নতুন সেকশন প্রিভিউতে দেখায়", () => {
+  it("তুলনা, গ্যারান্টি, ধাপ, মাঝের বাটন HTML-এ আসে", async () => {
+    const { adminBrowser, DB } = await import("./helpers");
+    const a = await adminBrowser();
+    const p = await DB.prepare("SELECT id FROM products LIMIT 1").first<{ id: number }>();
+    const landing = { sections: [
+      { type: "comparison", data: { title: "তুলনা-শিরোনাম", rows: [{ label: "কাপড়ের মান", us: "প্রিমিয়াম", them: "" }] } },
+      { type: "guarantee", data: { title: "ফেরতের গ্যারান্টি" } },
+      { type: "steps", data: { items: ["প্রথম ধাপ"] } },
+      { type: "cta", data: { headline: "আজই নিন" } },
+    ] };
+    const fd = new FormData();
+    fd.append("landing_json", JSON.stringify(landing));
+    const html = await (await a.fetch(`/admin/products/${p!.id}/landing/preview`, { method: "POST", body: fd })).text();
+    for (const x of ["lp-compare", "তুলনা-শিরোনাম", "প্রিমিয়াম", "✕", "lp-guarantee", "ফেরতের গ্যারান্টি", "lp-steps", "প্রথম ধাপ", "lp-cta", "আজই নিন"]) expect(html).toContain(x);
+  });
+
+  it("নিজে থেকে সেভ (ajax) JSON ফেরত দেয় আর সেভ করে", async () => {
+    const { adminBrowser, DB } = await import("./helpers");
+    const a = await adminBrowser();
+    const p = await DB.prepare("SELECT id FROM products LIMIT 1").first<{ id: number }>();
+    const fd = new FormData();
+    fd.append("landing_json", JSON.stringify({ sections: [{ type: "guarantee", data: { title: "অটো-সেভ" } }] }));
+    fd.append("ajax", "1");
+    const r = await a.fetch(`/admin/products/${p!.id}/landing`, { method: "POST", body: fd });
+    expect(await r.json()).toEqual({ ok: true });
+    const row = await DB.prepare("SELECT landing_json FROM products WHERE id = ?").bind(p!.id).first<{ landing_json: string }>();
+    expect(row!.landing_json).toContain("অটো-সেভ");
+  });
+});

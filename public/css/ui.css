@@ -501,3 +501,14 @@ body.de .de-ver-btn[disabled] { opacity: .4; }
 .dp-sw i { flex: 1; }
 .dp-reset { justify-content: center; align-items: center; background: #fff; color: var(--c-mute); font-weight: 700; }
 @media (max-width: 860px) { .de-ver { order: 2; } }
+
+/* ---------- ল্যান্ডিং বিল্ডার: টানা, আগের/পরের ---------- */
+.lb-handle { cursor: grab; color: #94a3b8; font-weight: 700; letter-spacing: -2px; padding: 0 6px 0 0; touch-action: none; user-select: none; }
+.b-section.dragging { opacity: .6; outline: 2px solid var(--c-brand); border-radius: var(--r); }
+.lb-undo { display: inline-flex; gap: 4px; margin-left: 6px; }
+.lb-undo .chip[disabled] { opacity: .45; cursor: default; }
+.b-row { display: flex; gap: 6px; align-items: center; }
+.b-row > input { flex: 1; min-width: 0; }
+.lb-head { justify-content: flex-start !important; gap: 6px; flex-wrap: wrap; }
+.lb-head > strong { flex: 1 1 auto; min-width: 0; text-align: left; }
+.lb-head .b-actions { margin-left: auto; }

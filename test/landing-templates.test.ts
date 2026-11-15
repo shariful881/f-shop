@@ -157,3 +157,20 @@ describe("সুপার অ্যাডমিন: টেমপ্লেট", (
     expect(await (await a.get("/admin/landing/new")).text()).not.toContain("ঈদ স্পেশাল");
   });
 });
+
+describe("নিশের নতুন টেমপ্লেট", () => {
+  it("৮টা নতুন টেমপ্লেট আছে, সব ঠিকমতো পড়া যায়, নতুন সেকশন থাকে", async () => {
+    const { PLATFORM_DB } = (await import("cloudflare:test")).env as unknown as { PLATFORM_DB: D1Database };
+    const { parseLanding } = await import("../src/shop/lib/landing");
+    const { results } = await PLATFORM_DB.prepare("SELECT name, json FROM landing_templates WHERE sort_order >= 20").all<{ name: string; json: string }>();
+    expect(results.length).toBe(8);
+    const types = new Set<string>();
+    for (const r of results) {
+      const l = parseLanding(r.json);
+      expect(l, r.name).not.toBeNull();
+      expect(l!.sections.some((x) => x.type === "order_form")).toBe(true);
+      l!.sections.forEach((x) => types.add(x.type));
+    }
+    for (const t of ["before_after", "comparison", "steps", "guarantee", "cta"]) expect(types.has(t)).toBe(true);
+  });
+});
