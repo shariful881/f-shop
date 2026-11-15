@@ -325,3 +325,15 @@
 .hp-star-badge .ic { width: 13px; height: 13px; }
 @media (min-width: 980px) { .hp-feat.hp-feat-star { flex-direction: row; align-items: flex-start; gap: 18px; padding: 26px 24px 22px; } .hp-feat-star .hp-ic { width: 52px; height: 52px; } }
 @media (max-width: 639px) { .hp-feat.hp-feat-star { padding-top: 22px; } .hp-star-badge { left: 12px; font-size: .7rem; } }
+
+/* মাসিক / বাৎসরিক ট্যাব (বাৎসরিক আগে খোলা) */
+.hp-bill-tabs { display: flex; width: fit-content; margin: 22px auto 0; background: #fff; border: 1.5px solid var(--hp-line); border-radius: 999px; padding: 4px; gap: 4px; }
+.hp-bill-tabs button { border: 0; background: transparent; font: inherit; font-weight: 700; font-size: .95rem; color: #475569; padding: 9px 20px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.hp-bill-tabs button span { background: #fff7ed; color: #c2410c; font-size: .74rem; padding: 2px 8px; border-radius: 999px; }
+.hp-bill-tabs button.on { background: var(--hp-teal); color: #fff; }
+.hp-bill-tabs button.on span { background: var(--hp-orange); color: #fff; }
+.hp-plans[data-mode="year"] .hp-pm, .hp-plans[data-mode="month"] .hp-py { display: none; }
+.hp-py .hp-plan-price, .hp-pm .hp-plan-price { margin-bottom: 4px; }
+.hp-py, .hp-pm { margin-bottom: 14px; }
+.hp-plan-year s { color: #94a3b8; }
+@media (max-width: 639px) { .hp-bill-tabs { margin-top: 16px; } .hp-bill-tabs button { padding: 9px 16px; } }

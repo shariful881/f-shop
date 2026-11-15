@@ -379,15 +379,25 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
         <p class="hp-eyebrow">ন্যায্য দাম</p>
         <h2 class="hp-title">৳০ থেকে শুরু — যত বড় হবেন, তত প্ল্যান</h2>
         <p class="hp-sub">সব প্ল্যানে সব ফিচার। পার্থক্য শুধু মাসে কয়টা কনফার্ম অর্ডার। ফেক বা বাতিল অর্ডার গোনা হয় না।</p>
+        <div class="hp-bill-tabs" role="tablist" aria-label="মাসিক বা বাৎসরিক">
+          <button type="button" role="tab" class="on" aria-selected="true" data-bill="year">বাৎসরিক <span>১৫% ছাড়</span></button>
+          <button type="button" role="tab" aria-selected="false" data-bill="month">মাসিক</button>
+        </div>
         <p class="hp-swipe" aria-hidden="true"><Icon name="arrow-left" size="sm" /> সরিয়ে সব প্ল্যান দেখুন <Icon name="arrow-right" size="sm" /></p>
-        <div class="hp-plans">
+        <div class="hp-plans" data-mode="year">
           {(["free", "small", "grow", "big"] as const).map((k) => (
             <div class={`hp-plan${k === "grow" ? " hp-plan-hot" : ""}`}>
               {k === "grow" && <span class="hp-plan-badge">সবচেয়ে জনপ্রিয়</span>}
               <h3>{P[k].name}</h3>
               <p class="hp-plan-for">{P[k].for}</p>
-              <div class="hp-plan-price">{P[k].price ? taka(P[k].price) : "৳০"}<small>/মাস</small></div>
-              {P[k].price > 0 && <small class="hp-plan-year">বছরে {taka(cyclePrice(P[k].price, 12))} — ১৫% ছাড়</small>}
+              <div class="hp-py">
+                <div class="hp-plan-price">{P[k].price ? taka(cyclePrice(P[k].price, 12)) : "৳০"}<small>/বছর</small></div>
+                <small class="hp-plan-year">{P[k].price ? <>মাসে {taka(Math.round(cyclePrice(P[k].price, 12) / 12))} পড়ে · <s>{taka(P[k].price * 12)}</s></> : "চিরকাল ফ্রি"}</small>
+              </div>
+              <div class="hp-pm">
+                <div class="hp-plan-price">{P[k].price ? taka(P[k].price) : "৳০"}<small>/মাস</small></div>
+                <small class="hp-plan-year">{P[k].price ? "বছরে নিলে ১৫% ছাড়" : "চিরকাল ফ্রি"}</small>
+              </div>
               <ul>
                 <li><Icon name="check" size="sm" /> মাসে {bn(P[k].orders)}টা কনফার্ম অর্ডার</li>
                 <li><Icon name="check" size="sm" /> {P[k].staff ? `${bn(P[k].staff)} জন স্টাফ` : "শুধু মালিক"}</li>

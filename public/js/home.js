@@ -48,3 +48,17 @@
   window.addEventListener("scroll", tick, { passive: true });
   tick();
 })();
+
+/* দামের মাসিক / বাৎসরিক ট্যাব */
+(function () {
+  var plans = document.querySelector(".hp-plans[data-mode]");
+  var btns = document.querySelectorAll("[data-bill]");
+  if (!plans || !btns.length) return;
+  btns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      var m = b.getAttribute("data-bill");
+      plans.setAttribute("data-mode", m);
+      btns.forEach(function (x) { var on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on ? "true" : "false"); });
+    });
+  });
+})();
