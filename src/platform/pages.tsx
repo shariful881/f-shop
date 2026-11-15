@@ -284,3 +284,13 @@ export const HelpArticlePage = ({ a }: { a: HelpArticle }) => {
     </>
   );
 };
+
+/** ভুল লিংক (৪০৪) — মেনু আর ফুটারসহ, যাতে মানুষ পথ খুঁজে পায় */
+export const PlatformNotFoundPage = () => (
+  <>
+    <PageHero kicker="৪০৪" title="পেজটা পাওয়া যায়নি" sub="লিংকটা হয়তো ভুল, অথবা পেজটা সরানো হয়েছে।" />
+    <section class="p-section"><div class="wrap p-narrow p-prose">
+      <p class="nf-links"><a class="btn btn-primary" href="/">হোম পেজ</a> <a class="btn" href="/help">হেল্প সেন্টার</a> <a class="btn" href="/pricing">দাম</a></p>
+    </div></section>
+  </>
+);

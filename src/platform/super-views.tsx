@@ -2,6 +2,7 @@
  * সুপার অ্যাডমিন প্যানেল — পুরো প্ল্যাটফর্ম চালানোর কন্ট্রোল সেন্টার।
  * সাইডবার লেআউট, ড্যাশবোর্ড (KPI + চার্ট), দোকান, দোকানের ৩৬০° ভিউ, ফাইন্যান্স, রিচার্জ, ঘোষণা, অডিট লগ, টিম, সেটিংস।
  */
+import { WARN_AT, type Usage } from "./usage";
 import type { Child } from "hono/jsx";
 import { ASSET_VERSION } from "../shop/views/layout";
 import { bn, dhakaTime, taka } from "../shop/lib/format";
@@ -41,6 +42,8 @@ export const PERMS: Record<string, SuperRole[]> = {
   settings: ["owner"],
   account: ALL,
 };
+const mbStr = (b: number) => `${bn(Number((b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0)))} MB`;
+const pctStr = (p: number) => `${bn(Math.round(p * 100))}%`;
 export const can = (role: SuperRole | undefined, perm: string) => !!role && (PERMS[perm] ?? ["owner"]).includes(role);
 
 export const SHOP_STATUS_LABEL: Record<string, string> = { trial: "ট্রায়াল", active: "চালু", suspended: "স্থগিত", closed: "বন্ধ" };
@@ -232,6 +235,7 @@ export type DashData = {
   recentShops: { id: string; name: string; slug: string; status: string; created_at: string }[];
   recentAudit: AuditRow[];
   cron: { daily: string | null; domains: string | null };
+  usage: Usage;
 };
 
 const delta = (cur: number, prev: number) => {
@@ -297,8 +301,12 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
           <ul class="sa-sys">
             <li><span class={d.cron.daily && Date.now() - new Date(d.cron.daily.replace(" ", "T") + "Z").getTime() < 26 * 3600e3 ? "sa-dot-ok" : "sa-dot-warn"}></span>দৈনিক বিলিং <small>{ago(d.cron.daily)}</small></li>
             <li><span class={d.cron.domains && Date.now() - new Date(d.cron.domains.replace(" ", "T") + "Z").getTime() < 2 * 3600e3 ? "sa-dot-ok" : "sa-dot-warn"}></span>ডোমেইন যাচাই <small>{ago(d.cron.domains)}</small></li>
-            <li><span class="sa-dot-ok"></span>ডাটাবেস <small>{n0(d.total)}টা দোকান</small></li>
+            <li><span class={d.usage.d1Pct >= WARN_AT ? "sa-dot-warn" : "sa-dot-ok"}></span>মূল ডাটাবেস <small>{mbStr(d.usage.d1Bytes)} / ৫০০ MB ({pctStr(d.usage.d1Pct)})</small></li>
+            <li><span class={d.usage.doPct >= WARN_AT ? "sa-dot-warn" : "sa-dot-ok"}></span>দোকানগুলোর জায়গা <small>{mbStr(d.usage.doBytes)} / ৫ GB ({pctStr(d.usage.doPct)}) · মাপা হয়েছে {bn(d.usage.checked)}/{bn(d.usage.total)}টা</small></li>
+            {d.usage.biggest && <li><span class="sa-dot-ok"></span>সবচেয়ে বড় দোকান <small><a href={`/super/shops/${d.usage.biggest.id}`}>{d.usage.biggest.name}</a> — {mbStr(d.usage.biggest.bytes)}</small></li>}
           </ul>
+          {d.usage.warn && <p class="sa-alert sa-alert-err">ফ্রি প্ল্যানের জায়গার ৮০% পার হয়েছে। অব্যবহৃত ছবি মোছা বা Workers Paid ($৫/মাস) নেওয়ার সময় হয়েছে।</p>}
+          <p class="sa-muted"><small>দৈনিক অনুরোধের হিসাব Cloudflare ড্যাশবোর্ড → Workers → f-shop-এ দেখা যায় (ফ্রিতে দিনে ১ লাখ)।</small></p>
         </Card>
       </div>
 
@@ -508,6 +516,14 @@ export const ShopDetailPage = (p: {
             <Card title="ব্যাকআপ">
               <p class="sa-muted">দোকানের সব ডাটা (পণ্য, অর্ডার, সেটিংস, পেজ) একটা JSON ফাইলে। পাসওয়ার্ড আর ছবির ফাইল থাকে না। ডাউনলোড অডিট লগে লেখা হয়।</p>
               <a class="sa-btn sa-btn-ghost" href={`/super/shops/${s.id}/export.json`}>পুরো ব্যাকআপ (JSON)</a>
+              {can(r, "shop.restore") && (
+                <form method="post" action={`/super/shops/${s.id}/restore`} enctype="multipart/form-data" class="sa-form" data-confirm="এই দোকানের এখনকার পণ্য, অর্ডার, সেটিংস মুছে ব্যাকআপেরটা বসবে। নিশ্চিত?">
+                  <label>ব্যাকআপ থেকে ফেরান <small class="sa-muted">(ইউজার আর ছবি যেমন আছে থাকবে)</small></label>
+                  <input type="file" name="file" accept="application/json,.json" required />
+                  <input type="text" name="confirm" placeholder={`নিশ্চিত করতে লিখুন: ${s.slug}`} required autocomplete="off" />
+                  <button class="sa-btn sa-btn-danger">ফেরান</button>
+                </form>
+              )}
             </Card>
           )}
           {(can(r, "shop.status") || can(r, "shop.trial")) && (
@@ -747,7 +763,7 @@ export const AnnouncementsPage = ({ rows }: { rows: AnnRow[] }) => (
 
 /* ---------- অডিট লগ ---------- */
 export const ACTION_LABEL: Record<string, string> = {
-  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
+  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
   "shop.impersonate": "দোকানে সাপোর্ট লগইন", "shop.note": "নোট", "topup.approve": "রিচার্জ অনুমোদন", "topup.reject": "রিচার্জ বাতিল",
   "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ",
   "team.add": "টিমে যোগ", "team.update": "টিম সদস্য বদল", "team.password": "পাসওয়ার্ড বদল", "export.shops": "দোকানের তালিকা ডাউনলোড",

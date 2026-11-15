@@ -1,3 +1,4 @@
+import { errorPageHtml } from "./lib/error-page";
 import { logError } from "../platform/errors";
 import { Hono } from "hono";
 import type { AppEnv } from "./env";
@@ -71,5 +72,5 @@ shopApp.notFound((c) => notFound(c));
 shopApp.onError(async (err, c) => {
   console.error(err);
   await logError(c.env.PLATFORM_DB, { shopId: c.req.header("x-fshop-id"), method: c.req.method, path: new URL(c.req.url).pathname, err });
-  return c.text("দুঃখিত, একটা সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করুন।", 500);
+  return c.html(errorPageHtml("shop"), 500);
 });

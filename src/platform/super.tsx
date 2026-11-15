@@ -18,6 +18,7 @@ const DEMO_IMAGE_BASE = "https://raw.githubusercontent.com/shariful881/f-shop/ma
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
+import { platformUsage } from "./usage";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
   AccountPage, AnnouncementsPage, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
@@ -176,6 +177,7 @@ superApp.get("/", async (c) => {
     recentShops: rows(9),
     recentAudit: rows<AuditRow>(10),
     cron: { daily: cron.cron_daily_at ?? null, domains: cron.cron_domains_at ?? null },
+    usage: await platformUsage(c.env.PLATFORM_DB),
   };
   return page(c, "ড্যাশবোর্ড", "dashboard", <DashboardPage d={d} role={me(c).role} />);
 });
@@ -291,6 +293,37 @@ superApp.get("/shops/:id/export.json", async (c) => {
     "content-disposition": `attachment; filename="${s.slug}-${new Date().toISOString().slice(0, 10)}.json"`,
     "cache-control": "no-store",
   } });
+});
+
+/** ব্যাকআপ (JSON) থেকে দোকানের ডাটা ফিরিয়ে আনা — শুধু মালিক; দোকানের slug লিখে নিশ্চিত করতে হয় */
+superApp.post("/shops/:id/restore", async (c) => {
+  if (!allowed(c, "shop.restore")) return forbidden(c);
+  const s = await loadShop(c, c.req.param("id"));
+  if (!s) return c.notFound();
+  const b = await c.req.parseBody();
+  const file = b.file;
+  if (str(b.confirm, 80) !== s.slug) {
+    flash(c, "error", "নিশ্চিত করতে দোকানের slug ঠিকঠাক লিখুন।");
+    return c.redirect(`/super/shops/${s.id}`, 303);
+  }
+  if (!(file instanceof File) || file.size === 0 || file.size > 25 * 1024 * 1024) {
+    flash(c, "error", "ব্যাকআপের JSON ফাইল বাছুন (সর্বোচ্চ ২৫MB)।");
+    return c.redirect(`/super/shops/${s.id}`, 303);
+  }
+  let data: { shop_id?: string; tables?: Record<string, unknown> };
+  try { data = JSON.parse(await file.text()); } catch { data = {}; }
+  if (data?.shop_id !== s.id || typeof data.tables !== "object" || !data.tables) {
+    flash(c, "error", "এই ফাইলটা এই দোকানের ব্যাকআপ নয়।");
+    return c.redirect(`/super/shops/${s.id}`, 303);
+  }
+  try {
+    const counts = await c.env.SHOP.getByName(s.id).importData(s.id, data);
+    await audit(c, "shop.restore", "shop", s.id, `ব্যাকআপ থেকে ফেরানো: ${counts.products ?? 0} পণ্য, ${counts.orders ?? 0} অর্ডার`);
+    flash(c, "ok", `ব্যাকআপ থেকে ফেরানো হয়েছে — ${bn(counts.products ?? 0)}টা পণ্য, ${bn(counts.orders ?? 0)}টা অর্ডার।`);
+  } catch (e) {
+    flash(c, "error", `ফেরানো যায়নি: ${e instanceof Error ? e.message.slice(0, 120) : "অজানা সমস্যা"}`);
+  }
+  return c.redirect(`/super/shops/${s.id}`, 303);
 });
 
 superApp.post("/shops/:id/status", async (c) => {

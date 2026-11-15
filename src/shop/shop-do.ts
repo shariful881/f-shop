@@ -67,6 +67,9 @@ export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "
  * একটা দোকান = একটা Durable Object = দোকানের নিজস্ব আলাদা SQLite ডাটাবেস।
  * এক দোকানের কোড অন্য দোকানের ডাটাবেস দেখতে পারে না।
  */
+/** ব্যাকআপ থেকে ফেরানোর টেবিল — আগে যার উপর অন্যরা নির্ভর করে */
+export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs"];
+
 export class ShopDO extends DurableObject<WorkerEnv> {
   readonly db: SqlDatabase;
   shopId: string | null = null;
@@ -223,6 +226,43 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     }
     out.users = (await this.db.prepare("SELECT id, email, name, role, is_admin, active, created_at FROM users").all().catch(() => ({ results: [] }))).results;
     return { shop_id: shopId, exported_at: new Date().toISOString(), tables: out };
+  }
+
+  /**
+   * ব্যাকআপ (exportData-এর JSON) থেকে দোকানের ডাটা ফিরিয়ে আনা — সব এক transaction-এ, ভুল হলে কিছুই বদলায় না।
+   * ইউজার/পাসওয়ার্ড আর ছবির ফাইল যেমন আছে তেমন থাকে (ব্যাকআপে এগুলো থাকে না)।
+   */
+  async importData(shopId: string, data: { shop_id?: string; tables?: Record<string, unknown> }) {
+    await this.ensureInit(shopId, false);
+    if (!data || data.shop_id !== shopId || typeof data.tables !== "object" || !data.tables) throw new Error("ব্যাকআপ ফাইলটা এই দোকানের নয়");
+    const order = RESTORE_TABLES;
+    const sql = this.ctx.storage.sql;
+    const counts: Record<string, number> = {};
+    this.ctx.storage.transactionSync(() => {
+      sql.exec("PRAGMA defer_foreign_keys = ON");
+      for (const t of [...order].reverse()) sql.exec(`DELETE FROM ${t}`);
+      for (const t of order) {
+        const rows = (data.tables as Record<string, unknown>)[t];
+        if (!Array.isArray(rows)) { counts[t] = 0; continue; }
+        const cols = new Set(sql.exec(`PRAGMA table_info(${t})`).toArray().map((c) => String(c.name)));
+        let n = 0;
+        for (const row of rows.slice(0, 50000)) {
+          if (!row || typeof row !== "object") continue;
+          const keys = Object.keys(row as object).filter((k) => cols.has(k));
+          if (!keys.length) continue;
+          const vals = keys.map((k) => { const v = (row as Record<string, unknown>)[k]; return v === undefined || (typeof v === "object" && v !== null) ? null : v as SqlStorageValue; });
+          sql.exec(`INSERT INTO ${t} (${keys.map((k) => `"${k}"`).join(",")}) VALUES (${keys.map(() => "?").join(",")})`, ...vals);
+          n++;
+        }
+        counts[t] = n;
+      }
+    });
+    return counts;
+  }
+
+  /** এই দোকানের ডাটাবেস কত বাইট (ছবিসহ) — ফ্রি প্ল্যানের সীমা নজরে রাখতে */
+  storageBytes(): number {
+    return this.ctx.storage.sql.databaseSize;
   }
 
   /** সুপার অ্যাডমিনের সাপোর্ট লগইন: দোকানের মালিকের জন্য ৫ মিনিটের এককালীন টোকেন */

@@ -7,11 +7,12 @@ import {
 } from "./lib";
 import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage } from "./views";
 import { num, platformSettings } from "./billing";
-import { AboutPage, ContactPage, HelpArticlePage, HelpIndexPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
+import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
 import { helpBySlug } from "./help";
 import { superApp } from "./super";
 import { sameOriginPost, securityHeaders } from "../shop/middleware/base";
 import { logError } from "./errors";
+import { errorPageHtml } from "../shop/lib/error-page";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
 import { hashPassword, verifyPassword } from "../shop/lib/auth";
@@ -25,7 +26,7 @@ platformApp.use("*", securityHeaders, sameOriginPost);
 platformApp.onError(async (err, c) => {
   console.error(err);
   await logError(c.env.PLATFORM_DB, { method: c.req.method, path: new URL(c.req.url).pathname, err });
-  return c.text("দুঃখিত, একটা সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করুন।", 500);
+  return c.html(errorPageHtml("platform"), 500);
 });
 
 const html = (c: PCtx, node: unknown, status: 200 | 404 | 422 | 429 = 200) => {
@@ -59,6 +60,7 @@ platformApp.get("/contact", (c) => publicPage(c, "যোগাযোগ", (f) =>
 platformApp.get("/terms", (c) => publicPage(c, "শর্তাবলি", (f) => <TermsPage f={f} />));
 platformApp.get("/privacy", (c) => publicPage(c, "প্রাইভেসি নীতি", () => <PrivacyPage />));
 platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />));
+platformApp.notFound((c) => publicPage(c as PCtx, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404));
 platformApp.get("/help", (c) => publicPage(c, "হেল্প সেন্টার", () => <HelpIndexPage q={(c.req.query("q") || "").slice(0, 60)} />));
 platformApp.get("/help/:slug{[a-z0-9-]+}", (c) => {
   const a = helpBySlug(c.req.param("slug"));

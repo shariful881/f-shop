@@ -4,6 +4,7 @@ import { cfFromEnv, checkPendingDomains } from "./platform/domains";
 import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired } from "./platform/billing";
 import { platformApp, unknownHostPage } from "./platform/app";
 import { INTERNAL_HEADERS } from "./shop/shop-do";
+import { refreshShopStorage } from "./platform/usage";
 
 export { ShopDO } from "./shop/shop-do";
 export { SupportHub } from "./support-hub";
@@ -61,6 +62,7 @@ export default {
       ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)).then(() => markCron(env, "cron_daily_at")));
     } else {
       ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
+      ctx.waitUntil(refreshShopStorage(env).then((n) => console.log("storage checked", n)).catch((e) => console.error("storage refresh", e)));
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;
