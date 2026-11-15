@@ -97,6 +97,7 @@ export const SECTION_ROLES: Record<string, Role[]> = {
   landing: ["owner", "manager"],
   pages: ["owner", "manager"],
   "upload-image": ["owner", "manager"],
+  media: ["owner", "manager"],
   categories: ["owner", "manager"],
   blacklist: ["owner", "manager"],
   coupons: ["owner", "manager"],

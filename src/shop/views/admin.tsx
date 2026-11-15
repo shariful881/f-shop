@@ -10,6 +10,7 @@ import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
 import { Icon } from "./icons";
 import { EmptyState, PageHead } from "./ui";
+import { MediaField } from "./media-field";
 import type { ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
@@ -485,11 +486,8 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
           </section>
           <section class="sa-card pf-card">
             <h2>ছবি</h2>
-            <div class="pf-img" data-img-preview>
-              {v.image ? <img src={imageUrl(v.image)} alt="" /> : <span class="pf-img-empty"><Icon name="image" size="lg" /><small>ছবি নেই</small></span>}
-            </div>
-            <input type="file" name="image" accept="image/jpeg,image/png,image/webp" />
-            <small class="hint">{v.image ? "নতুন দিলে পুরনোটা বদলাবে। " : ""}JPG/PNG/WebP, বর্গাকার হলে ভালো।</small>
+            <MediaField fileName="image" pickName="image_pick" current={v.image} folder="product" ratio="1:1" />
+            <small class="hint">লাইব্রেরি থেকে বাছুন বা নতুন আপলোড করুন — বর্গাকার (১:১) হলে সবচেয়ে ভালো।</small>
             {e.image && <small class="error">{e.image}</small>}
           </section>
           <section class="sa-card pf-card">

@@ -29,6 +29,8 @@ import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
 import { clearShopCache } from "../../platform/resolve";
 import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/customers";
+import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMedia, type MediaFolder } from "../lib/media";
+import { MediaPage } from "../views/media";
 import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
@@ -612,7 +614,8 @@ admin.post("/products/images", async (c) => {
     await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
     if (target) await saveSettings(c.env.DB, { [target.setting]: key });
     else await c.env.DB.prepare("UPDATE products SET image = ?, updated_at = datetime('now') WHERE id = ?").bind(key, productId).run();
-    if (current) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, current)).catch(() => {});
+    await recordMedia(c.env.DB, key, { name: file.name });
+    await cleanupIfUnused(c, [current]);
     result.matched.push(file.name);
   }
   if (result.matched.length) c.set("settings", { ...c.var.settings, ...(await loadSettings(c.env.DB)) });
@@ -691,8 +694,13 @@ async function saveProduct(c: Ctx, id: number | null) {
   if (file instanceof File && file.size > 0) {
     imageKey = `p/${crypto.randomUUID()}.${IMAGE_TYPES[file.type]}`;
     await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, imageKey), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    if (existing?.image) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, existing.image)).catch(() => {});
+    await recordMedia(db, imageKey, { name: file.name });
+  } else {
+    // মিডিয়া লাইব্রেরি থেকে বাছাই করা ছবি
+    const pick = str(body.image_pick, 200);
+    if (pick && pick !== imageKey && (await mediaExists(db, pick))) imageKey = pick;
   }
+  const oldImage = existing?.image && existing.image !== imageKey ? existing.image : null;
 
   const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json, v.meta_title, v.meta_description];
   let productId = id;
@@ -709,6 +717,7 @@ async function saveProduct(c: Ctx, id: number | null) {
     productId = r!.id;
   }
   await syncVariants(db, productId!, options);
+  await cleanupIfUnused(c, [oldImage]);
   flash(c, "ok", options.length ? "পণ্য সেভ হয়েছে। নিচে ভ্যারিয়েন্টের দাম/স্টক ঠিক করে নিন।" : "পণ্য সেভ হয়েছে।");
   return c.redirect(options.length ? `/admin/products/${productId}/edit` : "/admin/products", 303);
 }
@@ -840,8 +849,13 @@ admin.post("/settings/customize", async (c) => {
       }
       const key = `theme/${crypto.randomUUID()}.${ext}`;
       await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+      await recordMedia(c.env.DB, key, { name: file.name });
       b[f.key] = key;
     } else if (b[`remove_${f.key}`]) b[f.key] = "";
+    else {
+      const pick = str(b[`cfgpick_${f.key}`], 200);
+      if (pick && (await mediaExists(c.env.DB, pick))) b[f.key] = pick;
+    }
   }
   const value = b.reset ? "" : JSON.stringify(cfgDiff(cfgFromForm(b, theme), theme));
   await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value });
@@ -859,22 +873,36 @@ admin.get("/settings/:section{[a-z]+}", (c) => {
 });
 
 /** ছবি আপলোড (লোগো, ফেভিকন, শেয়ার ইমেজ) — সফল হলে নতুন key, ভুল হলে error */
-async function settingImage(c: Ctx, b: Record<string, unknown>, key: "logo" | "favicon" | "seo_image" | "banner_1" | "banner_2" | "banner_3", maxBytes: number): Promise<{ value?: string; error?: string }> {
+async function settingImage(c: Ctx, b: Record<string, unknown>, key: "logo" | "favicon" | "seo_image" | "banner_1" | "banner_2" | "banner_3", maxBytes: number, stale: string[]): Promise<{ value?: string; error?: string }> {
   const file = b[key];
   const current = c.var.settings[key];
+  const pick = str(b[`${key}_pick`], 200);
   if (file instanceof File && file.size > 0) {
     const ext = IMAGE_TYPES[file.type];
     if (!ext || file.size > maxBytes) return { error: `ছবি PNG/JPG/WebP আর ${Math.round(maxBytes / 1024 / 1024)} MB-এর কম হতে হবে` };
-    const name = `${key}/${crypto.randomUUID()}.${ext}`;
+    const name = `${key.replace("_", "")}/${crypto.randomUUID()}.${ext}`;
     await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, name), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    if (current) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, current)).catch(() => {});
+    await recordMedia(c.env.DB, name, { name: file.name });
+    if (current) stale.push(current);
     return { value: name };
   }
+  // মিডিয়া লাইব্রেরি থেকে বাছাই করা ছবি
+  if (pick && pick !== current && (await mediaExists(c.env.DB, pick))) {
+    if (current) stale.push(current);
+    return { value: pick };
+  }
   if (b[`remove_${key}`] && current) {
-    await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, current)).catch(() => {});
+    stale.push(current);
     return { value: "" };
   }
   return {};
+}
+
+/** পুরনো ছবি — আর কোথাও ব্যবহার না হলে তবেই মোছা (লাইব্রেরি থেকে অন্য জায়গায় বসানো থাকতে পারে) */
+async function cleanupIfUnused(c: Ctx, keys: (string | null | undefined)[]) {
+  for (const k of new Set(keys.filter((x): x is string => !!x))) {
+    if ((await mediaUsage(c.env.DB, k)).length === 0) await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, k)).catch(() => {});
+  }
 }
 
 /**
@@ -927,9 +955,10 @@ async function saveSettingsForm(c: Ctx, section: string) {
   else if (b.clear_token) v.fb_capi_token = "";
 
   // ছবি
+  const stale: string[] = [];
   for (const [key, max] of [["logo", 1024 * 1024], ["favicon", 512 * 1024], ["seo_image", 2 * 1024 * 1024],
     ["banner_1", 2 * 1024 * 1024], ["banner_2", 2 * 1024 * 1024], ["banner_3", 2 * 1024 * 1024]] as const) {
-    const r = await settingImage(c, b, key, max);
+    const r = await settingImage(c, b, key, max, stale);
     if (r.error) {
       flash(c, "error", r.error);
       return c.redirect(section === "general" && !has("_section") ? "/admin/settings" : SETTINGS_URL[section] ?? "/admin/settings", 303);
@@ -938,6 +967,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
   }
 
   await saveSettings(c.env.DB, v);
+  await cleanupIfUnused(c, stale);
   flash(c, "ok", "সেটিংস সেভ হয়েছে।");
   return c.redirect(SETTINGS_URL[section] ?? "/admin/settings", 303);
 }
@@ -1424,16 +1454,86 @@ admin.post("/products/:id{[0-9]+}/landing/reset", async (c) => {
   return c.redirect(`/admin/products/${id}/landing`, 303);
 });
 
-/** বিল্ডারের ছবি আপলোড (গ্যালারি, রিভিউ স্ক্রিনশট) */
+/** ছবি আপলোড (বিল্ডার, মিডিয়া পিকার) — লাইব্রেরিতে নাম আর মাপসহ যায় */
 admin.post("/upload-image", async (c) => {
-  const file = (await c.req.parseBody()).image;
+  const b = await c.req.parseBody();
+  const file = b.image;
   if (!(file instanceof File) || !file.size) return c.json({ message: "ছবি পাওয়া যায়নি" }, 400);
   const ext = IMAGE_TYPES[file.type];
   if (!ext) return c.json({ message: "শুধু JPG, PNG বা WebP" }, 400);
   if (file.size > MAX_IMAGE) return c.json({ message: "ছবি ৩ MB-এর কম হতে হবে" }, 400);
-  const key = `p/${crypto.randomUUID()}.${ext}`;
+  const key = newMediaKey(str(b.folder, 20) || "product", ext);
   await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-  return c.json({ key });
+  await recordMedia(c.env.DB, key, { name: str(b.name, 120) || file.name, width: toInt(String(b.w ?? "")), height: toInt(String(b.h ?? "")) });
+  return c.json({ key, url: `/img/${key}` });
+});
+
+/* ---------- মিডিয়া লাইব্রেরি ---------- */
+const MEDIA_FOLDERS = [...Object.keys(FOLDER_LABEL), "unused"] as const;
+const mediaFolderOf = (v: string | undefined) => ((MEDIA_FOLDERS as readonly string[]).includes(v || "") ? (v as MediaFolder | "unused") : "");
+
+admin.get("/media", async (c) => {
+  const folder = mediaFolderOf(c.req.query("folder"));
+  const q = (c.req.query("q") || "").slice(0, 60);
+  const page = Math.max(1, toInt(c.req.query("page"), 1));
+  const r = await listMedia(c.env.DB, { folder, q, limit: 60, offset: (page - 1) * 60 });
+  return render(c, "মিডিয়া", "media", <MediaPage {...r} folder={folder} q={q} page={page} />);
+});
+
+/** পিকারের জন্য JSON */
+admin.get("/media.json", async (c) => {
+  const folder = mediaFolderOf(c.req.query("folder"));
+  const r = await listMedia(c.env.DB, { folder, q: (c.req.query("q") || "").slice(0, 60), limit: 48, offset: Math.max(0, toInt(c.req.query("offset"), 0)) });
+  return c.json({
+    items: r.items.map((i) => ({ key: i.key, url: `/img/${i.key}`, name: i.name, w: i.width, h: i.height, size: i.size, folder: i.folder, used: i.used.length })),
+    hasMore: r.hasMore,
+  });
+});
+
+/** একসাথে অনেক ছবি আপলোড (মিডিয়া পেজ — জাভাস্ক্রিপ্ট ছাড়াও চলে) */
+admin.post("/media/upload", async (c) => {
+  const b = await c.req.parseBody({ all: true });
+  const folder = str(b.folder, 20) || "product";
+  const files = ([] as unknown[]).concat(b.files ?? []).filter((f): f is File => f instanceof File && f.size > 0).slice(0, 30);
+  let ok = 0;
+  const bad: string[] = [];
+  for (const f of files) {
+    const ext = IMAGE_TYPES[f.type];
+    if (!ext || f.size > MAX_IMAGE) { bad.push(f.name); continue; }
+    const key = newMediaKey(folder, ext);
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await f.arrayBuffer(), { httpMetadata: { contentType: f.type } });
+    await recordMedia(c.env.DB, key, { name: f.name });
+    ok++;
+  }
+  flash(c, bad.length ? "error" : "ok", `${bn(ok)}টা ছবি যোগ হয়েছে।` + (bad.length ? ` হয়নি (JPG/PNG/WebP, ৩ MB-এর কম দিন): ${bad.slice(0, 3).join(", ")}` : ""));
+  return c.redirect(`/admin/media${folder !== "product" ? `?folder=${folder}` : ""}`, 303);
+});
+
+admin.post("/media/update", async (c) => {
+  const b = await c.req.parseBody();
+  const key = str(b.key, 200);
+  if (await mediaExists(c.env.DB, key)) {
+    await c.env.DB.prepare("UPDATE images SET name = ?, alt = ? WHERE key = ?").bind(str(b.name, 120) || null, str(b.alt, 200) || null, key).run();
+    flash(c, "ok", "ছবির তথ্য সেভ হয়েছে।");
+  }
+  return c.redirect(str(b.back, 300).startsWith("/admin/media") ? str(b.back, 300) : "/admin/media", 303);
+});
+
+admin.post("/media/delete", async (c) => {
+  const b = await c.req.parseBody({ all: true });
+  const keys = ([] as unknown[]).concat(b.keys ?? []).map((k) => str(k, 200)).slice(0, 100);
+  let done = 0;
+  const busy: string[] = [];
+  for (const key of keys) {
+    if (!(await mediaExists(c.env.DB, key))) continue;
+    const used = await mediaUsage(c.env.DB, key);
+    if (used.length) { busy.push(used[0]!); continue; }
+    await c.env.IMAGES.delete(imageStorageKey(c.env.SHOP_ID, key));
+    done++;
+  }
+  flash(c, busy.length ? "error" : "ok", `${bn(done)}টা ছবি মোছা হয়েছে।` + (busy.length ? ` ${bn(busy.length)}টা মোছা হয়নি — ব্যবহার হচ্ছে (${busy[0]})।` : ""));
+  const back = str(b.back, 300);
+  return c.redirect(back.startsWith("/admin/media") ? back : "/admin/media", 303);
 });
 
 /* ---------- রিপোর্ট (মালিক ও ম্যানেজার) ---------- */

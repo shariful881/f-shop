@@ -10,6 +10,7 @@ import { GROUPS, HOME_SECTIONS, type Cfg, type Field } from "../lib/theme-config
 import { ASSET_VERSION } from "./layout";
 import { ChatWidget } from "./support";
 import { Icon, type IconName } from "./icons";
+import { MediaField } from "./media-field";
 
 /* ---------- সাইডবার লেআউট ---------- */
 const NAV: { key: string; href: string; icon: IconName; label: string; group?: string; perm?: string }[] = [
@@ -22,6 +23,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "theme", href: "/admin/settings/customize", icon: "palette", label: "থিম ও ডিজাইন", group: "অনলাইন স্টোর", perm: "settings" },
   { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
   { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
+  { key: "media", href: "/admin/media", icon: "image", label: "মিডিয়া" },
   { key: "coupons", href: "/admin/coupons", icon: "ticket", label: "কুপন", group: "মার্কেটিং" },
   { key: "tracking", href: "/admin/settings/tracking", icon: "trending-up", label: "পিক্সেল ও ট্র্যাকিং", perm: "settings" },
   { key: "sms", href: "/admin/sms", icon: "message-square", label: "SMS" },
@@ -103,6 +105,7 @@ export const ShopShell = (p: {
         </div>
         <ChatWidget shopName={s.site_name || ""} />
         <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
+        <script src={`/js/media.js?v=${ASSET_VERSION}`} defer></script>
         <script src={`/js/support.js?v=${ASSET_VERSION}`} defer></script>
       </body>
     </html>
@@ -293,15 +296,14 @@ const SettingsForm = (p: { section: string; action: string; children?: Child; mu
   </form>
 );
 
+const IMG_FOLDER: Record<string, { folder: "banner" | "logo"; ratio: string }> = {
+  logo: { folder: "logo", ratio: "free" }, favicon: { folder: "logo", ratio: "1:1" }, seo_image: { folder: "banner", ratio: "1.91:1" },
+  banner_1: { folder: "banner", ratio: "8:3" }, banner_2: { folder: "banner", ratio: "8:3" }, banner_3: { folder: "banner", ratio: "8:3" },
+};
 const ImageField = ({ name, label, current, hint, accept = "image/png,image/jpeg,image/webp" }: { name: string; label: string; current?: string; hint: string; accept?: string }) => (
   <F label={label} hint={hint}>
-    <div class="img-field">
-      {current ? <img src={imageUrl(current)} alt="" /> : <span class="img-empty">ছবি নেই</span>}
-      <div>
-        <input type="file" name={name} accept={accept} />
-        {current && <label class="small-check"><input type="checkbox" name={`remove_${name}`} value="1" /> সরিয়ে দিন</label>}
-      </div>
-    </div>
+    <MediaField fileName={name} pickName={`${name}_pick`} removeName={`remove_${name}`} current={current}
+      folder={IMG_FOLDER[name]?.folder ?? "banner"} ratio={IMG_FOLDER[name]?.ratio} accept={accept} />
   </F>
 );
 
@@ -538,14 +540,8 @@ const CfgField = ({ f, cfg, products }: { f: Field; cfg: Cfg; products: { id: nu
     case "image":
       return (
         <F label={f.label} hint={f.hint}>
-          <div class="img-field">
-            {v ? <img src={imageUrl(v)} alt="" /> : <span class="img-empty">ছবি নেই</span>}
-            <div>
-              <input type="file" name={`cfgimg_${f.key}`} accept="image/png,image/jpeg,image/webp" />
-              <input type="hidden" name={f.key} value={v} />
-              {v && <label class="small-check"><input type="checkbox" name={`remove_${f.key}`} value="1" /> সরিয়ে দিন</label>}
-            </div>
-          </div>
+          <MediaField fileName={`cfgimg_${f.key}`} pickName={`cfgpick_${f.key}`} removeName={`remove_${f.key}`} current={v} folder="theme" ratio="free" />
+          <input type="hidden" name={f.key} value={v} />
         </F>
       );
     case "color":

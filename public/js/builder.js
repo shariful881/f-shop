@@ -47,20 +47,28 @@
     t.value = obj[key] || "";
     return t;
   }
-  function upload(onDone) {
-    var inp = el("input", { type: "file", accept: "image/jpeg,image/png,image/webp" });
+  function upload(onDone, ratio) {
+    // মিডিয়া পিকার (লাইব্রেরি / নতুন আপলোড + ক্রপ / রেডি ব্যাকগ্রাউন্ড) — না থাকলে সাধারণ ফাইল বাছাই
+    var inp = el("input", { type: "file", accept: "image/jpeg,image/png,image/webp", hidden: true });
     inp.addEventListener("change", function () {
       if (!inp.files[0]) return;
       var fd = new FormData();
       fd.append("image", inp.files[0]);
-      inp.disabled = true;
+      fd.append("folder", "landing");
       fetch("/admin/upload-image", { method: "POST", body: fd, credentials: "same-origin" })
         .then(function (r) { return r.json(); })
         .then(function (d) { if (d.key) onDone(d.key); else alert(d.message || "আপলোড হয়নি"); })
         .catch(function () { alert("আপলোড হয়নি"); })
-        .finally(function () { inp.disabled = false; inp.value = ""; });
+        .finally(function () { inp.value = ""; });
     });
-    return inp;
+    var btn = el("button", { type: "button", class: "btn btn-sm btn-outline", text: "＋ ছবি বাছুন (লাইব্রেরি / আপলোড)", onclick: function () {
+      if (window.SellxMedia) window.SellxMedia.choose({ folder: "landing", ratio: ratio || "free", filter: "" }, function (k) { onDone(k); });
+      else inp.click();
+    } });
+    var wrap = el("div", { class: "b-upload" });
+    wrap.appendChild(btn);
+    wrap.appendChild(inp);
+    return wrap;
   }
   function stringList(obj, key, ph) {
     obj[key] = obj[key] || [];

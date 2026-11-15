@@ -19,6 +19,7 @@ import m0013 from "../../migrations/shop/0013_my_templates.sql";
 import m0014 from "../../migrations/shop/0014_pro_theme.sql";
 import m0015 from "../../migrations/shop/0015_checkout_pages.sql";
 import m0016 from "../../migrations/shop/0016_order_qty.sql";
+import m0017 from "../../migrations/shop/0017_media.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
@@ -41,6 +42,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0014_pro_theme", m0014],
   ["0015_checkout_pages", m0015],
   ["0016_order_qty", m0016],
+  ["0017_media", m0017],
 ];
 
 export type SetupInput = {
