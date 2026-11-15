@@ -663,15 +663,32 @@ superApp.get("/demos", async (c) => {
 /** আগে কপি হওয়া ডেমো ছবি সব দোকানে এক জায়গার ছবিতে বদলানো, কপি মোছা (একবারে ৪০টা দোকান) */
 superApp.post("/demos-share-images", async (c) => {
   if (!allowed(c, "demos")) return forbidden(c);
-  const { results } = await c.env.PLATFORM_DB.prepare(
-    "SELECT id FROM shops WHERE (niche IS NOT NULL OR demo_niche IS NOT NULL) AND deleted_at IS NULL ORDER BY created_at LIMIT 40",
-  ).all<{ id: string }>();
+  const db = c.env.PLATFORM_DB;
+  // কোথা পর্যন্ত হয়েছে মনে রাখা — পরের চাপে পরের দোকানগুলো (আগে প্রতিবার একই ৪০টা হতো)
+  const cur = (await db.prepare("SELECT value FROM platform_settings WHERE key = 'demo_share_cursor'").first<{ value: string }>())?.value || "";
+  const [afterAt = "", afterId = ""] = cur.split("|");
+  const { results } = await db.prepare(
+    "SELECT id, created_at FROM shops WHERE (niche IS NOT NULL OR demo_niche IS NOT NULL) AND deleted_at IS NULL AND (created_at > ?1 OR (created_at = ?1 AND id > ?2)) ORDER BY created_at, id LIMIT 20",
+  ).bind(afterAt, afterId).all<{ id: string; created_at: string }>();
   let freed = 0, n = 0;
-  for (const r of results) {
-    try { freed += await c.env.SHOP.getByName(r.id).adoptSharedDemoImages(r.id); n++; } catch (e) { console.error("share images", r.id, e); }
+  // একসাথে ৫টা করে — এক এক করে করলে অনেক সময় লাগত
+  for (let i = 0; i < results.length; i += 5) {
+    const part = await Promise.allSettled(results.slice(i, i + 5).map((r) => c.env.SHOP.getByName(r.id).adoptSharedDemoImages(r.id)));
+    for (const [j, p] of part.entries()) {
+      if (p.status === "fulfilled") { freed += p.value; n++; } else console.error("share images", results[i + j].id, p.reason);
+    }
   }
-  await audit(c, "demo.share_images", null, null, `${n}টা দোকান, ${Math.round(freed / 1024)} KB খালি`);
-  flash(c, "ok", `${bn(n)}টা দোকান দেখা হলো — ${bn(Math.round(freed / 1024 / 102.4) / 10)} MB জায়গা খালি হয়েছে।`);
+  const last = results[results.length - 1];
+  const left = last
+    ? ((await db.prepare("SELECT COUNT(*) n FROM shops WHERE (niche IS NOT NULL OR demo_niche IS NOT NULL) AND deleted_at IS NULL AND (created_at > ?1 OR (created_at = ?1 AND id > ?2))").bind(last.created_at, last.id).first<{ n: number }>())?.n ?? 0)
+    : 0;
+  const next = last && left > 0 ? `${last.created_at}|${last.id}` : "";
+  await db.prepare("INSERT INTO platform_settings (key, value) VALUES ('demo_share_cursor', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(next).run();
+  await audit(c, "demo.share_images", null, null, `${n}টা দোকান, ${Math.round(freed / 1024)} KB খালি, বাকি ${left}`);
+  const mbFreed = bn(Math.round(freed / 1024 / 102.4) / 10);
+  flash(c, "ok", left > 0
+    ? `${bn(n)}টা দোকান হলো — ${mbFreed} MB খালি। আরও ${bn(left)}টা বাকি, বোতামটা আবার চাপুন।`
+    : `${bn(n)}টা দোকান হলো — ${mbFreed} MB খালি। সব দোকান শেষ।`);
   return c.redirect("/super/demos", 303);
 });
 
