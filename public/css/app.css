@@ -572,3 +572,8 @@ dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
 .toast-out { opacity: 0; transform: translate(-50%, 12px); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
 @media (max-width: 760px) { .toast { bottom: 76px; } }
+
+/* সব দোকানের ফুটারে ছোট করে "SellxBD দিয়ে তৈরি" */
+.made-by { text-align: center; font-size: .78rem; padding: 6px 0 10px; opacity: .7; }
+.made-by a { color: inherit; text-decoration: none; }
+.made-by a:hover { text-decoration: underline; }

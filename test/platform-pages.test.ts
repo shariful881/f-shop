@@ -6,7 +6,7 @@ const get = (path: string) => SELF.fetch(`https://ourdomain.com${path}`, { redir
 
 describe("sellxbd.com-এর পাবলিক পেজ", () => {
   it("দাম, আমাদের সম্পর্কে, যোগাযোগ, শর্তাবলি, প্রাইভেসি, রিফান্ড খোলে, ফুটারে নীতিমালার লিংক", async () => {
-    for (const [path, text] of [["/pricing", "প্রতি কনফার্ম অর্ডারে"], ["/about", "আমাদের সম্পর্কে"], ["/contact", "হেল্প সেন্টার"], ["/terms", "শর্তাবলি"], ["/privacy", "প্রাইভেসি নীতি"], ["/refund", "রিফান্ড নীতি"]] as const) {
+    for (const [path, text] of [["/pricing", "বড় ব্র্যান্ড"], ["/about", "আমাদের সম্পর্কে"], ["/contact", "হেল্প সেন্টার"], ["/terms", "শর্তাবলি"], ["/privacy", "প্রাইভেসি নীতি"], ["/refund", "রিফান্ড নীতি"]] as const) {
       const r = await get(path);
       expect(r.status, path).toBe(200);
       const html = await r.text();

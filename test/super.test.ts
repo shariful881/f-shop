@@ -178,9 +178,9 @@ describe("সেটিংস অডিট", () => {
     const o = await member("owner@t.com", "owner");
     const s = await pdb().prepare("SELECT key, value FROM platform_settings").all<{ key: string; value: string }>();
     const form = Object.fromEntries(s.results.map((r) => [r.key, r.value]));
-    await post(o, "/super/settings", { ...form, order_fee: "3" });
+    await post(o, "/super/settings", { ...form, plan_small_price: "349" });
     const log = await pdb().prepare("SELECT detail FROM audit_log WHERE action = 'settings.update'").first<any>();
-    expect(log.detail).toContain("order_fee: 2 → 3");
+    expect(log.detail).toContain("plan_small_price:  → 349");
     await post(o, "/super/settings", { ...form });
   });
 });

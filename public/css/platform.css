@@ -301,3 +301,15 @@ a.p-contact-card:hover { border-color: #0f766e; }
 .p-tip ul { margin: 6px 0 0; }
 .p-help-more { background: #f0fdfa; border-radius: 14px; padding: 4px 18px; margin: 22px 0; }
 .p-back { display: block; width: fit-content; }
+
+/* ---------- প্ল্যানের কার্ড (দাম পেজ) ---------- */
+.p-plans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+.p-plan { position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px 18px; }
+.p-plan h3 { margin: 0; font-size: 1.15rem; }
+.p-plan-for { color: #64748b; }
+.p-plan .p-ticks { flex: 1; margin: 6px 0 12px; }
+.p-plan-pop { border: 2px solid #0f766e; box-shadow: 0 12px 30px rgba(15, 118, 110, .15); }
+.p-plan .p-badge { position: absolute; top: -12px; left: 18px; }
+.p-price-grid-2 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 960px) { .p-plans { grid-template-columns: repeat(2, 1fr); } .p-price-grid-2 { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .p-plans { grid-template-columns: 1fr; } }

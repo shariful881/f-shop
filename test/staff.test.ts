@@ -9,7 +9,7 @@ beforeEach(async () => {
   await resetDb();
   await pdb().batch([
     pdb().prepare("DELETE FROM ledger"),
-    pdb().prepare("UPDATE shops SET status = 'active', balance = 1000, staff_count = 0, low_balance_since = NULL WHERE id = ?").bind(DEMO_SHOP_ID),
+    pdb().prepare("UPDATE shops SET status = 'active', balance = 1000, staff_count = 0, low_balance_since = NULL, plan = 'small', plan_next = NULL, cycle_months = 1 WHERE id = ?").bind(DEMO_SHOP_ID),
   ]);
   clearShopCache();
 });
@@ -25,13 +25,17 @@ async function staffLogin(email: string, password = "staffpass1") {
 const shop = async () => (await pdb().prepare("SELECT * FROM shops WHERE id = ?").bind(DEMO_SHOP_ID).first<Record<string, any>>())!;
 
 describe("স্টাফ যোগ", () => {
-  it("মালিক স্টাফ যোগ করলে স্টাফ লগইন করতে পারে, স্টাফ সংখ্যা আর ৯৯ টাকা চার্জ হয়", async () => {
+  it("মালিক স্টাফ যোগ করলে স্টাফ লগইন করতে পারে; ছোট দোকানে ১ জন ফ্রি, দ্বিতীয় জনে ৪৯ টাকা", async () => {
     const owner = await adminBrowser();
     expect((await addStaff(owner, "manager")).status).toBe(303);
     expect((await staffLogin("manager@shop.test")).status).toBe(303);
-    const s = await shop();
+    let s = await shop();
     expect(s.staff_count).toBe(1);
-    expect(s.balance).toBe(1000 - 99);
+    expect(s.balance).toBe(1000); // প্ল্যানে ১ জন ধরা
+    await addStaff(owner, "orders", "o2@shop.test");
+    s = await shop();
+    expect(s.staff_count).toBe(2);
+    expect(s.balance).toBe(1000 - 49);
     const html = await (await owner.get("/admin/staff")).text();
     expect(html).toContain("manager@shop.test");
     expect(html).toContain("ম্যানেজার");
@@ -129,13 +133,13 @@ describe("রোল অনুযায়ী অনুমতি", () => {
     expect((await b.get("/admin/products")).status).toBe(200);
   });
 
-  it("মাসিক বিলে স্টাফ যোগ হয় (৯৯ + ২ × ৯৯)", async () => {
+  it("মাসিক বিলে প্ল্যানের বাইরের স্টাফ যোগ হয় (ছোট দোকান ৩৯৯ + ১ × ৪৯)", async () => {
     const owner = await adminBrowser();
     await addStaff(owner, "orders", "a@shop.test");
     await addStaff(owner, "manager", "b@shop.test");
     const { runDailyBilling } = await import("../src/platform/billing");
     await pdb().prepare("UPDATE shops SET balance = 1000, next_bill_at = datetime('now', '-1 hour') WHERE id = ?").bind(DEMO_SHOP_ID).run();
     await runDailyBilling(pdb());
-    expect((await shop()).balance).toBe(1000 - 99 - 2 * 99);
+    expect((await shop()).balance).toBe(1000 - 399 - 49);
   });
 });

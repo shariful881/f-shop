@@ -19,6 +19,7 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
+import { PLAN_KEYS, plans } from "./plans";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
   AccountPage, AnnouncementsPage, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
@@ -114,25 +115,25 @@ superApp.get("/", async (c) => {
          SUM(last_order_at >= datetime('now', '-7 days')) active7,
          SUM(CASE WHEN balance < 0 THEN balance ELSE 0 END) dues,
          SUM(balance < 0) dues_shops,
-         SUM(CASE WHEN status = 'active' THEN ? + staff_count * ? ELSE 0 END) mrr_sub,
+         SUM(CASE WHEN status = 'active' AND demo_niche IS NULL THEN (CASE plan WHEN 'small' THEN ? WHEN 'grow' THEN ? WHEN 'big' THEN ? ELSE 0 END) ELSE 0 END) mrr_sub,
          SUM(status = 'active') active_n
-       FROM shops`).bind(num(s, "monthly_fee", 99), num(s, "staff_fee", 99)),
+       FROM shops`).bind(plans(s).small.price, plans(s).grow.price, plans(s).big.price),
     q(`SELECT
-         -SUM(CASE WHEN type IN ('order_fee', 'monthly') AND created_at >= datetime(strftime('%Y-%m-01', 'now', ${DHAKA}), '-6 hours') THEN amount ELSE 0 END) month,
-         -SUM(CASE WHEN type IN ('order_fee', 'monthly') AND created_at >= datetime(strftime('%Y-%m-01', 'now', ${DHAKA}, '-1 month'), '-6 hours')
+         -SUM(CASE WHEN type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= datetime(strftime('%Y-%m-01', 'now', ${DHAKA}), '-6 hours') THEN amount ELSE 0 END) month,
+         -SUM(CASE WHEN type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= datetime(strftime('%Y-%m-01', 'now', ${DHAKA}, '-1 month'), '-6 hours')
                     AND created_at < datetime(strftime('%Y-%m-01', 'now', ${DHAKA}), '-6 hours') THEN amount ELSE 0 END) last_month,
-         -SUM(CASE WHEN type IN ('order_fee', 'monthly') AND created_at >= ${since} THEN amount ELSE 0 END) d30,
-         -SUM(CASE WHEN type = 'order_fee' AND created_at >= ${since} THEN amount ELSE 0 END) fees30,
+         -SUM(CASE WHEN type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= ${since} THEN amount ELSE 0 END) d30,
+         -SUM(CASE WHEN type IN ('order_fee', 'overage') AND created_at >= ${since} THEN amount ELSE 0 END) fees30,
          SUM(CASE WHEN type = 'topup' AND created_at >= ${since} THEN amount ELSE 0 END) cash30,
-         SUM(CASE WHEN type IN ('order_fee', 'trial_order') AND created_at >= datetime(date('now', ${DHAKA}), '-6 hours') THEN 1 ELSE 0 END) orders_today,
-         SUM(CASE WHEN type IN ('order_fee', 'trial_order') AND created_at >= ${since} THEN 1 ELSE 0 END) orders30,
-         SUM(CASE WHEN type IN ('order_fee', 'trial_order') AND created_at >= datetime('now', '-60 days') AND created_at < ${since} THEN 1 ELSE 0 END) orders_prev30
+         SUM(CASE WHEN type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= datetime(date('now', ${DHAKA}), '-6 hours') THEN 1 ELSE 0 END) orders_today,
+         SUM(CASE WHEN type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= ${since} THEN 1 ELSE 0 END) orders30,
+         SUM(CASE WHEN type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= datetime('now', '-60 days') AND created_at < ${since} THEN 1 ELSE 0 END) orders_prev30
        FROM ledger WHERE applied = 1 AND created_at >= datetime('now', '-62 days')`),
     q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM shops WHERE created_at >= ${since} GROUP BY d`),
-    q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'trial_order') AND created_at >= ${since} GROUP BY d`),
-    q(`SELECT date(created_at, ${DHAKA}) d, -SUM(amount) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly') AND created_at >= ${since} GROUP BY d`),
+    q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= ${since} GROUP BY d`),
+    q(`SELECT date(created_at, ${DHAKA}) d, -SUM(amount) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= ${since} GROUP BY d`),
     q(`SELECT s.id, s.name, s.slug, COUNT(*) n FROM ledger l JOIN shops s ON s.id = l.shop_id
-       WHERE l.applied = 1 AND l.type IN ('order_fee', 'trial_order') AND l.created_at >= ${since} GROUP BY l.shop_id ORDER BY n DESC LIMIT 8`),
+       WHERE l.applied = 1 AND l.type IN ('order_fee', 'trial_order', 'plan_order') AND l.created_at >= ${since} GROUP BY l.shop_id ORDER BY n DESC LIMIT 8`),
     q(`SELECT id, name, trial_ends_at, trial_orders_left, owner_phone FROM shops WHERE status = 'trial' AND trial_ends_at <= datetime('now', '+3 days') ORDER BY trial_ends_at LIMIT 6`),
     q(`SELECT id, name, last_order_at, balance FROM shops WHERE status = 'active' AND (last_order_at IS NULL OR last_order_at < datetime('now', '-14 days'))
        ORDER BY confirmed_orders DESC LIMIT 6`),
@@ -263,8 +264,8 @@ superApp.get("/shops/:id", async (c) => {
   const days = lastDays(30);
   const [dom, ord, rev, led, tps, notes, aud] = await db.batch([
     db.prepare("SELECT hostname, status, error, checked_at FROM domains WHERE shop_id = ? ORDER BY hostname").bind(s.id),
-    db.prepare(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM ledger WHERE shop_id = ? AND applied = 1 AND type IN ('order_fee', 'trial_order') AND created_at >= datetime('now', '-30 days') GROUP BY d`).bind(s.id),
-    db.prepare(`SELECT -SUM(CASE WHEN type IN ('order_fee', 'monthly') THEN amount ELSE 0 END) lifetime, SUM(CASE WHEN type = 'topup' THEN amount ELSE 0 END) topups FROM ledger WHERE shop_id = ? AND applied = 1`).bind(s.id),
+    db.prepare(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM ledger WHERE shop_id = ? AND applied = 1 AND type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= datetime('now', '-30 days') GROUP BY d`).bind(s.id),
+    db.prepare(`SELECT -SUM(CASE WHEN type IN ('order_fee', 'monthly', 'overage', 'plan_change') THEN amount ELSE 0 END) lifetime, SUM(CASE WHEN type = 'topup' THEN amount ELSE 0 END) topups FROM ledger WHERE shop_id = ? AND applied = 1`).bind(s.id),
     db.prepare("SELECT id, type, amount, balance_after, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 ORDER BY id DESC LIMIT 25").bind(s.id),
     db.prepare("SELECT * FROM topups WHERE shop_id = ? ORDER BY id DESC LIMIT 20").bind(s.id),
     db.prepare("SELECT id, admin_email, note, created_at FROM shop_notes WHERE shop_id = ? ORDER BY id DESC LIMIT 30").bind(s.id),
@@ -470,7 +471,7 @@ superApp.get("/finance", async (c) => {
         SUM(CASE WHEN type = 'topup' THEN amount ELSE 0 END) topups
       FROM ledger WHERE applied = 1 AND created_at >= datetime('now', '-13 months') GROUP BY ym`),
     db.prepare(`SELECT
-        (SELECT -COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly')) revenue,
+        (SELECT -COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly', 'overage', 'plan_change')) revenue,
         (SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type = 'topup') topups,
         (SELECT COALESCE(SUM(balance), 0) FROM shops WHERE balance < 0) dues,
         (SELECT COALESCE(SUM(balance), 0) FROM shops WHERE balance > 0) credit`),
@@ -767,7 +768,9 @@ superApp.post("/account/logout-all", async (c) => {
 });
 
 /* ---------- প্ল্যাটফর্ম সেটিংস ---------- */
-const NUM_KEYS = ["order_fee", "monthly_fee", "staff_fee", "min_topup", "trial_days", "trial_orders", "grace_days"];
+const NUM_KEYS = ["staff_fee", "min_topup", "trial_days", "trial_orders", "grace_days",
+  ...PLAN_KEYS.flatMap((k) => [`plan_${k}_price`, `plan_${k}_orders`, `plan_${k}_staff`])];
+const DEC_KEYS = PLAN_KEYS.map((k) => `plan_${k}_extra`);
 const TEXT_KEYS = ["bkash_number", "nagad_number", "support_phone"];
 
 superApp.get("/settings", async (c) => {
@@ -781,6 +784,7 @@ superApp.post("/settings", async (c) => {
   const before = await platformSettings(c.env.PLATFORM_DB, true);
   const values = [
     ...NUM_KEYS.map((k) => [k, String(Math.max(0, toInt(b[k], 0)))]),
+    ...DEC_KEYS.map((k) => { const n = parseFloat(String(b[k] ?? "")); return [k, String(Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : 0)]; }),
     ...TEXT_KEYS.map((k) => [k, str(b[k], 30)]),
   ] as [string, string][];
   await c.env.PLATFORM_DB.batch(values.map(([k, v]) =>

@@ -1,12 +1,13 @@
 /**
- * বিলিং — মূল (প্ল্যাটফর্ম) ডাটাবেসে।
- * নিয়ম:
- * - ট্রায়াল: trial_days দিন অথবা trial_orders টা কনফার্ম অর্ডার, যেটা আগে শেষ হয়। কোনো চার্জ নেই
- * - ট্রায়াল শেষে দোকান 'active' হয়, সাথে সাথে প্রথম মাসের চার্জ (মাসিক + স্টাফ)
- * - প্রতিটা কনফার্ম অর্ডারে order_fee (ফেক/বাতিলে কিছু নয়), একই অর্ডারে একবারই
- * - প্রতি মাসে monthly_fee + staff_count × staff_fee
+ * বিলিং — মূল (প্ল্যাটফর্ম) ডাটাবেসে। প্ল্যানের বিবরণ: plans.ts
+ * নিয়ম (১৫ নভেম্বর ২০২৬ থেকে):
+ * - ট্রায়াল: trial_days দিন "বাড়ন্ত" প্ল্যান ফ্রি (অথবা trial_orders টা কনফার্ম অর্ডার)। কোনো চার্জ নেই
+ * - বিলের দিন (next_bill_at) প্ল্যানের দাম আগে কাটে (১/৬/১২ মাস)। ব্যালেন্স না থাকলে দোকান ফ্রি প্ল্যানে নামে — বন্ধ হয় না
+ * - প্রতিটা কনফার্ম অর্ডার গোনা হয় (ফেক/বাতিল নয়); মাস শেষে (usage_reset_at) সীমার বেশি অর্ডারের চার্জ একবারে কাটে
+ * - প্ল্যানের বাইরের স্টাফ: প্রতিজন মাসে staff_fee
  * - ব্যালেন্স মাইনাস হলে grace_days দিন সতর্কবার্তা, তারপর নতুন অর্ডার বন্ধ
  */
+import { cyclePrice, extraStaff, isPlan, overageCharge, planOf, type PlanKey } from "./plans";
 
 export type PlatformSettings = Record<string, string>;
 
@@ -19,6 +20,11 @@ export type BillingShop = {
   next_bill_at: string | null;
   low_balance_since: string | null;
   staff_count: number;
+  plan: string;
+  plan_next: string | null;
+  cycle_months: number;
+  period_orders: number;
+  usage_reset_at: string | null;
 };
 
 let settingsCache: { at: number; value: PlatformSettings } | null = null;
@@ -39,7 +45,7 @@ export const num = (s: PlatformSettings, key: string, def: number) => {
   return Number.isFinite(n) && n >= 0 ? n : def;
 };
 
-const SHOP_COLS = "id, status, balance, trial_ends_at, trial_orders_left, next_bill_at, low_balance_since, staff_count";
+const SHOP_COLS = "id, status, balance, trial_ends_at, trial_orders_left, next_bill_at, low_balance_since, staff_count, plan, plan_next, cycle_months, period_orders, usage_reset_at";
 
 export async function billingShop(db: D1Database, shopId: string) {
   return db.prepare(`SELECT ${SHOP_COLS} FROM shops WHERE id = ?`).bind(shopId).first<BillingShop>();
@@ -67,22 +73,42 @@ export async function applyLedger(db: D1Database, shopId: string, type: string, 
   return (res[2]!.meta.changes ?? 0) > 0;
 }
 
-/** মাসিক চার্জ (মাসিক ফি + স্টাফ) */
-async function chargeMonth(db: D1Database, shop: BillingShop, s: PlatformSettings, periodRef: string) {
-  const monthly = num(s, "monthly_fee", 99);
-  const staff = shop.staff_count * num(s, "staff_fee", 99);
-  const note = staff ? `মাসিক ৳${monthly} + ${shop.staff_count} জন স্টাফ ৳${staff}` : `মাসিক ৳${monthly}`;
-  return applyLedger(db, shop.id, "monthly", -(monthly + staff), periodRef, note);
+/**
+ * বিলের দিন: প্ল্যানের দাম (১/৬/১২ মাস) + প্ল্যানের বাইরের স্টাফ। ব্যালেন্সে না কুলালে ফ্রি প্ল্যানে নামে (দোকান চলে)।
+ * ফেরত দেয়: কত মাস পরে পরের বিল।
+ */
+async function renewPlan(db: D1Database, shop: BillingShop, s: PlatformSettings, periodRef: string): Promise<number> {
+  let key: PlanKey = isPlan(shop.plan_next) ? shop.plan_next : isPlan(shop.plan) ? shop.plan : "free";
+  let months = key === "free" ? 1 : shop.cycle_months || 1;
+  let plan = planOf(s, key);
+  const staffFee = num(s, "staff_fee", 49);
+  let price = cyclePrice(plan.price, months);
+  let staff = extraStaff(plan, shop.staff_count) * staffFee * months;
+  if (key !== "free" && shop.balance < price + staff) {
+    key = "free"; months = 1; plan = planOf(s, "free");
+    price = 0; staff = extraStaff(plan, shop.staff_count) * staffFee;
+  }
+  await db.prepare("UPDATE shops SET plan = ?, plan_next = NULL, cycle_months = ? WHERE id = ?").bind(key, months, shop.id).run();
+  const total = price + staff;
+  if (total > 0) {
+    const parts = [price ? `${plan.name} ${months > 1 ? `${months} মাস` : "মাসিক"} ৳${price}` : "", staff ? `${extraStaff(plan, shop.staff_count)} জন বাড়তি স্টাফ ৳${staff}` : ""].filter(Boolean);
+    await applyLedger(db, shop.id, "monthly", -total, periodRef, parts.join(" + "));
+  }
+  return months;
 }
 
-/** ট্রায়াল শেষ → চালু, আর প্রথম মাসের চার্জ */
+/** ট্রায়াল শেষ → চালু; বেছে নেওয়া প্ল্যানের প্রথম বিল (ব্যালেন্স না থাকলে ফ্রি) */
 export async function endTrial(db: D1Database, shopId: string, s: PlatformSettings): Promise<boolean> {
   const upd = await db.prepare(
-    "UPDATE shops SET status = 'active', next_bill_at = datetime('now', '+1 month'), activated_at = datetime('now'), status_changed_at = datetime('now') WHERE id = ? AND status = 'trial'",
+    `UPDATE shops SET status = 'active', activated_at = datetime('now'), status_changed_at = datetime('now'),
+       period_orders = 0, usage_reset_at = datetime('now', '+1 month') WHERE id = ? AND status = 'trial'`,
   ).bind(shopId).run();
   if (!upd.meta.changes) return false;
   const shop = await billingShop(db, shopId);
-  if (shop) await chargeMonth(db, shop, s, `trial-end:${shopId}`);
+  if (shop) {
+    const months = await renewPlan(db, shop, s, `trial-end:${shopId}`);
+    await db.prepare("UPDATE shops SET next_bill_at = datetime('now', ?) WHERE id = ?").bind(`+${months} months`, shopId).run();
+  }
   return true;
 }
 
@@ -124,10 +150,13 @@ export async function chargeConfirmedOrder(db: D1Database, shopId: string, order
   }
 
   if (shop.status === "closed") return { charged: 0, trial: false };
-  const fee = num(s, "order_fee", 2);
-  const applied = await applyLedger(db, shopId, "order_fee", -fee, orderNo, `অর্ডার ${orderNo}`);
-  if (applied) await countOrder(db, shopId);
-  return { charged: applied ? fee : 0, trial: false };
+  // প্ল্যানের মধ্যে: এখন কিছু কাটে না, শুধু গোনা (একই অর্ডার একবারই) — সীমার বেশি হলে মাস শেষে চার্জ
+  const applied = await applyLedger(db, shopId, "plan_order", 0, orderNo, `অর্ডার ${orderNo}`);
+  if (applied) {
+    await db.prepare("UPDATE shops SET period_orders = period_orders + 1 WHERE id = ?").bind(shopId).run();
+    await countOrder(db, shopId);
+  }
+  return { charged: 0, trial: false };
 }
 
 /** সুপার অ্যাডমিনের পরিসংখ্যানের জন্য দোকানের কনফার্ম অর্ডারের কাউন্টার */
@@ -165,15 +194,31 @@ export async function runDailyBilling(db: D1Database): Promise<{ trialsEnded: nu
     `SELECT ${SHOP_COLS} FROM shops WHERE status IN ('active', 'suspended') AND next_bill_at IS NOT NULL AND next_bill_at <= datetime('now')`,
   ).all<BillingShop>();
   for (const shop of due) {
-    // যত মাস বাকি, এক এক করে (সাধারণত একটাই)
+    // যত বিল বাকি, এক এক করে (সাধারণত একটাই)
     let next = shop.next_bill_at!;
     let guard = 0;
     while (next <= sqlNow() && guard++ < 24) {
-      if (await chargeMonth(db, shop, s, `month:${next.slice(0, 10)}`)) monthsCharged++;
-      const row = await db.prepare("SELECT datetime(?, '+1 month') AS n").bind(next).first<{ n: string }>();
+      const cur = (await billingShop(db, shop.id))!;
+      const months = await renewPlan(db, cur, s, `month:${next.slice(0, 10)}`);
+      monthsCharged++;
+      const row = await db.prepare("SELECT datetime(?, ?) AS n").bind(next, `+${months} months`).first<{ n: string }>();
       next = row!.n;
     }
     await db.prepare("UPDATE shops SET next_bill_at = ? WHERE id = ?").bind(next, shop.id).run();
+  }
+
+  // মাস শেষ: সীমার বেশি অর্ডারের চার্জ, তারপর গোনা শূন্য থেকে
+  const { results: usage } = await db.prepare(
+    `SELECT ${SHOP_COLS} FROM shops WHERE status IN ('active', 'suspended') AND usage_reset_at IS NOT NULL AND usage_reset_at <= datetime('now')`,
+  ).all<BillingShop>();
+  for (const shop of usage) {
+    const plan = planOf(s, shop.plan);
+    const fee = overageCharge(plan, shop.period_orders);
+    if (fee > 0) {
+      await applyLedger(db, shop.id, "overage", -fee, `over:${shop.usage_reset_at!.slice(0, 10)}`,
+        `${plan.name}: ${shop.period_orders} অর্ডার, সীমা ${plan.orders} — বাড়তি ${shop.period_orders - plan.orders}টা`);
+    }
+    await db.prepare("UPDATE shops SET period_orders = 0, usage_reset_at = datetime(usage_reset_at, '+1 month') WHERE id = ?").bind(shop.id).run();
   }
   return { trialsEnded, monthsCharged };
 }
@@ -212,4 +257,52 @@ export function computeState(shop: BillingShop, s: PlatformSettings): ShopState 
     return { ...base, grace_ends_at, accepting: true, reason: "low_balance" };
   }
   return { ...base, accepting: true, reason: "ok" };
+}
+
+/* ---------------- দোকানদার নিজে প্ল্যান বদলায় ---------------- */
+
+export type PlanChange = { ok: boolean; message: string; charged?: number };
+
+/**
+ * বড় প্ল্যানে বা লম্বা মেয়াদে: এখনই কার্যকর — আগের প্ল্যানের বাকি দিনের টাকা বাদ দিয়ে বাকিটা কাটে।
+ * ছোট প্ল্যানে: পরের বিলের দিন থেকে (এই মেয়াদের টাকা দেওয়া আছে)।
+ * ট্রায়ালে: শুধু বেছে রাখা হয় — ট্রায়াল শেষে সেটাই চালু হবে।
+ */
+export async function changePlan(db: D1Database, shopId: string, key: PlanKey, months: number, s: PlatformSettings): Promise<PlanChange> {
+  const shop = await billingShop(db, shopId);
+  if (!shop) return { ok: false, message: "দোকান পাওয়া যায়নি" };
+  if (key === "free") months = 1;
+  const next = planOf(s, key);
+  if (shop.status === "trial") {
+    await db.prepare("UPDATE shops SET plan = ?, cycle_months = ?, plan_next = NULL WHERE id = ?").bind(key, months, shopId).run();
+    return { ok: true, message: `ট্রায়াল শেষে "${next.name}" প্ল্যান চালু হবে।` };
+  }
+  const cur = planOf(s, shop.plan);
+  const curMonths = shop.cycle_months || 1;
+  const newTotal = cyclePrice(next.price, months);
+  const curTotal = cyclePrice(cur.price, curMonths);
+  if (cur.key === key && curMonths === months) {
+    await db.prepare("UPDATE shops SET plan_next = NULL WHERE id = ?").bind(shopId).run();
+    return { ok: true, message: `"${cur.name}" প্ল্যানই চালু থাকছে।` };
+  }
+  // ছোট প্ল্যানে নামা (মাসিক দাম কম) → পরের বিলে
+  if (next.price < cur.price) {
+    await db.prepare("UPDATE shops SET plan_next = ?, cycle_months = ? WHERE id = ?").bind(key, months, shopId).run();
+    return { ok: true, message: `পরের বিলের দিন থেকে "${next.name}" প্ল্যান চালু হবে। ততদিন "${cur.name}" চলবে।` };
+  }
+  // বড় প্ল্যান / লম্বা মেয়াদ → এখনই; আগের মেয়াদের বাকি অংশ ফেরত হিসাব
+  const now = Date.now();
+  const end = shop.next_bill_at ? new Date(shop.next_bill_at.replace(" ", "T") + "Z").getTime() : now;
+  const span = curMonths * 30 * 86_400_000;
+  const credit = cur.key === "free" ? 0 : Math.max(0, Math.floor(curTotal * Math.min(1, Math.max(0, end - now) / span)));
+  const charge = Math.max(0, newTotal - credit);
+  if (shop.balance < charge) {
+    return { ok: false, message: `এই প্ল্যানে যেতে ৳${charge} লাগবে, ব্যালেন্সে আছে ৳${shop.balance}। আগে রিচার্জ করুন।` };
+  }
+  const ref = `plan:${key}:${months}:${new Date().toISOString().slice(0, 16)}`;
+  const note = `${next.name} ${months > 1 ? `${months} মাস` : "মাসিক"} ৳${newTotal}${credit ? ` − আগের প্ল্যানের বাকি ৳${credit}` : ""}`;
+  if (charge > 0) await applyLedger(db, shopId, "plan_change", -charge, ref, note);
+  await db.prepare("UPDATE shops SET plan = ?, plan_next = NULL, cycle_months = ?, next_bill_at = datetime('now', ?) WHERE id = ?")
+    .bind(key, months, `+${months} months`, shopId).run();
+  return { ok: true, message: `"${next.name}" প্ল্যান চালু হয়েছে${charge ? ` — ৳${charge} কেটেছে` : ""}।`, charged: charge };
 }

@@ -70,7 +70,7 @@ describe("পুরো পথ: সাইনআপ থেকে কুরিয�
 
     // ৬. হিসাব: ট্রায়ালের অর্ডার গোনা হলো, আর CSV-তে অর্ডারটা আছে
     const s = (await env.PLATFORM_DB.prepare("SELECT trial_orders_left FROM shops WHERE id = ?").bind(shop.id).first<{ trial_orders_left: number }>())!;
-    expect(s.trial_orders_left).toBe(49);
+    expect(s.trial_orders_left).toBe(1499);
     expect(await (await go("/admin/export/orders.csv")).text()).toContain(o.order_no);
   });
 });

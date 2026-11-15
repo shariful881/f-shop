@@ -3,6 +3,7 @@
  * সাইডবার লেআউট, ড্যাশবোর্ড (KPI + চার্ট), দোকান, দোকানের ৩৬০° ভিউ, ফাইন্যান্স, রিচার্জ, ঘোষণা, অডিট লগ, টিম, সেটিংস।
  */
 import { WARN_AT, type Usage } from "./usage";
+import { plans } from "./plans";
 import type { Child } from "hono/jsx";
 import { ASSET_VERSION } from "../shop/views/layout";
 import { Icon, type IconName } from "../shop/views/icons";
@@ -356,6 +357,7 @@ export type ShopRow = {
   id: string; slug: string; name: string; owner_name: string | null; owner_phone: string | null; owner_email: string | null;
   status: string; trial_ends_at: string | null; trial_orders_left: number; created_at: string; domains: string | null;
   balance: number; confirmed_orders: number; last_order_at: string | null; last_login_at: string | null; staff_count: number;
+  plan?: string; period_orders?: number; plan_next?: string | null;
   next_bill_at: string | null; low_balance_since: string | null; activated_at: string | null; first_topup_at: string | null; status_changed_at: string | null;
 };
 
@@ -446,7 +448,9 @@ export type TopupRow = { id: number; shop_id: string; shop_name?: string; slug?:
 export type AuditRow = { id: number; admin_email: string | null; action: string; target_type: string | null; target_id: string | null; detail: string | null; ip?: string | null; created_at: string; shop_name?: string | null };
 export type NoteRow = { id: number; admin_email: string | null; note: string; created_at: string };
 
-export const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "মাসিক চার্জ", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়" };
+export const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ (পুরনো দাম)", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
+
+const PLAN_NAME: Record<string, string> = { free: "ফ্রি", small: "ছোট দোকান", grow: "বাড়ন্ত", big: "বড় ব্র্যান্ড" };
 
 export const ShopDetailPage = (p: {
   s: ShopRow;
@@ -484,6 +488,7 @@ export const ShopDetailPage = (p: {
 
       <div class="sa-kpis">
         <Kpi label="ব্যালেন্স" value={taka(s.balance)} sub={s.low_balance_since ? `মাইনাস ${ago(s.low_balance_since)} থেকে` : s.next_bill_at ? `পরের বিল ${dhakaTime(s.next_bill_at).slice(0, 10)}` : ""} tone={s.balance < 0 ? "down" : ""} />
+        <Kpi label="প্ল্যান" value={PLAN_NAME[s.plan ?? "free"] ?? "—"} sub={`এই মাসে ${n0(s.period_orders ?? 0)}টা অর্ডার${s.plan_next ? ` · পরে: ${PLAN_NAME[s.plan_next] ?? ""}` : ""}`} />
         <Kpi label="মোট কনফার্ম অর্ডার" value={n0(s.confirmed_orders)} sub={`৩০ দিনে ${n0(p.orders30Total)}টা · শেষ ${ago(s.last_order_at)}`} />
         <Kpi label="আমাদের আয় (মোট)" value={taka(p.revenue.lifetime)} sub={`মোট রিচার্জ ${taka(p.revenue.topups)}`} />
         <Kpi label="শেষ লগইন" value={ago(s.last_login_at)} sub={`${bn(s.staff_count)} জন বাড়তি স্টাফ`} />
@@ -898,18 +903,31 @@ export const AccountPage = ({ admin, error }: { admin: SuperAdmin; error?: strin
 /* ---------- প্ল্যাটফর্ম সেটিংস ---------- */
 export const SettingsPage = ({ s }: { s: Record<string, string> }) => (
   <form method="post" action="/super/settings" class="sa-grid-2">
-    <Card title="দাম">
+    <Card title="প্ল্যানের দাম ও সীমা">
       <div class="sa-form">
-        <label>প্রতি কনফার্ম অর্ডারে চার্জ (৳)</label><input type="number" min="0" name="order_fee" value={s.order_fee} required />
-        <label>মাসিক সার্ভিস চার্জ (৳)</label><input type="number" min="0" name="monthly_fee" value={s.monthly_fee} required />
-        <label>প্রতি বাড়তি স্টাফ, মাসিক (৳)</label><input type="number" min="0" name="staff_fee" value={s.staff_fee} required />
+        {(["free", "small", "grow", "big"] as const).map((k) => {
+          const pl = plans(s)[k];
+          return (
+            <fieldset class="sa-plan-set">
+              <legend>{pl.name}</legend>
+              <div class="sa-row">
+                <label>মাসিক ৳<input type="number" min="0" name={`plan_${k}_price`} value={String(pl.price)} required /></label>
+                <label>অর্ডার/মাস<input type="number" min="0" name={`plan_${k}_orders`} value={String(pl.orders)} required /></label>
+                <label>বাড়তি প্রতি অর্ডার ৳<input type="number" min="0" step="0.05" name={`plan_${k}_extra`} value={String(pl.extra)} required /></label>
+                <label>স্টাফ (মালিক ছাড়া)<input type="number" min="0" name={`plan_${k}_staff`} value={String(pl.staff)} required /></label>
+              </div>
+            </fieldset>
+          );
+        })}
+        <label>প্ল্যানের বাইরে প্রতি স্টাফ, মাসিক (৳)</label><input type="number" min="0" name="staff_fee" value={s.staff_fee} required />
         <label>সর্বনিম্ন রিচার্জ (৳)</label><input type="number" min="0" name="min_topup" value={s.min_topup} required />
+        <small class="sa-muted">দাম বদলালে নতুন বিল থেকে কার্যকর; প্রাইসিং পেজ নিজে থেকে বদলায়।</small>
       </div>
     </Card>
     <Card title="ট্রায়াল আর বকেয়া">
       <div class="sa-form">
         <label>ট্রায়াল (দিন)</label><input type="number" min="0" name="trial_days" value={s.trial_days} required />
-        <label>ট্রায়ালে ফ্রি অর্ডার</label><input type="number" min="0" name="trial_orders" value={s.trial_orders} required />
+        <label>ট্রায়ালে সর্বোচ্চ অর্ডার ("বাড়ন্ত" প্ল্যানের সুবিধা)</label><input type="number" min="0" name="trial_orders" value={s.trial_orders} required />
         <label>ব্যালেন্স মাইনাসের পর কত দিন অর্ডার চালু থাকবে</label><input type="number" min="0" name="grace_days" value={s.grace_days} required />
       </div>
     </Card>

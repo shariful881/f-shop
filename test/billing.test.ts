@@ -34,7 +34,7 @@ beforeEach(async () => {
   await pdb().batch([
     pdb().prepare("DELETE FROM ledger"),
     pdb().prepare("DELETE FROM topups"),
-    pdb().prepare("UPDATE shops SET status = 'active', balance = 0, low_balance_since = NULL, next_bill_at = datetime('now', '+20 days'), trial_orders_left = 50, trial_ends_at = datetime('now', '+14 days'), staff_count = 0 WHERE id = ?").bind(DEMO_SHOP_ID),
+    pdb().prepare("UPDATE shops SET status = 'active', balance = 0, low_balance_since = NULL, next_bill_at = datetime('now', '+20 days'), trial_orders_left = 50, trial_ends_at = datetime('now', '+14 days'), staff_count = 0, plan = 'small', plan_next = NULL, cycle_months = 1, period_orders = 0, usage_reset_at = datetime('now', '+20 days') WHERE id = ?").bind(DEMO_SHOP_ID),
   ]);
   clearShopCache();
   clearSettingsCache();
@@ -53,23 +53,26 @@ describe("ট্রায়াল", () => {
     expect(await ledger("order_fee")).toHaveLength(0);
   });
 
-  it("শেষ ফ্রি অর্ডার কনফার্ম হলে দোকান চালু হয়, প্রথম মাসের ৯৯ টাকা কাটে", async () => {
-    await setShop({ status: "trial", trial_orders_left: 1 });
+  it("ট্রায়াল শেষে ব্যালেন্স থাকলে বেছে নেওয়া প্ল্যান চালু, দাম আগে কাটে", async () => {
+    await setShop({ status: "trial", trial_orders_left: 1, plan: "grow", balance: 1000 });
     const a = await adminBrowser();
     await orderAnd(a, "confirmed");
     const s = await shop();
     expect(s.status).toBe("active");
-    expect(s.balance).toBe(-99);
+    expect(s.plan).toBe("grow");
+    expect(s.balance).toBe(1000 - 799);
     expect(s.next_bill_at).toBeTruthy();
-    expect((await ledger("monthly")).map((l) => l.amount)).toEqual([-99]);
+    expect((await ledger("monthly")).map((l) => l.amount)).toEqual([-799]);
   });
 
-  it("ট্রায়ালের সময় শেষ হলে পরের ভিজিটেই চালু হয়ে মাসিক চার্জ কাটে", async () => {
-    await setShop({ status: "trial", trial_ends_at: "2020-01-01 00:00:00" });
+  it("ট্রায়ালের সময় শেষ, ব্যালেন্স নেই → দোকান বন্ধ হয় না, ফ্রি প্ল্যানে চলে", async () => {
+    await setShop({ status: "trial", trial_ends_at: "2020-01-01 00:00:00", plan: "grow", balance: 0 });
     await new Browser().get("/");
     const s = await shop();
     expect(s.status).toBe("active");
-    expect(s.balance).toBe(-99);
+    expect(s.plan).toBe("free");
+    expect(s.balance).toBe(0);
+    expect((await new Browser().order({ phone: "01899999998" })).status).toBe(303);
   });
 
   it("ড্যাশবোর্ডে ট্রায়ালের তথ্য দেখায়", async () => {
@@ -77,38 +80,37 @@ describe("ট্রায়াল", () => {
     const a = await adminBrowser();
     const html = await (await a.get("/admin/orders")).text();
     expect(html).toContain("ফ্রি ট্রায়াল চলছে");
-    expect(html).toContain("১২");
+    expect(html).toContain("বাড়ন্ত");
   });
 });
 
-describe("প্রতি কনফার্ম অর্ডারে ২ টাকা", () => {
-  it("কনফার্মে ২ টাকা কাটে, একই অর্ডারে দুবার না; ফেক/বাতিলে না", async () => {
-    await setShop({ balance: 100 });
+describe("প্ল্যানের মধ্যে অর্ডার", () => {
+  it("কনফার্ম অর্ডার গোনা হয়, টাকা কাটে না; একই অর্ডার দুবার নয়; ফেক/বাতিল গোনা হয় না", async () => {
+    await setShop({ balance: 100, plan: "small", period_orders: 0 });
     const a = await adminBrowser();
     const o = await orderAnd(a, "confirmed", "01711111111");
     await setStatus(a, o.id, "shipped");
     await orderAnd(a, "fake", "01722222222");
     await orderAnd(a, "cancelled", "01733333333");
-    // সরাসরি আবার চার্জ করার চেষ্টা
     await chargeConfirmedOrder(pdb(), DEMO_SHOP_ID, o.order_no);
     await chargeConfirmedOrder(pdb(), DEMO_SHOP_ID, o.order_no);
-
-    expect((await shop()).balance).toBe(98);
-    const fees = await ledger("order_fee");
-    expect(fees).toEqual([{ type: "order_fee", amount: -2, ref: o.order_no, balance_after: 98 }]);
+    const s = await shop();
+    expect(s.balance).toBe(100);
+    expect(s.period_orders).toBe(1);
+    expect(await ledger("plan_order")).toHaveLength(1);
   });
 
-  it("একসাথে দুবার চার্জের চেষ্টা করলেও একবারই কাটে", async () => {
+  it("একসাথে দুবার গোনার চেষ্টা করলেও একবারই", async () => {
+    await setShop({ period_orders: 0 });
     await Promise.all([1, 2, 3].map(() => chargeConfirmedOrder(pdb(), DEMO_SHOP_ID, "FS-999999")));
-    expect((await shop()).balance).toBe(-2);
+    expect((await shop()).period_orders).toBe(1);
   });
 });
 
 describe("ব্যালেন্স শেষ হলে", () => {
   it("মাইনাস হলে সতর্কবার্তা, অর্ডার তখনো চালু", async () => {
+    await setShop({ balance: -20, low_balance_since: new Date().toISOString().replace("T", " ").slice(0, 19) });
     const a = await adminBrowser();
-    await orderAnd(a, "confirmed"); // 0 → -2
-    expect((await shop()).low_balance_since).toBeTruthy();
     const html = await (await a.get("/admin/orders")).text();
     expect(html).toContain("রিচার্জ না করলে দোকানে নতুন অর্ডার নেওয়া বন্ধ হবে");
     expect((await new Browser().order({ phone: "01899999999" })).status).toBe(303);
@@ -166,19 +168,52 @@ describe("ব্যালেন্স শেষ হলে", () => {
   });
 });
 
-describe("মাসিক চার্জ (দৈনিক cron)", () => {
-  it("বিলের তারিখ এলে ৯৯ + প্রতি স্টাফ ৯৯ কাটে, পরের মাসে যায়; দুবার চালালেও একবার", async () => {
-    await setShop({ balance: 500, staff_count: 2, next_bill_at: "2026-01-05 10:00:00" });
-    // ২০২৬-০১-০৫ থেকে আজ পর্যন্ত যত মাস বাকি সব কাটবে — পরীক্ষার জন্য গত মাসে সেট করি
-    const lastMonth = await pdb().prepare("SELECT datetime('now', '-1 day') AS d").first<{ d: string }>();
-    await setShop({ next_bill_at: lastMonth!.d });
+describe("প্ল্যানের বিল আর মাস শেষের হিসাব (দৈনিক cron)", () => {
+  const yesterday = async () => (await pdb().prepare("SELECT datetime('now', '-1 day') AS d").first<{ d: string }>())!.d;
+
+  it("বিলের দিন প্ল্যানের দাম + প্ল্যানের বাইরের স্টাফ কাটে, পরের মাসে যায়; দুবার চালালেও একবার", async () => {
+    await setShop({ balance: 1000, plan: "grow", staff_count: 6, next_bill_at: await yesterday() });
     const r1 = await runDailyBilling(pdb());
     const r2 = await runDailyBilling(pdb());
     expect(r1.monthsCharged).toBe(1);
     expect(r2.monthsCharged).toBe(0);
     const s = await shop();
-    expect(s.balance).toBe(500 - 99 - 2 * 99);
+    expect(s.balance).toBe(1000 - 799 - 2 * 49); // বাড়ন্তে ৪ জন ধরা, বাকি ২ জন × ৪৯
+    expect(s.plan).toBe("grow");
     expect(new Date(s.next_bill_at.replace(" ", "T") + "Z").getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("ব্যালেন্সে না কুলালে ফ্রি প্ল্যানে নামে, মাইনাস হয় না", async () => {
+    await setShop({ balance: 100, plan: "small", next_bill_at: await yesterday() });
+    await runDailyBilling(pdb());
+    const s = await shop();
+    expect(s.plan).toBe("free");
+    expect(s.balance).toBe(100);
+  });
+
+  it("বাৎসরিক প্যাকে ১০ মাসের দাম, পরের বিল ১২ মাস পরে", async () => {
+    await setShop({ balance: 5000, plan: "small", cycle_months: 12, next_bill_at: await yesterday() });
+    await runDailyBilling(pdb());
+    const s = await shop();
+    expect(s.balance).toBe(5000 - 3990);
+    const months = (new Date(s.next_bill_at.replace(" ", "T") + "Z").getTime() - Date.now()) / (30 * 86400000);
+    expect(months).toBeGreaterThan(11);
+  });
+
+  it("মাস শেষে সীমার বেশি অর্ডারের চার্জ একবারে, তারপর গোনা শূন্য", async () => {
+    await setShop({ balance: 500, plan: "small", period_orders: 340, usage_reset_at: await yesterday() });
+    await runDailyBilling(pdb());
+    await runDailyBilling(pdb());
+    const s = await shop();
+    expect(s.balance).toBe(500 - 40); // ৩০০-এর বেশি ৪০টা × ৳১
+    expect(s.period_orders).toBe(0);
+    expect((await ledger("overage")).map((l) => l.amount)).toEqual([-40]);
+  });
+
+  it("দশমিক রেট উপরের পূর্ণ টাকায় (বাড়ন্ত: ৳০.৫০)", async () => {
+    await setShop({ balance: 0, plan: "grow", period_orders: 1503, usage_reset_at: await yesterday() });
+    await runDailyBilling(pdb());
+    expect((await shop()).balance).toBe(-2); // ৩ × ০.৫ = ১.৫ → ২
   });
 
   it("ট্রায়ালের মেয়াদ শেষ হওয়া দোকান cron-এ চালু হয়", async () => {
@@ -190,27 +225,54 @@ describe("মাসিক চার্জ (দৈনিক cron)", () => {
 });
 
 describe("বিলিং পেজ", () => {
-  it("দোকানদার নিজের ব্যালেন্স আর লেনদেন দেখে, অন্য দোকানেরটা নয়", async () => {
+  it("দোকানদার নিজের প্ল্যান, ব্যালেন্স আর লেনদেন দেখে, অন্য দোকানেরটা নয়", async () => {
     await pdb().prepare("INSERT INTO shops (id, slug, name, balance) VALUES ('other-shop', 'other', 'অন্য', 777)").run();
     await pdb().prepare("INSERT INTO ledger (shop_id, type, amount, ref, note, applied) VALUES ('other-shop', 'topup', 777, 'x', 'অন্য দোকানের রিচার্জ', 1)").run();
+    await setShop({ plan: "small", period_orders: 120, balance: 50 });
     const a = await adminBrowser();
-    await orderAnd(a, "confirmed");
     const html = await (await a.get("/admin/billing")).text();
-    expect(html).toContain("-৳২");
-    expect(html).toContain("অর্ডার চার্জ");
+    expect(html).toContain("ছোট দোকান");
+    expect(html).toContain("১২০ / ৩০০");
+    expect(html).toContain("বাড়ন্ত");
     expect(html).not.toContain("অন্য দোকানের রিচার্জ");
     expect(html).not.toContain("৭৭৭");
   });
 
-  it("সুপার অ্যাডমিন দাম বদলালে নতুন চার্জে লাগে", async () => {
+  it("বড় প্ল্যানে গেলে এখনই চালু, আগের প্ল্যানের বাকি দিনের টাকা বাদ যায়", async () => {
+    // ছোট দোকানের ৩০ দিনের মেয়াদের ১৫ দিন বাকি → ৳১৯৯ ফেরত হিসাব; বাড়ন্ত ৭৯৯ − ১৯৯ = ৬০০
+    const half = (await pdb().prepare("SELECT datetime('now', '+15 days') AS d").first<{ d: string }>())!.d;
+    await setShop({ plan: "small", cycle_months: 1, next_bill_at: half, balance: 1000 });
+    const a = await adminBrowser();
+    expect((await a.post("/admin/billing/plan", { plan: "grow", months: 1 })).status).toBe(303);
+    const s = await shop();
+    expect(s.plan).toBe("grow");
+    expect(s.balance).toBeGreaterThanOrEqual(1000 - 600 - 1);
+    expect(s.balance).toBeLessThanOrEqual(1000 - 600 + 1);
+    expect((await ledger("plan_change"))).toHaveLength(1);
+  });
+
+  it("ব্যালেন্স কম হলে বড় প্ল্যানে যাওয়া যায় না; ছোট প্ল্যানে নামা পরের বিলে", async () => {
+    await setShop({ plan: "grow", balance: 10 });
+    const a = await adminBrowser();
+    await a.post("/admin/billing/plan", { plan: "big", months: 1 });
+    expect((await shop()).plan).toBe("grow");
+    await a.post("/admin/billing/plan", { plan: "small", months: 1 });
+    const s = await shop();
+    expect(s.plan).toBe("grow");
+    expect(s.plan_next).toBe("small");
+    expect(await (await a.get("/admin/billing")).text()).toContain("পরের বিলের দিন থেকে");
+  });
+
+  it("সুপার অ্যাডমিন প্ল্যানের দাম বদলালে নতুন বিলে লাগে", async () => {
     const sa = await superBrowser();
     const s = await pdb().prepare("SELECT key, value FROM platform_settings").all<{ key: string; value: string }>();
     const form = Object.fromEntries(s.results.map((r) => [r.key, r.value]));
-    await sa.fetch("/super/settings", { method: "POST", base: P, body: new URLSearchParams({ ...form, order_fee: "3" }) } as RequestInit);
+    await sa.fetch("/super/settings", { method: "POST", base: P, body: new URLSearchParams({ ...form, plan_small_price: "349", plan_small_orders: "300", plan_small_extra: "1", plan_small_staff: "1" }) } as RequestInit);
     clearSettingsCache();
-    const a = await adminBrowser();
-    await orderAnd(a, "confirmed");
-    expect((await shop()).balance).toBe(-3);
+    const y = (await pdb().prepare("SELECT datetime('now', '-1 day') AS d").first<{ d: string }>())!.d;
+    await setShop({ balance: 1000, plan: "small", next_bill_at: y });
+    await runDailyBilling(pdb());
+    expect((await shop()).balance).toBe(1000 - 349);
   });
 
   it("সুপার অ্যাডমিন ব্যালেন্স সমন্বয় করতে পারে", async () => {

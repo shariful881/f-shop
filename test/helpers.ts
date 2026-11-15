@@ -45,7 +45,7 @@ export const shopDb = (shopId: string) => makeDb(shopId);
 
 /** প্ল্যাটফর্মে দোকান তৈরি (domain দিলে সেটাও) */
 export async function createShop(id: string, slug: string, domain?: string) {
-  await env.PLATFORM_DB.prepare("INSERT OR IGNORE INTO shops (id, slug, name, status) VALUES (?, ?, ?, 'active')").bind(id, slug, slug).run();
+  await env.PLATFORM_DB.prepare("INSERT OR IGNORE INTO shops (id, slug, name, status, plan) VALUES (?, ?, ?, 'active', 'small')").bind(id, slug, slug).run();
   if (domain) await env.PLATFORM_DB.prepare("INSERT OR IGNORE INTO domains (hostname, shop_id, status) VALUES (?, ?, 'active')").bind(domain, id).run();
   clearShopCache();
 }

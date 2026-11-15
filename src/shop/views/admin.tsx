@@ -25,7 +25,7 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
   if (!state) return null;
   switch (state.reason) {
     case "trial":
-      return <div class="banner banner-info"><Icon name="gift" size="sm" /> ফ্রি ট্রায়াল চলছে: {dhakaTime(state.trial_ends_at).split(",")[0]} পর্যন্ত অথবা আরও {bn(state.trial_orders_left)}টা কনফার্ম অর্ডার। <a href="/admin/billing">বিস্তারিত</a></div>;
+      return <div class="banner banner-info"><Icon name="gift" size="sm" /> ফ্রি ট্রায়াল চলছে ("বাড়ন্ত" প্ল্যানের সব সুবিধা): {dhakaTime(state.trial_ends_at).split(",")[0]} পর্যন্ত। <a href="/admin/billing">বিস্তারিত</a></div>;
     case "low_balance":
       return <div class="banner banner-warn"><Icon name="triangle-alert" size="sm" /> ব্যালেন্স {taka(state.balance)}। {dhakaTime(state.grace_ends_at)} এর মধ্যে রিচার্জ না করলে দোকানে নতুন অর্ডার নেওয়া বন্ধ হবে। <a href="/admin/billing">রিচার্জ করুন</a></div>;
     case "blocked_balance":
@@ -616,29 +616,26 @@ export const BlacklistPage = ({ rows, q }: { rows: BlacklistRow[]; q: string }) 
 /* ---------- বিলিং ---------- */
 export type LedgerRow = { id: number; type: string; amount: number; balance_after: number | null; ref: string; note: string | null; created_at: string };
 export type TopupRow = { id: number; amount: number; method: string; sender: string; trx_id: string; status: string; created_at: string };
-const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "মাসিক চার্জ", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়" };
+const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
 const TOPUP_STATUS: Record<string, string> = { pending: "অপেক্ষায়", approved: "যোগ হয়েছে", rejected: "বাতিল" };
 
-export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; nextBill: string | null; staffCount: number; errors?: Record<string, string>; values?: Record<string, string> }) => {
+export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; errors?: Record<string, string>; values?: Record<string, string> }) => {
   const e = p.errors ?? {};
   const v = p.values ?? {};
-  const monthly = Number(p.fees.monthly_fee || 99) + p.staffCount * Number(p.fees.staff_fee || 99);
   return (
     <>
-      <h1>বিলিং</h1>
+      <h1>বিলিং ও প্ল্যান</h1>
+      {p.plan}
       <div class="panels">
         <section class="panel">
           <h2>ব্যালেন্স</h2>
           <div class={`balance-big ${p.state.balance < 0 ? "neg" : ""}`}>{taka(p.state.balance)}</div>
-          {p.state.status === "trial" ? (
-            <p>ফ্রি ট্রায়াল: <strong>{dhakaTime(p.state.trial_ends_at)}</strong> পর্যন্ত অথবা আরও <strong>{bn(p.state.trial_orders_left)}</strong>টা কনফার্ম অর্ডার। এর মধ্যে কোনো চার্জ নেই।</p>
-          ) : (
-            <p>পরের মাসিক চার্জ: <strong>{taka(monthly)}</strong> — {dhakaTime(p.nextBill)}</p>
+          {p.state.status === "trial" && (
+            <p>ফ্রি ট্রায়াল: <strong>{dhakaTime(p.state.trial_ends_at)}</strong> পর্যন্ত। এর মধ্যে কোনো চার্জ নেই। ট্রায়াল শেষে উপরে বাছাই করা প্ল্যান চালু হবে — ব্যালেন্স না থাকলে ফ্রি প্ল্যানে চলবে।</p>
           )}
           <ul class="muted small-list">
-            <li>প্রতি কনফার্ম অর্ডার: {taka(Number(p.fees.order_fee || 2))} (ফেক/বাতিল অর্ডারে চার্জ নেই)</li>
-            <li>মাসিক সার্ভিস চার্জ: {taka(Number(p.fees.monthly_fee || 99))}</li>
-            <li>প্রতিজন স্টাফ: {taka(Number(p.fees.staff_fee || 99))}/মাস {p.staffCount > 0 && `(এখন ${bn(p.staffCount)} জন)`}</li>
+            <li>প্ল্যানের টাকা বিলের দিন ব্যালেন্স থেকে কাটে</li>
+            <li>ফেক/বাতিল অর্ডার গোনা হয় না</li>
             <li>ব্যালেন্স মাইনাস হলে {bn(p.fees.grace_days || "3")} দিন পর নতুন অর্ডার নেওয়া বন্ধ হয়</li>
           </ul>
         </section>
@@ -699,7 +696,7 @@ export const StaffPage = (p: { users: StaffRow[]; me: number; fee: number; trial
     <>
       <h1>স্টাফ</h1>
       <p class="muted">
-        প্রতিজন স্টাফের জন্য মাসে {taka(p.fee)}। {p.trial ? "ট্রায়ালের সময় স্টাফ ফ্রি, ট্রায়াল শেষে মাসিক বিলে যোগ হবে।" : `নতুন স্টাফ যোগ করলে সাথে সাথে চলতি মাসের ${taka(p.fee)} কাটবে, তারপর প্রতি মাসের বিলে যোগ হবে।`}
+        প্রতিটা প্ল্যানে কয়েকজন স্টাফ ধরা আছে (ছোট দোকান ১ জন, বাড়ন্ত ৪ জন, বড় ব্র্যান্ড ১৪ জন)। এর বেশি হলে প্রতিজনের জন্য মাসে {taka(p.fee)}{p.trial ? " — ট্রায়ালের সময় ফ্রি।" : " — বাড়তি স্টাফ যোগ করলে চলতি মাসেরটা সাথে সাথে কাটে।"}
       </p>
       <div class="panel">
         <h2>রোল কে কী দেখতে পারবে</h2>
@@ -759,7 +756,7 @@ export const StaffPage = (p: { users: StaffRow[]; me: number; fee: number; trial
             </select>
           </label>
         </div>
-        <button class="btn btn-primary" data-confirm-fee>যোগ করুন{p.trial ? "" : ` (${taka(p.fee)}/মাস)`}</button>
+        <button class="btn btn-primary" data-confirm-fee>যোগ করুন</button>
       </form>
     </>
   );

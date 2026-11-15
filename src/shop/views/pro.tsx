@@ -253,7 +253,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
             {socials.length > 0 && <p class="px-socials center">{socials.map(([n, u]) => <a href={u} target="_blank" rel="noopener">{n}</a>)}</p>}
             {payRow}
           </div>
-          <div class="px-copy"><div class="wrap">{cfg.footer_copy || `© ${s.site_name || ""} · ক্যাশ অন ডেলিভারি · সারাদেশে হোম ডেলিভারি`}</div></div>
+          <div class="px-copy"><div class="wrap">{cfg.footer_copy || `© ${s.site_name || ""} · ক্যাশ অন ডেলিভারি · সারাদেশে হোম ডেলিভারি`}</div></div><div class="made-by"><a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener">SellxBD দিয়ে তৈরি</a></div>
         </footer>
       </>
     );
@@ -278,6 +278,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
             {pages.length > 0 && <p class="footer-links">{pages.map((pg) => <a href={`/page/${pg.slug}`}>{pg.title}</a>)}</p>}
             {payRow}
             <p class="muted">{cfg.footer_copy || "ক্যাশ অন ডেলিভারি • পণ্য হাতে পেয়ে টাকা দিন"}</p>
+            <div class="made-by"><a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener">SellxBD দিয়ে তৈরি</a></div>
           </div>
         </footer>
       </>
@@ -321,7 +322,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
             </ul>
           </div>
         </div>
-        <div class="px-copy"><div class="wrap">{cfg.footer_copy || `© ${s.site_name || ""} · ক্যাশ অন ডেলিভারি · সারাদেশে হোম ডেলিভারি`}</div></div>
+        <div class="px-copy"><div class="wrap">{cfg.footer_copy || `© ${s.site_name || ""} · ক্যাশ অন ডেলিভারি · সারাদেশে হোম ডেলিভারি`}</div></div><div class="made-by"><a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener">SellxBD দিয়ে তৈরি</a></div>
       </footer>
     </>
   );

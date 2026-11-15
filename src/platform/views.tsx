@@ -1,3 +1,4 @@
+import type { Plan, PlanKey } from "./plans";
 import type { Child } from "hono/jsx";
 import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -37,7 +38,7 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
 );
 
 /* ---------- হোম (মার্কেটিং) — বাংলাদেশের ফেসবুক সেলারদের জন্য ---------- */
-type HomeFees = { monthly: number; order: number; staff: number; trialDays: number; trialOrders: number; support: string };
+type HomeFees = { plans: Record<PlanKey, Plan>; staff: number; trialDays: number; trialOrders: number; support: string };
 type DemoLink = { key?: string; niche: string; name: string; url: string };
 
 const Check = () => <span class="h-check" aria-hidden="true">✓</span>;
@@ -281,27 +282,26 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
         <div class="h-price-grid">
           <div class="h-price">
             <div class="h-price-top">
-              <div class="h-big">৳{bn(f.monthly)}<small>/মাস</small></div>
-              <div class="h-plus">+ প্রতিটা কনফার্ম অর্ডারে <b>৳{bn(f.order)}</b></div>
+              <div class="h-big">৳০<small> থেকে শুরু</small></div>
+              <div class="h-plus">{taka(f.plans.small.price)} / {taka(f.plans.grow.price)} / {taka(f.plans.big.price)} প্রতি মাসে — শুধু অর্ডারের সংখ্যায় পার্থক্য</div>
             </div>
             <ul>
-              <li><Check /> ওপরের সব ফিচার — কোনো লুকানো চার্জ নেই</li>
-              <li><Check /> সব থিম আর ল্যান্ডিং টেমপ্লেট ফ্রি</li>
-              <li><Check /> প্রথম {bn(f.trialDays)} দিন অথবা {bn(f.trialOrders)}টা অর্ডার সম্পূর্ণ ফ্রি</li>
-              <li><Check /> bKash / Nagad দিয়ে আগে রিচার্জ, যখন খুশি</li>
-              <li><Check /> বাড়তি স্টাফ: ৳{bn(f.staff)}/মাস (মালিকের অ্যাকাউন্ট ফ্রি)</li>
+              <li><Check /> সব প্ল্যানে সব ফিচার — কোনো লুকানো চার্জ নেই</li>
+              <li><Check /> ফ্রি প্ল্যানে মাসে {bn(f.plans.free.orders)}টা অর্ডার — একদম ৳০</li>
+              <li><Check /> প্রথম {bn(f.trialDays)} দিন "বাড়ন্ত" প্ল্যান সম্পূর্ণ ফ্রি</li>
+              <li><Check /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ২ মাস ফ্রি</li>
+              <li><Check /> ফেক বা বাতিল অর্ডার গোনা হয় না</li>
               <li><Check /> ২৪ ঘণ্টা সাপোর্ট সাথেই</li>
             </ul>
-            <a href="/signup" class="btn btn-accent btn-block btn-lg">ফ্রি ট্রায়াল শুরু করুন</a>
+            <a href="/pricing" class="btn btn-accent btn-block btn-lg">সব প্ল্যান দেখুন</a>
           </div>
-          <div class="h-calc" data-monthly={String(f.monthly)} data-order={String(f.order)}>
+          <div class="h-calc" data-plans={JSON.stringify((["free", "small", "grow", "big"] as const).map((k) => ({ n: f.plans[k].name, p: f.plans[k].price, o: f.plans[k].orders, e: f.plans[k].extra })))}>
             <h3>আপনার মাসিক খরচ কত হবে?</h3>
             <label for="h-orders">মাসে কয়টা অর্ডার কনফার্ম হয়?</label>
-            <input type="range" id="h-orders" min="0" max="2000" step="50" value="300" />
+            <input type="range" id="h-orders" min="0" max="3000" step="50" value="300" />
             <div class="h-calc-row"><span>কনফার্ম অর্ডার</span><b data-out="orders">৩০০টা</b></div>
-            <div class="h-calc-row"><span>মাসিক চার্জ</span><b>৳{bn(f.monthly)}</b></div>
-            <div class="h-calc-row"><span>অর্ডার চার্জ</span><b data-out="ordercost">৳{bn(300 * f.order)}</b></div>
-            <div class="h-calc-total"><span>মোট</span><b data-out="total">৳{bn(f.monthly + 300 * f.order)}</b></div>
+            <div class="h-calc-row"><span>সবচেয়ে সস্তা প্ল্যান</span><b data-out="plan">{f.plans.small.name}</b></div>
+            <div class="h-calc-total"><span>মোট</span><b data-out="total">৳{bn(f.plans.small.price)}</b></div>
             <p class="h-note">একটা ফেক অর্ডারের ডেলিভারি চার্জেই প্রায় এক মাসের ভাড়া চলে যায় — SellxBD সেটা আগেই আটকায়।</p>
           </div>
         </div>
@@ -339,8 +339,8 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
             ["কম্পিউটার বা কোডিং জানতে হবে?", "না। ফেসবুকে পোস্ট দিতে পারলেই চালাতে পারবেন। মোবাইল দিয়েই পুরো দোকান চালানো যায়।"],
             ["কোন ধরনের পণ্যের জন্য?", "যেকোনো পণ্য — পোশাক, স্কিনকেয়ার, খাবার, গ্যাজেট, কিচেন, শিশু পণ্য, হাতে বানানো জিনিস। ৬টা ক্যাটাগরির রেডি দোকান আছে, বাকিগুলো নিজের মতো সাজিয়ে নিন।"],
             ["ডিজাইন কি নিজের মতো করা যাবে?", "হ্যাঁ। ৪টা থিম থেকে বাছুন, তারপর রং, ফন্ট, হেডার, হোমপেজের কোন সেকশন কোথায় থাকবে, পণ্যের পেজ, ফুটার — সব প্যানেল থেকে বদলান। কোড লাগে না।"],
-            ["ট্রায়াল শেষ হলে কী হবে?", `${bn(f.trialDays)} দিন অথবা ${bn(f.trialOrders)}টা কনফার্ম অর্ডার — যেটা আগে শেষ হয়। এরপর bKash/Nagad দিয়ে রিচার্জ করলেই চলতে থাকবে। আপনার পণ্য আর অর্ডার সব থেকে যাবে।`],
-            ["টাকা কাটে কীভাবে?", `আগে রিচার্জ করবেন, সেখান থেকে মাসে ৳${bn(f.monthly)} আর প্রতিটা কনফার্ম অর্ডারে ৳${bn(f.order)} কাটবে। ফেক বা বাতিল অর্ডারে কিছুই কাটে না। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
+            ["ট্রায়াল শেষ হলে কী হবে?", `${bn(f.trialDays)} দিন পর পছন্দের প্ল্যান চালু হয়। রিচার্জ না করলে দোকান ফ্রি প্ল্যানে চলতে থাকে — বন্ধ হয় না, পণ্য আর অর্ডার সব থেকে যায়।`],
+            ["টাকা কাটে কীভাবে?", `আগে bKash/Nagad দিয়ে রিচার্জ করবেন। প্ল্যানের টাকা (৳${bn(f.plans.small.price)} থেকে) বিলের দিন কাটে; প্ল্যানের সীমার বেশি অর্ডার হলে মাস শেষে অল্প বাড়তি। ফেক বা বাতিল অর্ডার গোনা হয় না। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
             ["নিজের ডোমেইন ব্যবহার করা যাবে?", "হ্যাঁ। প্যানেলে ডোমেইন যোগ করলে আমরা দুটো নেমসার্ভার দেব, সেগুলো ডোমেইন প্যানেলে বসালেই চালু। ডোমেইন না থাকলে ফ্রি subdomain পাবেন।"],
             ["কোন কোন কুরিয়ার আর SMS আছে?", "কুরিয়ার: Steadfast, Pathao আর RedX — নিজের মার্চেন্ট অ্যাকাউন্ট, পার্সেলের টাকা সরাসরি আপনার কাছে। SMS: BulkSMSBD, SMS.net.bd অথবা যেকোনো গেটওয়ের লিংক।"],
             ["সমস্যা হলে কীভাবে সাহায্য পাব?", "দোকানের প্যানেলের কোণে সাপোর্ট বাটন আছে — লাইভ চ্যাটে সাথে সাথে কথা বলুন অথবা স্ক্রিনশটসহ টিকেট দিন। সাপোর্ট ২৪ ঘণ্টা খোলা।"],

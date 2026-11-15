@@ -326,3 +326,7 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa .ic { width: 18px; height: 18px; flex: none; display: inline-block; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .sa .ic-sm { width: 15px; height: 15px; vertical-align: -2px; }
 .sa .sa-ico .ic { width: 18px; height: 18px; opacity: .85; }
+.sa-plan-set { border: 1px solid var(--sa-line, #e2e8f0); border-radius: 10px; padding: 8px 12px 12px; margin: 0 0 10px; }
+.sa-plan-set legend { font-weight: 700; padding: 0 4px; }
+.sa-plan-set .sa-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.sa-plan-set label { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }

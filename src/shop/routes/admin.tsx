@@ -26,7 +26,9 @@ import { normalizeCode } from "../lib/coupons";
 import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
 import { cfError, type DnsRecord } from "../../platform/cf";
-import { applyLedger, billingShop, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
+import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
+import { extraStaff, isCycle, isPlan, planOf, plans } from "../../platform/plans";
+import { PlanPanel } from "../views/billing-plans";
 import { clearShopCache } from "../../platform/resolve";
 import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/customers";
 import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMedia, type MediaFolder } from "../lib/media";
@@ -1082,16 +1084,31 @@ async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; va
   const shopId = c.env.SHOP_ID;
   const [fees, shop] = await Promise.all([platformSettings(pdb), billingShop(pdb, shopId)]);
   const [ledger, topups] = await pdb.batch([
-    pdb.prepare("SELECT id, type, amount, balance_after, ref, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 ORDER BY id DESC LIMIT 200").bind(shopId),
+    pdb.prepare("SELECT id, type, amount, balance_after, ref, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 AND type != 'plan_order' ORDER BY id DESC LIMIT 200").bind(shopId),
     pdb.prepare("SELECT id, amount, method, sender, trx_id, status, created_at FROM topups WHERE shop_id = ? ORDER BY id DESC LIMIT 20").bind(shopId),
   ]);
-  return render(c, "বিলিং", "billing",
+  const plan = shop ? <PlanPanel plans={plans(fees)} shop={shop} trial={c.var.shopState.status === "trial"} staffFee={toInt(fees.staff_fee, 49)} settings={fees} /> : null;
+  return render(c, "বিলিং ও প্ল্যান", "billing",
     <BillingPage state={c.var.shopState} fees={fees} ledger={ledger!.results as LedgerRow[]} topups={topups!.results as TopupRow[]}
-      nextBill={shop?.next_bill_at ?? null} staffCount={shop?.staff_count ?? 0} errors={form?.errors} values={form?.values} />,
+      plan={plan} errors={form?.errors} values={form?.values} />,
     form ? 422 : 200);
 }
 
 admin.get("/billing", (c) => renderBilling(c));
+
+admin.post("/billing/plan", async (c) => {
+  const b = await c.req.parseBody();
+  const key = String(b.plan ?? "");
+  const months = toInt(b.months, 1);
+  if (!isPlan(key) || !isCycle(months)) {
+    flash(c, "error", "প্ল্যান বাছুন।");
+    return c.redirect("/admin/billing", 303);
+  }
+  const r = await changePlan(c.env.PLATFORM_DB, c.env.SHOP_ID, key, months, await platformSettings(c.env.PLATFORM_DB));
+  clearShopCache();
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect("/admin/billing", 303);
+});
 
 admin.post("/billing/topup", async (c) => {
   const b = await c.req.parseBody();
@@ -1130,7 +1147,7 @@ async function renderStaff(c: Ctx, form?: { errors: Record<string, string>; valu
   const { results } = await c.env.DB.prepare("SELECT id, name, email, role, active, created_at FROM users ORDER BY role = 'owner' DESC, id").all<StaffRow>();
   const fees = await platformSettings(c.env.PLATFORM_DB);
   return render(c, "স্টাফ", "staff",
-    <StaffPage users={results} me={c.var.admin!.id} fee={toInt(fees.staff_fee, 99)} trial={c.var.shopState.status === "trial"} errors={form?.errors} values={form?.values} />,
+    <StaffPage users={results} me={c.var.admin!.id} fee={toInt(fees.staff_fee, 49)} trial={c.var.shopState.status === "trial"} errors={form?.errors} values={form?.values} />,
     form ? 422 : 200);
 }
 
@@ -1151,10 +1168,12 @@ admin.post("/staff", async (c) => {
     .bind(values.name, values.email, await hashPassword(password), values.role).first<{ id: number }>();
   await syncStaffCount(c);
 
-  // চলতি মাসের স্টাফ চার্জ (ট্রায়ালে নয়)
-  if (c.var.shopState.status !== "trial") {
-    const fees = await platformSettings(c.env.PLATFORM_DB);
-    const fee = toInt(fees.staff_fee, 99);
+  // প্ল্যানের বাইরের স্টাফ হলে চলতি মাসের চার্জ (ট্রায়ালে নয়)
+  const bshop = await billingShop(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  const fees = await platformSettings(c.env.PLATFORM_DB);
+  const beyond = bshop ? extraStaff(planOf(fees, bshop.plan), bshop.staff_count) > 0 : false;
+  if (c.var.shopState.status !== "trial" && beyond) {
+    const fee = toInt(fees.staff_fee, 49);
     if (fee > 0) {
       await applyLedger(c.env.PLATFORM_DB, c.env.SHOP_ID, "monthly", -fee, `staff-add:${r!.id}:${new Date().toISOString().slice(0, 7)}`, `নতুন স্টাফ: ${values.name}`);
     }
@@ -1217,6 +1236,12 @@ admin.post("/domain", async (c) => {
   const input = str((await c.req.parseBody()).domain, 260);
   const n = normalizeDomain(input, c.env.PLATFORM_DOMAIN);
   if (!n.domain) return renderDomain(c, { value: input, error: n.error! });
+  if (c.var.shopState.status !== "trial") {
+    const bs = await billingShop(c.env.PLATFORM_DB, c.env.SHOP_ID);
+    if (bs && !planOf(await platformSettings(c.env.PLATFORM_DB), bs.plan).domain) {
+      return renderDomain(c, { value: input, error: "নিজের ডোমেইন ফ্রি প্ল্যানে নেই। বিলিং → \"ছোট দোকান\" বা উপরের প্ল্যান নিন (৳৩৯৯/মাস থেকে)।" });
+    }
+  }
   const r = await addDomain(c.env.PLATFORM_DB, cfFromEnv(c.env), c.env.SHOP_ID, n.domain);
   if (!r.ok) return renderDomain(c, { value: input, error: r.message });
   flash(c, "ok", r.message);
