@@ -20,6 +20,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "customers", href: "/admin/customers", icon: "users", label: "কাস্টমার" },
   { key: "reports", href: "/admin/reports", icon: "chart-column", label: "রিপোর্ট" },
   { key: "products", href: "/admin/products", icon: "package", label: "পণ্য", group: "পণ্য" },
+  { key: "inventory", href: "/admin/inventory", icon: "boxes", label: "ইনভেন্টরি" },
   { key: "categories", href: "/admin/categories", icon: "folder", label: "ক্যাটাগরি" },
   { key: "theme", href: "/admin/design", icon: "palette", label: "থিম এডিটর", group: "অনলাইন স্টোর", perm: "settings" },
   { key: "landing", href: "/admin/landing", icon: "layout-template", label: "ল্যান্ডিং পেজ" },
@@ -43,7 +44,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
 const HELP_BASE = "https://sellxbd.com/help";
 const HELP_FOR: Record<string, string> = {
   dashboard: "setup-checklist", orders: "orders", incomplete: "incomplete-orders", customers: "customers", reports: "reports", products: "add-product",
-  categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
+  inventory: "inventory", categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
   coupons: "coupons", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
   settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", export: "backup", support: "support",
 };
@@ -149,6 +150,7 @@ export type ShopDash = {
   products: { total: number; active: number };
   setup: SetupStep[];
   storeUrl: string;
+  lowStock?: { product_id: number; name: string; stock: number }[];
 };
 
 const pct = (n: number) => `${bn((Math.round(n * 10) / 10).toString())}%`;
@@ -277,6 +279,12 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
             <ol class="sa-rank">{d.top.map((t) => <li><span>{t.product_name}</span><b>{n0(t.n)}টা</b></li>)}</ol>
           )}
         </section>
+        {(d.lowStock ?? []).length > 0 && canAccess(role, "inventory") && (
+          <section class="sa-card low-stock-card">
+            <div class="sa-card-head"><h2>স্টক কম বা শেষ</h2><a href="/admin/inventory?f=low" class="sa-link">ইনভেন্টরি →</a></div>
+            <ol class="sa-rank">{d.lowStock!.map((t) => <li><span>{t.name}</span><b class={t.stock <= 0 ? "inv-minus" : ""}>{t.stock <= 0 ? "শেষ" : `${n0(t.stock)}টা`}</b></li>)}</ol>
+          </section>
+        )}
       </div>
     </>
   );

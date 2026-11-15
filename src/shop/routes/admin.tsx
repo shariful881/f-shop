@@ -49,6 +49,8 @@ import { createOrder, orderPrefix } from "../lib/orders";
 import { deliveryCharge } from "../lib/settings";
 import { maxQty } from "../lib/cart";
 import { validateOrderInput } from "../lib/order-guard";
+import { applyOrderStock, checkOrderStock, inventoryRows, inventorySummary, recentMoves, recomputeProductStock, restoreOrderStock, setStock, type InvFilter } from "../lib/stock";
+import { InventoryPage } from "../views/inventory";
 
 export const admin = new Hono<AppEnv>();
 
@@ -202,6 +204,8 @@ admin.get("/", async (c) => {
     products: { total: pr.total ?? 0, active: pr.active ?? 0 },
     setup,
     storeUrl: publicOrigin(c),
+    lowStock: (await inventoryRows(c.env.DB, "low")).concat(await inventoryRows(c.env.DB, "out")).filter((r) => r.is_active).slice(0, 6)
+      .map((r) => ({ product_id: r.product_id, name: r.name + (r.label ? ` (${r.label})` : ""), stock: r.stock })),
   };
   return render(c, "ড্যাশবোর্ড", "dashboard", <ShopDashboardPage d={d} role={c.var.admin!.role} />);
 });
@@ -421,8 +425,15 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
 
 /** স্ট্যাটাস বদল + তার পরের কাজ (বিলিং, Purchase, SMS) — একটা আর একসাথে অনেক অর্ডার দুটোতেই */
 async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: boolean; message: string; purchaseFail?: string }> {
+  // স্টক: কনফার্মের আগে যথেষ্ট আছে কিনা
+  if (to === "confirmed") {
+    const short = await checkOrderStock(c.env.DB, id);
+    if (short) return { ok: false, message: short };
+  }
   const res = await changeStatus(c.env.DB, id, to);
   if (!res.ok) return { ok: false, message: res.message };
+  if (to === "confirmed") await applyOrderStock(c.env.DB, id);
+  if (to === "cancelled") await restoreOrderStock(c.env.DB, id, "cancel");
   if (to === "confirmed") {
     // বিলিং: ট্রায়ালে ফ্রি অর্ডার কমে, চালু দোকানে প্রতি কনফার্ম অর্ডারে চার্জ (একবারই)
     try {
@@ -592,6 +603,9 @@ admin.post("/orders/:id{[0-9]+}/courier/status", async (c) => {
 async function setOutcome(c: Ctx, o: Order, out: "delivered" | "returned") {
   if (o.outcome === out) return;
   await c.env.DB.prepare("UPDATE orders SET outcome = ?, outcome_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").bind(out, o.id).run();
+  // ফেরত এলে পণ্য স্টকে ফেরে; পরে আবার "ডেলিভারি হয়েছে" দিলে আবার কমে
+  if (out === "returned") await restoreOrderStock(c.env.DB, o.id, "return");
+  else if (o.outcome === "returned") await applyOrderStock(c.env.DB, o.id);
   await later(c, recordOutcome(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, o.order_no, o.phone, out));
 }
 
@@ -838,6 +852,9 @@ async function saveProduct(c: Ctx, id: number | null) {
     show_on_home: body.show_on_home ? 1 : 0,
     sort_order: toInt(body.sort_order),
     options_json: null as string | null,
+    track_stock: body.track_stock ? 1 : 0,
+    low_stock: Math.max(0, Math.min(100000, toInt(body.low_stock, 5))),
+    cost_price: str(body.cost_price, 12) === "" ? null : Math.max(0, toInt(body.cost_price)),
   };
   const options = [0, 1]
     .map((i) => ({
@@ -879,21 +896,24 @@ async function saveProduct(c: Ctx, id: number | null) {
   }
   const oldImage = existing?.image && existing.image !== imageKey ? existing.image : null;
 
-  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json, v.meta_title, v.meta_description];
+  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json, v.meta_title, v.meta_description, v.track_stock, v.low_stock, v.cost_price];
   let productId = id;
   if (id) {
     await db.prepare(
       `UPDATE products SET category_id=?, name=?, slug=?, price=?, compare_price=?, image=?, headline=?, short_desc=?, details_html=?,
-         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, meta_title=?, meta_description=?, updated_at=datetime('now') WHERE id=?`,
+         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, meta_title=?, meta_description=?, track_stock=?, low_stock=?, cost_price=?, updated_at=datetime('now') WHERE id=?`,
     ).bind(...cols, id).run();
   } else {
     const r = await db.prepare(
-      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json, meta_title, meta_description)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
+      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json, meta_title, meta_description, track_stock, low_stock, cost_price)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
     ).bind(...cols).first<{ id: number }>();
     productId = r!.id;
   }
   await syncVariants(db, productId!, options);
+  // স্টক: ভ্যারিয়েন্ট না থাকলে পণ্যের নিজের, থাকলে ভ্যারিয়েন্টের যোগফল
+  if (options.length) await recomputeProductStock(db, [productId!]);
+  else if (v.track_stock && str(body.stock, 10) !== "") await setStock(db, [{ productId: productId!, variantId: null, stock: toInt(body.stock) }], id ? "পণ্যের পেজ থেকে" : "নতুন পণ্য");
   await cleanupIfUnused(c, [oldImage]);
   flash(c, "ok", options.length ? "পণ্য সেভ হয়েছে। নিচে ভ্যারিয়েন্টের দাম/স্টক ঠিক করে নিন।" : "পণ্য সেভ হয়েছে।");
   return c.redirect(options.length ? `/admin/products/${productId}/edit` : "/admin/products", 303);
@@ -910,9 +930,12 @@ admin.post("/products/:id{[0-9]+}/variants", async (c) => {
     await c.env.DB.batch(variants.map((vr) => {
       const raw = str(body[`price_${vr.id}`], 10);
       const price = raw === "" ? null : Math.max(0, toInt(raw));
-      return c.env.DB.prepare("UPDATE product_variants SET price = ?, active = ? WHERE id = ? AND product_id = ?")
-        .bind(price, body[`active_${vr.id}`] ? 1 : 0, vr.id, id);
+      const costRaw = str(body[`cost_${vr.id}`], 10);
+      return c.env.DB.prepare("UPDATE product_variants SET price = ?, active = ?, cost_price = ? WHERE id = ? AND product_id = ?")
+        .bind(price, body[`active_${vr.id}`] ? 1 : 0, costRaw === "" ? null : Math.max(0, toInt(costRaw)), vr.id, id);
     }));
+    await setStock(c.env.DB, variants.filter((vr) => str(body[`stock_${vr.id}`], 10) !== "").map((vr) => ({ productId: id, variantId: vr.id, stock: toInt(body[`stock_${vr.id}`]) })), "পণ্যের পেজ থেকে");
+    await recomputeProductStock(c.env.DB, [id]);
   }
   flash(c, "ok", "ভ্যারিয়েন্ট সেভ হয়েছে।");
   return c.redirect(`/admin/products/${id}/edit`, 303);
@@ -925,6 +948,60 @@ admin.post("/products/:id{[0-9]+}/toggle", async (c) => {
 });
 
 /* ---------- ক্যাটাগরি ---------- */
+/* ---------- ইনভেন্টরি ---------- */
+admin.get("/inventory", async (c) => {
+  const f = c.req.query("f") || "all";
+  const filter = (["all", "low", "out"].includes(f) ? f : "all") as InvFilter;
+  const q = (c.req.query("q") || "").trim().slice(0, 100);
+  const [rows, sum, moves, untracked] = await Promise.all([
+    inventoryRows(c.env.DB, filter, q), inventorySummary(c.env.DB), recentMoves(c.env.DB, 30),
+    c.env.DB.prepare("SELECT id, name, image, is_active FROM products WHERE track_stock = 0 ORDER BY is_active DESC, sort_order, id LIMIT 300").all<{ id: number; name: string; image: string | null; is_active: number }>(),
+  ]);
+  return render(c, "ইনভেন্টরি", "inventory", <InventoryPage rows={rows} summary={sum} moves={moves} filter={filter} q={q} untracked={untracked.results} />);
+});
+
+/** একসাথে অনেকগুলোর স্টক বসানো: s_<productId>_<variantId|0> = নতুন সংখ্যা, অথবা a_… = যোগ/বিয়োগ */
+admin.post("/inventory", async (c) => {
+  const b = await c.req.parseBody();
+  const items: { productId: number; variantId: number | null; stock: number }[] = [];
+  const adds: { productId: number; variantId: number | null; add: number }[] = [];
+  for (const [k, raw] of Object.entries(b)) {
+    const m = /^([sa])_(\d+)_(\d+)$/.exec(k);
+    if (!m || typeof raw !== "string" || raw.trim() === "") continue;
+    const productId = toInt(m[2]);
+    const variantId = toInt(m[3]) || null;
+    if (m[1] === "s") items.push({ productId, variantId, stock: toInt(raw) });
+    else if (toInt(raw)) adds.push({ productId, variantId, add: toInt(raw) });
+  }
+  // যোগ/বিয়োগ: এখনকার স্টক দেখে নতুন সংখ্যা
+  for (const a of adds) {
+    const row = a.variantId
+      ? await c.env.DB.prepare("SELECT stock FROM product_variants WHERE id = ? AND product_id = ?").bind(a.variantId, a.productId).first<{ stock: number }>()
+      : await c.env.DB.prepare("SELECT stock FROM products WHERE id = ?").bind(a.productId).first<{ stock: number }>();
+    if (!row) continue;
+    const i = items.findIndex((x) => x.productId === a.productId && x.variantId === a.variantId);
+    const base = i >= 0 ? items[i]!.stock : row.stock;
+    if (i >= 0) items[i]!.stock = base + a.add; else items.push({ productId: a.productId, variantId: a.variantId, stock: base + a.add });
+  }
+  const note = str(b.note, 100) || "ইনভেন্টরি থেকে";
+  const n = await setStock(c.env.DB, items.slice(0, 500), note);
+  flash(c, "ok", n ? `${bn(n)}টা স্টক বদলেছে।` : "কিছু বদলায়নি।");
+  const back = c.req.header("referer");
+  return c.redirect(back && back.includes("/admin/inventory") ? new URL(back).pathname + new URL(back).search : "/admin/inventory", 303);
+});
+
+/** স্টক গোনা চালু করা (অনেক পণ্য একসাথে) — সংখ্যা ০ থেকে শুরু, পরে বসাতে হয় */
+admin.post("/inventory/track", async (c) => {
+  const b = await c.req.parseBody({ all: true });
+  const ids = (Array.isArray(b.ids) ? b.ids : [b.ids]).map((x) => toInt(x)).filter((x) => x > 0).slice(0, 500);
+  if (ids.length) {
+    await c.env.DB.prepare(`UPDATE products SET track_stock = 1, updated_at = datetime('now') WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).run();
+    await recomputeProductStock(c.env.DB, ids);
+  }
+  flash(c, "ok", ids.length ? `${bn(ids.length)}টা পণ্যে স্টক গোনা চালু হলো — এখন সংখ্যা বসান।` : "কোনো পণ্য বাছাই করা হয়নি।");
+  return c.redirect("/admin/inventory", 303);
+});
+
 admin.get("/categories", async (c) => {
   const { results } = await c.env.DB.prepare("SELECT category_id, COUNT(*) n FROM products GROUP BY category_id").all<{ category_id: number; n: number }>();
   const counts = Object.fromEntries(results.map((r) => [r.category_id, r.n]));

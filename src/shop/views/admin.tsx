@@ -466,13 +466,16 @@ export const ProductsPage = ({ products, categories }: { products: Product[]; ca
     <div class="detail-head"><h1>পণ্য</h1><div class="inline-actions"><a href="/admin/products/images" class="btn"><Icon name="image" size="sm" /> একসাথে ছবি</a> <a href="/admin/products/new" class="btn btn-primary">+ নতুন পণ্য</a></div></div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th></th><th>নাম</th><th>দাম</th><th>ক্যাটাগরি</th><th>অবস্থা</th><th></th></tr></thead>
+        <thead><tr><th></th><th>নাম</th><th>দাম</th><th>স্টক</th><th>ক্যাটাগরি</th><th>অবস্থা</th><th></th></tr></thead>
         <tbody>
           {products.map((p) => (
             <tr class={p.is_active ? "" : "dim"}>
               <td><img src={imageUrl(p.image)} width="48" height="48" class="thumb" alt="" /></td>
               <td><strong>{p.name}</strong><br /><a href={`/p/${p.slug}`} target="_blank"><small>/p/{p.slug}</small></a></td>
               <td>{taka(p.price)}{p.compare_price ? <><br /><del class="muted">{taka(p.compare_price)}</del></> : null}</td>
+              <td>{p.track_stock === 1
+                ? (p.stock ?? 0) <= 0 ? <span class="pill pill-bad">শেষ</span> : <span class={(p.stock ?? 0) <= (p.low_stock ?? 5) ? "pill pill-warn" : ""}>{bn(p.stock ?? 0)}টা</span>
+                : <small class="muted">গোনা হয় না</small>}</td>
               <td>{categories.find((c) => c.id === p.category_id)?.name ?? "—"}</td>
               <td>
                 {p.is_active ? <span class="pill pill-ok">চালু</span> : <span class="pill pill-bad">বন্ধ</span>}
@@ -563,6 +566,18 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
             <h2>দাম</h2>
             <label class="field"><span>বিক্রির দাম (৳) *</span><input type="number" name="price" min="0" value={v.price != null ? String(v.price) : ""} required />{e.price && <small class="error">{e.price}</small>}</label>
             <label class="field"><span>কাটা দাম (৳)</span><input type="number" name="compare_price" min="0" value={v.compare_price != null ? String(v.compare_price) : ""} /><small>দিলে দামের পাশে কেটে দেখাবে — ছাড় বোঝাতে।</small></label>
+            <label class="field"><span>ক্রয়মূল্য (৳)</span><input type="number" name="cost_price" min="0" value={v.cost_price != null ? String(v.cost_price) : ""} /><small>শুধু আপনি দেখবেন — লাভের হিসাবের জন্য।</small></label>
+          </section>
+          <section class="sa-card pf-card">
+            <h2>স্টক</h2>
+            <label class="set-check"><input type="checkbox" name="track_stock" value="1" checked={v.track_stock === 1} data-toggle-target="[data-stock-box]" /> স্টক গুনবে</label>
+            <div class="pf-stock-box" data-stock-box hidden={v.track_stock !== 1}>
+              {opts.length > 0
+                ? <p class="muted small">সাইজ/রং আছে — প্রতিটার স্টক নিচে "ভ্যারিয়েন্ট" অংশে দিন। মোট: <strong>{bn(v.stock ?? 0)}</strong>টা।</p>
+                : <label class="field"><span>কতটা আছে</span><input type="number" name="stock" min="0" value={String(v.stock ?? 0)} /></label>}
+              <label class="field"><span>কম হলে সতর্ক করবে</span><input type="number" name="low_stock" min="0" value={String(v.low_stock ?? 5)} /><small>এর সমান বা কম হলে ড্যাশবোর্ডে আর ইনভেন্টরিতে "কম আছে" দেখাবে।</small></label>
+            </div>
+            <small class="hint">স্টক গুনলে অর্ডার কনফার্মে কমে, বাতিলে ফেরে; শেষ হলে দোকানে "স্টক নেই" দেখায়।</small>
           </section>
           <section class="sa-card pf-card">
             <h2>সাজানো</h2>
@@ -580,19 +595,23 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
       {isEdit && p.variants && p.variants.length > 0 && (
         <form method="post" action={`/admin/products/${v.id}/variants`} class="admin-form" style="margin-top:14px">
           <h2>ভ্যারিয়েন্ট ({p.variants.length})</h2>
-          <p class="muted">দাম ফাঁকা রাখলে পণ্যের দাম ({taka(v.price ?? 0)}) লাগবে।</p>
+          <p class="muted">দাম বা ক্রয়মূল্য ফাঁকা রাখলে পণ্যেরটা ({taka(v.price ?? 0)}) লাগবে। "চালু" টিক তুলে দিলে ওই সাইজ/রং বাছাই করা যাবে না।{v.track_stock === 1 ? "" : " স্টক গুনতে উপরে \"স্টক গুনবে\" টিক দিন।"}</p>
+          <div class="table-wrap">
           <table class="table compact">
-            <thead><tr><th>ভ্যারিয়েন্ট</th><th>দাম (৳)</th><th>স্টকে আছে</th></tr></thead>
+            <thead><tr><th>ভ্যারিয়েন্ট</th><th>দাম (৳)</th><th>ক্রয়মূল্য (৳)</th>{v.track_stock === 1 && <th>স্টক</th>}<th>চালু</th></tr></thead>
             <tbody>
               {p.variants.map((vr) => (
                 <tr>
-                  <td>{vr.label}</td>
+                  <td>{vr.label}{v.track_stock === 1 && (vr.stock ?? 0) <= 0 && <> <span class="pill pill-bad">শেষ</span></>}</td>
                   <td><input type="number" min="0" name={`price_${vr.id}`} value={vr.price != null ? String(vr.price) : ""} class="w-sm input-sm" /></td>
+                  <td><input type="number" min="0" name={`cost_${vr.id}`} value={vr.cost_price != null ? String(vr.cost_price) : ""} class="w-sm input-sm" /></td>
+                  {v.track_stock === 1 && <td><input type="number" min="0" name={`stock_${vr.id}`} value={String(vr.stock ?? 0)} class="w-sm input-sm" /></td>}
                   <td><input type="checkbox" name={`active_${vr.id}`} value="1" checked={!!vr.active} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
           <button class="btn btn-primary">ভ্যারিয়েন্ট সেভ করুন</button>
         </form>
       )}

@@ -32,12 +32,12 @@ export async function ordersCsv(db: D1Database): Promise<string> {
 
 export async function productsCsv(db: D1Database): Promise<string> {
   const { results } = await db.prepare(
-    `SELECT p.id, p.name, p.slug, c.name AS category, p.price, p.compare_price, p.is_active, p.show_on_home, p.short_desc, p.image, p.created_at
+    `SELECT p.id, p.name, p.slug, c.name AS category, p.price, p.compare_price, p.cost_price, p.track_stock, p.stock, p.is_active, p.show_on_home, p.short_desc, p.image, p.created_at
      FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.id LIMIT ?`,
   ).bind(MAX_ROWS).all<Record<string, unknown>>();
   return toCsv(
-    ["আইডি", "নাম", "লিংক (slug)", "ক্যাটাগরি", "দাম", "কাটা দাম", "চালু", "হোমে", "ছোট বর্ণনা", "ছবি", "তৈরি (UTC)"],
-    results.map((r) => [r.id, r.name, r.slug, r.category, r.price, r.compare_price, r.is_active ? "হ্যাঁ" : "না", r.show_on_home ? "হ্যাঁ" : "না", r.short_desc, r.image ? `/img/${r.image}` : "", r.created_at]),
+    ["আইডি", "নাম", "লিংক (slug)", "ক্যাটাগরি", "দাম", "কাটা দাম", "ক্রয়মূল্য", "স্টক", "চালু", "হোমে", "ছোট বর্ণনা", "ছবি", "তৈরি (UTC)"],
+    results.map((r) => [r.id, r.name, r.slug, r.category, r.price, r.compare_price, r.cost_price, r.track_stock ? r.stock : "গোনা হয় না", r.is_active ? "হ্যাঁ" : "না", r.show_on_home ? "হ্যাঁ" : "না", r.short_desc, r.image ? `/img/${r.image}` : "", r.created_at]),
   );
 }
 

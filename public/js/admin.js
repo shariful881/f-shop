@@ -229,4 +229,11 @@ document.addEventListener("click", function (e) {
       box.appendChild(img);
     });
   });
+
+  /* চেকবক্স টিক দিলে সংশ্লিষ্ট অংশ দেখানো (যেমন পণ্যের "স্টক গুনবে") */
+  document.querySelectorAll("[data-toggle-target]").forEach(function (cb) {
+    var box = document.querySelector(cb.getAttribute("data-toggle-target"));
+    if (!box) return;
+    cb.addEventListener("change", function () { box.hidden = !cb.checked; });
+  });
 })();

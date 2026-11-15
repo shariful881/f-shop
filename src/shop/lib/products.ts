@@ -17,6 +17,13 @@ export type Product = {
   sort_order: number;
   options_json?: string | null;
   landing_json?: string | null;
+  /** স্টক (ধাপ ৪) — ভ্যারিয়েন্ট থাকলে চালু ভ্যারিয়েন্টের যোগফল */
+  track_stock?: number;
+  stock?: number;
+  low_stock?: number;
+  cost_price?: number | null;
+  /** কার্টের লাইনে: কতটা কেনা যায় (স্টক না গুনলে null) */
+  stock_left?: number | null;
   /** হোম/তালিকায়: কতগুলো চালু ভ্যারিয়েন্ট আছে */
   variant_count?: number;
   /** কার্ট/অর্ডারের লাইনে: বাছাই করা ভ্যারিয়েন্ট (price তখন ভ্যারিয়েন্টের দাম) */
@@ -30,7 +37,7 @@ export type Product = {
 export const lineTotal = (p: { price: number; qty?: number }) => p.price * (p.qty ?? 1);
 export const linesSubtotal = (list: { price: number; qty?: number }[]) => list.reduce((s, p) => s + lineTotal(p), 0);
 
-export type Variant = { id: number; product_id: number; label: string; price: number | null; active: number; sort_order: number };
+export type Variant = { id: number; product_id: number; label: string; price: number | null; active: number; sort_order: number; stock?: number; cost_price?: number | null };
 
 export type ProductOption = { name: string; values: string[] };
 
@@ -97,13 +104,16 @@ export async function cartLines(db: D1Database, entries: CartEntry[]): Promise<P
     const prod = products.find((x) => x.id === e.productId);
     if (!prod) continue;
     const own = variants.filter((x) => x.product_id === prod.id);
+    const track = prod.track_stock === 1;
     if (!own.length) {
-      lines.push({ ...prod, variant_id: null, variant_label: null, qty: e.qty ?? 1 });
+      // স্টক শেষ হলে কেনা যায় না
+      if (track && (prod.stock ?? 0) <= 0) continue;
+      lines.push({ ...prod, variant_id: null, variant_label: null, qty: e.qty ?? 1, stock_left: track ? prod.stock ?? 0 : null });
       continue;
     }
     const chosen = own.find((x) => x.id === e.variantId);
-    if (!chosen) continue;
-    lines.push({ ...prod, price: chosen.price ?? prod.price, variant_id: chosen.id, variant_label: chosen.label, qty: e.qty ?? 1 });
+    if (!chosen || (track && (chosen.stock ?? 0) <= 0)) continue;
+    lines.push({ ...prod, price: chosen.price ?? prod.price, variant_id: chosen.id, variant_label: chosen.label, qty: e.qty ?? 1, stock_left: track ? chosen.stock ?? 0 : null });
   }
   return lines;
 }

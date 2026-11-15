@@ -17,12 +17,14 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
   // পণ্যের পেজ (বিস্তারিত) নাকি সরাসরি ল্যান্ডিং পেজ
   const href = (cfg?.product_link ?? "product") === "landing" ? `/p/${p.slug}` : `/product/${p.slug}`;
   const cartBtn = (cfg?.card_cart_btn ?? "1") === "1";
+  const out = p.track_stock === 1 && (p.stock ?? 0) <= 0;
   return (
     <div class={`card cd-${cfg?.card_design || "classic"}`}>
       <a href={href} class="card-img">
         <img src={imageUrl(p.image)} alt={p.name} loading="lazy" width="400" height="400" />
         {off > 0 && fmt !== "off" && <span class="badge">{fmt === "minus" ? `-${bn(off)}%` : `${bn(off)}% ছাড়`}</span>}
         {cfg?.free_tag === "1" && +(cfg._free_min || 0) > 0 && p.price >= +(cfg._free_min || 0) && <span class="free-tag">ফ্রি ডেলিভারি</span>}
+        {out && <span class="sold-out-tag">স্টক নেই</span>}
       </a>
       <div class="card-body">
         <a href={href} class="card-title">{p.name}</a>
@@ -30,7 +32,8 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
           <span class="price">{taka(p.price)}</span>
           {p.compare_price && p.compare_price > p.price && <del class="compare">{taka(p.compare_price)}</del>}
         </div>
-        {(orderBtn || cartBtn) && (
+        {out && (orderBtn || cartBtn) && <div class="card-actions"><span class="btn btn-outline" aria-disabled="true">স্টক নেই</span></div>}
+        {!out && (orderBtn || cartBtn) && (
           <div class="card-actions">
             {orderBtn && (p.variant_count || cfg?.product_link === "landing" ? (
               <a href={p.variant_count && cfg?.product_link !== "landing" ? `${href}#buy` : `/p/${p.slug}#order`} class="btn btn-primary">{cfg?.card_order_text || "অর্ডার করুন"}</a>

@@ -25,6 +25,7 @@ import { PixelHead, type BrowserEvent } from "../views/pixel";
 import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLocks, hitRateLimit, ORDER_RATE_LIMIT } from "../lib/order-guard";
 import { isUuid } from "../middleware/device";
 import { markConverted, saveDraft } from "../lib/incomplete";
+import { SOLD_OUT_MSG, soldOut, variantsForSale } from "../lib/stock";
 
 export const shop = new Hono<AppEnv>();
 
@@ -107,7 +108,7 @@ shop.get("/", async (c) => {
 /* ---------- ল্যান্ডিং পেজ ---------- */
 async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 | 422 | 429 | 403 = 200) {
   const s = c.var.settings;
-  const variants = await productVariants(c.env.DB, p.id);
+  const variants = variantsForSale(p, await productVariants(c.env.DB, p.id));
   const cfg = themeConfig(s);
   const related = cfg.pd_related === "1" && p.category_id
     ? (await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? AND p.id != ? ORDER BY p.sort_order, p.id LIMIT ?`).bind(p.category_id, p.id, parseInt(cfg.pd_related_count || "4", 10)).all<Product>()).results
@@ -116,7 +117,7 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
   return page(c,
     <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
-      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related} closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
+      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     status,
   );
@@ -132,7 +133,7 @@ shop.get("/p/:slug", async (c) => {
 async function renderProduct(c: Ctx, p: Product, error?: string) {
   const s = c.var.settings;
   const cfg = themeConfig(s);
-  const variants = await productVariants(c.env.DB, p.id);
+  const variants = variantsForSale(p, await productVariants(c.env.DB, p.id));
   // ছবি: পণ্যের মূল ছবি + ল্যান্ডিং পেজের গ্যালারির ছবি (থাকলে)
   const images = [p.image, ...(parseLanding(p.landing_json)?.sections.filter((x) => x.type === "gallery").flatMap((x) => x.data.images ?? []) ?? [])]
     .filter((k, i, a): k is string => !!k && a.indexOf(k) === i).slice(0, 10);
@@ -147,7 +148,7 @@ async function renderProduct(c: Ctx, p: Product, error?: string) {
     <Layout title={p.meta_title || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <ProductPage p={p} images={images} variants={variants} s={s} cfg={cfg} related={rel.results} category={cat} error={error}
-        closed={c.var.shopState.accepting ? undefined : ordersClosedMessage(s.contact_phone || "")} />
+        closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     error ? 422 : 200,
   );
@@ -405,10 +406,24 @@ shop.post("/order", async (c) => {
   }
 
   if (!products.length) {
-    if (source === "landing" && toInt(body.product_id) > 0 && (await productVariants(c.env.DB, toInt(body.product_id), true)).length) {
-      return fail({ errors: { variant: "সাইজ/রং বাছাই করুন" } });
+    if (source === "landing" && toInt(body.product_id) > 0) {
+      const [lp] = await activeProductsByIds(c.env.DB, [toInt(body.product_id)]);
+      if (lp && soldOut(lp)) return fail({ alert: SOLD_OUT_MSG });
+      const vs = await productVariants(c.env.DB, toInt(body.product_id), true);
+      if (vs.length) {
+        const chosen = vs.find((x) => x.id === toInt(body.variant_id));
+        return chosen ? fail({ alert: `দুঃখিত, "${chosen.label}" এখন স্টকে নেই — অন্যটা বাছাই করুন।` }) : fail({ errors: { variant: "সাইজ/রং বাছাই করুন" } });
+      }
     }
-    return fail({ alert: "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
+    return fail({ alert: source === "cart" && entries.length ? "কার্টের পণ্যগুলো এখন স্টকে নেই।" : "অর্ডারের জন্য কোনো পণ্য পাওয়া যায়নি।" });
+  }
+  // স্টক: কার্টের কিছু পণ্য শেষ হয়ে গেছে, বা চাওয়া পরিমাণ নেই
+  if (source === "cart" && products.length < entries.length) {
+    return fail({ alert: "কার্টের কিছু পণ্য এখন স্টকে নেই — কার্ট দেখে আবার চেষ্টা করুন।" });
+  }
+  const short = products.find((l) => l.stock_left != null && (l.qty ?? 1) > l.stock_left);
+  if (short) {
+    return fail({ alert: `দুঃখিত, "${short.name}${short.variant_label ? ` (${short.variant_label})` : ""}" মাত্র ${bn(short.stock_left!)}টা আছে — পরিমাণ কমিয়ে দিন।` });
   }
 
   // ডেমো দোকানে অর্ডার হয় না
