@@ -13,7 +13,7 @@ const GROUP_ICON: Record<string, IconName> = {
   product: "package", card: "tag", footer: "file-text", float: "message-square", other: "sliders-horizontal",
 };
 
-export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; hasDraft: boolean; shopName: string }) => (
+export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; categories: { id: number; name: string }[]; hasDraft: boolean; shopName: string }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -71,7 +71,7 @@ export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id:
               <section class="de-sec" data-sec={g.key} hidden={i !== 0}>
                 <h2>{g.title}</h2>
                 <p class="muted small">{g.desc}</p>
-                <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={p.cfg} products={p.products} />)}</div>
+                <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={p.cfg} products={p.products} categories={p.categories} />)}</div>
               </section>
             ))}
           </form>

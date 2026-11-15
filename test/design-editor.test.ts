@@ -39,3 +39,20 @@ describe("থিম লাইভ এডিটর", () => {
     expect((await b.fetch("/admin/design/draft", { method: "POST", body: draftBody("x") })).status).toBe(303);
   });
 });
+
+describe("হোমপেজের সেকশন", () => {
+  it("এক ক্যাটাগরির পণ্যের সেকশন যোগ হয়, ভুল key বাদ যায়, ক্রম মেনে দেখায়", async () => {
+    const a = await adminBrowser();
+    const cat = await DB.prepare("SELECT c.id, c.name FROM categories c JOIN products p ON p.category_id = c.id AND p.is_active = 1 LIMIT 1").first<{ id: number; name: string }>();
+    const body = new URLSearchParams([["home_order", `cat_${cat!.id},cat_99999,evil,banner`], ["sec_banner", "1"]]);
+    await a.fetch("/admin/design/draft", { method: "POST", body });
+    const row = await DB.prepare("SELECT value FROM settings WHERE key LIKE 'theme_draft_%' AND value != ''").first<{ value: string }>();
+    const order: string = JSON.parse(row!.value).home_order;
+    expect(order.startsWith(`cat_${cat!.id},cat_99999,banner`)).toBe(true);
+    expect(order).not.toContain("evil");
+    const html = await (await a.get("/?__preview=1")).text();
+    expect(html).toContain(cat!.name);
+    // অচেনা ক্যাটাগরি (৯৯৯৯৯) কিছু দেখায় না, ভাঙেও না
+    expect((await a.get("/?__preview=1")).status).toBe(200);
+  });
+});

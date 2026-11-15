@@ -117,24 +117,72 @@ document.addEventListener("click", function (e) {
   setTimeout(function () { b.textContent = "কপি"; }, 1600);
 });
 
-/* থিম কাস্টমাইজ: হোমপেজ সেকশনের ক্রম (↑↓), রং বাছলে "নিজের রং" টিক */
+/* থিম: হোমপেজ সেকশনের তালিকা — টেনে ক্রম, ↑↓, লুকানো, ক্যাটাগরি ব্লক যোগ/বাদ; রং বাছলে "নিজের রং" টিক */
 (function () {
   var list = document.querySelector("[data-cz-order]");
   if (list) {
     var input = document.querySelector("[data-cz-order-input]");
-    var sync = function () { input.value = Array.prototype.map.call(list.children, function (li) { return li.dataset.key; }).join(","); };
+    var sync = function () {
+      input.value = Array.prototype.map.call(list.children, function (li) { return li.dataset.key; }).join(",");
+      input.dispatchEvent(new Event("change", { bubbles: true })); // থিম এডিটর সাথে সাথে সেভ করে
+    };
     list.addEventListener("click", function (e) {
       var li = e.target.closest("li");
       if (!li) return;
-      if (e.target.closest("[data-cz-up]") && li.previousElementSibling) list.insertBefore(li, li.previousElementSibling);
-      if (e.target.closest("[data-cz-down]") && li.nextElementSibling) list.insertBefore(li.nextElementSibling, li);
+      if (e.target.closest("[data-cz-up]") && li.previousElementSibling) { list.insertBefore(li, li.previousElementSibling); sync(); }
+      if (e.target.closest("[data-cz-down]") && li.nextElementSibling) { list.insertBefore(li.nextElementSibling, li); sync(); }
+      if (e.target.closest("[data-hs-remove]")) {
+        var opt = document.querySelector('[data-hs-cat] option[value="' + li.dataset.key + '"]');
+        if (opt) opt.disabled = false;
+        li.remove();
+        sync();
+      }
+    });
+    // টেনে সরানো (মাউস ও টাচ) — ⋮⋮ ধরে
+    var drag = null;
+    list.addEventListener("pointerdown", function (e) {
+      var h = e.target.closest(".hs-handle");
+      if (!h) return;
+      e.preventDefault();
+      drag = h.closest("li");
+      drag.classList.add("dragging");
+      list.setPointerCapture(e.pointerId);
+    });
+    list.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var over = document.elementFromPoint(e.clientX, e.clientY);
+      var li = over && over.closest && over.closest("[data-cz-order] > li");
+      if (!li || li === drag) return;
+      var r = li.getBoundingClientRect();
+      list.insertBefore(drag, e.clientY > r.top + r.height / 2 ? li.nextElementSibling : li);
+    });
+    var end = function () { if (!drag) return; drag.classList.remove("dragging"); drag = null; sync(); };
+    list.addEventListener("pointerup", end);
+    list.addEventListener("pointercancel", end);
+    // এক ক্যাটাগরির পণ্যের সেকশন যোগ
+    var sel = document.querySelector("[data-hs-cat]");
+    if (sel) sel.addEventListener("change", function (e) {
+      e.stopPropagation(); // এই select নিজে ফর্মে কিছু পাঠায় না
+      var o = sel.options[sel.selectedIndex];
+      if (!sel.value || !o) return;
+      var li = document.createElement("li");
+      li.className = "hs-cat";
+      li.dataset.key = sel.value;
+      li.innerHTML = '<span class="hs-handle" aria-hidden="true" title="টেনে সরান">⋮⋮</span><span class="hs-name">ক্যাটাগরি: <b></b></span>'
+        + '<button type="button" class="hs-x" data-hs-remove aria-label="সরিয়ে দিন" title="সরিয়ে দিন">✕</button>'
+        + '<span class="hs-move"><button type="button" data-cz-up aria-label="উপরে">↑</button><button type="button" data-cz-down aria-label="নিচে">↓</button></span>';
+      li.querySelector("b").textContent = o.getAttribute("data-name") || o.textContent;
+      list.insertBefore(li, list.firstElementChild ? list.children[Math.min(2, list.children.length)] : null);
+      o.disabled = true;
+      sel.value = "";
       sync();
+      li.scrollIntoView({ block: "nearest" });
     });
   }
   document.querySelectorAll("[data-cz-color]").forEach(function (inp) {
     inp.addEventListener("input", function () {
       var cb = inp.parentNode.querySelector('input[type="checkbox"]');
-      if (cb) cb.checked = true;
+      if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event("change", { bubbles: true })); }
     });
   });
 })();

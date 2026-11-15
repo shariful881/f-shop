@@ -303,7 +303,10 @@ function clean(input: Record<string, unknown>, def: Cfg): Cfg {
       case "products": out[f.key] = [...new Set(v.split(",").map((x) => parseInt(x, 10)).filter((n) => n > 0))].slice(0, 24).join(","); break;
       case "image": out[f.key] = /^[a-z0-9_]+\/[a-z0-9-]+\.(jpg|png|webp)$/i.test(v) ? v : ""; break;
       case "order": {
-        const keys = v.split(",").filter((k) => k in HOME_SECTIONS);
+        // মূল সেকশন (প্রতিটা একবার) + নিজে যোগ করা "এক ক্যাটাগরির পণ্য" ব্লক (cat_<id>, সর্বোচ্চ ১২টা)
+        const raw = [...new Set(v.split(","))];
+        const cats = raw.filter((k) => CAT_BLOCK.test(k)).slice(0, MAX_CAT_BLOCKS);
+        const keys = raw.filter((k) => k in HOME_SECTIONS || cats.includes(k));
         const all = [...new Set([...keys, ...Object.keys(HOME_SECTIONS)])];
         out.home_order = all.join(",");
         for (const k of Object.keys(HOME_SECTIONS)) out[`sec_${k}`] = str(`sec_${k}`) === "1" ? "1" : "0";
@@ -335,7 +338,11 @@ export function cfgDiff(cfg: Cfg, theme: ThemeKey): Cfg {
   return Object.fromEntries(Object.entries(cfg).filter(([k, v]) => def[k] !== v));
 }
 
-export const homeOrder = (cfg: Cfg) => cfg.home_order!.split(",").filter((k) => cfg[`sec_${k}`] === "1");
+/** হোমপেজে কোন সেকশন কোন ক্রমে — ক্যাটাগরি ব্লক তালিকায় থাকলেই চালু */
+export const homeOrder = (cfg: Cfg) => cfg.home_order!.split(",").filter((k) => CAT_BLOCK.test(k) || cfg[`sec_${k}`] === "1");
+
+export const CAT_BLOCK = /^cat_[1-9][0-9]{0,8}$/;
+export const MAX_CAT_BLOCKS = 12;
 
 /** সেটিংস থেকে CSS (শুধু যাচাই করা মান) */
 export function cfgCss(cfg: Cfg): string {

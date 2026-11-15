@@ -533,12 +533,23 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
       <Section title={cfg.text_title || undefined}><div class="px-text-block">{cfg.text_body}</div></Section>
     ) : null,
   };
+  // নিজে যোগ করা "এক ক্যাটাগরির পণ্য" সেকশন
+  const catBlock = (id: number) => {
+    const x = sections.find((y) => y.category.id === id);
+    if (!x || !x.products.length) return null;
+    const list = per > 0 ? x.products.slice(0, per) : x.products;
+    return (
+      <Section title={x.category.name} kicker={`${bn(x.products.length)}টা পণ্য`} href={x.products.length > list.length ? `/c/${x.category.id}` : undefined}>
+        <div class="grid px-grid">{list.map((p) => <ProductCard p={p} cfg={cfg} />)}</div>
+      </Section>
+    );
+  };
   const order = homeOrder(cfg);
   return (
     <div class={`px-home ts-${cfg.title_style || "ribbon"} hs-${hero}`}>
       <div class="wrap">
         {sections.length === 0 && <p class="empty">এখনো কোনো পণ্য যোগ করা হয়নি।</p>}
-        {order.map((k) => parts[k]?.())}
+        {order.map((k) => (k.startsWith("cat_") ? catBlock(parseInt(k.slice(4), 10)) : parts[k]?.()))}
       </div>
       {on(cfg, "popup_on") && cfg.popup_image && (
         <div class="px-popup" data-popup data-delay={cfg.popup_delay || "3"} data-key={cfg.popup_image} hidden>

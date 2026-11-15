@@ -65,9 +65,6 @@
     if (e.target.type === "file") return; // ফাইল নয়, লাইব্রেরি/পিকারের key যায় (media.js)
     schedule(250);
   });
-  form.addEventListener("click", function (e) {
-    if (e.target.closest("[data-cz-up],[data-cz-down]")) schedule(300); // হোমপেজ সেকশনের ক্রম
-  });
 
   /* ---------- পাবলিশ / বাতিল ---------- */
   publish.addEventListener("click", function () {

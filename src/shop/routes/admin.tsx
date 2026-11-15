@@ -832,7 +832,8 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
 admin.get("/settings/customize", async (c) => {
   const theme = themeOf(c.var.settings);
   const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
-  return render(c, "থিম ও ডিজাইন", "theme", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} />);
+  const { results: categories } = await c.env.DB.prepare("SELECT id, name FROM categories ORDER BY sort_order, id").all<{ id: number; name: string }>();
+  return render(c, "থিম ও ডিজাইন", "theme", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} categories={categories} />);
 });
 /** থিম সেটিংসের ফর্ম → যাচাই করা cfg (ছবি আপলোড/লাইব্রেরি থেকে বাছাইসহ) */
 async function cfgFromBody(c: Ctx, b: Record<string, unknown>, theme: ThemeKey): Promise<{ cfg?: Cfg; error?: string }> {
@@ -875,9 +876,10 @@ admin.post("/settings/customize", async (c) => {
 admin.get("/design", async (c) => {
   const theme = themeOf(c.var.settings);
   const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
+  const { results: categories } = await c.env.DB.prepare("SELECT id, name FROM categories ORDER BY sort_order, id").all<{ id: number; name: string }>();
   const draft = c.var.settings[`theme_draft_${theme}`] || "";
   const cfg = themeConfig(draft ? { ...c.var.settings, [`theme_cfg_${theme}`]: draft } : c.var.settings, theme);
-  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} />);
+  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} categories={categories} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} />);
 });
 
 admin.post("/design/draft", async (c) => {

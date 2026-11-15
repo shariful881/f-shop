@@ -6,7 +6,7 @@ import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
 import { STATUS_LABEL, type OrderStatus } from "../lib/orders";
 import { THEMES, type Settings, type ThemeKey } from "../lib/settings";
-import { GROUPS, HOME_SECTIONS, type Cfg, type Field } from "../lib/theme-config";
+import { CAT_BLOCK, GROUPS, HOME_SECTIONS, type Cfg, type Field } from "../lib/theme-config";
 import { ASSET_VERSION } from "./layout";
 import { ChatWidget } from "./support";
 import { Icon, type IconName } from "./icons";
@@ -503,7 +503,7 @@ const ChoicePreview = ({ kind, k }: { kind: string; k: string }) => {
   return <span class={`cz-pv cz-pv-${kind} cz-pv-${kind}-${k}`}><i class="a" /><i class="b" /><i class="c" /><i class="d" /></span>;
 };
 
-export const CfgField = ({ f, cfg, products }: { f: Field; cfg: Cfg; products: { id: number; name: string }[] }) => {
+export const CfgField = ({ f, cfg, products, categories }: { f: Field; cfg: Cfg; products: { id: number; name: string }[]; categories?: { id: number; name: string }[] }) => {
   const v = cfg[f.key] ?? "";
   switch (f.type) {
     case "choice":
@@ -564,27 +564,43 @@ export const CfgField = ({ f, cfg, products }: { f: Field; cfg: Cfg; products: {
     case "url":
       return <F label={f.label} hint={f.hint}><input type="url" name={f.key} value={v} maxlength={200} placeholder={f.placeholder} /></F>;
     case "order": {
-      const order = (cfg.home_order || "").split(",").filter((k) => k in HOME_SECTIONS);
+      const order = (cfg.home_order || "").split(",").filter((k) => k in HOME_SECTIONS || CAT_BLOCK.test(k));
+      const catName = (k: string) => categories?.find((c) => `cat_${c.id}` === k)?.name;
+      const item = (k: string) => {
+        const isCat = CAT_BLOCK.test(k);
+        if (isCat && !catName(k)) return null; // মুছে যাওয়া ক্যাটাগরি
+        return (
+          <li data-key={k} class={isCat ? "hs-cat" : ""}>
+            <span class="hs-handle" aria-hidden="true" title="টেনে সরান">⋮⋮</span>
+            <span class="hs-name">{isCat ? <>ক্যাটাগরি: <b>{catName(k)}</b></> : HOME_SECTIONS[k]}</span>
+            {isCat
+              ? <button type="button" class="hs-x" data-hs-remove aria-label="সরিয়ে দিন" title="সরিয়ে দিন">✕</button>
+              : <label class="hs-switch" title="দেখাবে / লুকাবে"><input type="checkbox" name={`sec_${k}`} value="1" checked={cfg[`sec_${k}`] === "1"} /><i></i></label>}
+            <span class="hs-move"><button type="button" data-cz-up aria-label="উপরে">↑</button><button type="button" data-cz-down aria-label="নিচে">↓</button></span>
+          </li>
+        );
+      };
       return (
-        <div class="set-field wide">
+        <div class="set-field wide hs">
           <span>{f.label}</span>
           <input type="hidden" name="home_order" value={order.join(",")} data-cz-order-input />
-          <ol class="cz-order" data-cz-order>
-            {order.map((k) => (
-              <li data-key={k}>
-                <label class="small-check"><input type="checkbox" name={`sec_${k}`} value="1" checked={cfg[`sec_${k}`] === "1"} /> {HOME_SECTIONS[k]}</label>
-                <span><button type="button" class="sa-btn sa-btn-sm sa-btn-ghost" data-cz-up aria-label="উপরে">↑</button><button type="button" class="sa-btn sa-btn-sm sa-btn-ghost" data-cz-down aria-label="নিচে">↓</button></span>
-              </li>
-            ))}
-          </ol>
-          {f.hint && <small>{f.hint}</small>}
+          <ol class="hs-list" data-cz-order>{order.map(item)}</ol>
+          {categories && categories.length > 0 && (
+            <div class="hs-add">
+              <select data-hs-cat aria-label="ক্যাটাগরি বাছুন">
+                <option value="">+ এক ক্যাটাগরির পণ্যের সেকশন যোগ করুন…</option>
+                {categories.map((c) => <option value={`cat_${c.id}`} disabled={order.includes(`cat_${c.id}`)} data-name={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+          <small>⋮⋮ ধরে টেনে ক্রম বদলান (ফোনে ↑↓)। সুইচ বন্ধ করলে সেকশন লুকাবে। {f.hint}</small>
         </div>
       );
     }
   }
 };
 
-export const ThemeCustomizePage = ({ theme, cfg, products }: { s: Settings; theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[] }) => {
+export const ThemeCustomizePage = ({ theme, cfg, products, categories }: { s: Settings; theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; categories?: { id: number; name: string }[] }) => {
   return (
     <>
       <Tabs active="customize" />
@@ -598,7 +614,7 @@ export const ThemeCustomizePage = ({ theme, cfg, products }: { s: Settings; them
         {GROUPS.map((g) => (
           <details class="sa-card set-section cz-group" open={g.key === "style"} id={`cz-${g.key}`}>
             <summary class="set-section-head"><h2>{g.title}</h2><p class="sa-muted">{g.desc}</p></summary>
-            <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={cfg} products={products} />)}</div>
+            <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={cfg} products={products} categories={categories} />)}</div>
           </details>
         ))}
         <div class="set-save">
