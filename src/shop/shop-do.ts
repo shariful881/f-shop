@@ -22,6 +22,7 @@ import m0016 from "../../migrations/shop/0016_order_qty.sql";
 import m0017 from "../../migrations/shop/0017_media.sql";
 import m0018 from "../../migrations/shop/0018_fraud.sql";
 import m0019 from "../../migrations/shop/0019_stock.sql";
+import m0020 from "../../migrations/shop/0020_ads.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
@@ -47,6 +48,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0017_media", m0017],
   ["0018_fraud", m0018],
   ["0019_stock", m0019],
+  ["0020_ads", m0020],
 ];
 
 export type SetupInput = {
@@ -72,7 +74,7 @@ export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "
  * এক দোকানের কোড অন্য দোকানের ডাটাবেস দেখতে পারে না।
  */
 /** ব্যাকআপ থেকে ফেরানোর টেবিল — আগে যার উপর অন্যরা নির্ভর করে */
-export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves"];
+export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend"];
 
 export class ShopDO extends DurableObject<WorkerEnv> {
   readonly db: SqlDatabase;
@@ -222,7 +224,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   /** সুপার অ্যাডমিনের পুরো ব্যাকআপ (JSON) — পাসওয়ার্ড, সেশন আর ছবির বাইট বাদে */
   async exportData(shopId: string) {
     await this.ensureInit(shopId, false);
-    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders", "stock_moves"];
+    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders", "stock_moves", "ad_spend"];
     const out: Record<string, unknown[]> = {};
     for (const t of tables) {
       const r = await this.db.prepare(`SELECT * FROM ${t} LIMIT 50000`).all().catch(() => ({ results: [] }));

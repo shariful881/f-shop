@@ -104,6 +104,7 @@ export const SECTION_ROLES: Record<string, Role[]> = {
   categories: ["owner", "manager"],
   blacklist: ["owner", "manager"],
   coupons: ["owner", "manager"],
+  ads: ["owner", "manager"],
   reports: ["owner", "manager"],
   settings: ["owner"],
   design: ["owner"],

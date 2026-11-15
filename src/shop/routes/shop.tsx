@@ -26,6 +26,7 @@ import { validateOrderInput, checkOrderGuards, acquireOrderLocks, releaseOrderLo
 import { isUuid } from "../middleware/device";
 import { markConverted, saveDraft } from "../lib/incomplete";
 import { SOLD_OUT_MSG, soldOut, variantsForSale } from "../lib/stock";
+import { feedItems, feedOn, toFeedCsv, toRss } from "../lib/feed";
 
 export const shop = new Hono<AppEnv>();
 
@@ -580,6 +581,22 @@ shop.post("/t/ic", async (c) => {
   if (p) trackServer(c, "InitiateCheckout", eventId, productData([p]));
   return c.body(null, 204);
 });
+
+/* ---------- ক্যাটালগ ফিড (Facebook / Google) ---------- */
+async function feedResponse(c: Ctx, kind: "xml" | "csv") {
+  const s = c.var.settings;
+  if (!feedOn(s)) return c.text("ফিড বন্ধ আছে", 404);
+  const origin = publicOrigin(c);
+  const { items } = await feedItems(c.env.DB, s, origin);
+  const body = kind === "xml" ? toRss(items, s, origin) : toFeedCsv(items);
+  return c.body(body, 200, {
+    "Content-Type": kind === "xml" ? "application/xml; charset=utf-8" : "text/csv; charset=utf-8",
+    "Cache-Control": "public, max-age=1800",
+    "X-Robots-Tag": "noindex",
+  });
+}
+shop.get("/feed.xml", (c) => feedResponse(c, "xml"));
+shop.get("/feed.csv", (c) => feedResponse(c, "csv"));
 
 /* ---------- সার্চ ইঞ্জিন: robots.txt আর sitemap.xml ---------- */
 shop.get("/robots.txt", (c) => {

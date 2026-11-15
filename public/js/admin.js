@@ -136,7 +136,8 @@ document.addEventListener("change", function (e) {
 document.addEventListener("click", function (e) {
   var b = e.target.closest && e.target.closest("[data-copy]");
   if (!b) return;
-  var src = document.querySelector("[data-copy-src]");
+  var sel = b.getAttribute("data-copy");
+  var src = sel && sel.charAt(0) === "#" ? document.querySelector(sel) : document.querySelector("[data-copy-src]");
   if (!src) return;
   src.select();
   (navigator.clipboard ? navigator.clipboard.writeText(src.value) : Promise.reject()).catch(function () { document.execCommand("copy"); });

@@ -4,7 +4,7 @@ export type Range = { from: string; to: string; label: string; key: string }; //
 
 const DHAKA_MS = 6 * 3600 * 1000;
 export const dhakaDate = (ms = Date.now()) => new Date(ms + DHAKA_MS).toISOString().slice(0, 10);
-const addDays = (d: string, n: number) => new Date(Date.parse(d + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
+export const addDays = (d: string, n: number) => new Date(Date.parse(d + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
 
 export function resolveRange(key: string | undefined, from?: string, to?: string): Range {
   const today = dhakaDate();
@@ -20,7 +20,7 @@ export function resolveRange(key: string | undefined, from?: string, to?: string
 }
 
 /** ঢাকার তারিখের সীমা → UTC সময়ের সীমা (ডাটাবেসে UTC) */
-function utcBounds(r: Range) {
+export function utcBounds(r: Range) {
   const start = new Date(Date.parse(r.from + "T00:00:00Z") - DHAKA_MS).toISOString().replace("T", " ").slice(0, 19);
   const end = new Date(Date.parse(addDays(r.to, 1) + "T00:00:00Z") - DHAKA_MS).toISOString().replace("T", " ").slice(0, 19);
   return { start, end };

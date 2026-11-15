@@ -13,7 +13,7 @@ import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES,
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
 import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
-import { bn, youtubeId } from "../lib/format";
+import { bn, taka, youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
 import { CouponsPage, LandingBuilderPage, LandingListPage, ReportsPage, TemplateGalleryPage, type CouponRow, type LandingRow } from "../views/admin";
@@ -51,6 +51,9 @@ import { maxQty } from "../lib/cart";
 import { validateOrderInput } from "../lib/order-guard";
 import { applyOrderStock, checkOrderStock, inventoryRows, inventorySummary, recentMoves, recomputeProductStock, restoreOrderStock, setStock, type InvFilter } from "../lib/stock";
 import { InventoryPage } from "../views/inventory";
+import { AdsPage, CatalogPage } from "../views/ads";
+import { adReport, usdRate } from "../lib/ads";
+import { feedItems } from "../lib/feed";
 
 export const admin = new Hono<AppEnv>();
 
@@ -1886,6 +1889,66 @@ admin.post("/media/delete", async (c) => {
 });
 
 /* ---------- রিপোর্ট (মালিক ও ম্যানেজার) ---------- */
+/* ---------- অ্যাড ও ক্যাটালগ ---------- */
+const activeProducts = async (c: Ctx) =>
+  (await c.env.DB.prepare("SELECT id, name FROM products ORDER BY is_active DESC, sort_order, id LIMIT 500").all<{ id: number; name: string }>()).results;
+
+admin.get("/ads", async (c) => {
+  const r = resolveRange(c.req.query("range") || "30", c.req.query("from"), c.req.query("to"));
+  const report = await adReport(c.env.DB, r, toInt(c.req.query("product")));
+  return render(c, "অ্যাড ও ক্যাটালগ", "ads", <AdsPage r={report} s={c.var.settings} products={await activeProducts(c)} />);
+});
+
+admin.post("/ads/spend", async (c) => {
+  const b = await c.req.parseBody();
+  const day = str(b.day, 10);
+  const raw = Number(str(b.amount, 15));
+  const usd = b.currency === "usd";
+  const amount = Math.round(usd ? raw * usdRate(c.var.settings) : raw);
+  const pid = toInt(b.product_id) || null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(raw) || raw <= 0 || amount > 100_000_000) {
+    flash(c, "error", "সঠিক তারিখ আর খরচ লিখুন");
+  } else {
+    await c.env.DB.prepare("INSERT INTO ad_spend (day, amount, product_id, note, usd) VALUES (?, ?, ?, ?, ?)")
+      .bind(day, amount, pid, str(b.note, 100) || null, usd ? Math.round(raw * 100) / 100 : null).run();
+    flash(c, "ok", `খরচ যোগ হয়েছে: ${taka(amount)}`);
+  }
+  return c.redirect(c.req.header("referer")?.includes("/admin/ads") ? new URL(c.req.header("referer")!).pathname + new URL(c.req.header("referer")!).search : "/admin/ads", 303);
+});
+
+admin.post("/ads/spend/:id{[0-9]+}/delete", async (c) => {
+  await c.env.DB.prepare("DELETE FROM ad_spend WHERE id = ?").bind(toInt(c.req.param("id"))).run();
+  flash(c, "ok", "খরচ মুছে ফেলা হয়েছে।");
+  return c.redirect(c.req.header("referer")?.includes("/admin/ads") ? new URL(c.req.header("referer")!).pathname + new URL(c.req.header("referer")!).search : "/admin/ads", 303);
+});
+
+admin.post("/ads/rate", async (c) => {
+  const n = Number(str((await c.req.parseBody()).ad_usd_rate, 10));
+  if (Number.isFinite(n) && n >= 50 && n <= 500) {
+    await saveSettings(c.env.DB, { ad_usd_rate: String(Math.round(n * 2) / 2) });
+    flash(c, "ok", "ডলারের রেট সেভ হয়েছে।");
+  } else flash(c, "error", "রেট ৫০ থেকে ৫০০-এর মধ্যে দিন");
+  return c.redirect("/admin/ads", 303);
+});
+
+admin.get("/ads/catalog", async (c) => {
+  const origin = publicOrigin(c);
+  const { items, skipped } = await feedItems(c.env.DB, c.var.settings, origin);
+  return render(c, "অ্যাড ও ক্যাটালগ", "ads",
+    <CatalogPage s={c.var.settings} origin={origin} count={items.length} skipped={skipped} out={items.filter((i) => i.availability === "out of stock").length} />);
+});
+
+admin.post("/ads/catalog", async (c) => {
+  const b = await c.req.parseBody();
+  await saveSettings(c.env.DB, {
+    feed_enabled: b.feed_enabled ? "1" : "0",
+    feed_brand: str(b.feed_brand, 100),
+    feed_link: b.feed_link === "product" ? "product" : "landing",
+  });
+  flash(c, "ok", "ফিডের সেটিংস সেভ হয়েছে।");
+  return c.redirect("/admin/ads/catalog", 303);
+});
+
 admin.get("/reports", async (c) => {
   const r = resolveRange(c.req.query("range"), c.req.query("from"), c.req.query("to"));
   return render(c, "রিপোর্ট", "reports", <ReportsPage r={await buildReport(c.env.DB, r)} />);

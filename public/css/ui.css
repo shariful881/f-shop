@@ -602,3 +602,24 @@ body.admin .inv-untracked summary { cursor: pointer; }
 body.admin .inv-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; margin: 12px 0; }
 body.admin .pf-stock-box[hidden] { display: none; }
 @media (max-width: 720px) { body.admin .inv-save { bottom: 64px; } }
+
+/* ধাপ ৫: অ্যাড ও ক্যাটালগ */
+body.admin .sa-kpis.ads-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1200px) { body.admin .sa-kpis.ads-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+body.admin .ads-real { border-color: var(--c-brand); box-shadow: inset 0 0 0 1px var(--c-brand); }
+body.admin .ads-funnel, body.admin .ads-add, body.admin .ads-list { padding: 16px; margin-bottom: 16px; }
+body.admin .ads-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px 0; }
+body.admin .ads-steps > div { background: var(--c-soft); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; position: relative; }
+body.admin .ads-steps > div:not(:last-child)::after { content: "→"; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); color: var(--c-mute); }
+body.admin .ads-steps b { font-size: 1.5rem; }
+body.admin .ads-steps span { color: var(--c-mute); font-size: .85rem; }
+body.admin .ads-form { align-items: end; }
+body.admin .ads-rate { margin-top: 10px; gap: 8px; align-items: center; }
+body.admin .ads-filter select { max-width: 220px; }
+body.admin .store-link { display: flex; gap: 8px; }
+body.admin .store-link input { flex: 1; min-width: 0; }
+body.admin .steps-list { padding-left: 20px; margin: 8px 0 0; line-height: 1.8; }
+body.admin .sa-card > h2 { margin-top: 0; }
+body.admin .ads-rate label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+body.admin .ads-rate input { width: 90px; }
+body.admin .ads-filter { flex-wrap: wrap; gap: 8px; }

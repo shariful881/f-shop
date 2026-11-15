@@ -27,6 +27,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "pages", href: "/admin/pages", icon: "file-text", label: "পেজ" },
   { key: "media", href: "/admin/media", icon: "image", label: "মিডিয়া" },
   { key: "coupons", href: "/admin/coupons", icon: "ticket", label: "কুপন", group: "মার্কেটিং" },
+  { key: "ads", href: "/admin/ads", icon: "megaphone", label: "অ্যাড ও ক্যাটালগ" },
   { key: "tracking", href: "/admin/settings/tracking", icon: "trending-up", label: "পিক্সেল ও ট্র্যাকিং", perm: "settings" },
   { key: "sms", href: "/admin/sms", icon: "message-square", label: "SMS" },
   { key: "courier", href: "/admin/courier", icon: "truck", label: "কুরিয়ার", group: "ডেলিভারি" },
@@ -45,7 +46,7 @@ const HELP_BASE = "https://sellxbd.com/help";
 const HELP_FOR: Record<string, string> = {
   dashboard: "setup-checklist", orders: "orders", incomplete: "incomplete-orders", customers: "customers", reports: "reports", products: "add-product",
   inventory: "inventory", categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
-  coupons: "coupons", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
+  coupons: "coupons", ads: "catalog-ads", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
   settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", export: "backup", support: "support",
 };
 
