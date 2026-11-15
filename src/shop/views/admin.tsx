@@ -168,12 +168,15 @@ export const OrdersPage = (p: {
         <Icon name="wallet" size="sm" /> অগ্রিম পেমেন্ট যাচাই বাকি: <b>{bn(p.payCount!)}টা</b> {p.payPending ? "· সব অর্ডার দেখুন" : "· দেখুন →"}
       </a>
     )}
+    <div class="orders-top">
     <div class="tabs">
       {STATUS_TABS.map((s) => (
         <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && !p.payPending && p.status === s ? "tab active" : "tab"}>
           {STATUS_LABEL[s]} <span class="tab-count">{bn(p.counts[s] ?? 0)}</span>
         </a>
       ))}
+    </div>
+    <a href="/admin/orders/new" class="btn btn-primary orders-new"><Icon name="plus" size="sm" /> নতুন অর্ডার</a>
     </div>
     <div class="orders-tools">
       <form method="get" action="/admin/orders" class="search">

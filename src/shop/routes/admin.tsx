@@ -46,7 +46,8 @@ import { IncompleteConvertPage, IncompletePage } from "../views/incomplete";
 import { draftItems, INCOMPLETE_TABS, incompleteCounts, listIncomplete, markConverted, type IncompleteRow, type IncompleteTab } from "../lib/incomplete";
 import { cartLines } from "../lib/products";
 import { createOrder, orderPrefix } from "../lib/orders";
-import { deliveryCharge } from "../lib/settings";
+import { deliveryCharge, freeDeliveryMin } from "../lib/settings";
+import { emptyManual, MANUAL_ROWS, MANUAL_SOURCES, ManualOrderPage, type ManualOption, type ManualSource, type ManualValues } from "../views/manual-order";
 import { maxQty } from "../lib/cart";
 import { validateOrderInput } from "../lib/order-guard";
 import { applyOrderStock, checkOrderStock, inventoryRows, inventorySummary, recentMoves, recomputeProductStock, restoreOrderStock, setStock, type InvFilter } from "../lib/stock";
@@ -292,6 +293,102 @@ admin.get("/orders", async (c) => {
     <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending}
       payCount={(await db.prepare("SELECT COUNT(*) n FROM orders WHERE pay_status = 'pending' AND status IN ('new', 'confirmed')").first<{ n: number }>())?.n ?? 0}
       hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
+});
+
+/* ---------- নতুন অর্ডার নিজে লেখা (ফোন/ইনবক্স/দোকানে) ---------- */
+async function manualOptions(db: D1Database): Promise<ManualOption[]> {
+  const [p, v] = await db.batch([
+    db.prepare("SELECT id, name, price, track_stock, stock FROM products WHERE is_active = 1 ORDER BY sort_order, id LIMIT 500"),
+    db.prepare("SELECT v.id, v.product_id, v.label, v.price, v.stock FROM product_variants v JOIN products p ON p.id = v.product_id WHERE v.active = 1 AND p.is_active = 1 ORDER BY v.product_id, v.id"),
+  ]);
+  const prods = p!.results as { id: number; name: string; price: number; track_stock: number; stock: number | null }[];
+  const vars = v!.results as { id: number; product_id: number; label: string; price: number | null; stock: number | null }[];
+  const out: ManualOption[] = [];
+  for (const x of prods) {
+    const own = vars.filter((y) => y.product_id === x.id);
+    const track = x.track_stock === 1;
+    if (!own.length) out.push({ value: `${x.id}:0`, label: x.name, price: x.price, stock: track ? x.stock ?? 0 : null });
+    for (const y of own) out.push({ value: `${x.id}:${y.id}`, label: `${x.name} (${y.label})`, price: y.price ?? x.price, stock: track ? y.stock ?? 0 : null });
+  }
+  return out;
+}
+
+function manualView(c: Ctx, options: ManualOption[], values: ManualValues, extra: { errors?: Record<string, string>; blocked?: boolean; pending?: string | null } = {}, status: 200 | 422 = 200) {
+  const s = c.var.settings;
+  return render(c, "নতুন অর্ডার", "orders",
+    <ManualOrderPage options={options} values={values} delivery={{ inside: deliveryCharge(s, "inside"), outside: deliveryCharge(s, "outside"), freeMin: freeDeliveryMin(s) }} {...extra} />, status);
+}
+
+admin.get("/orders/new", async (c) => {
+  const v = emptyManual();
+  const ph = normalizePhone(c.req.query("phone") || "");
+  if (ph) v.phone = ph;
+  return manualView(c, await manualOptions(c.env.DB), v);
+});
+
+admin.post("/orders/new", async (c) => {
+  const db = c.env.DB;
+  const s = c.var.settings;
+  const b = await c.req.parseBody({ all: true });
+  const arr = (x: unknown) => (Array.isArray(x) ? x : x == null ? [] : [x]).map((y) => String(y));
+  const itemsRaw = arr(b.item);
+  const qtyRaw = arr(b.qty);
+  const source = (String(b.source ?? "") in MANUAL_SOURCES ? String(b.source) : "other") as ManualSource;
+  const values: ManualValues = {
+    name: str(b.name, 100), phone: str(b.phone, 20), address: str(b.address, 300), area: String(b.area ?? ""), note: str(b.note, 300),
+    source, delivery: str(b.delivery, 10), discount: str(b.discount, 10), confirm: b.confirm === "1",
+    items: itemsRaw.slice(0, MANUAL_ROWS).map((item, i) => ({ item, qty: qtyRaw[i] ?? "1" })),
+  };
+  const options = await manualOptions(db);
+  const errors: Record<string, string> = {};
+  const v = validateOrderInput({ name: values.name, phone: values.phone, address: values.address, area: values.area, note: values.note });
+  if (!v.ok) Object.assign(errors, v.errors);
+
+  // পণ্যের লাইন: একই পণ্য দুই সারিতে থাকলে যোগ হয়
+  const merged = new Map<string, number>();
+  for (const r of values.items) {
+    if (!r.item) continue;
+    const q = Math.min(999, Math.max(1, toInt(r.qty, 1)));
+    merged.set(r.item, (merged.get(r.item) ?? 0) + q);
+  }
+  const entries = [...merged].map(([k, qty]) => {
+    const [pid, vid] = k.split(":").map((n) => toInt(n));
+    return { productId: pid!, variantId: vid || null, qty: Math.min(999, qty) };
+  }).filter((x) => x.productId > 0);
+  const lines = await cartLines(db, entries);
+  if (!entries.length) errors.items = "অন্তত একটা পণ্য বাছুন।";
+  else if (lines.length < entries.length) errors.items = "বাছাই করা কোনো পণ্য আর চালু নেই বা স্টক শেষ — আবার বাছুন।";
+  else {
+    const short = lines.find((l) => l.stock_left != null && (l.qty ?? 1) > l.stock_left);
+    if (short) errors.items = `${short.name}${short.variant_label ? ` (${short.variant_label})` : ""} — মাত্র ${bn(short.stock_left!)}টা আছে।`;
+  }
+  if (Object.keys(errors).length || !v.ok) return manualView(c, options, values, { errors }, 422);
+
+  // ব্লক তালিকা আর খোলা অর্ডার — সতর্ক করে, তারপর দোকানদারের সিদ্ধান্ত
+  if (b.force !== "1") {
+    const blocked = !!(await db.prepare("SELECT 1 FROM blacklist_entries WHERE type = 'phone' AND value = ?").bind(v.phone).first());
+    const open = await db.prepare("SELECT id FROM orders WHERE phone = ? AND status = 'new' ORDER BY id DESC LIMIT 1").bind(v.phone).first<{ id: number }>();
+    if (blocked || open) return manualView(c, options, values, { blocked, pending: open ? `/admin/orders/${open.id}` : null }, 422);
+  }
+
+  const sub = lines.reduce((t, l) => t + l.price * (l.qty ?? 1), 0);
+  const del = values.delivery.trim() !== "" ? Math.min(100000, Math.max(0, toInt(values.delivery, 0))) : deliveryCharge(s, v.area, sub);
+  const discount = Math.min(sub + del, Math.max(0, toInt(values.discount, 0)));
+  const order = await createOrder(db, {
+    name: values.name, phone: v.phone, address: values.address, area: v.area, note: values.note,
+    deliveryCharge: del, discount, couponCode: discount ? "নিজে দেওয়া ছাড়" : null,
+    deviceId: null, ip: clientIp(c), userAgent: `নিজে লেখা অর্ডার: ${MANUAL_SOURCES[source]} (${c.var.admin?.email ?? "অ্যাডমিন"})`.slice(0, 500),
+    fbp: null, fbc: null, sourceUrl: `manual:${source}`, prefix: orderPrefix(s),
+  }, lines);
+  await markConverted(db, v.phone, order.id);
+
+  if (values.confirm) {
+    const r = await applyStatus(c, order.id, "confirmed");
+    flash(c, r.ok && !r.purchaseFail ? "ok" : "error", `অর্ডার ${order.order_no} তৈরি হয়েছে। ${r.message}`);
+  } else {
+    flash(c, "ok", `অর্ডার ${order.order_no} তৈরি হয়েছে — "নতুন" তালিকায় আছে। কথা বলে নিশ্চিত হলে কনফার্ম করুন।`);
+  }
+  return c.redirect(`/admin/orders/${order.id}`, 303);
 });
 
 /* ---------- অসম্পূর্ণ অর্ডার ---------- */

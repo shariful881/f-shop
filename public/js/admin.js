@@ -304,3 +304,42 @@ document.addEventListener("click", function (e) {
     });
   }
 })();
+
+/* নতুন অর্ডার ফর্ম: খালি বাড়তি সারি লুকানো, "আরেকটা পণ্য", মোট টাকা */
+(function () {
+  var f = document.querySelector("[data-manual-order]");
+  if (!f) return;
+  var rows = Array.prototype.slice.call(f.querySelectorAll("[data-mo-row]"));
+  var add = f.querySelector("[data-mo-add]");
+  rows.forEach(function (r) { if (r.dataset.extra === "1") r.hidden = true; });
+  var syncAdd = function () { add.hidden = !rows.some(function (r) { return r.hidden; }); };
+  syncAdd();
+  add.addEventListener("click", function () {
+    var next = rows.find(function (r) { return r.hidden; });
+    if (next) { next.hidden = false; next.querySelector("select").focus(); }
+    syncAdd();
+  });
+  var box = f.querySelector("[data-mo-total]");
+  var fmt = function (n) { return "৳" + Math.round(n).toLocaleString("bn-BD"); };
+  var num = function (el) { var n = parseInt(el && el.value, 10); return isFinite(n) && n > 0 ? n : 0; };
+  var calc = function () {
+    var sub = 0;
+    rows.forEach(function (r) {
+      var o = r.querySelector("select").selectedOptions[0];
+      if (o && o.value) sub += (parseFloat(o.dataset.price) || 0) * Math.max(1, num(r.querySelector("input")));
+    });
+    var area = (f.querySelector("input[name=area]:checked") || {}).value || "inside";
+    var dIn = f.querySelector("input[name=delivery]");
+    var free = parseInt(f.dataset.free, 10) || 0;
+    var del = dIn.value.trim() !== "" ? num(dIn) : (free > 0 && sub >= free ? 0 : parseInt(f.dataset[area], 10) || 0);
+    var dis = Math.min(sub + del, num(f.querySelector("input[name=discount]")));
+    box.hidden = sub <= 0;
+    box.querySelector("[data-mo-sub]").textContent = fmt(sub);
+    box.querySelector("[data-mo-del]").textContent = fmt(del);
+    box.querySelector("[data-mo-dis]").textContent = fmt(dis);
+    box.querySelector("[data-mo-grand]").textContent = fmt(sub + del - dis);
+  };
+  f.addEventListener("input", calc);
+  f.addEventListener("change", calc);
+  calc();
+})();
