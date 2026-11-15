@@ -20,3 +20,17 @@
   range.addEventListener("input", update);
   update();
 })();
+
+/* হোমপেজ: ফিচারের ট্যাব (JS না থাকলে সব ভাগ নিচে নিচে দেখায়) */
+(function () {
+  var box = document.querySelector("[data-hp-tabs]");
+  if (!box) return;
+  box.classList.add("js");
+  var tabs = box.querySelectorAll("[data-hp-tab]"), panels = box.querySelectorAll("[data-hp-panel]");
+  function show(key) {
+    tabs.forEach(function (t) { var on = t.getAttribute("data-hp-tab") === key; t.classList.toggle("active", on); t.setAttribute("aria-selected", on ? "true" : "false"); });
+    panels.forEach(function (p) { p.classList.toggle("active", p.getAttribute("data-hp-panel") === key); });
+  }
+  tabs.forEach(function (t) { t.addEventListener("click", function () { show(t.getAttribute("data-hp-tab")); }); });
+  show(tabs[0].getAttribute("data-hp-tab"));
+})();

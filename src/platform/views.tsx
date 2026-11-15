@@ -6,10 +6,13 @@ import { bn, dhakaTime, taka } from "../shop/lib/format";
 
 export const PLATFORM_NAME = "SellxBD";
 import { SiteFooter } from "./pages";
+import { HELP } from "./help";
+import { Icon, type IconName } from "../shop/views/icons";
+import { raw } from "hono/html";
 
 export type PFlash = { type: "ok" | "error"; text: string } | null;
 
-export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean; description?: string }) => (
+export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean; description?: string; head?: Child }) => (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -20,11 +23,14 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/platform.css?v=${ASSET_VERSION}`} />
+      {p.head}
     </head>
     <body class={p.admin ? "admin" : "platform"}>
       <header class={p.admin ? "admin-header" : "p-header"}>
         <div class="wrap admin-header-inner">
-          <a href={p.admin ? "/super" : "/"} class="logo">{PLATFORM_NAME}{p.admin ? " সুপার অ্যাডমিন" : ""}</a>
+          {p.admin
+            ? <a href="/super" class="logo">{PLATFORM_NAME} সুপার অ্যাডমিন</a>
+            : <a href="/" class="logo p-logo" aria-label={PLATFORM_NAME}><BrandMark /><BrandName /></a>}
           <nav class="admin-nav">{p.nav}</nav>
         </div>
       </header>
@@ -44,136 +50,247 @@ type DemoLink = { key?: string; niche: string; name: string; url: string };
 const Check = () => <span class="h-check" aria-hidden="true">✓</span>;
 const Cross = () => <span class="h-cross" aria-hidden="true">✕</span>;
 
-/** ফিচারের ভাগ — প্রজেক্টে যা যা আছে */
-const FEATURE_GROUPS: { icon: string; title: string; sub: string; items: [string, string, string][] }[] = [
+/** বিক্রির পুরো পথ — ট্যাবে ভাগ করা ফিচার (প্রজেক্টে যা যা আছে)। নতুন ফিচার এলে এখানে যোগ করুন। */
+const FEATURE_TABS: { key: string; icon: IconName; title: string; sub: string; items: [IconName, string, string][] }[] = [
   {
-    icon: "🛡️", title: "অর্ডার আর ফেক অর্ডার", sub: "আসল কাস্টমারের অর্ডার, ঝামেলা ছাড়া",
+    key: "build", icon: "store", title: "দোকান আর পেজ", sub: "কোড ছাড়াই সুন্দর দোকান আর অ্যাডের পেজ",
     items: [
-      ["🛡️", "ফেক অর্ডার আটকায়", "ভুল নম্বর নেয় না, একই নম্বর বা মোবাইল থেকে বারবার অর্ডার বন্ধ। ফেক ধরলে নম্বর আর ডিভাইস স্থায়ী ব্লক।"],
-      ["🛒", "কার্ট আর পরিমাণ", "একসাথে কয়েকটা পণ্য, − ২ + দিয়ে পরিমাণ, ✕ দিয়ে মোছা — পেজ রিলোড ছাড়াই মোট টাকা বদলায়।"],
-      ["📝", "নিজের মতো চেকআউট", "নিজের ঘর যোগ (সাইজ, নোট…), ইমেইল ঘর, আগে থেকে বাছা এলাকা, সর্বনিম্ন অর্ডার, অর্ডার নম্বরের নিজের অক্ষর।"],
-      ["🔎", "কাস্টমারের অর্ডার ট্র্যাকিং", "মোবাইল নম্বর দিয়ে কাস্টমার নিজেই দেখে অর্ডার কোথায় আছে, ইনভয়েসও নামাতে পারে।"],
+      ["store", "রেডি দোকান", "কী বিক্রি করেন বাছলেই ক্যাটাগরি, থিম, রং আর পলিসি পেজ সাজানো দোকান তৈরি — শুধু নিজের পণ্য বসান।"],
+      ["palette", "থিম লাইভ এডিটর", "৪টা থিম, তৈরি রঙের জোড়া, সেকশন টেনে সাজানো — যা বদলান সাথে সাথে দেখেন। ভুল হলে আগের সংস্করণে ফিরুন।"],
+      ["layout-template", "ল্যান্ডিং পেজ বিল্ডার", "অ্যাডের জন্য অর্ডার ফর্মসহ পেজ — ২০টা নিশ টেমপ্লেট থেকে শুরু, টেনে সাজান, নিজে থেকেই সেভ হয়।"],
+      ["sparkles", "AI দিয়ে লেখা", "পণ্যের নাম দিলেই ল্যান্ডিং পেজের শিরোনাম, সুবিধা আর প্রশ্নোত্তর বাংলায় লিখে দেয়।"],
+      ["star", "আসল ক্রেতার রিভিউ", "শুধু যে কিনেছে সে-ই (অর্ডার নম্বর + মোবাইল) ছবিসহ রিভিউ দিতে পারে — আপনি অনুমোদন দিলে দেখায়।"],
+      ["file-text", "ব্লগ আর নিজের পেজ", "রিটার্ন পলিসি, আমাদের সম্পর্কে, ব্লগ পোস্ট — Google থেকেও কাস্টমার আসে।"],
     ],
   },
   {
-    icon: "🚚", title: "ডেলিভারি আর কুরিয়ার", sub: "অর্ডার থেকে পার্সেল — এক জায়গায়",
+    key: "ads", icon: "megaphone", title: "অ্যাড আর মার্কেটিং", sub: "অ্যাডের প্রতিটা টাকার হিসাব",
     items: [
-      ["🚚", "কুরিয়ারে এক ক্লিকে", "Steadfast, Pathao, RedX — নিজের মার্চেন্ট অ্যাকাউন্ট যুক্ত করুন, একসাথে অনেক অর্ডার পাঠান, স্ট্যাটাস দেখুন।"],
-      ["📍", "ঢাকার ভিতরে-বাইরে চার্জ", "দুই এলাকার আলাদা ডেলিভারি চার্জ, নির্দিষ্ট টাকার বেশি কিনলে ফ্রি ডেলিভারি — নিজে ঠিক করুন।"],
-      ["🧾", "ইনভয়েস আর স্টিকার", "লোগোসহ A4 ইনভয়েস আর ৩×৪ ইঞ্চি পার্সেল স্টিকার, বারকোডসহ — একটা বা একসাথে অনেকগুলো প্রিন্ট।"],
-      ["💬", "কাস্টমারকে অটো SMS", "অর্ডার কনফার্ম আর পার্সেল পাঠানোর সাথে সাথে SMS — BulkSMSBD, SMS.net.bd বা নিজের গেটওয়ে।"],
+      ["trending-up", "Pixel + Conversions API", "দুটোই চালু। Purchase যায় শুধু আপনি কনফার্ম করলে — Facebook আসল ক্রেতা চিনতে শেখে, খরচ কমে।"],
+      ["boxes", "ফেসবুক ক্যাটালগ ফিড", "সব পণ্য নিজে থেকে Facebook আর Google ক্যাটালগে — দাম বদলালে বা স্টক শেষ হলে সেখানেও বদলায়।"],
+      ["calculator", "অ্যাডের আসল খরচ", "দিনের অ্যাড খরচ লিখুন — প্রতি কনফার্ম অর্ডারে কত খরচ আর খরচের কত গুণ বিক্রি, পণ্য ধরে দেখুন।"],
+      ["chart-line", "GA4, GTM, TikTok", "Google Analytics, Tag Manager আর TikTok Pixel — শুধু ID বসালেই চালু।"],
+      ["search", "Google-এর জন্য SEO", "দোকান আর প্রতিটা পণ্যের টাইটেল-বিবরণ, Google-এ কেমন দেখাবে তার প্রিভিউ, sitemap নিজে তৈরি।"],
+      ["tag", "কুপন আর অফার", "ঈদ অফার, % ছাড়, ফ্রি ডেলিভারি কুপন, কাটা দাম — বিক্রি বাড়ানোর সব হাতিয়ার।"],
     ],
   },
   {
-    icon: "🎨", title: "দোকান সাজানো", sub: "কোড ছাড়াই নিজের পছন্দমতো ডিজাইন",
+    key: "orders", icon: "shield-check", title: "অর্ডার আর ফেক আটকানো", sub: "আসল ক্রেতা, কম ফেরত",
     items: [
-      ["🎨", "৪টা থিম + পুরো কাস্টমাইজ", "প্রো স্টোর, ক্লাসিক, মিনিমাল, বোল্ড। রং, ফন্ট, হেডার, হোমপেজের ১৩টা সেকশন, ফুটার — সব নিজে বদলান।"],
-      ["🛍️", "পণ্যের বিস্তারিত পেজ", "গ্যালারি, সাইজ/রং, \"এখনই কিনুন\", কল-WhatsApp বাটন, ডেলিভারি তথ্য, সম্পর্কিত পণ্য — চার থিমেই।"],
-      ["📄", "ল্যান্ডিং পেজ বিল্ডার", "অ্যাডের জন্য অর্ডার ফর্মসহ পেজ। রেডি টেমপ্লেট থেকে শুরু, ছবি-ভিডিও-রিভিউ-কাউন্টডাউন সাজান, নিজের টেমপ্লেট সেভ করুন।"],
-      ["🖼️", "ছবি আর পেজ", "একসাথে অনেক পণ্যের ছবি আপলোড, ব্যানার, লোগো; আমাদের সম্পর্কে, রিটার্ন পলিসির মতো নিজের পেজ।"],
+      ["shield-alert", "ফেক অর্ডার ব্লক", "ভুল নম্বর নেয় না, একই নম্বর বা মোবাইল থেকে বারবার অর্ডার বন্ধ। ফেক ধরলে নম্বর আর ডিভাইস ব্লক।"],
+      ["users", "ক্রেতার রেকর্ড", "নম্বর দেখেই জানুন আগে কতবার নিয়েছে আর ফেরত দিয়েছে — সব SellxBD দোকান আর কুরিয়ারের রেকর্ড মিলিয়ে।"],
+      ["hourglass", "অসম্পূর্ণ অর্ডার", "ফর্মে নম্বর লিখে কেউ চলে গেলে তালিকায় আসে — কল বা WhatsApp করে এক ক্লিকে অর্ডার বানান।"],
+      ["wallet", "অগ্রিম পেমেন্ট", "ডেলিভারি চার্জ বা পুরো টাকা bKash/Nagad/Rocket-এ অগ্রিম — শুধু ঝুঁকির ক্রেতার কাছেও চাইতে পারেন।"],
+      ["shopping-cart", "কার্ট আর চেকআউট", "কয়েকটা পণ্য একসাথে, পরিমাণ বদলানো, নিজের ঘর যোগ, সর্বনিম্ন অর্ডার — চেকআউট আপনার মতো।"],
+      ["bell", "ফোনে অর্ডারের খবর", "প্যানেল অ্যাপের মতো ফোনে বসান — নতুন অর্ডার এলেই নোটিফিকেশন।"],
     ],
   },
   {
-    icon: "🎯", title: "মার্কেটিং আর ট্র্যাকিং", sub: "অ্যাডের প্রতিটা টাকার হিসাব",
+    key: "delivery", icon: "truck", title: "ডেলিভারি", sub: "অর্ডার থেকে পার্সেল — এক জায়গায়",
     items: [
-      ["🎯", "Pixel + Conversions API", "দুটোই চালু। Purchase যায় শুধু আপনি কনফার্ম করলে — Facebook আসল ক্রেতা চিনতে শেখে, অ্যাড খরচ কমে।"],
-      ["📈", "GA4, GTM, TikTok Pixel", "Google Analytics, Tag Manager আর TikTok — শুধু ID বসালেই চালু।"],
-      ["🔍", "Google-এর জন্য SEO", "দোকান আর প্রতিটা পণ্যের টাইটেল-বিবরণ, Google-এ কেমন দেখাবে তার প্রিভিউ, sitemap আর robots নিজে তৈরি।"],
-      ["🏷️", "কুপন আর ভ্যারিয়েন্ট", "ঈদ অফার, % ছাড়, ফ্রি ডেলিভারি কুপন। প্রতিটা সাইজ বা রঙের আলাদা দাম আর স্টক।"],
+      ["truck", "কুরিয়ারে এক ক্লিকে", "Steadfast, Pathao, RedX — নিজের অ্যাকাউন্ট যুক্ত করুন, একসাথে অনেক অর্ডার পাঠান, স্ট্যাটাস দেখুন।"],
+      ["map-pin", "ঢাকার ভিতরে-বাইরে চার্জ", "দুই এলাকার আলাদা চার্জ, নির্দিষ্ট টাকার বেশি কিনলে ফ্রি ডেলিভারি — নিজে ঠিক করুন।"],
+      ["printer", "ইনভয়েস আর স্টিকার", "লোগোসহ A4 ইনভয়েস আর ৩×৪ ইঞ্চি পার্সেল স্টিকার, বারকোডসহ — একসাথে অনেকগুলো প্রিন্ট।"],
+      ["message-square", "অটো SMS", "অর্ডার কনফার্ম আর পার্সেল পাঠানোর সাথে সাথে কাস্টমারকে SMS — নিজের গেটওয়ে দিয়ে।"],
+      ["message-circle", "WhatsApp মেসেজ", "কনফার্ম, পাঠানো হয়েছে, রিভিউ চাওয়া — লেখা তৈরি থাকে, এক চাপে কাস্টমারের WhatsApp-এ।"],
+      ["package", "কাস্টমারের ট্র্যাকিং", "মোবাইল নম্বর দিয়ে কাস্টমার নিজেই দেখে অর্ডার কোথায় — বারবার ফোন কমে।"],
     ],
   },
   {
-    icon: "📊", title: "ব্যবসা চালানো", sub: "মালিকের হাতে পুরো নিয়ন্ত্রণ",
+    key: "money", icon: "chart-column", title: "হিসাব আর নিয়ন্ত্রণ", sub: "মালিকের হাতে পুরো ব্যবসা",
     items: [
-      ["📊", "ড্যাশবোর্ড আর রিপোর্ট", "আজ, সপ্তাহ, মাসে কত অর্ডার, কত কনফার্ম, কত ফেক, কোন পণ্য বেশি চলছে — চার্টসহ এক নজরে।"],
-      ["👥", "স্টাফ আর অনুমতি", "ম্যানেজার আর অর্ডার স্টাফ — কে কী দেখবে আর করবে, আপনি ঠিক করবেন।"],
-      ["🌐", "নিজের ডোমেইন", "yourshop.com — নিজের নামে দোকান। না থাকলে ফ্রি subdomain। সবখানে https।"],
-      ["🛟", "২৪ ঘণ্টা সাপোর্ট", "প্যানেলের ভিতরেই লাইভ চ্যাট আর স্ক্রিনশটসহ সাপোর্ট টিকেট — দিনে-রাতে যখন দরকার।"],
+      ["boxes", "স্টক আর ইনভেন্টরি", "সাইজ/রং ধরে স্টক — কনফার্মে কমে, ফেরতে ফেরে, শেষ হলে দোকানে \"স্টক নেই\"। কম থাকলে সতর্ক করে।"],
+      ["wallet", "আসল লাভের হিসাব", "মালের দাম, কুরিয়ার, ফেরত, COD চার্জ আর অ্যাড খরচ বাদ দিয়ে নিট লাভ — পণ্য ধরে।"],
+      ["layout-dashboard", "ড্যাশবোর্ড আর রিপোর্ট", "আজ, সপ্তাহ, মাসে কত অর্ডার, কত কনফার্ম, কত ফেক, কোন পণ্য বেশি চলছে — চার্টসহ।"],
+      ["users", "স্টাফ আর অনুমতি", "ম্যানেজার আর অর্ডার স্টাফ — কে কী দেখবে আর করবে, আপনি ঠিক করবেন।"],
+      ["globe", "নিজের ডোমেইন", "yourshop.com — নিজের নামে দোকান। না থাকলে ফ্রি subdomain। সবখানে https।"],
+      ["download", "ব্যাকআপ", "পণ্য, অর্ডার আর কাস্টমার যখন খুশি CSV-তে নামিয়ে রাখুন — তথ্য সবসময় আপনার।"],
     ],
   },
 ];
 
+/** লোগো — শপিং ব্যাগ চিহ্ন + SellxBD */
+export const BrandMark = ({ size = 30 }: { size?: number }) =>
+  raw(`<svg class="brand-mark" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="bm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#bm)"/><path d="M9.5 12.5h13l-1 11a2 2 0 0 1-2 1.8h-7a2 2 0 0 1-2-1.8z" fill="#fff"/><path d="M12.5 12.5V11a3.5 3.5 0 0 1 7 0v1.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="23.5" cy="8.5" r="3.2" fill="#f97316" stroke="#fff" stroke-width="1.6"/></svg>`);
+export const BrandName = () => <span class="brand-name">Sell<span class="brand-x">x</span>BD</span>;
+
 export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; fees: HomeFees; demos?: DemoLink[] }) => {
   const demoOf = (key: string, name: string) => demos.find((d) => d.key === key || d.name === name);
+  const P = f.plans;
   return (
-  <div class="home">
-    {/* হিরো */}
-    <section class="h-hero">
-      <div class="wrap h-hero-grid">
-        <div>
-          <p class="h-kicker">ফেসবুক পেজে যারা বিক্রি করেন, তাদের জন্য</p>
+  <div class="home hp">
+    {/* ===== হিরো ===== */}
+    <section class="hp-hero">
+      <div class="wrap hp-hero-grid">
+        <div class="hp-hero-copy">
+          <p class="hp-kicker"><span class="hp-dot"></span>ফেসবুক সেলারদের জন্য বাংলাদেশের অনলাইন দোকান</p>
           <h1>ফেক অর্ডারে আর টাকা নষ্ট নয়।<br /><span>নিজের ওয়েবসাইটে অর্ডার নিন।</span></h1>
-          <p class="h-lead">
-            রেডি দোকান, সুন্দর থিম, অ্যাডের ল্যান্ডিং পেজ, কুরিয়ারে এক ক্লিকে পাঠানো, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট — সব এক জায়গায়।
-            চার্জ দেবেন শুধু <strong>কনফার্ম হওয়া আসল অর্ডারে</strong>।
+          <p class="hp-lead">
+            রেডি দোকান, অ্যাডের ল্যান্ডিং পেজ, ফেক আটকানো, কুরিয়ারে এক ক্লিক, স্টক আর লাভের হিসাব — দোকান চালানোর সব এক প্যানেলে, মোবাইল থেকেই।
           </p>
-          <div class="h-cta">
-            <a href="/signup" class="btn btn-accent btn-lg">ফ্রি দোকান খুলুন →</a>
-            <a href="#ready" class="btn h-ghost btn-lg">রেডি দোকান দেখুন</a>
+          <div class="hp-cta">
+            <a href="/signup" class="btn btn-accent btn-lg">ফ্রিতে দোকান খুলুন <Icon name="arrow-right" /></a>
+            <a href="#ready" class="btn hp-ghost btn-lg">রেডি দোকান দেখুন</a>
           </div>
-          <ul class="h-chips">
-            <li>✓ {bn(f.trialDays)} দিন ফ্রি</li>
-            <li>✓ কার্ড লাগবে না</li>
-            <li>✓ bKash / Nagad</li>
-            <li>✓ পুরোটা বাংলায়</li>
-            <li>✓ ২৪ ঘণ্টা সাপোর্ট</li>
+          <ul class="hp-trust">
+            <li><Icon name="check" size="sm" /> {bn(f.trialDays)} দিন সব ফিচার ফ্রি</li>
+            <li><Icon name="check" size="sm" /> কার্ড লাগবে না</li>
+            <li><Icon name="check" size="sm" /> ফ্রি প্ল্যান চিরকাল</li>
+            <li><Icon name="check" size="sm" /> ২৪ ঘণ্টা বাংলায় সাপোর্ট</li>
           </ul>
-          {devMode && <p><a href="/?shop=demoshop" class="btn h-ghost">ডেমো দোকান দেখুন</a></p>}
+          {devMode && <p><a href="/?shop=demoshop" class="btn hp-ghost">ডেমো দোকান (লোকাল)</a></p>}
         </div>
 
-        {/* মোবাইলে দোকান দেখতে কেমন — শুধু HTML/CSS দিয়ে আঁকা */}
-        <div class="h-phone-wrap" aria-hidden="true">
-          <div class="h-phone">
-            <div class="h-ph-bar">yourshop.sellxbd.com</div>
-            <div class="h-ph-img"></div>
-            <div class="h-ph-body">
-              <div class="h-ph-title">হাতে বানানো কাঠের শেলফ</div>
-              <div class="h-ph-price"><b>৳১,২৫০</b> <s>৳১,৬৫০</s></div>
-              <div class="h-ph-qty"><span>−</span><b>২</b><span>+</span><em>মোট ৳২,৫০০</em></div>
-              <div class="h-ph-field">আপনার নাম</div>
-              <div class="h-ph-field">মোবাইল নম্বর</div>
-              <div class="h-ph-btn">অর্ডার করুন — ক্যাশ অন ডেলিভারি</div>
+        {/* প্যানেল আর ফোন — শুধু HTML/CSS দিয়ে আঁকা */}
+        <div class="hp-visual" aria-hidden="true">
+          <div class="hp-panel">
+            <div class="hp-panel-bar"><i></i><i></i><i></i><span>প্যানেল · আজ</span></div>
+            <div class="hp-panel-kpis">
+              <div><small>নতুন অর্ডার</small><b>৪৮</b><em class="up">▲ ১২%</em></div>
+              <div><small>কনফার্ম</small><b>৪১</b><em class="up">৮৫%</em></div>
+              <div><small>ফেক আটকানো</small><b>৬</b><em class="warn">৳৭২০ বাঁচল</em></div>
+            </div>
+            <div class="hp-panel-chart">{[38, 52, 44, 61, 57, 70, 66, 82, 74, 90].map((h) => <span style={`height:${h}%`}></span>)}</div>
+            <div class="hp-panel-rows">
+              <div><b>রুমানা আক্তার</b><span class="ok">✓৫ · ✕০</span><em>কনফার্ম</em></div>
+              <div><b>নতুন ক্রেতা</b><span class="risk">✓০ · ✕৩</span><em class="hold">অগ্রিম চান</em></div>
             </div>
           </div>
-          <div class="h-toast h-toast-1">🛒 নতুন অর্ডার — রহিম, মিরপুর</div>
-          <div class="h-toast h-toast-2">🛡️ ফেক অর্ডার আটকানো হয়েছে</div>
-          <div class="h-toast h-toast-3">🚚 Steadfast-এ বুক হয়েছে</div>
-          <div class="h-toast h-toast-4">💬 সাপোর্ট: "জি, এখনই দেখছি"</div>
+          <div class="hp-phone">
+            <div class="hp-ph-img"></div>
+            <div class="hp-ph-t">হাতে বানানো কাঠের শেলফ</div>
+            <div class="hp-ph-p"><b>৳১,২৫০</b> <s>৳১,৬৫০</s> <span>★ ৪.৯</span></div>
+            <div class="hp-ph-f"></div><div class="hp-ph-f"></div>
+            <div class="hp-ph-btn">অর্ডার করুন</div>
+          </div>
+          <div class="hp-float hp-f1"><Icon name="bell" size="sm" /> নতুন অর্ডার · মিরপুর</div>
+          <div class="hp-float hp-f2"><Icon name="truck" size="sm" /> Steadfast-এ বুক হয়েছে</div>
         </div>
       </div>
     </section>
 
-    {/* এক নজরে */}
-    <section class="h-stats">
-      <div class="wrap h-stats-grid">
+    {/* ===== যুক্ত আছে ===== */}
+    <section class="hp-logos">
+      <div class="wrap">
+        <span>সাথেই যুক্ত</span>
+        <ul>{["Steadfast", "Pathao", "RedX", "bKash", "Nagad", "Rocket", "Facebook Pixel", "Conversions API", "Google Analytics", "TikTok", "WhatsApp"].map((n) => <li>{n}</li>)}</ul>
+      </div>
+    </section>
+
+    {/* ===== সংখ্যা ===== */}
+    <section class="hp-numbers">
+      <div class="wrap hp-numbers-grid">
         {[
-          ["৬টা", "রেডি দোকান"], ["৪টা", "থিম, পুরো কাস্টমাইজ"], ["৩টা", "কুরিয়ার যুক্ত"], ["২ মিনিট", "দোকান চালু"], ["২৪/৭", "সাপোর্ট"],
+          ["২ মিনিট", "দোকান চালু"], ["৬টা", "রেডি দোকান"], ["২০টা", "ল্যান্ডিং টেমপ্লেট"], ["৪টা", "থিম, লাইভ এডিটর"], ["২৪/৭", "বাংলায় সাপোর্ট"],
         ].map(([n, l]) => <div><b>{n}</b><span>{l}</span></div>)}
       </div>
     </section>
 
-    {/* সমস্যা */}
-    <section class="h-sec">
+    {/* ===== সমস্যা → সমাধান ===== */}
+    <section class="hp-sec">
       <div class="wrap">
-        <h2 class="h-title">এই সমস্যাগুলো চেনা লাগে?</h2>
-        <div class="h-pains">
-          {[
-            ["😩", "ফেক অর্ডার আর রিটার্ন", "পার্সেল পাঠালেন, কাস্টমার ফোন ধরে না। ডেলিভারি চার্জ, প্যাকেজিং — সব গচ্চা।"],
-            ["💸", "অ্যাডের খরচ বাড়ছে", "Pixel সব অর্ডারকে বিক্রি ধরে নেয়, তাই Facebook ফেক ক্রেতা খুঁজে আনে। আসল বিক্রির খরচ বাড়ে।"],
-            ["📥", "ইনবক্সে অর্ডার হারিয়ে যায়", "\"দাম কত?\" — শত শত মেসেজ। উত্তর দিতে দেরি হলেই কাস্টমার অন্য পেজে।"],
-            ["📒", "খাতা, এক্সেল আর কুরিয়ার প্যানেল", "একই ঠিকানা তিন জায়গায় লেখা, ইনভয়েস হাতে লেখা। কোন অর্ডার কোথায়, খুঁজতেই সময় যায়।"],
-          ].map(([i, t, d]) => (
-            <div class="h-pain"><div class="h-pain-i">{i}</div><div><h3>{t}</h3><p>{d}</p></div></div>
+        <p class="hp-eyebrow">চেনা সমস্যা, সহজ সমাধান</p>
+        <h2 class="hp-title">ফেসবুকে বিক্রির ঝামেলাগুলো আমরা বুঝি</h2>
+        <div class="hp-pains">
+          {([
+            ["পার্সেল পাঠালেন, কাস্টমার ফোন ধরে না — ডেলিভারি চার্জ গচ্চা।", "ক্রেতার আগের রেকর্ড দেখে কনফার্ম করুন, ঝুঁকির ক্রেতার কাছে অগ্রিম নিন।", "shield-check"],
+            ["অ্যাডের খরচ বাড়ছে, কিন্তু আসল বিক্রি বাড়ছে না।", "Purchase যায় শুধু কনফার্ম অর্ডারে — Facebook আসল ক্রেতা খোঁজে। প্রতি অর্ডারে খরচ চোখের সামনে।", "trending-up"],
+            ["ইনবক্সে \"দাম কত?\" — উত্তর দিতে দেরি, কাস্টমার অন্য পেজে।", "লিংকে দাম, ছবি, রিভিউ আর অর্ডার ফর্ম — কাস্টমার নিজেই অর্ডার করে, রাত ৩টাতেও।", "smartphone"],
+            ["খাতা, এক্সেল, কুরিয়ার প্যানেল — মাস শেষে লাভ কত বোঝা যায় না।", "অর্ডার, স্টক, কুরিয়ার, খরচ এক জায়গায় — নিট লাভ নিজে থেকে হিসাব হয়।", "calculator"],
+          ] as [string, string, IconName][]).map(([pain, fix, ic]) => (
+            <div class="hp-pain">
+              <p class="hp-pain-q"><Icon name="x" size="sm" /> {pain}</p>
+              <p class="hp-pain-a"><span class="hp-ic"><Icon name={ic} /></span> {fix}</p>
+            </div>
           ))}
         </div>
       </div>
     </section>
 
-    {/* রেডি দোকান */}
-    <section class="h-sec h-soft" id="ready">
+    {/* ===== বিক্রির পুরো পথ (ট্যাব) ===== */}
+    <section class="hp-sec hp-soft" id="features">
       <div class="wrap">
-        <h2 class="h-title">কী বিক্রি করেন? রেডি দোকান নিন</h2>
-        <p class="h-sub">ক্যাটাগরি, থিম, রং, ডেলিভারি চার্জ আর পলিসি পেজ আগে থেকে সাজানো — শুধু নিজের পণ্য বসান</p>
+        <p class="hp-eyebrow">সব ফিচার, এক প্যানেলে</p>
+        <h2 class="hp-title">দোকান বানানো থেকে লাভের হিসাব — পুরো পথ</h2>
+        <p class="hp-sub">আলাদা অ্যাপ, প্লাগিন বা ডেভেলপার লাগবে না। সব প্ল্যানে সব ফিচার।</p>
+        <div class="hp-tabs" data-hp-tabs>
+          <div class="hp-tablist" role="tablist">
+            {FEATURE_TABS.map((t, i) => (
+              <button type="button" role="tab" class={i === 0 ? "active" : ""} data-hp-tab={t.key} aria-selected={i === 0 ? "true" : "false"}>
+                <Icon name={t.icon} /> <span>{t.title}</span>
+              </button>
+            ))}
+          </div>
+          {FEATURE_TABS.map((t, i) => (
+            <div class="hp-panel-tab" data-hp-panel={t.key} role="tabpanel" data-first={i === 0 ? "1" : undefined}>
+              <h3 class="hp-tab-h"><Icon name={t.icon} /> {t.title} <small>{t.sub}</small></h3>
+              <div class="hp-feats">
+                {t.items.map(([ic, title, d]) => (
+                  <div class="hp-feat"><span class="hp-ic"><Icon name={ic} /></span><h4>{title}</h4><p>{d}</p></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* ===== স্পটলাইট ১: ফেক অর্ডার ===== */}
+    <section class="hp-sec">
+      <div class="wrap hp-spot">
+        <div class="hp-spot-copy">
+          <p class="hp-eyebrow">সবচেয়ে বড় পার্থক্য</p>
+          <h2>পার্সেল পাঠানোর আগেই জানুন, কে নেবে আর কে নেবে না</h2>
+          <ul class="hp-list">
+            <li><Icon name="users" /> <span><b>ক্রেতার রেকর্ড:</b> সব SellxBD দোকান আর কুরিয়ারের ডেলিভারি মিলিয়ে — কতবার নিয়েছে, কতবার ফেরত। অন্য দোকানের নাম গোপন থাকে।</span></li>
+            <li><Icon name="wallet" /> <span><b>অগ্রিম শুধু যেখানে দরকার:</b> ঝুঁকির ক্রেতা বা ঢাকার বাইরে হলে ডেলিভারি চার্জ অগ্রিম — TrxID দিয়ে যাচাই।</span></li>
+            <li><Icon name="hourglass" /> <span><b>হারানো অর্ডার ফেরান:</b> ফর্ম অর্ধেক পূরণ করে চলে যাওয়া ক্রেতার নম্বর তালিকায় — এক ক্লিকে কল বা WhatsApp।</span></li>
+            <li><Icon name="shield-alert" /> <span><b>ফেক চিহ্নিত করলেই ব্লক:</b> সেই নম্বর আর মোবাইল থেকে আর অর্ডার আসে না।</span></li>
+          </ul>
+        </div>
+        <div class="hp-mock" aria-hidden="true">
+          <div class="hp-mock-h"><b>অর্ডার</b><span>আজ · ১২টা নতুন</span></div>
+          {([
+            ["#১০৪২", "সাবরিনা ই.", "উত্তরা, ঢাকা", "✓৭ · ✕০", "ok", "নিরাপদ"],
+            ["#১০৪১", "নতুন ক্রেতা", "কুমিল্লা", "✓০ · ✕০", "new", "প্রথম অর্ডার"],
+            ["#১০৪০", "অজানা", "রাজশাহী", "✓১ · ✕৪", "risk", "অগ্রিম চান"],
+            ["#১০৩৯", "আধা পূরণ", "০১৭•••৪৫৬", "অসম্পূর্ণ", "half", "কল করুন"],
+          ] as string[][]).map(([no, n, a, rec, cls, act]) => (
+            <div class={`hp-mrow ${cls}`}><span class="hp-mno">{no}</span><div><b>{n}</b><small>{a}</small></div><span class="hp-mrec">{rec}</span><em>{act}</em></div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* ===== স্পটলাইট ২: লাভ আর অ্যাড ===== */}
+    <section class="hp-sec hp-soft">
+      <div class="wrap hp-spot hp-spot-rev">
+        <div class="hp-spot-copy">
+          <p class="hp-eyebrow">আন্দাজ নয়, হিসাব</p>
+          <h2>বিক্রি নয় — মাস শেষে আসল লাভ কত, সেটা দেখুন</h2>
+          <ul class="hp-list">
+            <li><Icon name="calculator" /> <span><b>নিট লাভ নিজে থেকে:</b> মালের দাম, কুরিয়ার, ফেরত পার্সেল, COD চার্জ আর অ্যাড খরচ বাদ দিয়ে — পণ্য ধরে।</span></li>
+            <li><Icon name="trending-up" /> <span><b>অ্যাডের আসল ফল:</b> প্রতি কনফার্ম অর্ডারে কত খরচ, খরচের কত গুণ বিক্রি — কোন পণ্যের অ্যাড বন্ধ করবেন বুঝে যাবেন।</span></li>
+            <li><Icon name="boxes" /> <span><b>স্টক মিলে থাকে:</b> কনফার্মে কমে, ফেরতে ফেরে — না থাকা মাল বিক্রি হয় না।</span></li>
+          </ul>
+        </div>
+        <div class="hp-mock hp-profit" aria-hidden="true">
+          <div class="hp-mock-h"><b>এই মাসের হিসাব</b><span>নভেম্বর</span></div>
+          {([["বিক্রি (ডেলিভারি হয়েছে)", "৳১,৮৪,৫০০", ""], ["মালের দাম", "− ৳৯৮,২০০", "m"], ["কুরিয়ার ও COD চার্জ", "− ৳১৮,৯৬০", "m"], ["ফেরত পার্সেলের খরচ", "− ৳৩,১২০", "m"], ["ফেসবুক অ্যাড", "− ৳২৪,৬০০", "m"]] as string[][]).map(([l, v, c]) => (
+            <div class="hp-prow"><span>{l}</span><b class={c}>{v}</b></div>
+          ))}
+          <div class="hp-prow hp-ptotal"><span>নিট লাভ</span><b>৳৩৯,৬২০</b></div>
+          <div class="hp-pchips"><span>প্রতি অর্ডারে অ্যাড খরচ ৳৯৮</span><span>খরচের ৭.৫ গুণ বিক্রি</span></div>
+        </div>
+      </div>
+    </section>
+
+    {/* ===== রেডি দোকান ===== */}
+    <section class="hp-sec" id="ready">
+      <div class="wrap">
+        <p class="hp-eyebrow">২ মিনিটে শুরু</p>
+        <h2 class="hp-title">কী বিক্রি করেন? সাজানো দোকান নিন</h2>
+        <p class="hp-sub">ক্যাটাগরি, থিম, রং, ডেলিভারি চার্জ আর পলিসি পেজ আগে থেকে সাজানো — শুধু নিজের পণ্য বসান</p>
         <div class="h-niches">
           {NICHES.map((n) => {
             const d = demoOf(n.key, n.name);
@@ -186,166 +303,136 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
                   <p>{n.tagline}</p>
                   <div class="h-niche-cats">{n.cats.slice(0, 4).map((c) => <span>{c}</span>)}</div>
                   <div class="h-niche-actions">
-                    {d && <a href={d.url} target="_blank" rel="noopener" class="btn btn-sm h-niche-demo">ডেমো দেখুন ↗</a>}
-                    <a href={`/signup?niche=${n.key}`} class="btn btn-sm h-niche-go">এই দোকান খুলুন →</a>
+                    {d && <a href={d.url} target="_blank" rel="noopener" class="btn btn-sm h-niche-demo">ডেমো দেখুন <Icon name="external-link" size="sm" /></a>}
+                    <a href={`/signup?niche=${n.key}`} class="btn btn-sm h-niche-go">এই দোকান খুলুন</a>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-        <p class="h-sub h-after">আপনার পণ্য এখানে নেই? সমস্যা নেই — "অন্য কিছু" বেছে নিজের মতো সাজিয়ে নিন।</p>
+        <p class="hp-sub hp-after">আপনার পণ্য এখানে নেই? "অন্য কিছু" বেছে নিজের মতো সাজিয়ে নিন — পোশাক থেকে কাঠের গিফট, সব চলে।</p>
       </div>
     </section>
 
-    {/* ফিচার — ভাগ করে */}
-    <section class="h-sec">
+    {/* ===== সাপোর্ট আর শেখা ===== */}
+    <section class="hp-sec hp-soft">
       <div class="wrap">
-        <h2 class="h-title">অনলাইনে বিক্রির জন্য যা যা লাগে, সব আছে</h2>
-        <p class="h-sub">ফেসবুক সেলারদের রোজকার কাজ মাথায় রেখে বানানো — আলাদা কোনো অ্যাপ বা প্লাগিন লাগবে না</p>
-        <div class="h-groups">
-          {FEATURE_GROUPS.map((g) => (
-            <div class="h-group">
-              <div class="h-group-head"><span>{g.icon}</span><div><h3>{g.title}</h3><p>{g.sub}</p></div></div>
-              <div class="h-feats">
-                {g.items.map(([i, t, d]) => <div class="h-feat"><div class="h-feat-i">{i}</div><h4>{t}</h4><p>{d}</p></div>)}
-              </div>
-            </div>
-          ))}
+        <p class="hp-eyebrow">একা নন</p>
+        <h2 class="hp-title">আটকে গেলে সাহায্য — দিনে-রাতে, বাংলায়</h2>
+        <div class="hp-help">
+          <div class="hp-help-card">
+            <span class="hp-ic"><Icon name="message-circle" /></span>
+            <h3>লাইভ চ্যাট আর টিকেট</h3>
+            <p>প্যানেলের কোণে সাপোর্ট বাটন — ছোট প্রশ্নে চ্যাট, বড় সমস্যায় স্ক্রিনশটসহ টিকেট। ২৪ ঘণ্টা খোলা।</p>
+          </div>
+          <div class="hp-help-card">
+            <span class="hp-ic"><Icon name="book-open" /></span>
+            <h3>{bn(HELP.length)}টা ধাপে ধাপে গাইড</h3>
+            <p>দোকান খোলা, পণ্য, ল্যান্ডিং পেজ, কুরিয়ার, Pixel — প্রতিটা কাজ ছবির মতো সহজ বাংলায়।</p>
+            <a href="/help" class="hp-link">হেল্প সেন্টার <Icon name="arrow-right" size="sm" /></a>
+          </div>
+          <div class="hp-help-card">
+            <span class="hp-ic"><Icon name="phone" /></span>
+            <h3>কল বা WhatsApp</h3>
+            <p>শুরু করার আগে কিছু জানতে চান? সরাসরি কথা বলুন।</p>
+            {f.support ? <a href={`tel:${f.support}`} class="hp-link">{bn(f.support)} <Icon name="arrow-right" size="sm" /></a> : <a href="/contact" class="hp-link">যোগাযোগ <Icon name="arrow-right" size="sm" /></a>}
+          </div>
         </div>
       </div>
     </section>
 
-    {/* দুই ধরনের পেজ */}
-    <section class="h-sec h-soft">
+    {/* ===== ৩ ধাপ ===== */}
+    <section class="hp-sec" id="how">
       <div class="wrap">
-        <h2 class="h-title">এক দোকানে দুই রকম কাস্টমারের জন্য দুই রকম পেজ</h2>
-        <div class="h-two">
-          <div class="h-two-card">
-            <div class="h-two-ico">🏪</div>
-            <h3>পুরো দোকান</h3>
-            <p>পেজ থেকে যারা ঘুরে দেখতে আসে — হোমপেজ, ক্যাটাগরি, সার্চ, পণ্যের বিস্তারিত পেজ, কার্ট আর চেকআউট।</p>
-            <ul><li><Check /> সাজানো থিম, ব্যানার, অফার</li><li><Check /> কয়েকটা পণ্য একসাথে কেনা</li><li><Check /> সম্পর্কিত পণ্য দেখিয়ে বেশি বিক্রি</li></ul>
-          </div>
-          <div class="h-two-card h-two-accent">
-            <div class="h-two-ico">🎯</div>
-            <h3>অ্যাডের ল্যান্ডিং পেজ</h3>
-            <p>অ্যাড দেখে যারা আসে — এক পেজেই পণ্যের সব কথা আর অর্ডার ফর্ম, অন্য কোথাও যেতে হয় না।</p>
-            <ul><li><Check /> রেডি টেমপ্লেট থেকে কয়েক মিনিটে</li><li><Check /> রিভিউ, ভিডিও, কাউন্টডাউন</li><li><Check /> বেশি অর্ডার, কম খরচ</li></ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    {/* সাপোর্ট */}
-    <section class="h-sec">
-      <div class="wrap h-support-grid">
-        <div>
-          <p class="h-eyebrow">২৪ ঘণ্টা পাশে আছি</p>
-          <h2>সমস্যা হলে প্যানেলের ভিতরেই সাহায্য</h2>
-          <p class="h-lead-dark">দোকানের অ্যাডমিন প্যানেলের কোণে সাপোর্ট বাটন — আলাদা নম্বর খোঁজা বা ইনবক্সে অপেক্ষা নয়।</p>
-          <div class="h-support-items">
-            <div><b>💬 লাইভ চ্যাট</b><span>ছোট প্রশ্ন, দ্রুত উত্তর — টিম লিখছে কি না সেটাও দেখবেন।</span></div>
-            <div><b>🎫 সাপোর্ট টিকেট</b><span>বড় সমস্যা স্ক্রিনশটসহ জানান, সমাধান না হওয়া পর্যন্ত খোলা থাকে।</span></div>
-            {f.support && <div><b>📞 কল বা WhatsApp</b><span><a href={`tel:${f.support}`}>{bn(f.support)}</a></span></div>}
-          </div>
-        </div>
-        <div class="h-chat-mock" aria-hidden="true">
-          <div class="h-chat-head"><b>SellxBD সাপোর্ট</b><small>● টিম অনলাইনে</small></div>
-          <div class="h-chat-tabs"><span class="on">💬 লাইভ চ্যাট</span><span>🎫 সাপোর্ট টিকেট</span></div>
-          <div class="h-chat-body">
-            <div class="h-bub me">Steadfast-এ পার্সেল যাচ্ছে না, একটু দেখবেন?</div>
-            <div class="h-bub them">জি, দেখছি। কুরিয়ার সেটিংসে API key আবার বসিয়ে "যাচাই করুন" চাপুন তো।</div>
-            <div class="h-bub me">হয়ে গেছে, ধন্যবাদ! 🙏</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    {/* কীভাবে */}
-    <section class="h-sec h-soft" id="how">
-      <div class="wrap">
-        <h2 class="h-title">৩ ধাপে দোকান চালু</h2>
-        <ol class="h-steps">
-          <li><span>১</span><h3>দোকান খুলুন</h3><p>নাম, মোবাইল আর কী বিক্রি করবেন বাছুন। ২ মিনিটে সাজানো দোকান তৈরি: <code>yourshop.sellxbd.com</code></p></li>
-          <li><span>২</span><h3>পণ্য আর ডিজাইন</h3><p>ছবি, দাম, সাইজ/রং দিন। থিম আর রং পছন্দমতো করুন, অ্যাডের জন্য টেমপ্লেট থেকে ল্যান্ডিং পেজ বানান।</p></li>
-          <li><span>৩</span><h3>লিংক দিয়ে অ্যাড চালান</h3><p>পোস্ট বা অ্যাডে লিংক দিন। অর্ডার আসবে — কনফার্ম করুন, ইনভয়েস প্রিন্ট করুন, এক ক্লিকে কুরিয়ারে পাঠান।</p></li>
+        <h2 class="hp-title">৩ ধাপে বিক্রি শুরু</h2>
+        <ol class="hp-steps">
+          <li><span>১</span><h3>দোকান খুলুন</h3><p>নাম, মোবাইল আর কী বিক্রি করবেন বাছুন। ২ মিনিটে সাজানো দোকান: <code>yourshop.sellxbd.com</code></p></li>
+          <li><span>২</span><h3>পণ্য আর পেজ</h3><p>ছবি, দাম, সাইজ/রং দিন। টেমপ্লেট থেকে অ্যাডের ল্যান্ডিং পেজ বানান — লেখা চাইলে AI দিয়ে।</p></li>
+          <li><span>৩</span><h3>লিংক দিয়ে অ্যাড চালান</h3><p>অর্ডার এলে ফোনে খবর — রেকর্ড দেখে কনফার্ম, ইনভয়েস প্রিন্ট, এক ক্লিকে কুরিয়ার।</p></li>
         </ol>
       </div>
     </section>
 
-    {/* দাম */}
-    <section class="h-sec" id="price">
+    {/* ===== দাম ===== */}
+    <section class="hp-sec hp-soft" id="price">
       <div class="wrap">
-        <h2 class="h-title">ন্যায্য দাম — যত বিক্রি, তত খরচ</h2>
-        <p class="h-sub">ফেক বা বাতিল অর্ডারে এক টাকাও না</p>
-        <div class="h-price-grid">
-          <div class="h-price">
-            <div class="h-price-top">
-              <div class="h-big">৳০<small> থেকে শুরু</small></div>
-              <div class="h-plus">{taka(f.plans.small.price)} / {taka(f.plans.grow.price)} / {taka(f.plans.big.price)} প্রতি মাসে — শুধু অর্ডারের সংখ্যায় পার্থক্য</div>
+        <p class="hp-eyebrow">ন্যায্য দাম</p>
+        <h2 class="hp-title">৳০ থেকে শুরু — যত বড় হবেন, তত প্ল্যান</h2>
+        <p class="hp-sub">সব প্ল্যানে সব ফিচার। পার্থক্য শুধু মাসে কয়টা কনফার্ম অর্ডার। ফেক বা বাতিল অর্ডার গোনা হয় না।</p>
+        <div class="hp-plans">
+          {(["free", "small", "grow", "big"] as const).map((k) => (
+            <div class={`hp-plan${k === "grow" ? " hp-plan-hot" : ""}`}>
+              {k === "grow" && <span class="hp-plan-badge">সবচেয়ে জনপ্রিয়</span>}
+              <h3>{P[k].name}</h3>
+              <p class="hp-plan-for">{P[k].for}</p>
+              <div class="hp-plan-price">{P[k].price ? taka(P[k].price) : "৳০"}<small>/মাস</small></div>
+              <ul>
+                <li><Icon name="check" size="sm" /> মাসে {bn(P[k].orders)}টা কনফার্ম অর্ডার</li>
+                <li><Icon name="check" size="sm" /> {P[k].staff ? `${bn(P[k].staff)} জন স্টাফ` : "শুধু মালিক"}</li>
+                <li>{P[k].domain ? <><Icon name="check" size="sm" /> নিজের ডোমেইন</> : <><Icon name="x" size="sm" class="hp-no" /> নিজের ডোমেইন নেই</>}</li>
+              </ul>
             </div>
-            <ul>
-              <li><Check /> সব প্ল্যানে সব ফিচার — কোনো লুকানো চার্জ নেই</li>
-              <li><Check /> ফ্রি প্ল্যানে মাসে {bn(f.plans.free.orders)}টা অর্ডার — একদম ৳০</li>
-              <li><Check /> প্রথম {bn(f.trialDays)} দিন "বাড়ন্ত" প্ল্যান সম্পূর্ণ ফ্রি</li>
-              <li><Check /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ২ মাস ফ্রি</li>
-              <li><Check /> ফেক বা বাতিল অর্ডার গোনা হয় না</li>
-              <li><Check /> ২৪ ঘণ্টা সাপোর্ট সাথেই</li>
-            </ul>
-            <a href="/pricing" class="btn btn-accent btn-block btn-lg">সব প্ল্যান দেখুন</a>
-          </div>
-          <div class="h-calc" data-plans={JSON.stringify((["free", "small", "grow", "big"] as const).map((k) => ({ n: f.plans[k].name, p: f.plans[k].price, o: f.plans[k].orders, e: f.plans[k].extra })))}>
-            <h3>আপনার মাসিক খরচ কত হবে?</h3>
+          ))}
+        </div>
+        <div class="hp-price-foot">
+          <div class="h-calc" data-plans={JSON.stringify((["free", "small", "grow", "big"] as const).map((k) => ({ n: P[k].name, p: P[k].price, o: P[k].orders, e: P[k].extra })))}>
+            <h3>আপনার জন্য কোনটা সস্তা?</h3>
             <label for="h-orders">মাসে কয়টা অর্ডার কনফার্ম হয়?</label>
             <input type="range" id="h-orders" min="0" max="3000" step="50" value="300" />
             <div class="h-calc-row"><span>কনফার্ম অর্ডার</span><b data-out="orders">৩০০টা</b></div>
-            <div class="h-calc-row"><span>সবচেয়ে সস্তা প্ল্যান</span><b data-out="plan">{f.plans.small.name}</b></div>
-            <div class="h-calc-total"><span>মোট</span><b data-out="total">৳{bn(f.plans.small.price)}</b></div>
-            <p class="h-note">একটা ফেক অর্ডারের ডেলিভারি চার্জেই প্রায় এক মাসের ভাড়া চলে যায় — SellxBD সেটা আগেই আটকায়।</p>
+            <div class="h-calc-row"><span>সবচেয়ে সস্তা প্ল্যান</span><b data-out="plan">{P.small.name}</b></div>
+            <div class="h-calc-total"><span>মাসে মোট</span><b data-out="total">৳{bn(P.small.price)}</b></div>
           </div>
+          <ul class="hp-price-notes">
+            <li><Icon name="gift" /> প্রথম {bn(f.trialDays)} দিন "{P.grow.name}" প্ল্যানের সব সুবিধা ফ্রি</li>
+            <li><Icon name="rotate-ccw" /> রিচার্জ না করলে দোকান বন্ধ হয় না — ফ্রি প্ল্যানে চলতে থাকে</li>
+            <li><Icon name="wallet" /> bKash / Nagad দিয়ে রিচার্জ; বছরে নিলে ২ মাস ফ্রি</li>
+            <li><Icon name="info" /> একটা ফেক পার্সেলের খরচেই অনেক সময় এক মাসের প্ল্যান চলে যায়</li>
+            <li><a href="/pricing" class="hp-link">সব প্ল্যানের বিস্তারিত <Icon name="arrow-right" size="sm" /></a></li>
+          </ul>
         </div>
       </div>
     </section>
 
-    {/* তুলনা */}
-    <section class="h-sec h-soft">
+    {/* ===== তুলনা ===== */}
+    <section class="hp-sec">
       <div class="wrap">
-        <h2 class="h-title">অন্য উপায়ের সাথে তুলনা</h2>
+        <h2 class="hp-title">অন্য উপায়ের সাথে তুলনা</h2>
         <div class="h-compare-wrap">
           <table class="h-compare">
             <thead><tr><th></th><th>শুধু ফেসবুক পেজ</th><th>ডেভেলপার দিয়ে সাইট</th><th class="h-us">SellxBD</th></tr></thead>
             <tbody>
-              <tr><td>শুরুর খরচ</td><td>৳০</td><td>হাজার হাজার টাকা</td><td class="h-us">৳০ — ফ্রি ট্রায়াল</td></tr>
+              <tr><td>শুরুর খরচ</td><td>৳০</td><td>হাজার হাজার টাকা</td><td class="h-us">৳০ — ফ্রি প্ল্যান</td></tr>
               <tr><td>চালু হতে সময়</td><td>সাথে সাথে</td><td>কয়েক সপ্তাহ</td><td class="h-us">২ মিনিট, রেডি দোকান</td></tr>
-              <tr><td>ফেক অর্ডার আটকানো</td><td><Cross /></td><td>আলাদা খরচে</td><td class="h-us"><Check /></td></tr>
+              <tr><td>ফেক অর্ডার আর ক্রেতার রেকর্ড</td><td><Cross /></td><td>আলাদা খরচে</td><td class="h-us"><Check /></td></tr>
               <tr><td>Pixel + CAPI ঠিকমতো</td><td><Cross /></td><td>নির্ভর করে</td><td class="h-us"><Check /></td></tr>
-              <tr><td>ডিজাইন বদলানো</td><td><Cross /></td><td>প্রতিবার ডেভেলপার</td><td class="h-us"><Check /> নিজেই, কোড ছাড়া</td></tr>
+              <tr><td>ডিজাইন আর ল্যান্ডিং পেজ বদলানো</td><td><Cross /></td><td>প্রতিবার ডেভেলপার</td><td class="h-us"><Check /> নিজেই, কোড ছাড়া</td></tr>
               <tr><td>কুরিয়ার, SMS, ইনভয়েস</td><td>হাতে হাতে</td><td>আলাদা খরচে</td><td class="h-us"><Check /> সাথেই আছে</td></tr>
+              <tr><td>স্টক আর আসল লাভের হিসাব</td><td>খাতায়</td><td>আলাদা খরচে</td><td class="h-us"><Check /> নিজে থেকে</td></tr>
               <tr><td>সমস্যা হলে সাহায্য</td><td>—</td><td>ডেভেলপারের সময়মতো</td><td class="h-us"><Check /> ২৪ ঘণ্টা, প্যানেলেই</td></tr>
-              <tr><td>আপডেট আর মেইনটেন্যান্স</td><td>—</td><td>আপনার দায়িত্ব</td><td class="h-us"><Check /> আমাদের দায়িত্ব</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </section>
 
-    {/* প্রশ্নোত্তর */}
-    <section class="h-sec">
+    {/* ===== প্রশ্নোত্তর ===== */}
+    <section class="hp-sec hp-soft">
       <div class="wrap h-narrow">
-        <h2 class="h-title">সাধারণ প্রশ্ন</h2>
+        <h2 class="hp-title">সাধারণ প্রশ্ন</h2>
         <div class="h-faq">
           {[
-            ["কম্পিউটার বা কোডিং জানতে হবে?", "না। ফেসবুকে পোস্ট দিতে পারলেই চালাতে পারবেন। মোবাইল দিয়েই পুরো দোকান চালানো যায়।"],
-            ["কোন ধরনের পণ্যের জন্য?", "যেকোনো পণ্য — পোশাক, স্কিনকেয়ার, খাবার, গ্যাজেট, কিচেন, শিশু পণ্য, হাতে বানানো জিনিস। ৬টা ক্যাটাগরির রেডি দোকান আছে, বাকিগুলো নিজের মতো সাজিয়ে নিন।"],
-            ["ডিজাইন কি নিজের মতো করা যাবে?", "হ্যাঁ। ৪টা থিম থেকে বাছুন, তারপর রং, ফন্ট, হেডার, হোমপেজের কোন সেকশন কোথায় থাকবে, পণ্যের পেজ, ফুটার — সব প্যানেল থেকে বদলান। কোড লাগে না।"],
-            ["ট্রায়াল শেষ হলে কী হবে?", `${bn(f.trialDays)} দিন পর পছন্দের প্ল্যান চালু হয়। রিচার্জ না করলে দোকান ফ্রি প্ল্যানে চলতে থাকে — বন্ধ হয় না, পণ্য আর অর্ডার সব থেকে যায়।`],
-            ["টাকা কাটে কীভাবে?", `আগে bKash/Nagad দিয়ে রিচার্জ করবেন। প্ল্যানের টাকা (৳${bn(f.plans.small.price)} থেকে) বিলের দিন কাটে; প্ল্যানের সীমার বেশি অর্ডার হলে মাস শেষে অল্প বাড়তি। ফেক বা বাতিল অর্ডার গোনা হয় না। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
-            ["নিজের ডোমেইন ব্যবহার করা যাবে?", "হ্যাঁ। প্যানেলে ডোমেইন যোগ করলে আমরা দুটো নেমসার্ভার দেব, সেগুলো ডোমেইন প্যানেলে বসালেই চালু। ডোমেইন না থাকলে ফ্রি subdomain পাবেন।"],
+            ["কম্পিউটার বা কোডিং জানতে হবে?", "না। ফেসবুকে পোস্ট দিতে পারলেই চালাতে পারবেন। মোবাইল দিয়েই পুরো দোকান চালানো যায় — প্যানেল অ্যাপের মতো ফোনে বসিয়ে নিলে নতুন অর্ডারের নোটিফিকেশনও পাবেন।"],
+            ["সত্যিই ফ্রি?", `হ্যাঁ। ফ্রি প্ল্যানে মাসে ${bn(P.free.orders)}টা কনফার্ম অর্ডার পর্যন্ত একদম ৳০, সব ফিচারসহ। বেশি অর্ডার হলে বা স্টাফ/নিজের ডোমেইন লাগলে পেইড প্ল্যান নিন।`],
+            ["কোন ধরনের পণ্যের জন্য?", "যেকোনো পণ্য — পোশাক, স্কিনকেয়ার, খাবার, গ্যাজেট, কিচেন, শিশু পণ্য, হাতে বানানো জিনিস। ৬টা ধরনের রেডি দোকান আছে, বাকিগুলো নিজের মতো সাজিয়ে নিন।"],
+            ["ফেক অর্ডার কীভাবে কমবে?", "ভুল নম্বর আর বারবার অর্ডার নিজে থেকে আটকায়। প্রতিটা অর্ডারে ক্রেতার আগের রেকর্ড দেখায় — কতবার নিয়েছে আর ফেরত দিয়েছে। ঝুঁকি থাকলে অগ্রিম ডেলিভারি চার্জ নিতে পারেন।"],
+            ["অনলাইন পেমেন্ট নেওয়া যায়?", "ক্যাশ অন ডেলিভারি মূল। চাইলে ডেলিভারি চার্জ বা পুরো টাকা bKash/Nagad/Rocket-এ অগ্রিম নিতে পারেন — কাস্টমার Transaction ID দেয়, আপনি মিলিয়ে নেন। কার্ড পেমেন্ট এখনো নেই।"],
+            ["টাকা কাটে কীভাবে?", `আগে bKash/Nagad দিয়ে রিচার্জ করবেন। প্ল্যানের টাকা (৳${bn(P.small.price)} থেকে) বিলের দিন কাটে; সীমার বেশি অর্ডার হলে মাস শেষে অল্প বাড়তি। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
+            ["নিজের ডোমেইন ব্যবহার করা যাবে?", "হ্যাঁ, পেইড প্ল্যানে। প্যানেলে ডোমেইন যোগ করলে দুটো নেমসার্ভার পাবেন, ডোমেইন প্যানেলে বসালেই চালু। ডোমেইন না থাকলে ফ্রি subdomain।"],
             ["কোন কোন কুরিয়ার আর SMS আছে?", "কুরিয়ার: Steadfast, Pathao আর RedX — নিজের মার্চেন্ট অ্যাকাউন্ট, পার্সেলের টাকা সরাসরি আপনার কাছে। SMS: BulkSMSBD, SMS.net.bd অথবা যেকোনো গেটওয়ের লিংক।"],
-            ["সমস্যা হলে কীভাবে সাহায্য পাব?", "দোকানের প্যানেলের কোণে সাপোর্ট বাটন আছে — লাইভ চ্যাটে সাথে সাথে কথা বলুন অথবা স্ক্রিনশটসহ টিকেট দিন। সাপোর্ট ২৪ ঘণ্টা খোলা।"],
-            ["আমার কাস্টমারের তথ্য কি নিরাপদ?", "প্রতিটা দোকানের তথ্য আলাদা ডাটাবেসে থাকে, অন্য কোনো দোকান দেখতে পায় না। পুরো সাইট https-এ চলে।"],
-            ["অনলাইন পেমেন্ট নেওয়া যায়?", "এখন ক্যাশ অন ডেলিভারি — বাংলাদেশে যেটা সবচেয়ে বেশি চলে। কাস্টমার পণ্য হাতে পেয়ে টাকা দেন।"],
+            ["আমার আর কাস্টমারের তথ্য কি নিরাপদ?", "প্রতিটা দোকানের তথ্য আলাদা ডাটাবেসে থাকে, অন্য দোকান দেখতে পায় না। ক্রেতার রেকর্ডে নম্বর গোপন কোডে রাখা হয়, দোকানের নাম দেখায় না। যখন খুশি সব তথ্য CSV-তে নামাতে পারেন।"],
+            ["সমস্যা হলে কীভাবে সাহায্য পাব?", "প্যানেলের কোণে সাপোর্ট বাটন — লাইভ চ্যাট বা স্ক্রিনশটসহ টিকেট, ২৪ ঘণ্টা। এছাড়া হেল্প সেন্টারে ধাপে ধাপে গাইড আছে।"],
           ].map(([q, a]) => (
             <details><summary>{q}</summary><p>{a}</p></details>
           ))}
@@ -353,13 +440,17 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
       </div>
     </section>
 
-    {/* শেষ ডাক */}
-    <section class="h-final">
-      <div class="wrap h-narrow center">
-        <h2>আজই নিজের অনলাইন দোকান খুলুন</h2>
-        <p>{bn(f.trialDays)} দিন ফ্রি। কার্ড লাগবে না। পছন্দ না হলে কোনো খরচ নেই।</p>
-        <a href="/signup" class="btn btn-accent btn-lg">ফ্রি দোকান খুলুন →</a>
-        {f.support && <p class="h-support">প্রশ্ন আছে? কল বা WhatsApp: <a href={`tel:${f.support}`}>{bn(f.support)}</a></p>}
+    {/* ===== শেষ ডাক ===== */}
+    <section class="hp-final">
+      <div class="wrap hp-final-in">
+        <div>
+          <h2>আজই নিজের অনলাইন দোকান খুলুন</h2>
+          <p>২ মিনিটে চালু। {bn(f.trialDays)} দিন সব ফিচার ফ্রি, তারপরও ফ্রি প্ল্যানে চলতে পারে। কার্ড লাগবে না।</p>
+        </div>
+        <div class="hp-final-cta">
+          <a href="/signup" class="btn btn-accent btn-lg">ফ্রিতে দোকান খুলুন <Icon name="arrow-right" /></a>
+          {f.support && <a href={`tel:${f.support}`} class="hp-final-call"><Icon name="phone" size="sm" /> {bn(f.support)}</a>}
+        </div>
       </div>
     </section>
 

@@ -20,6 +20,7 @@ import { normalizePhone } from "../shop/lib/phone";
 import { hashPassword, verifyPassword } from "../shop/lib/auth";
 import { clearShopCache } from "./resolve";
 import { nicheByKey } from "../shop/lib/niches";
+import { ASSET_VERSION } from "../shop/views/layout";
 
 /** প্ল্যাটফর্মের অ্যাপ: ourdomain.com — হোম, সাইনআপ, সুপার অ্যাডমিন */
 export const platformApp = new Hono<PEnv>();
@@ -103,7 +104,7 @@ async function demoLinks(c: PCtx) {
 
 platformApp.get("/", async (c) => {
   const fees = await loadFees(c);
-  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>);
+  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav} head={<link rel="stylesheet" href={`/css/home.css?v=${ASSET_VERSION}`} />}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>);
 });
 
 /* ---------- সাইনআপ ---------- */
@@ -256,7 +257,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=32"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=33"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );
