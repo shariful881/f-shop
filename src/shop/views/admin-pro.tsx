@@ -265,7 +265,7 @@ export const SETTINGS_TABS: { key: string; href: string; label: string; icon: Ic
   { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি চার্জ", icon: "truck", set: "shop" },
   { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "search", set: "shop" },
   { key: "tracking", href: "/admin/settings/tracking", label: "পিক্সেল ও ট্র্যাকিং", icon: "trending-up", set: "shop" },
-  { key: "customize", href: "/admin/settings/customize", label: "ডিজাইন কাস্টমাইজ", icon: "sliders-horizontal", set: "theme" },
+  { key: "customize", href: "/admin/design", label: "থিম এডিটর", icon: "sliders-horizontal", set: "theme" },
   { key: "appearance", href: "/admin/settings/appearance", label: "থিম বদল, লোগো ও ব্যানার", icon: "palette", set: "theme" },
 ];
 
@@ -339,11 +339,10 @@ export const SettingsAppearancePage = ({ s }: { s: Settings }) => (
           ))}
         </div>
       </Section>
-      <Section title="লোগো আর রং">
+      <Section title="লোগো">
         <ImageField name="logo" label="লোগো" current={s.logo} hint="PNG/JPG/WebP, ১ MB পর্যন্ত। ফাঁকা রাখলে আগেরটা থাকবে।" />
         <ImageField name="favicon" label="ফেভিকন (ব্রাউজারের ট্যাবের ছোট আইকন)" current={s.favicon} hint="বর্গাকার PNG, যেমন ৬৪×৬৪। না দিলে লোগো ব্যবহার হবে।" accept="image/png,image/webp" />
-        <F label="মূল রং (হেডার, দাম)"><input type="color" name="brand_color" value={s.brand_color || "#0f766e"} /></F>
-        <F label="বাটনের রং"><input type="color" name="accent_color" value={s.accent_color || "#ea580c"} /></F>
+        <p class="muted small" style="grid-column:1/-1">দোকানের রং এখন <a href="/admin/design">থিম এডিটরে</a> — তৈরি রঙের জোড়া থেকে এক ক্লিকে বা নিজের মতো, প্রিভিউ দেখে।</p>
       </Section>
       <Section title="হোমপেজের ব্যানার" desc="সব থিমে হোমপেজের উপরে বড় ছবি। ব্যানার না দিলে সরাসরি পণ্য দেখাবে। ঘোষণা বার আর বাকি সব “থিম কাস্টমাইজ” ট্যাবে।">
         {([1, 2, 3] as const).map((n) => (
@@ -599,33 +598,6 @@ export const CfgField = ({ f, cfg, products, categories }: { f: Field; cfg: Cfg;
     }
   }
 };
-
-export const ThemeCustomizePage = ({ theme, cfg, products, categories }: { s: Settings; theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; categories?: { id: number; name: string }[] }) => {
-  return (
-    <>
-      <Tabs active="customize" />
-      <div class="alert alert-ok de-promo"><Icon name="sliders-horizontal" size="sm" /> <span><b>নতুন: থিম লাইভ এডিটর</b> — বদলালেই পাশে দোকান কেমন দেখাবে সাথে সাথে দেখুন, ঠিক লাগলে পাবলিশ। <a href="/admin/design" class="btn btn-sm btn-primary" style="margin-left:8px">এডিটর খুলুন</a></span></div>
-      <p class="sa-muted cz-note">
-        এখন দোকানে চালু আছে <b>{THEMES[theme].name}</b> থিম — নিচের সেটিংস শুধু এই থিমের।
-        অন্য থিম চালু করলে সেই থিমের নিজের সেটিংস এখানে দেখাবে (<a href="/admin/settings/appearance">থিম বদলান</a>)।
-        {" "}<a href="/" target="_blank">দোকান দেখুন ↗</a>
-      </p>
-      <form method="post" action="/admin/settings/customize" class="set-form" enctype="multipart/form-data">
-        {GROUPS.map((g) => (
-          <details class="sa-card set-section cz-group" open={g.key === "style"} id={`cz-${g.key}`}>
-            <summary class="set-section-head"><h2>{g.title}</h2><p class="sa-muted">{g.desc}</p></summary>
-            <div class="set-fields">{g.fields.map((f) => <CfgField f={f} cfg={cfg} products={products} categories={categories} />)}</div>
-          </details>
-        ))}
-        <div class="set-save">
-          <button type="submit" name="reset" value="1" class="sa-btn sa-btn-ghost" data-confirm={`${THEMES[theme].name} থিমের সব সেটিংস শুরুর মতো করে দেবেন?`}>শুরুর সেটিংসে ফিরুন</button>
-          <button class="sa-btn">সেভ করুন</button>
-        </div>
-      </form>
-    </>
-  );
-};
-
 
 /* ---------- নিজের পেজ (আমাদের সম্পর্কে, রিটার্ন নীতি...) ---------- */
 export type PageRow = { id: number; title: string; slug: string; content: string; in_menu: number; is_active: number; sort_order: number };

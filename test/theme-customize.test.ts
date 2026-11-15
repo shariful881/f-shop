@@ -23,7 +23,7 @@ describe("থিম কাস্টমাইজ", () => {
 
   it("পেজ খোলে, সেভ করলে শুধু সেই থিমে লাগে আর দোকানে দেখায়", async () => {
     const a = await adminBrowser();
-    const page = await (await a.get("/admin/settings/customize?theme=classic")).text();
+    const page = await (await a.get("/admin/design")).text();
     expect(page).toContain("হেডার, মেনু আর ঘোষণা বার");
     expect(page).toContain('name="home_order"');
     expect(page).not.toContain("cz-themes"); // শুধু চালু থিমের সেটিংস, অন্য থিমের বাছাই নেই
@@ -51,12 +51,12 @@ describe("থিম কাস্টমাইজ", () => {
     await DB.prepare("UPDATE settings SET value = 'bold' WHERE key = 'theme'").run();
     expect(await home()).not.toContain("বিশেষ ছাড় চলছে");
     // সেটিংস পেজে এখন বোল্ডের নিজের সেটিংস, ক্লাসিকেরটা নয়
-    const boldPage = await (await a.get("/admin/settings/customize")).text();
+    const boldPage = await (await a.get("/admin/design")).text();
     expect(boldPage).toContain("বোল্ড");
     expect(boldPage).not.toContain("বিশেষ ছাড় চলছে");
     // ক্লাসিকে ফিরলে আগের সেটিংস আবার আসে
     await DB.prepare("UPDATE settings SET value = 'classic' WHERE key = 'theme'").run();
-    expect(await (await a.get("/admin/settings/customize")).text()).toContain("বিশেষ ছাড় চলছে");
+    expect(await (await a.get("/admin/design")).text()).toContain("বিশেষ ছাড় চলছে");
   });
 
   it("শুরুর সেটিংসে ফেরা যায়", async () => {

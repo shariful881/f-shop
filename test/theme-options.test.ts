@@ -122,7 +122,7 @@ describe("থিমের বাড়তি অপশন", () => {
 
   it("সেটিংস পেজে ছবি দেখে বাছাই আর পণ্যের তালিকা", async () => {
     const a = await adminBrowser();
-    const html = await (await a.get("/admin/settings/customize")).text();
+    const html = await (await a.get("/admin/design")).text();
     expect(html).toContain("cz-pv-header-center");
     expect(html).toContain('name="offer1_products"');
     expect(html).toContain('enctype="multipart/form-data"');

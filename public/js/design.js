@@ -89,6 +89,38 @@
     if (busy || status.dataset.status === "saving") { e.preventDefault(); e.returnValue = ""; }
   });
 
+  /* ---------- আগের সংস্করণ ---------- */
+  var verBtn = document.querySelector("[data-de-versions]");
+  var verMenu = document.querySelector(".de-ver-menu");
+  if (verBtn && verMenu) {
+    verBtn.addEventListener("click", function (e) { e.stopPropagation(); verMenu.hidden = !verMenu.hidden; });
+    document.addEventListener("click", function (e) { if (!verMenu.contains(e.target)) verMenu.hidden = true; });
+    verMenu.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-de-restore]");
+      if (!b) return;
+      if (!confirm("এই সংস্করণটা খসড়ায় আনবেন? এখনকার খসড়ার বদল চলে যাবে। পাবলিশ না করা পর্যন্ত ক্রেতারা দেখবে না।")) return;
+      var fd = new FormData();
+      fd.append("i", b.getAttribute("data-de-restore"));
+      fetch("/admin/design/restore", { method: "POST", body: fd, credentials: "same-origin" }).then(function () { location.reload(); });
+    });
+  }
+
+  /* ---------- তৈরি রঙের জোড়া ---------- */
+  document.querySelectorAll("[data-preset]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var c = {};
+      try { c = JSON.parse(b.getAttribute("data-preset")); } catch (e) { return; }
+      form.querySelectorAll("input[data-cz-color]").forEach(function (inp) {
+        var on = form.querySelector('input[name="' + inp.name + '_on"]');
+        if (c[inp.name]) { inp.value = c[inp.name]; if (on) on.checked = true; }
+        else if (on && Object.keys(c).length === 0) on.checked = false; // থিমের নিজের রং
+        else if (on && /^c_(brand|accent|header|btn|price|badge|topbar|footer)/.test(inp.name)) on.checked = false;
+      });
+      document.querySelectorAll("[data-preset]").forEach(function (x) { x.classList.toggle("active", x === b); });
+      schedule(150);
+    });
+  });
+
   /* ---------- ভাগ, মাপ, পেজ, মোবাইলের ট্যাব ---------- */
   document.querySelectorAll(".de-groups button").forEach(function (b) {
     b.addEventListener("click", function () {

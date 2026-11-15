@@ -56,3 +56,50 @@ describe("হোমপেজের সেকশন", () => {
     expect((await a.get("/?__preview=1")).status).toBe(200);
   });
 });
+
+describe("আগের সংস্করণ", () => {
+  it("পাবলিশে আগের ডিজাইন জমা থাকে, খসড়ায় ফিরিয়ে এনে আবার পাবলিশ করা যায়; সর্বোচ্চ ১০টা", async () => {
+    const a = await adminBrowser();
+    for (const t of ["প্রথম", "দ্বিতীয়"]) {
+      await a.fetch("/admin/design/draft", { method: "POST", body: draftBody(`ঘোষণা-${t}`) });
+      await a.fetch("/admin/design/publish", { method: "POST" });
+    }
+    expect(await (await new Browser().get("/")).text()).toContain("ঘোষণা-দ্বিতীয়");
+    const page = await (await a.get("/admin/design")).text();
+    expect(page).toContain("শেষ পাবলিশের আগের ডিজাইন");
+    // ০ = শেষ পাবলিশের আগেরটা ("প্রথম")
+    const r = await a.fetch("/admin/design/restore", { method: "POST", body: new URLSearchParams([["i", "0"]]) });
+    expect((await r.json() as { ok: boolean }).ok).toBe(true);
+    expect(await (await a.get("/?__preview=1")).text()).toContain("ঘোষণা-প্রথম");
+    expect(await (await new Browser().get("/")).text()).toContain("ঘোষণা-দ্বিতীয়"); // ক্রেতা এখনো আগেরটা
+    await a.fetch("/admin/design/publish", { method: "POST" });
+    expect(await (await new Browser().get("/")).text()).toContain("ঘোষণা-প্রথম");
+
+    for (let i = 0; i < 12; i++) {
+      await a.fetch("/admin/design/draft", { method: "POST", body: draftBody(`ঘোষণা-${i}`) });
+      await a.fetch("/admin/design/publish", { method: "POST" });
+    }
+    const row = await DB.prepare("SELECT value FROM settings WHERE key LIKE 'theme_versions_%'").first<{ value: string }>();
+    expect(JSON.parse(row!.value)).toHaveLength(10);
+  });
+
+  it("পুরনো কাস্টমাইজ পেজ এডিটরে নিয়ে যায়", async () => {
+    const a = await adminBrowser();
+    const r = await a.get("/admin/settings/customize");
+    expect(r.status).toBe(302);
+    expect(r.headers.get("location")).toBe("/admin/design");
+  });
+});
+
+describe("এডিটরে দোকানের মূল রং", () => {
+  it("c_brand দিলে --brand বদলায়; থিম বদল পেজ সেভ করলে পুরনো রং মুছে যায় না", async () => {
+    const a = await adminBrowser();
+    await a.post("/admin/settings", { site_name: "টেস্ট", phone: "01700000000", brand_color: "#123456" });
+    await a.fetch("/admin/design/draft", { method: "POST", body: new URLSearchParams([["c_brand", "#7c3aed"], ["c_brand_on", "1"], ["home_order", "banner"]]) });
+    const html = await (await a.get("/?__preview=1")).text();
+    expect(html).toContain("--brand:#7c3aed");
+    await a.post("/admin/settings/appearance", { _section: "appearance", theme: "classic" });
+    const row = await DB.prepare("SELECT value FROM settings WHERE key = 'brand_color'").first<{ value: string }>();
+    expect(row!.value).toBe("#123456");
+  });
+});

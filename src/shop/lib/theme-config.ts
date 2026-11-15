@@ -4,7 +4,7 @@
  * সব মান সার্ভারে যাচাই হয়; CSS-এ শুধু যাচাই করা মান বসে।
  */
 import { FONTS } from "./landing";
-import { freeDeliveryMin, themeOf, type Settings, type ThemeKey } from "./settings";
+import { darken, freeDeliveryMin, themeOf, type Settings, type ThemeKey } from "./settings";
 
 export type Cfg = Record<string, string>;
 
@@ -43,8 +43,10 @@ const fontOpts: Opt = { "": "থিমের ডিফল্ট", ...Object.from
 
 export const GROUPS: { key: string; title: string; desc: string; fields: Field[] }[] = [
   {
-    key: "style", title: "রং, ফন্ট আর বাটন", desc: "রং না বাছলে থিমের নিজের রং থাকে (মূল রং আর বাটনের রং \"থিম ও লোগো\" ট্যাবে)।",
+    key: "style", title: "রং, ফন্ট আর বাটন", desc: "উপরের তৈরি রং থেকে এক ক্লিকে বাছুন, বা নিচে একটা একটা করে। রং না বাছলে থিমের নিজের রং থাকে।",
     fields: [
+      { key: "c_brand", type: "color", label: "মূল রং (শিরোনাম, লিংক, ফিতা)", hint: "না বাছলে দোকানের মূল রং থাকে" },
+      { key: "c_accent", type: "color", label: "বাটনের মূল রং", hint: "না বাছলে দোকানের বাটনের রং থাকে" },
       { key: "c_bg", type: "color", label: "পেজের ব্যাকগ্রাউন্ড" },
       { key: "c_header_bg", type: "color", label: "হেডারের ব্যাকগ্রাউন্ড" },
       { key: "c_header_text", type: "color", label: "হেডারের লেখা" },
@@ -348,6 +350,8 @@ export const MAX_CAT_BLOCKS = 12;
 export function cfgCss(cfg: Cfg): string {
   const r: string[] = [];
   const c = (k: string) => cfg[k];
+  if (c("c_brand")) r.push(`:root{--brand:${c("c_brand")};--brand-dark:${darken(c("c_brand")!)}}`);
+  if (c("c_accent")) r.push(`:root{--accent:${c("c_accent")};--accent-dark:${darken(c("c_accent")!, 0.85)}}`);
   if (c("c_bg")) r.push(`body{background:${c("c_bg")}}`);
   if (c("c_header_bg")) r.push(`.site-header,.px-header{background:${c("c_header_bg")}}`);
   if (c("c_header_text")) r.push(`.site-header,.site-header .logo,.cart-link,.px-header,.px-logo,.px-icon-btn,.px-call,.px-nav a{color:${c("c_header_text")}}`);

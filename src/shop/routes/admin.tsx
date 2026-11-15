@@ -12,7 +12,7 @@ import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
-import { PagesPage, ThemeCustomizePage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
+import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
@@ -829,12 +829,25 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
 };
 
 /* থিম কাস্টমাইজ — শুধু দোকানে চালু থিমের সেটিংস (প্রতিটা থিমের সেটিংস আলাদা সেভ থাকে) */
-admin.get("/settings/customize", async (c) => {
-  const theme = themeOf(c.var.settings);
-  const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
-  const { results: categories } = await c.env.DB.prepare("SELECT id, name FROM categories ORDER BY sort_order, id").all<{ id: number; name: string }>();
-  return render(c, "থিম ও ডিজাইন", "theme", <ThemeCustomizePage s={c.var.settings} theme={theme} cfg={themeConfig(c.var.settings, theme)} products={products} categories={categories} />);
-});
+/* পুরনো "থিম কাস্টমাইজ" পেজ → থিম লাইভ এডিটর (একই সেটিং দুই জায়গায় নয়) */
+admin.get("/settings/customize", (c) => c.redirect("/admin/design", 302));
+
+/** পাবলিশের আগের লাইভ ডিজাইন রেখে দেওয়া (শেষ ১০টা) — "আগের সংস্করণে ফেরা" */
+export const MAX_THEME_VERSIONS = 10;
+type ThemeVersion = { at: string; cfg: string };
+function themeVersions(s: Record<string, string | undefined>, theme: ThemeKey): ThemeVersion[] {
+  try {
+    const v = JSON.parse(s[`theme_versions_${theme}`] || "[]");
+    return Array.isArray(v) ? v.filter((x) => x && typeof x.at === "string" && typeof x.cfg === "string").slice(0, MAX_THEME_VERSIONS) : [];
+  } catch { return []; }
+}
+function withVersion(s: Record<string, string | undefined>, theme: ThemeKey): string {
+  const live = s[`theme_cfg_${theme}`] || "{}";
+  const list = themeVersions(s, theme);
+  if (list[0]?.cfg === live) return JSON.stringify(list);
+  return JSON.stringify([{ at: new Date().toISOString(), cfg: live }, ...list].slice(0, MAX_THEME_VERSIONS));
+}
+
 /** থিম সেটিংসের ফর্ম → যাচাই করা cfg (ছবি আপলোড/লাইব্রেরি থেকে বাছাইসহ) */
 async function cfgFromBody(c: Ctx, b: Record<string, unknown>, theme: ThemeKey): Promise<{ cfg?: Cfg; error?: string }> {
   // একই নামের একাধিক মান শুধু পণ্যের তালিকায় থাকে; বাকিগুলোর প্রথমটা
@@ -867,7 +880,7 @@ admin.post("/settings/customize", async (c) => {
     return c.redirect("/admin/settings/customize", 303);
   }
   const value = b.reset ? "" : JSON.stringify(cfgDiff(r.cfg!, theme));
-  await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value, [`theme_draft_${theme}`]: "" });
+  await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: value, [`theme_draft_${theme}`]: "", [`theme_versions_${theme}`]: withVersion(c.var.settings, theme) });
   flash(c, "ok", b.reset ? `${THEMES[theme].name} থিম শুরুর সেটিংসে ফিরেছে।` : `${THEMES[theme].name} থিমের সেটিংস সেভ হয়েছে।`);
   return c.redirect("/admin/settings/customize", 303);
 });
@@ -879,7 +892,7 @@ admin.get("/design", async (c) => {
   const { results: categories } = await c.env.DB.prepare("SELECT id, name FROM categories ORDER BY sort_order, id").all<{ id: number; name: string }>();
   const draft = c.var.settings[`theme_draft_${theme}`] || "";
   const cfg = themeConfig(draft ? { ...c.var.settings, [`theme_cfg_${theme}`]: draft } : c.var.settings, theme);
-  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} categories={categories} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} />);
+  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} categories={categories} versions={themeVersions(c.var.settings, theme).map((v) => v.at)} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} />);
 });
 
 admin.post("/design/draft", async (c) => {
@@ -896,7 +909,17 @@ admin.post("/design/draft", async (c) => {
 admin.post("/design/publish", async (c) => {
   const theme = themeOf(c.var.settings);
   const draft = c.var.settings[`theme_draft_${theme}`];
-  if (draft) await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: draft, [`theme_draft_${theme}`]: "" });
+  if (draft) await saveSettings(c.env.DB, { [`theme_cfg_${theme}`]: draft, [`theme_draft_${theme}`]: "", [`theme_versions_${theme}`]: withVersion(c.var.settings, theme) });
+  return c.json({ ok: true });
+});
+
+/** আগের একটা সংস্করণ খসড়ায় আনা — প্রিভিউতে দেখে তারপর পাবলিশ */
+admin.post("/design/restore", async (c) => {
+  const theme = themeOf(c.var.settings);
+  const v = themeVersions(c.var.settings, theme)[toInt(String((await c.req.parseBody()).i ?? ""), -1)];
+  if (!v) return c.json({ ok: false, message: "সংস্করণ পাওয়া যায়নি" }, 400);
+  const live = c.var.settings[`theme_cfg_${theme}`] || "{}";
+  await saveSettings(c.env.DB, { [`theme_draft_${theme}`]: v.cfg === live ? "" : v.cfg });
   return c.json({ ok: true });
 });
 
