@@ -8,3 +8,12 @@
 /img/*
   Cache-Control: public, max-age=2592000
   X-Content-Type-Options: nosniff
+/brand/*
+  Cache-Control: public, max-age=2592000
+  X-Content-Type-Options: nosniff
+/favicon.ico
+  Cache-Control: public, max-age=604800
+/favicon.svg
+  Cache-Control: public, max-age=604800
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800

@@ -17,7 +17,7 @@ describe("sellxbd.com-এর পাবলিক পেজ", () => {
     expect(await (await get("/")).text()).toContain('href="/privacy"');
   });
 
-  it("হেল্প সেন্টার: তালিকা, খোঁজা, প্রতিটা গাইড খোলে, অচেনা লিংকে তালিকায় ফেরে", async () => {
+  it("হেল্প সেন্টার: তালিকা, খোঁজা, প্রতিটা গাইড খোলে, অচেনা লিংকে 404", async () => {
     const idx = await (await get("/help")).text();
     for (const a of HELP) expect(idx).toContain(`/help/${a.slug}`);
     const found = await (await get("/help?q=" + encodeURIComponent("কুরিয়ার"))).text();
@@ -29,7 +29,7 @@ describe("sellxbd.com-এর পাবলিক পেজ", () => {
       expect(await r.text()).toContain(a.steps[0]!.slice(0, 10));
     }
     const miss = await get("/help/nope");
-    expect(miss.status).toBe(302);
+    expect(miss.status).toBe(404);
   });
 
   it("প্রতিটা গাইডের slug আলাদা আর প্যানেলের লিংক /admin দিয়ে শুরু", () => {

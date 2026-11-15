@@ -12,18 +12,58 @@ import { raw } from "hono/html";
 
 export type PFlash = { type: "ok" | "error"; text: string } | null;
 
-export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean; description?: string; head?: Child }) => (
+export const DEFAULT_DESC = "ফেসবুক সেলারদের নিজের অনলাইন দোকান — ফেক অর্ডার আটকানো, রেডি দোকান, ল্যান্ডিং পেজ, Pixel + CAPI, Steadfast/Pathao/RedX এক ক্লিকে, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট। ১৪ দিন ফ্রি।";
+
+/** JSON-LD নিরাপদে বসানো (</script> ভাঙতে না পারে) */
+const ld = (o: unknown) => raw(`<script type="application/ld+json">${JSON.stringify(o).replace(/</g, "\\u003c")}</script>`);
+
+export type PSeo = {
+  /** পুরো ঠিকানা, যেমন https://sellxbd.com/pricing */
+  canonical?: string;
+  /** সার্চ থেকে বাদ (লগইন, সুপার অ্যাডমিন) */
+  noindex?: boolean;
+  ogType?: "website" | "article";
+  /** পুরো ঠিকানা; না দিলে সাধারণ ছবি */
+  image?: string;
+  jsonLd?: unknown[];
+};
+
+export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean; description?: string; head?: Child; seo?: PSeo }) => {
+  const desc = p.description || DEFAULT_DESC;
+  const seo = p.seo ?? {};
+  const origin = seo.canonical ? new URL(seo.canonical).origin : "";
+  const image = seo.image || (origin ? `${origin}/brand/og.jpg` : "/brand/og.jpg");
+  return (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{p.title}</title>
-      <meta name="description" content={p.description || "ফেসবুক সেলারদের নিজের অনলাইন দোকান — রেডি দোকান, ৪টা থিম, ল্যান্ডিং পেজ, ফেক অর্ডার আটকানো, Pixel + CAPI, Steadfast/Pathao/RedX, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট। চার্জ শুধু কনফার্ম অর্ডারে।"} />
+      <meta name="description" content={desc} />
+      {(p.admin || seo.noindex) && <meta name="robots" content="noindex, nofollow" />}
+      {seo.canonical && <link rel="canonical" href={seo.canonical} />}
       <meta name="theme-color" content="#0f766e" />
+      <link rel="icon" href="/favicon.ico" sizes="32x32" />
+      <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      <link rel="manifest" href="/site.webmanifest" />
+      {!p.admin && <>
+        <meta property="og:site_name" content={PLATFORM_NAME} />
+        <meta property="og:locale" content="bn_BD" />
+        <meta property="og:type" content={seo.ogType || "website"} />
+        <meta property="og:title" content={p.title} />
+        <meta property="og:description" content={desc} />
+        {seo.canonical && <meta property="og:url" content={seo.canonical} />}
+        <meta property="og:image" content={image} />
+        {!seo.image && <><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" /></>}
+        <meta property="og:image:alt" content={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} />
+        <meta name="twitter:card" content="summary_large_image" />
+      </>}
       <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/platform.css?v=${ASSET_VERSION}`} />
       {p.head}
+      {(seo.jsonLd ?? []).map(ld)}
     </head>
     <body class={p.admin ? "admin" : "platform"}>
       <header class={p.admin ? "admin-header" : "p-header"}>
@@ -41,7 +81,8 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
       <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
     </body>
   </html>
-);
+  );
+};
 
 /* ---------- হোম (মার্কেটিং) — বাংলাদেশের ফেসবুক সেলারদের জন্য ---------- */
 type HomeFees = { plans: Record<PlanKey, Plan>; staff: number; trialDays: number; trialOrders: number; support: string };

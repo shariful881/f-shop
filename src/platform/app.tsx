@@ -5,7 +5,7 @@ import type { PCtx, PEnv } from "./lib";
 import {
   createSuperSession, destroySuperSession, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
-import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage } from "./views";
+import { DEFAULT_DESC, HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
 import { num, platformSettings } from "./billing";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
 import { helpBySlug, HELP } from "./help";
@@ -32,10 +32,32 @@ platformApp.onError(async (err, c) => {
   return c.html(errorPageHtml("platform"), 500);
 });
 
-const html = (c: PCtx, node: unknown, status: 200 | 404 | 422 | 429 = 200) => {
-  c.header("Cache-Control", "no-store");
+const html = (c: PCtx, node: unknown, status: 200 | 404 | 422 | 429 = 200, cache = false) => {
+  // পাবলিক পেজ সবার জন্য একই — ৫ মিনিট cache (দ্রুত খোলে, back বাটনে সাথে সাথে); লগইন/ফর্ম/অ্যাডমিন no-store
+  c.header("Cache-Control", cache && status === 200 ? "public, max-age=300" : "no-store");
   return c.html("<!DOCTYPE html>" + String(node), status);
 };
+
+/** সাইটের মূল ঠিকানা (canonical, sitemap, JSON-LD) */
+const siteBase = (c: PCtx) => `https://${c.env.PLATFORM_DOMAIN}`;
+const canon = (c: PCtx, path: string) => siteBase(c) + path;
+
+/** www → মূল ডোমেইন, শেষের / বাদ — একটাই ঠিকানা যাতে Google দুবার না গোনে */
+platformApp.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  const base = c.env.PLATFORM_DOMAIN;
+  if (c.req.method === "GET" || c.req.method === "HEAD") {
+    if (url.hostname === `www.${base}`) return c.redirect(`https://${base}${url.pathname}${url.search}`, 301);
+    if (url.pathname.length > 1 && url.pathname.endsWith("/")) return c.redirect(url.pathname.replace(/\/+$/, "") + url.search, 301);
+  }
+  await next();
+});
+
+/** ব্রেডক্রাম্ব (Google-এ ঠিকানার জায়গায় সুন্দর পথ) */
+const crumbs = (c: PCtx, items: [string, string][]) => ({
+  "@context": "https://schema.org", "@type": "BreadcrumbList",
+  itemListElement: [["হোম", "/"] as [string, string], ...items].map(([name, path], i) => ({ "@type": "ListItem", position: i + 1, name, item: canon(c, path) })),
+});
 
 platformApp.get("/health", async (c) => {
   const row = await c.env.PLATFORM_DB.prepare("SELECT COUNT(*) AS n FROM shops").first<{ n: number }>();
@@ -52,36 +74,76 @@ async function loadFees(c: PCtx): Promise<Fees> {
 }
 
 /** পাবলিক পেজ: মেনু + পেজ + ফুটার */
-const publicPage = async (c: PCtx, title: string, body: (f: Fees) => Child, status: 200 | 404 = 200) => {
+type PageOpts = { description?: string | ((f: Fees) => string); path?: string; crumbs?: [string, string][]; jsonLd?: unknown[]; ogType?: PSeo["ogType"]; noindex?: boolean };
+const publicPage = async (c: PCtx, title: string, body: (f: Fees) => Child, status: 200 | 404 = 200, o: PageOpts = {}) => {
   const f = await loadFees(c);
-  return html(c, <PLayout title={`${title} — ${PLATFORM_NAME}`} nav={publicNav}>{body(f)}<SiteFooter support={f.support} /></PLayout>, status);
+  const path = o.path ?? new URL(c.req.url).pathname;
+  const description = typeof o.description === "function" ? o.description(f) : o.description;
+  const seo: PSeo = {
+    canonical: status === 200 ? canon(c, path) : undefined,
+    noindex: o.noindex || status !== 200,
+    ogType: o.ogType,
+    jsonLd: [...(o.crumbs ? [crumbs(c, o.crumbs)] : []), ...(o.jsonLd ?? [])],
+  };
+  return html(c, <PLayout title={`${title} — ${PLATFORM_NAME}`} nav={publicNav} description={description} seo={seo}>{body(f)}<SiteFooter support={f.support} /></PLayout>, status, !o.noindex);
 };
 
-platformApp.get("/pricing", (c) => publicPage(c, "দাম ও হিসাব", (f) => <PricingPage f={f} />));
-platformApp.get("/about", (c) => publicPage(c, "আমাদের সম্পর্কে", (f) => <AboutPage f={f} />));
-platformApp.get("/contact", (c) => publicPage(c, "যোগাযোগ", (f) => <ContactPage f={f} />));
-platformApp.get("/terms", (c) => publicPage(c, "শর্তাবলি", (f) => <TermsPage f={f} />));
-platformApp.get("/privacy", (c) => publicPage(c, "প্রাইভেসি নীতি", () => <PrivacyPage />));
-platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />));
+const tk = (n: number) => "৳" + n.toLocaleString("bn-BD");
+platformApp.get("/pricing", (c) => publicPage(c, "দাম ও হিসাব", (f) => <PricingPage f={f} />, 200, {
+  description: (f) => `SellxBD-এর দাম: ফ্রি প্ল্যান থেকে শুরু, পেইড প্ল্যান মাসে ${tk(f.plans.small.price)} থেকে। প্ল্যানের মধ্যে সব অর্ডার, লুকানো খরচ নেই — ক্যালকুলেটরে হিসাব করে দেখুন কোনটা আপনার জন্য।`,
+  crumbs: [["দাম ও হিসাব", "/pricing"]],
+}));
+platformApp.get("/about", (c) => publicPage(c, "আমাদের সম্পর্কে", (f) => <AboutPage f={f} />, 200, {
+  description: "SellxBD কারা, কেন বানানো — বাংলাদেশের ফেসবুক সেলারদের ফেক অর্ডার, কুরিয়ার আর হিসাবের ঝামেলা কমাতে তৈরি অনলাইন দোকান প্ল্যাটফর্ম।",
+  crumbs: [["আমাদের সম্পর্কে", "/about"]],
+}));
+platformApp.get("/contact", (c) => publicPage(c, "যোগাযোগ", (f) => <ContactPage f={f} />, 200, {
+  description: (f) => `SellxBD টিমের সাথে যোগাযোগ — ফোন/WhatsApp${f.support ? ` ${f.support}` : ""}, ২৪ ঘণ্টা সাপোর্ট। দোকান খোলা, ডোমেইন, কুরিয়ার বা বিল নিয়ে প্রশ্ন থাকলে জানান।`,
+  crumbs: [["যোগাযোগ", "/contact"]],
+}));
+platformApp.get("/terms", (c) => publicPage(c, "শর্তাবলি", (f) => <TermsPage f={f} />, 200, { description: "SellxBD ব্যবহারের শর্তাবলি — সেবা, অ্যাকাউন্ট, চার্জ ও রিচার্জ, যা বিক্রি করা যাবে না।", crumbs: [["শর্তাবলি", "/terms"]] }));
+platformApp.get("/privacy", (c) => publicPage(c, "প্রাইভেসি নীতি", () => <PrivacyPage />, 200, { description: "SellxBD দোকানদার আর ক্রেতার কোন তথ্য রাখে, কীভাবে সুরক্ষিত রাখে আর কাদের সাথে শেয়ার হয়।", crumbs: [["প্রাইভেসি নীতি", "/privacy"]] }));
+platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />, 200, { description: "SellxBD-তে রিচার্জের টাকা ফেরত পাওয়ার নিয়ম।", crumbs: [["রিফান্ড নীতি", "/refund"]] }));
 platformApp.notFound((c) => publicPage(c as PCtx, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404));
-platformApp.get("/help", (c) => publicPage(c, "হেল্প সেন্টার", () => <HelpIndexPage q={(c.req.query("q") || "").slice(0, 60)} />));
+platformApp.get("/help", (c) => {
+  const q = (c.req.query("q") || "").slice(0, 60);
+  return publicPage(c, "হেল্প সেন্টার", () => <HelpIndexPage q={q} />, 200, {
+    description: `SellxBD হেল্প সেন্টার — দোকান খোলা, পণ্য, অর্ডার, ফেক অর্ডার আটকানো, কুরিয়ার, Pixel, পেমেন্টসহ ${HELP.length.toLocaleString("bn-BD")}টা ধাপে ধাপে গাইড।`,
+    path: "/help", noindex: !!q, crumbs: [["হেল্প সেন্টার", "/help"]],
+  });
+});
 /* ---------- ব্লগ, sitemap, robots ---------- */
 platformApp.get("/blog", async (c) => {
   const posts = await publishedPosts(c.env.PLATFORM_DB);
-  return publicPage(c, "ব্লগ", () => <BlogIndexPage posts={posts} />);
+  return publicPage(c, "ব্লগ", () => <BlogIndexPage posts={posts} />, 200, {
+    description: "ফেসবুকে অনলাইন বিক্রি, ফেক অর্ডার কমানো, কুরিয়ার আর অ্যাডের খরচ নিয়ে বাংলায় কাজের লেখা — SellxBD ব্লগ।",
+    crumbs: [["ব্লগ", "/blog"]],
+  });
 });
 platformApp.get("/blog/:slug{[a-z0-9-]+}", async (c) => {
   const post = await postBySlug(c.env.PLATFORM_DB, c.req.param("slug"));
   if (!post) return publicPage(c, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404);
   const more = (await publishedPosts(c.env.PLATFORM_DB, 6)).filter((x) => x.id !== post.id).slice(0, 4);
-  const f = await loadFees(c);
-  return html(c, <PLayout title={`${post.title} — ${PLATFORM_NAME}`} nav={publicNav} description={post.excerpt}><BlogPostPage post={post} more={more} /><SiteFooter support={f.support} /></PLayout>);
+  const path = `/blog/${post.slug}`;
+  return publicPage(c, post.title, () => <BlogPostPage post={post} more={more} />, 200, {
+    description: post.excerpt, path, ogType: "article",
+    crumbs: [["ব্লগ", "/blog"], [post.title, path]],
+    jsonLd: [{
+      "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description: post.excerpt,
+      datePublished: isoDate(post.published_at || post.created_at), dateModified: isoDate(post.updated_at),
+      mainEntityOfPage: canon(c, path), image: canon(c, "/brand/og.jpg"), inLanguage: "bn-BD",
+      author: { "@type": "Organization", name: PLATFORM_NAME, url: siteBase(c) },
+      publisher: { "@type": "Organization", name: PLATFORM_NAME, logo: { "@type": "ImageObject", url: canon(c, "/brand/icon-512.png") } },
+    }],
+  });
 });
+/** "2026-11-15 10:00:00" (UTC) → ISO */
+const isoDate = (d: string) => (d.includes("T") ? d : d.replace(" ", "T") + "Z");
 
-platformApp.get("/robots.txt", (c) => c.text(`User-agent: *\nDisallow: /super\nDisallow: /admin\nSitemap: https://${c.env.PLATFORM_DOMAIN}/sitemap.xml\n`, 200, { "Cache-Control": "public, max-age=3600" }));
+platformApp.get("/robots.txt", (c) => c.text(`User-agent: *\nDisallow: /super\nDisallow: /admin\nDisallow: /help?q=\nSitemap: https://${c.env.PLATFORM_DOMAIN}/sitemap.xml\n`, 200, { "Cache-Control": "public, max-age=3600" }));
 platformApp.get("/sitemap.xml", async (c) => {
   const base = `https://${c.env.PLATFORM_DOMAIN}`;
-  const fixed = ["/", "/pricing", "/about", "/contact", "/help", "/blog", "/terms", "/privacy", "/refund", ...HELP.map((h) => `/help/${h.slug}`)];
+  const fixed = ["/", "/pricing", "/signup", "/about", "/contact", "/help", "/blog", "/terms", "/privacy", "/refund", ...HELP.map((h) => `/help/${h.slug}`)];
   const posts = await publishedPosts(c.env.PLATFORM_DB, 500);
   const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const urls = [...fixed.map((p) => `<url><loc>${esc(base + p)}</loc></url>`), ...posts.map((p) => `<url><loc>${esc(`${base}/blog/${p.slug}`)}</loc><lastmod>${p.updated_at.slice(0, 10)}</lastmod></url>`)];
@@ -90,8 +152,12 @@ platformApp.get("/sitemap.xml", async (c) => {
 
 platformApp.get("/help/:slug{[a-z0-9-]+}", (c) => {
   const a = helpBySlug(c.req.param("slug"));
-  if (!a) return c.redirect("/help", 302);
-  return publicPage(c, a.title, () => <HelpArticlePage a={a} />);
+  if (!a) return publicPage(c, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404);
+  const path = `/help/${a.slug}`;
+  return publicPage(c, a.title, () => <HelpArticlePage a={a} />, 200, {
+    description: `${a.summary} — SellxBD হেল্প সেন্টার, ধাপে ধাপে বাংলায়।`, path,
+    crumbs: [["হেল্প সেন্টার", "/help"], [a.title, path]],
+  });
 });
 
 async function demoLinks(c: PCtx) {
@@ -104,13 +170,33 @@ async function demoLinks(c: PCtx) {
 
 platformApp.get("/", async (c) => {
   const fees = await loadFees(c);
-  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান`} nav={publicNav} head={<link rel="stylesheet" href={`/css/home.css?v=${ASSET_VERSION}`} />}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>);
+  const base = siteBase(c);
+  const P = fees.plans;
+  const org = {
+    "@context": "https://schema.org", "@type": "Organization", "@id": `${base}/#org`, name: PLATFORM_NAME, url: base,
+    logo: `${base}/brand/icon-512.png`, image: `${base}/brand/og.jpg`,
+    description: DEFAULT_DESC, areaServed: "BD",
+    ...(fees.support ? { contactPoint: { "@type": "ContactPoint", telephone: `+88${fees.support}`, contactType: "customer support", areaServed: "BD", availableLanguage: ["bn", "en"] } } : {}),
+  };
+  const site = { "@context": "https://schema.org", "@type": "WebSite", "@id": `${base}/#site`, name: PLATFORM_NAME, url: base, inLanguage: "bn-BD", publisher: { "@id": `${base}/#org` } };
+  const app = {
+    "@context": "https://schema.org", "@type": "SoftwareApplication", name: PLATFORM_NAME, url: base,
+    applicationCategory: "BusinessApplication", operatingSystem: "Web", inLanguage: "bn-BD", description: DEFAULT_DESC,
+    publisher: { "@id": `${base}/#org` },
+    offers: (["free", "small", "grow", "big"] as const).map((k) => ({ "@type": "Offer", name: P[k].name, price: String(P[k].price), priceCurrency: "BDT", url: `${base}/pricing` })),
+  };
+  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান, ফেক অর্ডার আটকানো`} nav={publicNav}
+    seo={{ canonical: `${base}/`, jsonLd: [org, site, app] }}
+    head={<link rel="stylesheet" href={`/css/home.css?v=${ASSET_VERSION}`} />}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>, 200, true);
 });
 
 /* ---------- সাইনআপ ---------- */
 platformApp.get("/signup", (c) => {
   const niche = nicheByKey(c.req.query("niche"))?.key ?? "";
-  return html(c, <PLayout title="দোকান খুলুন" nav={publicNav}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} /></PLayout>);
+  return html(c, <PLayout title={`দোকান খুলুন, ১৪ দিন ফ্রি — ${PLATFORM_NAME}`} nav={publicNav}
+    description="২ মিনিটে নিজের অনলাইন দোকান খুলুন — কোনো কোড বা কার্ড লাগবে না। রেডি দোকান, ফেক অর্ডার আটকানো, কুরিয়ার আর Pixel সব সাথেই। ১৪ দিন ফ্রি।"
+    seo={{ canonical: canon(c, "/signup"), jsonLd: [crumbs(c, [["দোকান খুলুন", "/signup"]])] }}>
+    <SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} /></PLayout>);
 });
 
 /** লাইভ চেক: ঠিকানাটি খালি আছে কি না */
