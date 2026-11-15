@@ -513,3 +513,12 @@ body.de .de-ver-btn[disabled] { opacity: .4; }
 .lb-head > strong { flex: 1 1 auto; min-width: 0; text-align: left; }
 .lb-head .b-actions { margin-left: auto; }
 @media (max-width: 600px) { body.admin .sa-hide-sm { display: none; } }
+
+/* ব্যাকআপ ও স্টোরেজ */
+body.admin .backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-4, 16px); margin-bottom: var(--sp-4, 16px); }
+body.admin .backup-grid .sa-card { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+body.admin .backup-grid .sa-card .btn { margin-top: auto; align-self: flex-start; }
+body.admin .storage-table { margin: 14px 0; max-width: 420px; }
+body.admin .storage-table td:last-child { text-align: right; font-weight: 600; }
+body.admin .backup-grid .sa-card-head { margin-bottom: 0; }
+body.admin .backup-grid .sa-card p { margin: 0; }

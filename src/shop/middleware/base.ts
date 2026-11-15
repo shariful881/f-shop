@@ -39,4 +39,9 @@ export const securityHeaders: MiddlewareHandler<any> = async (c, next) => {
   await next();
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  // অন্য সাইট আমাদের পেজ iframe-এ বসিয়ে ক্লিক চুরি করতে পারবে না (নিজের প্রিভিউ চলবে)
+  c.header("X-Frame-Options", "SAMEORIGIN");
+  c.header("Content-Security-Policy", "frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+  c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  if (new URL(c.req.url).protocol === "https:") c.header("Strict-Transport-Security", "max-age=15552000");
 };

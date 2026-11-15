@@ -2,6 +2,7 @@
  * ইনভয়েস (A4) আর কুরিয়ার স্টিকার (৩×৪ ইঞ্চি) — প্রিন্টের জন্য আলাদা পেজ।
  * একসাথে অনেক অর্ডার দিলে প্রতিটা আলাদা পাতায়।
  */
+import { ASSET_VERSION } from "./layout";
 import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL, orderExtras } from "../lib/orders";
 import type { Settings } from "../lib/settings";
@@ -89,7 +90,7 @@ export const InvoicePage = ({ list, s, size, autoPrint }: { list: InvoiceData[];
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <meta name="robots" content="noindex" />
       <title>{list.length === 1 ? `ইনভয়েস ${list[0]!.order.order_no}` : `${bn(list.length)}টা ইনভয়েস`}</title>
-      <link rel="stylesheet" href="/css/invoice.css" />
+      <link rel="stylesheet" href={`/css/invoice.css?v=${ASSET_VERSION}`} />
       <style>{size === "sticker" ? "@page{size:3in 4in;margin:0}" : "@page{size:A4;margin:12mm}"}</style>
     </head>
     <body class={`iv iv-${size}-body`}>

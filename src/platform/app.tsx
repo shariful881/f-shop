@@ -11,6 +11,7 @@ import { AboutPage, ContactPage, HelpArticlePage, HelpIndexPage, PricingPage, Pr
 import { helpBySlug } from "./help";
 import { superApp } from "./super";
 import { sameOriginPost, securityHeaders } from "../shop/middleware/base";
+import { logError } from "./errors";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
 import { hashPassword, verifyPassword } from "../shop/lib/auth";
@@ -21,6 +22,11 @@ import { nicheByKey } from "../shop/lib/niches";
 export const platformApp = new Hono<PEnv>();
 
 platformApp.use("*", securityHeaders, sameOriginPost);
+platformApp.onError(async (err, c) => {
+  console.error(err);
+  await logError(c.env.PLATFORM_DB, { method: c.req.method, path: new URL(c.req.url).pathname, err });
+  return c.text("দুঃখিত, একটা সমস্যা হয়েছে। একটু পরে আবার চেষ্টা করুন।", 500);
+});
 
 const html = (c: PCtx, node: unknown, status: 200 | 404 | 422 | 429 = 200) => {
   c.header("Cache-Control", "no-store");
@@ -223,7 +229,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=23"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

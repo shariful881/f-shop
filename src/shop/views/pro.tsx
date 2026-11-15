@@ -3,6 +3,7 @@
  * প্রতিটা থিমের নিজস্ব সেটিংস (থিম কাস্টমাইজ) অনুযায়ী।
  * প্রো স্টোর থিমের হেডার আলাদা (সার্চসহ বড় হেডার); বাকি তিনটার রঙিন সরু হেডার।
  */
+import { ASSET_VERSION } from "./layout";
 import type { Child } from "hono/jsx";
 import type { HomeSection, Product } from "../lib/products";
 import type { Settings } from "../lib/settings";
@@ -642,7 +643,7 @@ export const ComingSoonPage = ({ s, cfg }: { s: Settings; cfg: Cfg }) => (
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <meta name="robots" content="noindex" />
       <title>{s.site_name || "দোকান"} — শীঘ্রই আসছে</title>
-      <link rel="stylesheet" href="/css/app.css" />
+      <link rel="stylesheet" href={`/css/app.css?v=${ASSET_VERSION}`} />
     </head>
     <body class="px-soon">
       <main class="px-soon-box">

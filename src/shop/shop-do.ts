@@ -212,6 +212,19 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     return { products: p!, orders: o!, recent: recent.results, users: staff?.n ?? 0 };
   }
 
+  /** সুপার অ্যাডমিনের পুরো ব্যাকআপ (JSON) — পাসওয়ার্ড, সেশন আর ছবির বাইট বাদে */
+  async exportData(shopId: string) {
+    await this.ensureInit(shopId, false);
+    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs"];
+    const out: Record<string, unknown[]> = {};
+    for (const t of tables) {
+      const r = await this.db.prepare(`SELECT * FROM ${t} LIMIT 50000`).all().catch(() => ({ results: [] }));
+      out[t] = r.results;
+    }
+    out.users = (await this.db.prepare("SELECT id, email, name, role, is_admin, active, created_at FROM users").all().catch(() => ({ results: [] }))).results;
+    return { shop_id: shopId, exported_at: new Date().toISOString(), tables: out };
+  }
+
   /** সুপার অ্যাডমিনের সাপোর্ট লগইন: দোকানের মালিকের জন্য ৫ মিনিটের এককালীন টোকেন */
   async ownerLoginToken(shopId: string): Promise<string | null> {
     await this.ensureInit(shopId, false);

@@ -20,7 +20,7 @@ import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -277,6 +277,20 @@ superApp.get("/shops/:id", async (c) => {
       orders30={orders30} orders30Total={orders30.reduce((x, y) => x + y.value, 0)}
       revenue={{ lifetime: r.lifetime ?? 0, topups: r.topups ?? 0 }}
       ledger={led!.results as LedgerRow[]} topups={tps!.results as TopupRow[]} notes={notes!.results as NoteRow[]} audit={aud!.results as AuditRow[]} live={live as any} />);
+});
+
+/** পুরো দোকানের ব্যাকআপ (JSON) — শুধু মালিক, অডিটে লেখা হয় */
+superApp.get("/shops/:id/export.json", async (c) => {
+  if (!allowed(c, "shop.export")) return forbidden(c);
+  const s = await loadShop(c, c.req.param("id"));
+  if (!s) return c.notFound();
+  const data = await c.env.SHOP.getByName(s.id).exportData(s.id);
+  await audit(c, "shop.export", "shop", s.id, "পুরো ব্যাকআপ ডাউনলোড");
+  return new Response(JSON.stringify(data), { headers: {
+    "content-type": "application/json; charset=utf-8",
+    "content-disposition": `attachment; filename="${s.slug}-${new Date().toISOString().slice(0, 10)}.json"`,
+    "cache-control": "no-store",
+  } });
 });
 
 superApp.post("/shops/:id/status", async (c) => {
@@ -625,6 +639,26 @@ superApp.get("/audit", async (c) => {
   const list = rows!.results as AuditRow[];
   return page(c, "অডিট লগ", "audit",
     <AuditPage rows={list.slice(0, 100)} more={list.length > 100} page={pg} action={action} admin={adminEmail} admins={(admins!.results as { email: string }[]).map((x) => x.email)} />);
+});
+
+/* ---------- এরর লগ ---------- */
+superApp.get("/errors", async (c) => {
+  if (!allowed(c, "errors")) return forbidden(c);
+  const db = c.env.PLATFORM_DB;
+  const all = c.req.query("all") === "1";
+  const [rows, open] = await db.batch([
+    db.prepare(`SELECT e.*, s.name shop_name FROM error_log e LEFT JOIN shops s ON s.id = e.shop_id ${all ? "" : "WHERE e.resolved = 0"} ORDER BY e.last_at DESC LIMIT 200`),
+    db.prepare("SELECT COUNT(*) n FROM error_log WHERE resolved = 0"),
+  ]);
+  return page(c, "এরর লগ", "errors",
+    <ErrorsPage rows={rows!.results as ErrorRow[]} showResolved={all} open={(open!.results[0] as { n: number }).n} role={me(c).role} />);
+});
+
+superApp.post("/errors/:id{[0-9]+}/resolve", async (c) => {
+  if (!allowed(c, "errors")) return forbidden(c);
+  await c.env.PLATFORM_DB.prepare("UPDATE error_log SET resolved = 1 WHERE id = ?").bind(toInt(c.req.param("id"))).run();
+  flash(c, "ok", "সমাধান হিসেবে চিহ্নিত।");
+  return c.redirect("/super/errors", 303);
 });
 
 /* ---------- টিম ---------- */

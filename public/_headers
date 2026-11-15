@@ -1,0 +1,10 @@
+# স্ট্যাটিক ফাইলের cache — CSS/JS-এর লিংকে ?v=ASSET_VERSION থাকে, তাই বদলালে নতুন লিংক যায়
+/css/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+  X-Content-Type-Options: nosniff
+/js/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+  X-Content-Type-Options: nosniff
+/img/*
+  Cache-Control: public, max-age=2592000
+  X-Content-Type-Options: nosniff

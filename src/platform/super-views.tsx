@@ -36,6 +36,7 @@ export const PERMS: Record<string, SuperRole[]> = {
   templates: ["owner", "admin"],
   demos: ["owner", "admin"],
   audit: ["owner", "admin"],
+  errors: ["owner", "admin"],
   team: ["owner"],
   settings: ["owner"],
   account: ALL,
@@ -73,6 +74,7 @@ const NAV: { key: string; href: string; icon: string; label: string; group?: str
   { key: "templates", href: "/super/templates", icon: "🧩", label: "ল্যান্ডিং টেমপ্লেট" },
   { key: "demos", href: "/super/demos", icon: "🛍️", label: "ডেমো দোকান" },
   { key: "audit", href: "/super/audit", icon: "🧾", label: "অডিট লগ", group: "নিরাপত্তা" },
+  { key: "errors", href: "/super/errors", icon: "⚠", label: "এরর লগ" },
   { key: "team", href: "/super/team", icon: "👥", label: "টিম" },
   { key: "settings", href: "/super/settings", icon: "⚙", label: "প্ল্যাটফর্ম সেটিংস" },
 ];
@@ -502,6 +504,12 @@ export const ShopDetailPage = (p: {
         </div>
 
         <div>
+          {can(r, "shop.export") && (
+            <Card title="ব্যাকআপ">
+              <p class="sa-muted">দোকানের সব ডাটা (পণ্য, অর্ডার, সেটিংস, পেজ) একটা JSON ফাইলে। পাসওয়ার্ড আর ছবির ফাইল থাকে না। ডাউনলোড অডিট লগে লেখা হয়।</p>
+              <a class="sa-btn sa-btn-ghost" href={`/super/shops/${s.id}/export.json`}>পুরো ব্যাকআপ (JSON)</a>
+            </Card>
+          )}
           {(can(r, "shop.status") || can(r, "shop.trial")) && (
             <Card title="নিয়ন্ত্রণ">
               {can(r, "shop.status") && (
@@ -739,7 +747,7 @@ export const AnnouncementsPage = ({ rows }: { rows: AnnRow[] }) => (
 
 /* ---------- অডিট লগ ---------- */
 export const ACTION_LABEL: Record<string, string> = {
-  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
+  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
   "shop.impersonate": "দোকানে সাপোর্ট লগইন", "shop.note": "নোট", "topup.approve": "রিচার্জ অনুমোদন", "topup.reject": "রিচার্জ বাতিল",
   "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ",
   "team.add": "টিমে যোগ", "team.update": "টিম সদস্য বদল", "team.password": "পাসওয়ার্ড বদল", "export.shops": "দোকানের তালিকা ডাউনলোড",
@@ -773,6 +781,33 @@ export const AuditPage = (p: { rows: AuditRow[]; action: string; admin: string; 
       {p.page > 1 && <a class="sa-btn sa-btn-ghost" href={`/super/audit?${new URLSearchParams({ action: p.action, admin: p.admin, page: String(p.page - 1) })}`}>← আগের</a>}
       {p.more && <a class="sa-btn sa-btn-ghost" href={`/super/audit?${new URLSearchParams({ action: p.action, admin: p.admin, page: String(p.page + 1) })}`}>পরের →</a>}
     </div>
+  </Card>
+);
+
+/* ---------- এরর লগ ---------- */
+export type ErrorRow = { id: number; shop_id: string | null; shop_name: string | null; method: string | null; path: string | null; message: string; stack: string | null; count: number; first_at: string; last_at: string; resolved: number };
+
+export const ErrorsPage = (p: { rows: ErrorRow[]; showResolved: boolean; open: number; role: SuperRole }) => (
+  <Card title={`সার্ভারের এরর — ${bn(p.open)}টা খোলা`} action={
+    <a class="sa-btn sa-btn-ghost sa-btn-sm" href={p.showResolved ? "/super/errors" : "/super/errors?all=1"}>{p.showResolved ? "শুধু খোলা" : "সমাধান হওয়াগুলোও"}</a>
+  }>
+    <p class="sa-muted">কোনো দোকানে বা প্ল্যাটফর্মে সার্ভারের ভুল হলে এখানে আসে। একই ভুল বারবার হলে একটাই লাইন, পাশে কতবার হয়েছে। ঠিক করার পরে "সমাধান" চাপুন — আবার হলে নিজে থেকে খুলে যাবে।</p>
+    {p.rows.length === 0 ? <Empty text="কোনো এরর নেই 🎉" /> : (
+      <div class="sa-table-wrap"><table class="sa-table">
+        <thead><tr><th>এরর</th><th>কোথায়</th><th>কতবার</th><th>শেষ</th><th></th></tr></thead>
+        <tbody>{p.rows.map((e) => (
+          <tr class={e.resolved ? "sa-dim" : ""}>
+            <td><b>{e.message}</b>{e.stack && <details><summary class="sa-muted">বিস্তারিত</summary><pre class="sa-pre">{e.stack}</pre></details>}</td>
+            <td><small>{e.method} {e.path}</small>{e.shop_id && <><br /><a href={`/super/shops/${e.shop_id}`}><small>{e.shop_name || e.shop_id}</small></a></>}</td>
+            <td>{bn(e.count)}</td>
+            <td><small>{ago(e.last_at)}</small></td>
+            <td class="sa-r">{!e.resolved && (
+              <form method="post" action={`/super/errors/${e.id}/resolve`} class="sa-inline"><button class="sa-btn sa-btn-sm sa-btn-ghost">সমাধান</button></form>
+            )}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    )}
   </Card>
 );
 

@@ -34,6 +34,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "domains", href: "/admin/domain", icon: "globe", label: "ডোমেইন" },
   { key: "staff", href: "/admin/staff", icon: "users", label: "স্টাফ" },
   { key: "billing", href: "/admin/billing", icon: "credit-card", label: "বিলিং ও রিচার্জ" },
+  { key: "export", href: "/admin/export", icon: "download", label: "ব্যাকআপ ও স্টোরেজ" },
   { key: "support", href: "/admin/support", icon: "life-buoy", label: "সাপোর্ট", group: "সাহায্য" },
 ];
 
@@ -43,7 +44,7 @@ const HELP_FOR: Record<string, string> = {
   dashboard: "setup-checklist", orders: "orders", customers: "customers", reports: "reports", products: "add-product",
   categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
   coupons: "coupons", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
-  settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", support: "support",
+  settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", export: "backup", support: "support",
 };
 
 export const ShopShell = (p: {

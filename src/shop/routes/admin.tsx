@@ -36,6 +36,8 @@ import { configuredCouriers, COURIER_NAME, parcelStatus, pathaoList, redxAreas, 
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
 import { registerSupport } from "./support";
+import { customersCsv, ordersCsv, productsCsv } from "../lib/export";
+import { BackupPage, type StorageStats } from "../views/backup";
 
 export const admin = new Hono<AppEnv>();
 
@@ -270,6 +272,31 @@ admin.get("/customers", async (c) => {
   ).bind(...binds, CUSTOMERS_PER_PAGE + 1, (page - 1) * CUSTOMERS_PER_PAGE).all<CustomerRow>();
   return render(c, "কাস্টমার", "customers",
     <CustomersPage rows={results.slice(0, CUSTOMERS_PER_PAGE)} q={q} page={page} hasMore={results.length > CUSTOMERS_PER_PAGE} total={total?.n ?? 0} />);
+});
+
+/** ব্যাকআপ ও স্টোরেজ পেজ */
+admin.get("/export", async (c) => {
+  const st = await c.env.DB.prepare(
+    `SELECT (SELECT COUNT(*) FROM products) products, (SELECT COUNT(*) FROM orders) orders,
+            (SELECT COUNT(DISTINCT phone) FROM orders) customers, (SELECT COUNT(*) FROM images) images,
+            (SELECT COALESCE(SUM(size), 0) FROM images) imageBytes, (SELECT COUNT(*) FROM pages) pages,
+            (SELECT COUNT(*) FROM sms_logs) smsLogs`,
+  ).first<StorageStats>();
+  return render(c, "ব্যাকআপ ও স্টোরেজ", "export", <BackupPage stats={st!} />);
+});
+
+/** ব্যাকআপ: Excel-এ খোলে এমন CSV ডাউনলোড (মালিক/ম্যানেজার) */
+const EXPORTS = { orders: ordersCsv, products: productsCsv, customers: customersCsv } as const;
+admin.get("/export/:kind{[a-z]+\\.csv}", async (c) => {
+  const kind = c.req.param("kind").replace(".csv", "") as keyof typeof EXPORTS;
+  if (!Object.hasOwn(EXPORTS, kind)) return c.notFound();
+  const csv = await EXPORTS[kind](c.env.DB);
+  const day = new Date().toISOString().slice(0, 10);
+  return new Response(csv, { headers: {
+    "content-type": "text/csv; charset=utf-8",
+    "content-disposition": `attachment; filename="${kind}-${day}.csv"`,
+    "cache-control": "no-store",
+  } });
 });
 
 admin.get("/orders/:id{[0-9]+}", async (c) => {
