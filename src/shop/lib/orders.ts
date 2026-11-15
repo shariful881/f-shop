@@ -42,6 +42,12 @@ export type Order = {
   courier_checked_at: string | null;
   courier_response: string | null;
   outcome?: "delivered" | "returned" | null;
+  advance_amount?: number;
+  pay_method?: string | null;
+  pay_trx?: string | null;
+  pay_sender?: string | null;
+  pay_status?: "pending" | "verified" | "rejected" | null;
+  pay_checked_at?: string | null;
   outcome_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -92,6 +98,8 @@ export type NewOrder = {
   email?: string | null;
   extras?: [string, string][];
   prefix?: string;
+  /** অগ্রিম পেমেন্ট (ধাপ ৬) */
+  advance?: { amount: number; method: string; trx: string; sender: string | null } | null;
 };
 
 export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে" } as const;
@@ -124,6 +132,8 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
         .bind(tmp, p.id, p.name, p.price, p.qty ?? 1, p.variant_id ?? null, p.variant_label ?? null),
     ),
     ...(o.couponId && discount ? [db.prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?").bind(o.couponId)] : []),
+    ...(o.advance ? [db.prepare("UPDATE orders SET advance_amount = ?, pay_method = ?, pay_trx = ?, pay_sender = ?, pay_status = 'pending' WHERE order_no = ?")
+      .bind(Math.min(o.advance.amount, total), o.advance.method, o.advance.trx, o.advance.sender, tmp)] : []),
     db.prepare("UPDATE orders SET order_no = ? || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(o.prefix || "FS-", tmp),
   ];
   const results = await db.batch<{ id: number; order_no: string }>(stmts);

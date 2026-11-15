@@ -623,3 +623,10 @@ body.admin .sa-card > h2 { margin-top: 0; }
 body.admin .ads-rate label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 body.admin .ads-rate input { width: 90px; }
 body.admin .ads-filter { flex-wrap: wrap; gap: 8px; }
+
+/* ধাপ ৬: অগ্রিম পেমেন্ট */
+body.admin .pay-panel.pay-pending { border-color: var(--c-warn); }
+body.admin code.trx { font-size: 1rem; letter-spacing: .05em; background: var(--c-soft); padding: 2px 6px; border-radius: 6px; }
+body.admin .sa-bad { color: var(--c-danger); font-weight: 600; }
+body.admin .pay-alert { display: flex; gap: 6px; align-items: center; background: var(--c-warn-bg); color: var(--c-warn); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; text-decoration: none; font-weight: 600; }
+body.admin .pay-alert.on { outline: 2px solid var(--c-warn); }

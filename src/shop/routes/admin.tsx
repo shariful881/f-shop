@@ -12,7 +12,7 @@ import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
-import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
+import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsPaymentPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, taka, youtubeId } from "../lib/format";
 import { hitRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
@@ -52,6 +52,7 @@ import { validateOrderInput } from "../lib/order-guard";
 import { applyOrderStock, checkOrderStock, inventoryRows, inventorySummary, recentMoves, recomputeProductStock, restoreOrderStock, setStock, type InvFilter } from "../lib/stock";
 import { InventoryPage } from "../views/inventory";
 import { AdsPage, CatalogPage } from "../views/ads";
+import { codAmount } from "../lib/payment";
 import { adReport, usdRate } from "../lib/ads";
 import { feedItems } from "../lib/feed";
 
@@ -250,6 +251,8 @@ admin.get("/orders", async (c) => {
 
   let where = "o.status = ?";
   let binds: unknown[] = [status];
+  const payPending = c.req.query("pay") === "pending";
+  if (payPending) { where = "o.pay_status = 'pending' AND o.status IN ('new', 'confirmed')"; binds = []; }
   if (q) {
     const phone = normalizePhone(q);
     where = "(o.phone LIKE ? OR o.name LIKE ? OR o.order_no LIKE ?" + (phone ? " OR o.phone = ?" : "") + ")";
@@ -278,7 +281,8 @@ admin.get("/orders", async (c) => {
   const risk = await riskMap(c, phones);
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk}
+    <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending}
+      payCount={(await db.prepare("SELECT COUNT(*) n FROM orders WHERE pay_status = 'pending' AND status IN ('new', 'confirmed')").first<{ n: number }>())?.n ?? 0}
       hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
 });
 
@@ -547,7 +551,7 @@ async function bookOrder(c: Ctx, id: number, courier: CourierKey, opt: Partial<S
   if (!claim.meta.changes) return { ok: false, message: `${o.order_no}: এখন পাঠানো হচ্ছে, একটু পরে দেখুন` };
 
   const note = [o.note, data.items.map((i) => i.product_name + (i.variant_label ? ` (${i.variant_label})` : "")).join(", ")].filter(Boolean).join(" | ");
-  const r = await sendParcel(courier, s, o, data.items, { cod: o.total, note, ...opt }, saver(c));
+  const r = await sendParcel(courier, s, o, data.items, { cod: codAmount(o), note, ...opt }, saver(c));
   if (!r.ok) {
     await db.prepare("UPDATE orders SET courier = NULL, courier_status = NULL, courier_sent_at = NULL, courier_response = ? WHERE id = ?").bind(r.raw || r.message, id).run();
     return { ok: false, message: `${o.order_no}: ${r.message}` };
@@ -611,6 +615,17 @@ async function setOutcome(c: Ctx, o: Order, out: "delivered" | "returned") {
   else if (o.outcome === "returned") await applyOrderStock(c.env.DB, o.id);
   await later(c, recordOutcome(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, o.order_no, o.phone, out));
 }
+
+/** অগ্রিম পেমেন্ট: দোকানদার নিজের অ্যাপে মিলিয়ে "পেয়েছি" / "পাইনি" */
+admin.post("/orders/:id{[0-9]+}/payment", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const to = String((await c.req.parseBody()).status);
+  if (to === "verified" || to === "rejected" || to === "pending") {
+    const r = await c.env.DB.prepare("UPDATE orders SET pay_status = ?, pay_checked_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND pay_trx IS NOT NULL").bind(to, id).run();
+    flash(c, r.meta.changes ? "ok" : "error", !r.meta.changes ? "এই অর্ডারে অগ্রিম পেমেন্ট নেই" : to === "verified" ? "অগ্রিম পেয়েছেন — কুরিয়ারে বাকি টাকাই তোলা হবে।" : to === "rejected" ? "অগ্রিম পাওয়া যায়নি বলে চিহ্ন দেওয়া হলো।" : "আবার যাচাই বাকি করা হলো।");
+  }
+  return c.redirect(`/admin/orders/${id}`, 303);
+});
 
 /** নিজে হাতে: "ডেলিভারি হয়েছে" / "ফেরত এসেছে" (কুরিয়ার API ছাড়া পাঠালে) */
 admin.post("/orders/:id{[0-9]+}/outcome", async (c) => {
@@ -1080,6 +1095,7 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
   appearance: { title: "থিম ও লোগো", view: (c) => <SettingsAppearancePage s={c.var.settings} /> },
   delivery: { title: "ডেলিভারি", view: (c) => <SettingsDeliveryPage s={c.var.settings} /> },
   checkout: { title: "অর্ডার ফর্ম", view: (c) => <SettingsCheckoutPage s={c.var.settings} /> },
+  payment: { title: "অগ্রিম পেমেন্ট", view: (c) => <SettingsPaymentPage s={c.var.settings} /> },
   seo: { title: "SEO", view: (c) => <SettingsSeoPage s={c.var.settings} url={publicOrigin(c)} /> },
   tracking: { title: "পিক্সেল ও ট্র্যাকিং", view: (c) => <SettingsTrackingPage s={c.var.settings} /> },
 };
@@ -1270,6 +1286,17 @@ async function saveSettingsForm(c: Ctx, section: string) {
   if (has("default_area")) v.default_area = ["inside", "outside", "none"].includes(String(b.default_area)) ? String(b.default_area) : "inside";
   if (has("order_prefix")) { const x = str(b.order_prefix, 6).toUpperCase(); v.order_prefix = /^[A-Z0-9-]{1,6}$/.test(x) ? x : "FS-"; }
   if (section === "seo") v.seo_noindex = b.seo_noindex ? "1" : "0";
+  if (section === "payment") {
+    for (const k of ["bkash", "nagad", "rocket"]) {
+      const n = normalizePhone(str(b[`payment_${k}`], 20));
+      v[`payment_${k}`] = n ?? "";
+      v[`payment_${k}_type`] = ["personal", "agent", "merchant"].includes(String(b[`payment_${k}_type`])) ? String(b[`payment_${k}_type`]) : "personal";
+    }
+    v.advance_mode = ["off", "delivery", "fixed", "full"].includes(String(b.advance_mode)) ? String(b.advance_mode) : "off";
+    v.advance_who = ["all", "outside", "risky"].includes(String(b.advance_who)) ? String(b.advance_who) : "all";
+    v.advance_fixed = String(Math.max(0, Math.min(1_000_000, toInt(b.advance_fixed))));
+    v.advance_note = str(b.advance_note, 200);
+  }
 
   // গোপন টোকেন: ফাঁকা রাখলে আগেরটাই থাকে
   const token = str(b.fb_capi_token, 1000);

@@ -8,6 +8,7 @@ import { AREA_LABEL, orderExtras } from "../lib/orders";
 import type { Settings } from "../lib/settings";
 import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
 import { barcodeSvg } from "../lib/barcode";
+import { codAmount, PAY_NAME, type PayKey } from "../lib/payment";
 
 export type InvoiceData = { order: Order; items: (OrderItem & { image?: string | null })[] };
 
@@ -56,7 +57,11 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
         <div><span>পণ্যের দাম</span><span>{taka(subtotal)}</span></div>
         <div><span>ডেলিভারি চার্জ</span><span>{taka(o.delivery_charge)}</span></div>
         {o.discount > 0 && <div><span>কুপন ছাড় ({o.coupon_code})</span><span>-{taka(o.discount)}</span></div>}
-        <div class="iv-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(o.total)}</span></div>
+        {o.pay_status === "verified" && (o.advance_amount ?? 0) > 0 ? <>
+          <div><span>মোট</span><span>{taka(o.total)}</span></div>
+          <div><span>অগ্রিম পরিশোধ ({PAY_NAME[o.pay_method as PayKey] ?? o.pay_method})</span><span>-{taka(o.advance_amount!)}</span></div>
+          <div class="iv-total"><span>বাকি (ক্যাশ অন ডেলিভারি)</span><span>{taka(codAmount(o))}</span></div>
+        </> : <div class="iv-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(o.total)}</span></div>}
       </div>
       {s.invoice_note && <p class="iv-note">{s.invoice_note}</p>}
       <p class="iv-thanks">আমাদের থেকে কেনার জন্য ধন্যবাদ!</p>
@@ -76,7 +81,7 @@ const Sticker = ({ d, s }: { d: InvoiceData; s: Settings }) => {
         <p>{o.address}</p>
       </div>
       <div class="st-items">{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""}${(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}`).join(", ")}</div>
-      <div class="st-cod"><span>ক্যাশ অন ডেলিভারি</span><b>{taka(o.total)}</b></div>
+      <div class="st-cod"><span>ক্যাশ অন ডেলিভারি</span><b>{taka(codAmount(o))}</b></div>
       {s.invoice_barcode !== "0" && <Barcode text={o.order_no} />}
       <div class="st-no">{o.order_no} · {AREA_LABEL[o.area]}</div>
     </section>

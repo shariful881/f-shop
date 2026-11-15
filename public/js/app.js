@@ -82,6 +82,15 @@
       if (tEl) tEl.textContent = taka(subtotal + d - disc);
       var tb = form.querySelector("[data-total-btn]");
       if (tb) tb.textContent = taka(subtotal + d - disc);
+      // অগ্রিম পেমেন্ট: কত টাকা, আর ঢাকার বাইরে হলে দেখানো
+      var adv = form.querySelector("[data-advance]");
+      if (adv) {
+        var tot = subtotal + d - disc, mode = adv.dataset.mode, amt = mode === "full" ? tot : mode === "fixed" ? Math.min(+adv.dataset.fixed || 0, tot) : Math.min(d, tot);
+        var am = adv.querySelector("[data-adv-amount]");
+        if (am) am.textContent = taka(Math.max(0, amt));
+        if (adv.dataset.who === "outside" && !adv.dataset.force) adv.hidden = !(checked && checked.value === "outside") || amt <= 0;
+        if (adv.dataset.who === "all") adv.hidden = amt <= 0;
+      }
     }
     form.addEventListener("change", update);
     update();
@@ -178,6 +187,14 @@
         e.preventDefault();
         toast("সঠিক মোবাইল নম্বর লিখুন (01XXXXXXXXX)");
         phone.focus();
+        return;
+      }
+      var advBox = form.querySelector("[data-advance]");
+      var trxIn = form.querySelector("input[name=pay_trx]");
+      if (advBox && !advBox.hidden && trxIn && !/^[A-Za-z0-9 -]{6,24}$/.test(trxIn.value.trim())) {
+        e.preventDefault();
+        toast("অগ্রিম পাঠিয়ে Transaction ID লিখুন");
+        trxIn.focus();
         return;
       }
       if (form.querySelector("input[name=variant_id]") && !form.querySelector("input[name=variant_id]:checked")) {

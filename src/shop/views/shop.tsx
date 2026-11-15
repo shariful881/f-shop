@@ -8,6 +8,7 @@ import { parseLanding } from "../lib/landing";
 import { sanitizeHtml } from "../lib/sanitize";
 import { BuiltLanding } from "./landing";
 import type { Cfg } from "../lib/theme-config";
+import { advanceAmount, advanceConfig, PAY_TYPE, payMethods } from "../lib/payment";
 
 /* ---------- পণ্যের কার্ড (থিম কাস্টমাইজের লেখা/বাটন অনুযায়ী) ---------- */
 export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
@@ -79,6 +80,40 @@ export type FormState = {
   values?: Record<string, string>;
   errors?: Record<string, string>;
   alert?: string;
+  /** ঝুঁকির ক্রেতা: সার্ভার বলেছে অগ্রিম লাগবে */
+  needAdvance?: boolean;
+};
+
+const ADV_TEXT = { delivery: "ডেলিভারি চার্জ", full: "পুরো টাকা", fixed: "কিছু টাকা", off: "" } as const;
+
+/** অগ্রিম পেমেন্টের বক্স — দোকানের bKash/Nagad/Rocket নম্বর আর TrxID */
+const AdvanceBox = ({ s, area, total, delivery, form }: { s: Settings; area: string; total: number; delivery: number; form?: FormState }) => {
+  const c = advanceConfig(s);
+  if (!c.on) return null;
+  const methods = payMethods(s);
+  const v = form?.values ?? {};
+  const e = form?.errors ?? {};
+  const show = c.who === "all" || (c.who === "outside" && area === "outside") || !!form?.needAdvance || !!v.pay_trx;
+  const amount = advanceAmount(s, total, delivery);
+  const picked = v.pay_method && methods.some((m) => m.key === v.pay_method) ? v.pay_method : methods[0]!.key;
+  return (
+    <fieldset class="advance-box" data-advance data-mode={c.mode} data-who={c.who} data-fixed={String(c.fixed)} data-force={form?.needAdvance ? "1" : undefined} hidden={!show}>
+      <legend>অগ্রিম পাঠান: <strong data-adv-amount>{taka(amount)}</strong></legend>
+      <p class="small">অর্ডার নিশ্চিত করতে {ADV_TEXT[c.mode]} আগে পাঠাতে হবে{c.mode === "full" ? "" : "; বাকি টাকা পণ্য হাতে পেয়ে দেবেন"}। নিচের যেকোনো নম্বরে পাঠিয়ে Transaction ID দিন।</p>
+      <div class="pay-methods">
+        {methods.map((m) => (
+          <label class="pay-method">
+            <input type="radio" name="pay_method" value={m.key} checked={picked === m.key} />
+            <span><b>{m.name}</b> <span class="pay-num" data-copy-text={m.number}>{m.number}</span><small>{PAY_TYPE[m.type] ?? ""}</small></span>
+          </label>
+        ))}
+      </div>
+      {s.advance_note && <p class="small muted">{s.advance_note}</p>}
+      <label class="field"><span>যে নম্বর থেকে পাঠিয়েছেন</span><input type="tel" name="pay_sender" value={v.pay_sender ?? ""} inputmode="tel" placeholder="01XXXXXXXXX" maxlength={14} /></label>
+      <label class="field"><span>Transaction ID (TrxID) *</span><input type="text" name="pay_trx" value={v.pay_trx ?? ""} maxlength={24} placeholder="যেমন 9K7A2BX4QZ" autocomplete="off" class="trx-input" />
+        {e.pay_trx && <small class="error">{e.pay_trx}</small>}</label>
+    </fieldset>
+  );
 };
 
 export const OrderForm = (p: {
@@ -196,6 +231,8 @@ export const OrderForm = (p: {
           <input type="text" name="note" value={v.note ?? ""} maxlength={300} />
         </label>
       )}
+
+      <AdvanceBox s={s} area={area} total={p.subtotal + (isFree ? 0 : area === "outside" ? outside : area === "inside" ? inside : 0)} delivery={isFree ? 0 : area === "outside" ? outside : inside} form={p.form} />
 
       <div class="summary">
         <div><span>পণ্যের দাম</span><span data-subtotal-text>{taka(p.subtotal)}</span></div>
@@ -397,8 +434,13 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
       {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}{(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}</span><span>{taka(i.price * (i.qty || 1))}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
       {order.discount > 0 && <div><span>কুপন ছাড় ({order.coupon_code})</span><span>-{taka(order.discount)}</span></div>}
-      <div class="summary-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(order.total)}</span></div>
+      {order.pay_trx ? <>
+        <div class="summary-total"><span>মোট</span><span>{taka(order.total)}</span></div>
+        <div><span>অগ্রিম পাঠিয়েছেন (TrxID {order.pay_trx})</span><span>-{taka(order.advance_amount ?? 0)}</span></div>
+        <div class="summary-total"><span>বাকি (ক্যাশ অন ডেলিভারি)</span><span>{taka(Math.max(0, order.total - (order.advance_amount ?? 0)))}</span></div>
+      </> : <div class="summary-total"><span>মোট (ক্যাশ অন ডেলিভারি)</span><span>{taka(order.total)}</span></div>}
     </div>
+    {order.pay_trx && <p class="small">আপনার অগ্রিম পেমেন্ট দোকান মিলিয়ে দেখবে, তারপর অর্ডার কনফার্ম হবে।</p>}
     <p class="muted">ঠিকানা: {order.address}</p>
     <p>কোনো প্রশ্ন থাকলে কল করুন: <a href={`tel:${settings.contact_phone}`}>{bn(settings.contact_phone || "")}</a></p>
     <a href="/" class="btn btn-outline">আরও পণ্য দেখুন</a>

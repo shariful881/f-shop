@@ -15,6 +15,7 @@ import type { ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
+import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
 import { bn } from "../lib/format";
 import { ShopShell } from "./admin-pro";
 
@@ -138,9 +139,11 @@ export const OrdersPage = (p: {
   history?: Record<string, { good: number; bad: number }>;
   risk?: Record<string, Risk & { shared?: number; courier?: number | null }>;
   couriers?: CourierKey[];
+  payPending?: boolean;
+  payCount?: number;
 }) => {
   const range = p.range ?? "all";
-  const courierBulk = !p.q && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
+  const courierBulk = !p.q && !p.payPending && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
   const bulk = p.orders.length > 0;
   const qs = (extra: Record<string, string | number>) => {
     const u = new URLSearchParams({ status: p.status, range, ...(p.q ? { q: p.q } : {}) });
@@ -150,7 +153,7 @@ export const OrdersPage = (p: {
   const back = qs({ page: p.page });
   // কোন স্ট্যাটাস থেকে কোথায় একসাথে নেওয়া যায়
   const bulkTo: { to: OrderStatus; label: string; cls: string; ask?: string }[] =
-    p.q ? [] :
+    p.q || p.payPending ? [] :
     p.status === "new" ? [
       { to: "confirmed", label: "কনফার্ম", cls: "btn-primary", ask: "বাছাই করা অর্ডার কনফার্ম করবেন? (একবারে সর্বোচ্চ ১০টা)" },
       { to: "cancelled", label: "বাতিল", cls: "btn-outline", ask: "বাছাই করা অর্ডার বাতিল করবেন?" },
@@ -159,9 +162,14 @@ export const OrdersPage = (p: {
     p.status === "confirmed" ? [{ to: "shipped", label: "শিপড", cls: "btn-outline", ask: "বাছাই করা অর্ডার শিপড করবেন?" }] : [];
   return (
   <>
+    {(p.payCount ?? 0) > 0 && (
+      <a href={p.payPending ? "/admin/orders" : "/admin/orders?pay=pending"} class={`pay-alert ${p.payPending ? "on" : ""}`}>
+        <Icon name="wallet" size="sm" /> অগ্রিম পেমেন্ট যাচাই বাকি: <b>{bn(p.payCount!)}টা</b> {p.payPending ? "· সব অর্ডার দেখুন" : "· দেখুন →"}
+      </a>
+    )}
     <div class="tabs">
       {STATUS_TABS.map((s) => (
-        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && p.status === s ? "tab active" : "tab"}>
+        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && !p.payPending && p.status === s ? "tab active" : "tab"}>
           {STATUS_LABEL[s]} <span class="tab-count">{bn(p.counts[s] ?? 0)}</span>
         </a>
       ))}
@@ -217,6 +225,7 @@ export const OrdersPage = (p: {
                 <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
                   {o.outcome && <><br /><span class={`pill ${o.outcome === "delivered" ? "pill-ok" : "pill-bad"}`}>{o.outcome === "delivered" ? "ডেলিভারি হয়েছে" : "ফেরত এসেছে"}</span></>}
+                  {o.pay_trx && <><br /><span class={`pill ${o.pay_status === "verified" ? "pill-ok" : o.pay_status === "rejected" ? "pill-bad" : "pill-warn"}`}>অগ্রিম {taka(o.advance_amount ?? 0)} · {PAY_STATUS[o.pay_status ?? "pending"]}</span></>}
                 </td>
                 <td><small>{dhakaTime(o.created_at)}</small></td>
               </tr>
@@ -274,7 +283,7 @@ const CourierPanel = ({ o, couriers }: { o: Order; couriers: CourierKey[] }) => 
               {couriers.map((k) => <option value={k}>{COURIER_NAME[k]}</option>)}
             </select>
           </label>
-          <label class="field"><span>ক্যাশ কালেকশন (৳)</span><input type="number" name="cod" min="0" value={String(o.total)} /></label>
+          <label class="field"><span>ক্যাশ কালেকশন (৳)</span><input type="number" name="cod" min="0" value={String(codAmount(o))} />{o.pay_status === "verified" && (o.advance_amount ?? 0) > 0 && <small>অগ্রিম {taka(o.advance_amount!)} বাদে</small>}</label>
           <label class="field"><span>ওজন (কেজি)</span><input type="number" name="weight" min="0.1" max="30" step="0.1" value="0.5" /></label>
         </div>
         <div class="form-grid" data-for="pathao" hidden>
@@ -290,6 +299,25 @@ const CourierPanel = ({ o, couriers }: { o: Order; couriers: CourierKey[] }) => 
       </form>
     )}
     {o.courier_response && !o.consignment_id && <details><summary>শেষ চেষ্টার রেসপন্স</summary><pre class="pre">{o.courier_response}</pre></details>}
+  </section>
+);
+
+/** অগ্রিম পেমেন্ট: TrxID মিলিয়ে "পেয়েছি" / "পাইনি" */
+const PaymentPanel = ({ o }: { o: Order }) => (
+  <section class={`panel pay-panel pay-${o.pay_status ?? "pending"}`}>
+    <h2>অগ্রিম পেমেন্ট <span class={`pill ${o.pay_status === "verified" ? "pill-ok" : o.pay_status === "rejected" ? "pill-bad" : "pill-warn"}`}>{PAY_STATUS[o.pay_status ?? "pending"]}</span></h2>
+    <dl class="kv">
+      <dt>পরিমাণ</dt><dd><strong>{taka(o.advance_amount ?? 0)}</strong> <small class="muted">· বাকি {taka(Math.max(0, o.total - (o.advance_amount ?? 0)))}</small></dd>
+      <dt>মাধ্যম</dt><dd>{PAY_NAME[o.pay_method as PayKey] ?? o.pay_method}</dd>
+      <dt>TrxID</dt><dd><code class="trx">{o.pay_trx}</code></dd>
+      {o.pay_sender && <><dt>পাঠানো নম্বর</dt><dd>{o.pay_sender}</dd></>}
+      {o.pay_checked_at && <><dt>মিলানো</dt><dd>{dhakaTime(o.pay_checked_at)}</dd></>}
+    </dl>
+    <p class="muted small">আপনার {PAY_NAME[o.pay_method as PayKey] ?? ""} অ্যাপের লেনদেনে এই TrxID আর টাকা মিলিয়ে দেখুন।</p>
+    <div class="actions">
+      {o.pay_status !== "verified" && <form method="post" action={`/admin/orders/${o.id}/payment`} class="inline"><input type="hidden" name="status" value="verified" /><button class="btn btn-primary btn-sm"><Icon name="check" size="sm" /> পেয়েছি</button></form>}
+      {o.pay_status !== "rejected" && <form method="post" action={`/admin/orders/${o.id}/payment`} class="inline" data-confirm="এই TrxID-এর টাকা পাননি? অর্ডারে &quot;পাওয়া যায়নি&quot; চিহ্ন দেওয়া হবে।"><input type="hidden" name="status" value="rejected" /><button class="btn btn-outline btn-sm"><Icon name="x" size="sm" /> পাইনি</button></form>}
+    </div>
   </section>
 );
 
@@ -347,7 +375,7 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
       <div class="actions">
         {TRANSITIONS[o.status].map((to) => (
           <form method="post" action={`/admin/orders/${o.id}/status`} class="inline"
-            data-confirm={to === "cancelled" || to === "fake" ? "এই অর্ডারের নম্বর ও ডিভাইস স্থায়ীভাবে ব্লক হবে, নিশ্চিত?" : undefined}>
+            data-confirm={to === "cancelled" || to === "fake" ? "এই অর্ডারের নম্বর ও ডিভাইস স্থায়ীভাবে ব্লক হবে, নিশ্চিত?" : to === "confirmed" && o.pay_trx && o.pay_status !== "verified" ? "অগ্রিম পেমেন্ট এখনো মেলানো হয়নি। তবুও কনফার্ম করবেন?" : undefined}>
             <input type="hidden" name="status" value={to} />
             <button class={`btn ${to === "confirmed" ? "btn-primary" : to === "cancelled" || to === "fake" ? "btn-danger" : "btn-outline"}`}>{ACTION_LABEL[to]}</button>
           </form>
@@ -382,6 +410,8 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
             </tbody>
           </table>
         </section>
+
+        {o.pay_trx && <PaymentPanel o={o} />}
 
         {p.record && <BuyerRecordPanel o={o} r={p.record} />}
 

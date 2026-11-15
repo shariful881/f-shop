@@ -11,6 +11,7 @@ import { ASSET_VERSION } from "./layout";
 import { ChatWidget } from "./support";
 import { Icon, type IconName } from "./icons";
 import { MediaField } from "./media-field";
+import { PAY_NAME, PAY_TYPE, payMethods } from "../lib/payment";
 
 /* ---------- সাইডবার লেআউট ---------- */
 const NAV: { key: string; href: string; icon: IconName; label: string; group?: string; perm?: string }[] = [
@@ -32,6 +33,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "sms", href: "/admin/sms", icon: "message-square", label: "SMS" },
   { key: "courier", href: "/admin/courier", icon: "truck", label: "কুরিয়ার", group: "ডেলিভারি" },
   { key: "delivery", href: "/admin/settings/delivery", icon: "package", label: "ডেলিভারি চার্জ", perm: "settings" },
+  { key: "payment", href: "/admin/settings/payment", icon: "wallet", label: "অগ্রিম পেমেন্ট", perm: "settings" },
   { key: "blacklist", href: "/admin/blacklist", icon: "shield-alert", label: "ফেক অর্ডার ব্লক" },
   { key: "settings", href: "/admin/settings", icon: "settings", label: "দোকানের সেটিংস", group: "সেটিংস" },
   { key: "domains", href: "/admin/domain", icon: "globe", label: "ডোমেইন" },
@@ -46,7 +48,7 @@ const HELP_BASE = "https://sellxbd.com/help";
 const HELP_FOR: Record<string, string> = {
   dashboard: "setup-checklist", orders: "orders", incomplete: "incomplete-orders", customers: "customers", reports: "reports", products: "add-product",
   inventory: "inventory", categories: "add-product", theme: "theme-editor", landing: "landing-page", pages: "pages", media: "media-library",
-  coupons: "coupons", ads: "catalog-ads", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", blacklist: "fake-orders",
+  coupons: "coupons", ads: "catalog-ads", tracking: "pixel", sms: "sms", courier: "courier", delivery: "delivery-charge", payment: "advance-payment", blacklist: "fake-orders",
   settings: "setup-checklist", domains: "domain", staff: "staff", billing: "billing", export: "backup", support: "support",
 };
 
@@ -296,6 +298,7 @@ export const SETTINGS_TABS: { key: string; href: string; label: string; icon: Ic
   { key: "general", href: "/admin/settings", label: "দোকানের তথ্য", icon: "store", set: "shop" },
   { key: "checkout", href: "/admin/settings/checkout", label: "অর্ডার ফর্ম", icon: "receipt", set: "shop" },
   { key: "delivery", href: "/admin/settings/delivery", label: "ডেলিভারি চার্জ", icon: "truck", set: "shop" },
+  { key: "payment", href: "/admin/settings/payment", label: "অগ্রিম পেমেন্ট", icon: "credit-card", set: "shop" },
   { key: "seo", href: "/admin/settings/seo", label: "SEO", icon: "search", set: "shop" },
   { key: "tracking", href: "/admin/settings/tracking", label: "পিক্সেল ও ট্র্যাকিং", icon: "trending-up", set: "shop" },
   { key: "customize", href: "/admin/design", label: "থিম এডিটর", icon: "sliders-horizontal", set: "theme" },
@@ -407,6 +410,38 @@ export const SettingsDeliveryPage = ({ s }: { s: Settings }) => (
     </SettingsForm>
   </>
 );
+
+export const SettingsPaymentPage = ({ s }: { s: Settings }) => {
+  const methods = payMethods(s);
+  return (
+  <>
+    <Tabs active="payment" />
+    <SettingsForm section="payment" action="/admin/settings/payment">
+      <Section title="আপনার পেমেন্ট নম্বর" desc="ক্রেতা এই নম্বরে টাকা পাঠাবে — টাকা সরাসরি আপনার কাছে আসে। যেটা ব্যবহার করেন না সেটা ফাঁকা রাখুন।">
+        {(["bkash", "nagad", "rocket"] as const).map((k) => (
+          <>
+            <F label={`${PAY_NAME[k]} নম্বর`}><input type="tel" name={`payment_${k}`} value={s[`payment_${k}`] ?? ""} inputmode="tel" placeholder="01XXXXXXXXX" maxlength={12} /></F>
+            <F label={`${PAY_NAME[k]} অ্যাকাউন্টের ধরন`}>
+              <select name={`payment_${k}_type`}>{Object.entries(PAY_TYPE).map(([t, l]) => <option value={t} selected={(s[`payment_${k}_type`] || "personal") === t}>{l}</option>)}</select>
+            </F>
+          </>
+        ))}
+      </Section>
+      <Section title="কখন অগ্রিম চাইবেন" desc="ফেক অর্ডার আর ফেরত কমাতে ক্যাশ অন ডেলিভারির আগে কিছু টাকা অগ্রিম নিন। ক্রেতা টাকা পাঠিয়ে Transaction ID দেবে, আপনি নিজের অ্যাপে মিলিয়ে অর্ডারে &quot;পেয়েছি&quot; চাপবেন।">
+        <F label="কত টাকা অগ্রিম">
+          <select name="advance_mode">{Object.entries({ off: "অগ্রিম নেবেন না (শুধু ক্যাশ অন ডেলিভারি)", delivery: "শুধু ডেলিভারি চার্জ", fixed: "নির্দিষ্ট টাকা", full: "পুরো টাকা" }).map(([k, l]) => <option value={k} selected={(s.advance_mode || "off") === k}>{l}</option>)}</select>
+        </F>
+        <F label="নির্দিষ্ট টাকা হলে কত (৳)"><input type="number" name="advance_fixed" min="0" value={s.advance_fixed || "0"} /></F>
+        <F label="কার কাছে চাইবেন">
+          <select name="advance_who">{Object.entries({ all: "সব অর্ডারে", outside: "শুধু ঢাকার বাইরের অর্ডারে", risky: "শুধু ঝুঁকির ক্রেতার কাছে (আগে ফেক/ফেরত আছে)" }).map(([k, l]) => <option value={k} selected={(s.advance_who || "all") === k}>{l}</option>)}</select>
+        </F>
+        <F label="ক্রেতার জন্য নির্দেশনা (ঐচ্ছিক)" hint="যেমন: Send Money-র রেফারেন্সে আপনার মোবাইল নম্বর লিখুন" wide><input type="text" name="advance_note" value={s.advance_note ?? ""} maxlength={200} /></F>
+        {(s.advance_mode || "off") !== "off" && methods.length === 0 && <p class="sa-bad">উপরে অন্তত একটা পেমেন্ট নম্বর দিন — নইলে অগ্রিম চাওয়া হবে না।</p>}
+      </Section>
+    </SettingsForm>
+  </>
+  );
+};
 
 export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
   <>

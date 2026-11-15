@@ -23,6 +23,7 @@ import m0017 from "../../migrations/shop/0017_media.sql";
 import m0018 from "../../migrations/shop/0018_fraud.sql";
 import m0019 from "../../migrations/shop/0019_stock.sql";
 import m0020 from "../../migrations/shop/0020_ads.sql";
+import m0021 from "../../migrations/shop/0021_advance.sql";
 import { SqlImageStore } from "./lib/images";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
@@ -49,6 +50,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0018_fraud", m0018],
   ["0019_stock", m0019],
   ["0020_ads", m0020],
+  ["0021_advance", m0021],
 ];
 
 export type SetupInput = {

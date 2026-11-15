@@ -18,7 +18,7 @@ import { createOrder, getOrderByNo, orderPrefix } from "../lib/orders";
 import { checkCoupon, normalizeCode } from "../lib/coupons";
 import { deliveryCharge, minOrderAmount } from "../lib/settings";
 import { publicOrigin, clientIp, isHttps, publicUrl, str, toInt, wantsJson } from "../lib/http";
-import { bn, imageUrl } from "../lib/format";
+import { bn, imageUrl, taka } from "../lib/format";
 import { page } from "../lib/render";
 import { newEventId, trackServer, type CustomData } from "../lib/capi";
 import { PixelHead, type BrowserEvent } from "../views/pixel";
@@ -27,6 +27,8 @@ import { isUuid } from "../middleware/device";
 import { markConverted, saveDraft } from "../lib/incomplete";
 import { SOLD_OUT_MSG, soldOut, variantsForSale } from "../lib/stock";
 import { feedItems, feedOn, toFeedCsv, toRss } from "../lib/feed";
+import { advanceAmount, advanceConfig, needsAdvance, normalizeTrx, payMethods } from "../lib/payment";
+import { ownRecords, riskOf, sharedRecords } from "../lib/fraud";
 
 export const shop = new Hono<AppEnv>();
 
@@ -381,6 +383,7 @@ shop.post("/order", async (c) => {
     variant_id: str(body.variant_id, 12),
     coupon: normalizeCode(body.coupon),
     email: str(body.email, 120),
+    pay_method: str(body.pay_method, 10), pay_trx: str(body.pay_trx, 24), pay_sender: str(body.pay_sender, 20),
     cf1: str(body.cf1, 200), cf2: str(body.cf2, 200), cf3: str(body.cf3, 200),
   };
 
@@ -481,6 +484,33 @@ shop.post("/order", async (c) => {
       coupon = { id: cc.coupon.id, code: cc.coupon.code, discount: cc.discount };
     }
 
+    // ৪খ. অগ্রিম পেমেন্ট (দোকানের সেটিং অনুযায়ী — সব অর্ডারে, ঢাকার বাইরে, বা ঝুঁকির ক্রেতার কাছে)
+    let advance: { amount: number; method: string; trx: string; sender: string | null } | null = null;
+    const advCfg = advanceConfig(s);
+    if (advCfg.on) {
+      const total = subtotal + delivery - (coupon?.discount ?? 0);
+      const amount = advanceAmount(s, total, delivery);
+      let risky = false;
+      if (advCfg.who === "risky") {
+        const [own, shared] = await Promise.all([ownRecords(c.env.DB, [v.phone]), sharedRecords(c.env.PLATFORM_DB, s, c.env.SHOP_ID, [v.phone])]);
+        const r = riskOf(own[v.phone], shared[v.phone]);
+        risky = r.level === "bad" || r.level === "warn";
+      }
+      const need = needsAdvance(s, v.area, risky, amount);
+      const trx = normalizeTrx(values.pay_trx);
+      if (values.pay_trx && !trx) return fail({ errors: { pay_trx: "সঠিক Transaction ID লিখুন (ইংরেজি অক্ষর আর সংখ্যা)" }, needAdvance: need });
+      if (need && !trx) {
+        return fail({ alert: risky ? `এই নম্বরে আগের অর্ডারে সমস্যা ছিল, তাই অর্ডার নিশ্চিত করতে ${taka(amount)} অগ্রিম পাঠাতে হবে।` : `অর্ডার নিশ্চিত করতে ${taka(amount)} অগ্রিম পাঠিয়ে Transaction ID দিন।`, errors: { pay_trx: "Transaction ID লিখুন" }, needAdvance: true });
+      }
+      if (trx) {
+        if (await c.env.DB.prepare("SELECT 1 FROM orders WHERE pay_trx = ?").bind(trx).first()) {
+          return fail({ errors: { pay_trx: "এই Transaction ID আগেই ব্যবহার হয়েছে" }, needAdvance: true });
+        }
+        const method = payMethods(s).some((m) => m.key === values.pay_method) ? values.pay_method! : payMethods(s)[0]!.key;
+        advance = { amount: amount > 0 ? amount : delivery, method, trx, sender: normalizePhone(values.pay_sender) };
+      }
+    }
+
     // ৫. অর্ডার সেভ
     const order = await createOrder(c.env.DB, {
       name: values.name!,
@@ -501,6 +531,7 @@ shop.post("/order", async (c) => {
       email: st.checkout_email !== "off" ? values.email || null : null,
       extras,
       prefix: orderPrefix(st),
+      advance,
     }, products);
 
     // Lead: সার্ভার এখন (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
