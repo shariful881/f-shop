@@ -30,8 +30,8 @@ export function normalizeDomain(input: string, platformDomain: string): { domain
   return { domain: d };
 }
 
-export function cfFromEnv(env: { CF_API_TOKEN?: string; CF_ACCOUNT_ID?: string; WORKER_NAME?: string }): Cloudflare {
-  const cfg: CfConfig = { token: env.CF_API_TOKEN, accountId: env.CF_ACCOUNT_ID, workerName: env.WORKER_NAME };
+export function cfFromEnv(env: { CF_API_TOKEN?: string; CF_ACCOUNT_ID?: string; WORKER_NAME?: string; PLATFORM_DOMAIN?: string }): Cloudflare {
+  const cfg: CfConfig = { token: env.CF_API_TOKEN, accountId: env.CF_ACCOUNT_ID, workerName: env.WORKER_NAME, platformDomain: env.PLATFORM_DOMAIN };
   return new Cloudflare(cfg);
 }
 

@@ -99,7 +99,9 @@ npm test
 - **মূল ডাটাবেস (D1):** `f-shop-platform` — id `wrangler.jsonc`-এ। টেবিল ডিপ্লয়ের সময় নিজে তৈরি/আপডেট হয়
 - **ছবি:** R2 লাগে না — প্রতিটা দোকানের নিজের ডাটাবেসে থাকে (১MB-এর টুকরোয়), Cloudflare edge cache থেকে পরিবেশন হয়
 - **পাসওয়ার্ড হ্যাশ:** PBKDF2 ২০,০০০ বার — ফ্রি প্ল্যানের ১০ms CPU সীমার মধ্যে (লগইনে ভুল চেষ্টার সীমাও আছে)
-- **GitHub secret:** `CLOUDFLARE_API_TOKEN` (টোকেনের নাম "SellxBD deploy (GitHub)")। একই টোকেন Worker-এ `CF_API_TOKEN` হিসেবেও বসে (দোকানদারের নিজের ডোমেইন ফিচারের জন্য)
+- **GitHub secret দুটো (আলাদা টোকেন):**
+  - `CLOUDFLARE_API_TOKEN` — টোকেন "SellxBD deploy (GitHub)"; শুধু ডিপ্লয়ের job-এ থাকে, Worker-এ কখনো যায় না
+  - `CF_WORKER_TOKEN` — টোকেন "SellxBD worker (domains)"; ডিপ্লয়ের সময় Worker-এর `CF_API_TOKEN` secret হিসেবে বসে (শুধু দোকানদারের ডোমেইনের কাজ — নিচে ৬ নম্বর)। এই secret না থাকলে Worker-এর আগের secret বদলায় না
 
 ### ফ্রি প্ল্যানের সীমা (বড় হলে Workers Paid $৫/মাস নেবেন)
 - দিনে ১,০০,০০০ রিকোয়েস্ট (ছবি edge cache থেকে গেলে গোনা হয় না)
@@ -109,7 +111,9 @@ npm test
 Paid প্ল্যান নিলে কোড বদলাতে হবে না।
 
 ### টোকেন নষ্ট/ফাঁস হলে
-Cloudflare → My Profile → API Tokens → "SellxBD deploy (GitHub)" → **Roll** → নতুন টোকেন কপি করে GitHub → Settings → Secrets and variables → Actions → `CLOUDFLARE_API_TOKEN` → ✏️ → **Secret** ঘরে পেস্ট (নামের ঘরে নয়!) → Actions থেকে **Run workflow**।
+Cloudflare → My Profile → API Tokens → যেটা ফাঁস হয়েছে ("SellxBD deploy (GitHub)" বা "SellxBD worker (domains)") → **Roll** → নতুন টোকেন কপি করে GitHub → Settings → Secrets and variables → Actions → মিলিয়ে `CLOUDFLARE_API_TOKEN` বা `CF_WORKER_TOKEN` → ✏️ → **Secret** ঘরে পেস্ট (নামের ঘরে নয়!) → Actions থেকে **Run workflow**।
+
+**নিরাপত্তার নিয়ম (workflow):** টেস্টের job-এ কোনো টোকেন নেই; `npm ci --ignore-scripts`; actions commit SHA দিয়ে আটকানো; দুটো টোকেন কখনো একই হবে না (একই দিলে ডিপ্লয় থেমে যায়)। কোডে `guardZone` — Worker কখনো `sellxbd.com`-এর নিজের zone মুছতে বা তার DNS/Worker domain বদলাতে পারে না।
 
 > **লাইভে টেস্ট মোড বন্ধ থাকে।** লাইভে `?shop=` কাজ করে না, শুধু আসল ডোমেইন/subdomain দিয়ে দোকান খোলে।
 
@@ -121,15 +125,15 @@ Cloudflare → My Profile → API Tokens → "SellxBD deploy (GitHub)" → **Rol
 
 ## ৬. দোকানদারের নিজের ডোমেইন চালু করা
 
-এর জন্য Worker-এর একটা আলাদা টোকেন লাগে, যেটা দিয়ে সিস্টেম দোকানদারের ডোমেইন আপনার Cloudflare অ্যাকাউন্টে যোগ করে।
+এর জন্য Worker-এর একটা আলাদা টোকেন লাগে, যেটা দিয়ে সিস্টেম দোকানদারের ডোমেইন আপনার Cloudflare অ্যাকাউন্টে যোগ করে। **এটা deploy টোকেন নয়** — এতে D1, R2, Workers ডিপ্লয়ের অনুমতি থাকবে না।
 
-1. **API Tokens** → **Create Token** → **Create Custom Token**। অনুমতি:
+1. **API Tokens** → **Create Token** → **Create Custom Token** → নাম "SellxBD worker (domains)"। অনুমতি (এর বেশি নয়):
    - `Account` · `Workers Scripts` · `Edit`
    - `Zone` · `Zone` · `Edit`
    - `Zone` · `DNS` · `Edit`
    - `Zone` · `Workers Routes` · `Edit`
    - Account Resources: আপনার অ্যাকাউন্ট · Zone Resources: **All zones from an account** → আপনার অ্যাকাউন্ট
-2. **Workers & Pages** → **f-shop** → **Settings** → **Variables and Secrets** → **Add** → Type **Secret**, নাম `CF_API_TOKEN`, মান এই টোকেন → **Deploy**
+2. GitHub → Settings → Secrets and variables → Actions → **New repository secret** → নাম `CF_WORKER_TOKEN`, মান এই টোকেন → Actions থেকে **Run workflow** (ডিপ্লয় নিজেই Worker-এ বসাবে)
 
 **দোকানদার যা করবে:** অ্যাডমিন → ডোমেইন → `dokan.com` লিখে যোগ করবে → দুটো নেমসার্ভার পাবে → নিজের ডোমেইন কোম্পানির প্যানেলে বসাবে → "এখনই যাচাই করুন" (অথবা সিস্টেম প্রতি ৩০ মিনিটে নিজে যাচাই করে)। নেমসার্ভার বসলে `dokan.com` আর `www.dokan.com`-এ দোকান https সহ চালু হয়।
 

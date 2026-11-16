@@ -1,5 +1,12 @@
 # main-এ push করলে: টেস্ট চলবে, সব পাস করলে Cloudflare-এ লাইভ হবে
 # (CLOUDFLARE_API_TOKEN secret না থাকলে শুধু টেস্ট চলবে)
+#
+# নিরাপত্তা (security/step-1):
+# - টেস্টের job-এ কোনো Cloudflare টোকেন নেই — npm প্যাকেজ বা টেস্টের কোড টোকেন দেখতে পায় না
+# - npm ci --ignore-scripts — প্যাকেজের install script চলে না
+# - deploy টোকেন (CLOUDFLARE_API_TOKEN) শুধু deploy job-এ, শুধু main-এ push হলে
+# - Worker-এর ভেতরে আলাদা ছোট টোকেন (CF_WORKER_TOKEN: শুধু zone, DNS, Workers domain) — deploy টোকেন Worker-এ যায় না
+# - actions commit SHA দিয়ে আটকানো (কেউ ট্যাগ বদলালেও আমাদের চলা কোড বদলাবে না)
 name: Test & Deploy
 
 on:
@@ -8,39 +15,74 @@ on:
   pull_request:
   workflow_dispatch:
 
-jobs:
-  test-deploy:
-    runs-on: ubuntu-latest
-    env:
-      RAW_CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    steps:
-      # secret-এ ভুল করে ফাঁকা লাইন/দুবার পেস্ট হলেও প্রথম টোকেনটাই নেওয়া
-      - name: টোকেন প্রস্তুত
-        run: |
-          T=$(printf '%s\n' "$RAW_CF_TOKEN" | awk 'NF{print $1; exit}')
-          if [ -n "$T" ]; then echo "::add-mask::$T"; echo "CLOUDFLARE_API_TOKEN=$T" >> "$GITHUB_ENV"; fi
+permissions:
+  contents: read
 
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
 
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency: { group: deploy, cancel-in-progress: false }
+    steps:
+      # secret-এ ভুল করে ফাঁকা লাইন/দুবার পেস্ট হলেও প্রথম টোকেনটাই নেওয়া
+      - name: টোকেন প্রস্তুত
+        env:
+          RAW_CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RAW_WORKER_TOKEN: ${{ secrets.CF_WORKER_TOKEN }}
+        run: |
+          T=$(printf '%s\n' "$RAW_CF_TOKEN" | awk 'NF{print $1; exit}')
+          W=$(printf '%s\n' "$RAW_WORKER_TOKEN" | awk 'NF{print $1; exit}')
+          if [ -n "$T" ]; then echo "::add-mask::$T"; echo "CLOUDFLARE_API_TOKEN=$T" >> "$GITHUB_ENV"; else echo "::warning::CLOUDFLARE_API_TOKEN নেই — ডিপ্লয় হবে না"; fi
+          if [ -n "$W" ]; then echo "::add-mask::$W"; echo "CF_WORKER_TOKEN=$W" >> "$GITHUB_ENV"; fi
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+        if: env.CLOUDFLARE_API_TOKEN != ''
+
       - name: দোকানের ছবির R2 (bucket, img ডোমেইন) — না থাকলে R2 ছাড়াই ডিপ্লয়
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        if: env.CLOUDFLARE_API_TOKEN != ''
         run: node scripts/ensure-r2.mjs
 
       - name: ডাটাবেস migrate + Cloudflare-এ ডিপ্লয়
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        if: env.CLOUDFLARE_API_TOKEN != ''
         run: npm run deploy
 
-      - name: Worker-এ CF_API_TOKEN secret (দোকানদারের নিজের ডোমেইন ফিচারের জন্য)
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
-        run: echo "$CLOUDFLARE_API_TOKEN" | npx wrangler secret put CF_API_TOKEN
+      # দোকানদারের নিজের ডোমেইন ফিচারের টোকেন — deploy টোকেন নয়, আলাদা ছোট টোকেন।
+      # CF_WORKER_TOKEN secret না থাকলে Worker-এর আগের secret যেমন আছে তেমন থাকে (বদলায় না)।
+      - name: Worker-এ CF_API_TOKEN secret (আলাদা ছোট টোকেন)
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          if [ -z "$CF_WORKER_TOKEN" ]; then
+            echo "::warning::CF_WORKER_TOKEN secret নেই — Worker-এর CF_API_TOKEN বদলানো হলো না। README-এর 'টোকেন' অংশ দেখুন।"
+            exit 0
+          fi
+          if [ "$CF_WORKER_TOKEN" = "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CF_WORKER_TOKEN আর deploy টোকেন একই — Worker-এর জন্য আলাদা ছোট টোকেন বানান"
+            exit 1
+          fi
+          ok=$(curl -s -H "Authorization: Bearer $CF_WORKER_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);console.log(j.success&&j.result&&j.result.status==="active"?"1":"0")}catch{console.log("0")}})')
+          if [ "$ok" != "1" ]; then echo "::error::CF_WORKER_TOKEN কাজ করছে না (বাতিল বা ভুল)"; exit 1; fi
+          printf '%s' "$CF_WORKER_TOKEN" | npx wrangler secret put CF_API_TOKEN
 
       - name: মূল ডোমেইনের DNS (sellxbd.com আর *.sellxbd.com → Worker), না থাকলে তৈরি
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != ''
+        if: env.CLOUDFLARE_API_TOKEN != ''
         run: node scripts/ensure-dns.mjs

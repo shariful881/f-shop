@@ -252,3 +252,37 @@ describe("DNS রেকর্ড পেজ", () => {
     expect(validateDnsInput("SRV", "@", "x", "x.com").error).toBeTruthy();
   });
 });
+
+describe("প্ল্যাটফর্মের নিজের zone-এর পাহারা (security/step-1)", () => {
+  const client = () => cfFromEnv({ CF_API_TOKEN: "test-token", CF_ACCOUNT_ID: "acc1", WORKER_NAME: "f-shop", PLATFORM_DOMAIN: "sellxbd.com" });
+  beforeEach(() => {
+    cf.zones.set("zplat", { id: "zplat", name: "sellxbd.com", status: "active" });
+    cf.dns.set("zplat", [{ id: "r1", type: "A", name: "sellxbd.com", content: "192.0.2.1" }]);
+    cf.workerDomains.push({ id: "wplat", hostname: "sellxbd.com", zone_id: "zplat" });
+  });
+
+  it("sellxbd.com-এর zone মোছা, DNS লেখা/মোছা, Worker domain — সব আটকায়", async () => {
+    const c = client();
+    expect((await c.deleteZone("zplat")).ok).toBe(false);
+    expect((await c.createDns("zplat", { type: "A", name: "x", content: "192.0.2.9" })).ok).toBe(false);
+    expect((await c.deleteDns("zplat", "r1")).ok).toBe(false);
+    expect((await c.attachWorker("evil.sellxbd.com", "zplat")).ok).toBe(false);
+    expect((await c.listWorkerDomains("zplat")).ok).toBe(false);
+    expect((await c.createZone("sellxbd.com")).ok).toBe(false);
+    expect((await c.createZone("shop.sellxbd.com")).ok).toBe(false);
+    expect(cf.zones.has("zplat")).toBe(true);
+    expect(cf.dns.get("zplat")!.length).toBe(1);
+    expect(cf.calls.some((x) => x.startsWith("DELETE") || x.startsWith("POST"))).toBe(false);
+  });
+
+  it("ভুল zone id-তে Cloudflare-এ যায়ই না", async () => {
+    expect((await client().deleteZone("../accounts")).ok).toBe(false);
+    expect(cf.calls.length).toBe(0);
+  });
+
+  it("দোকানদারের zone-এ আগের মতোই কাজ করে", async () => {
+    cf.zones.set("zshop", { id: "zshop", name: "dokan.com", status: "active" });
+    expect((await client().deleteZone("zshop")).ok).toBe(true);
+    expect(cf.zones.has("zshop")).toBe(false);
+  });
+});
