@@ -43,7 +43,6 @@ import { outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, t
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { customSmsUrlError, notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
 import { registerSupport } from "./support";
-import { customersCsv, ordersCsv, productsCsv } from "../lib/export";
 import { BackupPage, type StorageStats } from "../views/backup";
 import { UiKitPage } from "../views/ui";
 import { IncompleteConvertPage, IncompletePage } from "../views/incomplete";
@@ -597,7 +596,7 @@ admin.get("/customers", async (c) => {
 /** ডিজাইন কম্পোনেন্টের নমুনা (মেনুতে নেই) */
 admin.get("/ui-kit", (c) => render(c, "ডিজাইন কম্পোনেন্ট", "ui-kit", <UiKitPage />));
 
-/** ব্যাকআপ ও স্টোরেজ পেজ */
+/** স্টোরেজ পেজ (ডাটা ডাউনলোড বন্ধ) */
 admin.get("/export", async (c) => {
   const st = await c.env.DB.prepare(
     `SELECT (SELECT COUNT(*) FROM products) products, (SELECT COUNT(*) FROM orders) orders,
@@ -605,22 +604,10 @@ admin.get("/export", async (c) => {
             (SELECT COALESCE(SUM(size), 0) FROM images) imageBytes, (SELECT COUNT(*) FROM pages) pages,
             (SELECT COUNT(*) FROM sms_logs) smsLogs`,
   ).first<StorageStats>();
-  return render(c, "ব্যাকআপ ও স্টোরেজ", "export", <BackupPage stats={st!} limit={(c.var.shopState.storage_mb ?? 0) * 1024 * 1024} />);
+  return render(c, "স্টোরেজ", "export", <BackupPage stats={st!} limit={(c.var.shopState.storage_mb ?? 0) * 1024 * 1024} />);
 });
 
-/** ব্যাকআপ: Excel-এ খোলে এমন CSV ডাউনলোড (মালিক/ম্যানেজার) */
-const EXPORTS = { orders: ordersCsv, products: productsCsv, customers: customersCsv } as const;
-admin.get("/export/:kind{[a-z]+\\.csv}", async (c) => {
-  const kind = c.req.param("kind").replace(".csv", "") as keyof typeof EXPORTS;
-  if (!Object.hasOwn(EXPORTS, kind)) return c.notFound();
-  const csv = await EXPORTS[kind](c.env.DB);
-  const day = new Date().toISOString().slice(0, 10);
-  return new Response(csv, { headers: {
-    "content-type": "text/csv; charset=utf-8",
-    "content-disposition": `attachment; filename="${kind}-${day}.csv"`,
-    "cache-control": "no-store",
-  } });
-});
+/* দোকানের প্যানেল থেকে CSV ডাউনলোড বন্ধ (১৬ নভেম্বর ২০২৬) — দরকার হলে সুপার অ্যাডমিন নামিয়ে দেন: /super/shops/:id/export/:kind.csv */
 
 admin.get("/orders/:id{[0-9]+}", async (c) => {
   const db = c.env.DB;

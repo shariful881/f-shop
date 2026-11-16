@@ -309,6 +309,24 @@ superApp.get("/shops/:id/export.json", async (c) => {
   } });
 });
 
+/** দোকানের অর্ডার/পণ্য/কাস্টমার CSV — দোকানদার চাইলে সুপার অ্যাডমিন নামিয়ে দেন (শুধু owner, অডিটে লেখা) */
+const CSV_KINDS = { orders: "অর্ডার", products: "পণ্য", customers: "কাস্টমার" } as const;
+superApp.get("/shops/:id/export/:kind{[a-z]+\\.csv}", async (c) => {
+  if (!allowed(c, "shop.export")) return forbidden(c);
+  const kind = c.req.param("kind").replace(".csv", "") as keyof typeof CSV_KINDS;
+  if (!Object.hasOwn(CSV_KINDS, kind)) return c.notFound();
+  const s = await loadShop(c, c.req.param("id"));
+  if (!s) return c.notFound();
+  if (s.deleted_at) return c.text("এই দোকানের ডাটা মুছে ফেলা হয়েছে।", 410);
+  const csv = await c.env.SHOP.getByName(s.id).exportCsv(s.id, kind);
+  await audit(c, "shop.export", "shop", s.id, `${CSV_KINDS[kind]} CSV ডাউনলোড`);
+  return new Response(csv, { headers: {
+    "content-type": "text/csv; charset=utf-8",
+    "content-disposition": `attachment; filename="${s.slug}-${kind}-${new Date().toISOString().slice(0, 10)}.csv"`,
+    "cache-control": "no-store",
+  } });
+});
+
 /** ব্যাকআপ (JSON) থেকে দোকানের ডাটা ফিরিয়ে আনা — শুধু মালিক; দোকানের slug লিখে নিশ্চিত করতে হয় */
 superApp.post("/shops/:id/restore", async (c) => {
   if (!allowed(c, "shop.restore")) return forbidden(c);

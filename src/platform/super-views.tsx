@@ -540,6 +540,10 @@ export const ShopDetailPage = (p: {
             <Card title="ব্যাকআপ">
               <p class="sa-muted">দোকানের সব ডাটা (পণ্য, অর্ডার, সেটিংস, পেজ) একটা JSON ফাইলে। পাসওয়ার্ড আর ছবির ফাইল থাকে না। ডাউনলোড অডিট লগে লেখা হয়।</p>
               <a class="sa-btn sa-btn-ghost" href={`/super/shops/${s.id}/export.json`}>পুরো ব্যাকআপ (JSON)</a>
+              <p class="sa-muted">দোকানদার Excel কপি চাইলে (দোকানের প্যানেলে ডাউনলোড বন্ধ):</p>
+              <a class="sa-btn sa-btn-ghost" href={`/super/shops/${s.id}/export/orders.csv`}>অর্ডার CSV</a>{" "}
+              <a class="sa-btn sa-btn-ghost" href={`/super/shops/${s.id}/export/products.csv`}>পণ্য CSV</a>{" "}
+              <a class="sa-btn sa-btn-ghost" href={`/super/shops/${s.id}/export/customers.csv`}>কাস্টমার CSV</a>
               {can(r, "shop.restore") && (
                 <form method="post" action={`/super/shops/${s.id}/restore`} enctype="multipart/form-data" class="sa-form" data-confirm="এই দোকানের এখনকার পণ্য, অর্ডার, সেটিংস মুছে ব্যাকআপেরটা বসবে। নিশ্চিত?">
                   <label>ব্যাকআপ থেকে ফেরান <small class="sa-muted">(ইউজার আর ছবি যেমন আছে থাকবে)</small></label>

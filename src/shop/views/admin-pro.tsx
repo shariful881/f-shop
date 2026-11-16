@@ -41,7 +41,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "domains", href: "/admin/domain", icon: "globe", label: "ডোমেইন" },
   { key: "staff", href: "/admin/staff", icon: "users", label: "স্টাফ" },
   { key: "billing", href: "/admin/billing", icon: "credit-card", label: "বিলিং ও রিচার্জ" },
-  { key: "export", href: "/admin/export", icon: "download", label: "ব্যাকআপ ও স্টোরেজ" },
+  { key: "export", href: "/admin/export", icon: "download", label: "স্টোরেজ" },
   { key: "support", href: "/admin/support", icon: "life-buoy", label: "সাপোর্ট", group: "সাহায্য" },
 ];
 

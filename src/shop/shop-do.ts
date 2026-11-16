@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { SqlDatabase } from "./sql-adapter";
+import { customersCsv, ordersCsv, productsCsv } from "./lib/export";
 import { shopApp } from "./app";
 import type { WorkerEnv } from "../worker-env";
 // প্রতিটা দোকানের ডাটাবেসের টেবিল (ক্রম অনুযায়ী)
@@ -343,6 +344,13 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       .all<{ order_no: string; name: string; total: number; status: string; created_at: string }>();
     const staff = await this.db.prepare("SELECT COUNT(*) n FROM users WHERE is_admin = 1 AND active = 1").first<{ n: number }>();
     return { products: p!, orders: o!, recent: recent.results, users: staff?.n ?? 0 };
+  }
+
+  /** সুপার অ্যাডমিনের জন্য Excel-এ খোলে এমন CSV (দোকানদার নিজে আর নামাতে পারে না) */
+  async exportCsv(shopId: string, kind: "orders" | "products" | "customers"): Promise<string> {
+    await this.ensureInit(shopId, false);
+    const db = this.db as unknown as D1Database;
+    return kind === "orders" ? ordersCsv(db) : kind === "products" ? productsCsv(db) : customersCsv(db);
   }
 
   /** সুপার অ্যাডমিনের পুরো ব্যাকআপ (JSON) — পাসওয়ার্ড, সেশন আর ছবির বাইট বাদে */

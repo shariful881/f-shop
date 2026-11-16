@@ -51,23 +51,36 @@ describe("পুরো ফ্লো: অর্ডার → কনফার্�
     // ৩. অ্যাডমিনে দেখা যায়, কনফার্ম হয়
     expect(await (await owner.get("/admin/orders")).text()).toContain("ফ্লো টেস্ট");
     expect((await setStatus(owner, o.id, "confirmed")).status).toBe(303);
-    // ৪. ব্যাকআপ
+    // ৪. ব্যাকআপ: দোকান থেকে CSV বন্ধ — শুধু স্টোরেজ দেখা যায়, কপি সুপার অ্যাডমিন থেকে
     const page = await (await owner.get("/admin/export")).text();
-    expect(page).toContain("ব্যাকআপ ও স্টোরেজ");
-    expect(page).toContain("/admin/export/orders.csv");
-    const ocsv = await owner.get("/admin/export/orders.csv");
+    expect(page).toContain("স্টোরেজ");
+    expect(page).not.toContain("ব্যাকআপ ও স্টোরেজ");
+    expect(page).not.toContain(".csv");
+    for (const k of ["orders", "products", "customers", "users"]) {
+      const r = await owner.get(`/admin/export/${k}.csv`);
+      expect(r.status).toBe(404);
+      expect(await r.text()).not.toContain("01799998888");
+    }
+    const sup = await member("csv-own@t.com", "owner");
+    const ocsv = await sget(sup, `/super/shops/${DEMO_SHOP_ID}/export/orders.csv`);
+    expect(ocsv.status).toBe(200);
     expect(ocsv.headers.get("content-type")).toContain("text/csv");
-    expect(ocsv.headers.get("content-disposition")).toMatch(/attachment; filename="orders-\d{4}-\d{2}-\d{2}\.csv"/);
+    expect(ocsv.headers.get("content-disposition")).toMatch(/attachment; filename="[a-z0-9-]+-orders-\d{4}-\d{2}-\d{2}\.csv"/);
     const text = await ocsv.text();
     expect(text).toContain("অর্ডার নং");
     expect(text).toContain("ফ্লো টেস্ট");
     expect(text).toContain("কনফার্ম");
     expect(text).toContain("01799998888");
-    expect(await (await owner.get("/admin/export/customers.csv")).text()).toContain("01799998888");
-    const pcsv = await (await owner.get("/admin/export/products.csv")).text();
+    expect(await (await sget(sup, `/super/shops/${DEMO_SHOP_ID}/export/customers.csv`)).text()).toContain("01799998888");
+    const pcsv = await (await sget(sup, `/super/shops/${DEMO_SHOP_ID}/export/products.csv`)).text();
     const firstProduct = await DB.prepare("SELECT name FROM products ORDER BY id LIMIT 1").first<{ name: string }>();
     expect(pcsv).toContain(firstProduct!.name);
-    expect((await owner.get("/admin/export/users.csv")).status).toBe(404);
+    expect((await sget(sup, `/super/shops/${DEMO_SHOP_ID}/export/users.csv`)).status).toBe(404);
+    expect(await pdb().prepare("SELECT action FROM audit_log WHERE action = 'shop.export'").first()).toBeTruthy();
+    for (const role of ["admin", "support", "finance"]) {
+      const m = await member(`csv-${role}@t.com`, role);
+      expect((await sget(m, `/super/shops/${DEMO_SHOP_ID}/export/orders.csv`)).status).toBe(403);
+    }
   });
 
   it("অর্ডার স্টাফ ব্যাকআপ নামাতে পারে না", async () => {
@@ -75,7 +88,7 @@ describe("পুরো ফ্লো: অর্ডার → কনফার্�
     await owner.post("/admin/staff", { name: "স্টাফ", email: "o@shop.test", password: "staffpass1", role: "orders" });
     const b = new Browser();
     expect((await b.post("/admin/login", { email: "o@shop.test", password: "staffpass1" })).status).toBe(303);
-    expect((await b.get("/admin/export/orders.csv")).status).toBe(403);
+    expect((await b.get("/admin/export/orders.csv")).status).not.toBe(200);
     expect(await (await b.get("/admin/orders")).text()).not.toContain("/admin/export");
   });
 });

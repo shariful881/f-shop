@@ -107,7 +107,7 @@ export const PricingPage = ({ f }: { f: Fees }) => (
               <li>ফেক অর্ডার আটকানো, কাস্টমারের আগের রেকর্ড</li>
               <li>Facebook Pixel + Conversions API, GA4, TikTok</li>
               <li>Steadfast, Pathao, RedX — এক ক্লিকে বুকিং</li>
-              <li>ইনভয়েস, স্টিকার, রিপোর্ট, কুপন, SMS, Excel ব্যাকআপ</li>
+              <li>ইনভয়েস, স্টিকার, রিপোর্ট, কুপন, SMS</li>
               <li>২৪ ঘণ্টা লাইভ চ্যাট সাপোর্ট</li>
             </ul>
           </div>

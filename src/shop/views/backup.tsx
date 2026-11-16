@@ -1,21 +1,15 @@
 import { storageLabel } from "../../platform/plans";
 /**
- * ব্যাকআপ ও স্টোরেজ — দোকানের ডাটা Excel/CSV-তে নামানো আর কতটা জায়গা খরচ হলো দেখা।
+ * স্টোরেজ — কতটা জায়গা খরচ হলো দেখা। (দোকান থেকে CSV ডাউনলোড বন্ধ — সুপার অ্যাডমিন নামিয়ে দেন)
  */
 import { bn } from "../lib/format";
 import { MEDIA_SOFT_LIMIT, mb } from "../lib/media";
-import { Icon } from "./icons";
 import { Card, PageHead } from "./ui";
 
 export type StorageStats = { products: number; orders: number; customers: number; images: number; imageBytes: number; pages: number; smsLogs: number };
 
 const size = (n: number) => (n < 1024 * 1024 ? `${bn(Math.round(n / 1024))} KB` : `${bn(Number(mb(n)))} MB`);
 
-const EXPORTS = [
-  { kind: "orders", title: "সব অর্ডার", text: "অর্ডার নং, কাস্টমার, ঠিকানা, পণ্য, টাকা, অবস্থা, কুরিয়ার" },
-  { kind: "products", title: "সব পণ্য", text: "নাম, দাম, কাটা দাম, ক্যাটাগরি, চালু আছে কিনা" },
-  { kind: "customers", title: "কাস্টমার তালিকা", text: "মোবাইল, নাম, ঠিকানা, কতবার কিনেছে, মোট কেনা" },
-];
 
 export const BackupPage = (p: { stats: StorageStats; limit?: number }) => {
   const s = p.stats;
@@ -23,16 +17,11 @@ export const BackupPage = (p: { stats: StorageStats; limit?: number }) => {
   const pct = Math.min(100, Math.round((s.imageBytes / limit) * 100));
   return (
     <>
-      <PageHead title="ব্যাকআপ ও স্টোরেজ" desc="দোকানের ডাটা নিজের কম্পিউটারে রেখে দিন। ফাইলগুলো Excel বা Google Sheets-এ সরাসরি খোলে। মাসে অন্তত একবার নামিয়ে রাখা ভালো।" />
+      <PageHead title="স্টোরেজ" desc="আপনার দোকানের ডাটা আর ছবি কতটা জায়গা নিচ্ছে।" />
 
-      <div class="backup-grid">
-        {EXPORTS.map((e) => (
-          <Card title={e.title}>
-            <p class="muted">{e.text}</p>
-            <a class="btn btn-primary" href={`/admin/export/${e.kind}.csv`} download><Icon name="download" size="sm" /> ডাউনলোড (CSV)</a>
-          </Card>
-        ))}
-      </div>
+      <Card title="ডাটার কপি লাগবে?">
+        <p class="muted">আপনার অর্ডার, পণ্য আর কাস্টমারের ডাটা SellxBD-তে নিরাপদে রাখা আছে। Excel কপি লাগলে <a href="/admin/support">সাপোর্টে</a> জানান — যাচাই করে পাঠিয়ে দেওয়া হবে।</p>
+      </Card>
 
       <Card title="জায়গা কতটা খরচ হলো">
         <div class="media-usage">
