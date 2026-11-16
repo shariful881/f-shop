@@ -97,3 +97,18 @@ describe("সাইনআপের পাহারা", () => {
     expect(s.risk).toContain("ip_many");
   });
 });
+
+describe("ফোন করে যাচাই (হাতে)", () => {
+  it("call মোডে SMS ছাড়াই মোবাইল যাচাই বাকি থাকে; সুপার অ্যাডমিন 'ফোনে কথা হয়েছে' চাপলে চালু", async () => {
+    await set("verify_phone", "call");
+    clearSettingsCache();
+    const page = await (await SELF.fetch(`${P}/signup`)).text();
+    expect(page).toContain("ফোন করে নম্বর যাচাই করবে");
+    const b = form();
+    await signup(b);
+    const shop = await env.PLATFORM_DB.prepare("SELECT id, phone_verified FROM shops WHERE slug = ?").bind(b.get("slug")).first<any>();
+    expect(shop.phone_verified).toBe(0);
+    const n = await env.PLATFORM_DB.prepare("SELECT COUNT(*) n FROM shops s WHERE s.phone_verified = 0 AND s.id = ?").bind(shop.id).first<any>();
+    expect(n.n).toBe(1);
+  });
+});

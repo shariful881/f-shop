@@ -36,7 +36,7 @@ export const StateBanner = ({ state }: { state?: ShopState }) => {
     case "unverified": {
       const v = state.verify ?? { email: true, phone: true };
       const left = [!v.email && "ইমেইল", !v.phone && "মোবাইল"].filter(Boolean).join(" আর ");
-      return <div class="banner banner-warn"><Icon name="shield-check" size="sm" /> {left} যাচাই বাকি — যাচাই না হওয়া পর্যন্ত দোকানে অর্ডার নেওয়া বন্ধ আর Google-এ দেখাবে না। পণ্য, পেজ সব সাজাতে পারবেন। <a href="/admin/verify">এখনই যাচাই করুন</a></div>;
+      return <div class="banner banner-warn"><Icon name="shield-check" size="sm" /> {left} যাচাই বাকি{!v.phone ? " (মোবাইল: SellxBD টিম ফোন করে যাচাই করবে)" : ""} — যাচাই না হওয়া পর্যন্ত দোকানে অর্ডার নেওয়া বন্ধ আর Google-এ দেখাবে না। পণ্য, পেজ সব সাজাতে পারবেন। <a href="/admin/verify">এখনই যাচাই করুন</a></div>;
     }
     case "suspended":
       return <div class="banner banner-bad"><Icon name="triangle-alert" size="sm" /> দোকানটি সাময়িকভাবে স্থগিত করা হয়েছে। বিস্তারিত জানতে যোগাযোগ করুন।</div>;

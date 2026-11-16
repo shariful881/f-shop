@@ -32,11 +32,18 @@ export const platformSms = (s: PlatformSettings): Settings | null => {
 /** ইমেইল পাঠানোর ঠিকানা — sellxbd.com Cloudflare Email Sending-এ চালু থাকতে হবে */
 export const emailFrom = (env: WorkerEnv, s: PlatformSettings) => (s.verify_email_from || `no-reply@${env.PLATFORM_DOMAIN}`).trim();
 
+/**
+ * মোবাইল যাচাইয়ের ধরন: "call" = SellxBD টিম ফোন করে হাতে যাচাই করে (সুপার অ্যাডমিন বাটন),
+ * "sms" = SMS-এ OTP (প্ল্যাটফর্মের SMS থাকলে), অন্য কিছু = বন্ধ
+ */
+export const phoneMode = (s: PlatformSettings): "call" | "sms" | "off" =>
+  s.verify_phone === "call" ? "call" : (s.verify_phone === "sms" || s.verify_phone === "1") && platformSms(s) ? "sms" : "off";
+
 /** নতুন দোকানে কোন যাচাই লাগবে — চালু আর পাঠানোর ব্যবস্থা দুটোই থাকলে */
 export function verifyNeeds(env: WorkerEnv, s: PlatformSettings) {
   return {
     email: s.verify_email === "1" && !!env.EMAIL,
-    phone: s.verify_phone === "1" && !!platformSms(s),
+    phone: phoneMode(s) !== "off",
   };
 }
 
@@ -100,6 +107,9 @@ export const SUSPICIOUS_SQL = `s.status != 'closed' AND s.risk_cleared = 0 AND (
   COALESCE(s.risk, '') != ''
   OR ((s.email_verified = 0 OR s.phone_verified = 0) AND s.created_at < datetime('now', '-1 day'))
 )`;
+
+/** ফোন করে যাচাই বাকি (টিমের কাজের তালিকা) */
+export const PHONE_PENDING_SQL = "s.status != 'closed' AND s.deleted_at IS NULL AND s.phone_verified = 0";
 
 /* ---------- কোড ---------- */
 

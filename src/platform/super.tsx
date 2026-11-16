@@ -18,7 +18,7 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
-import { SUSPICIOUS_SQL } from "./verify";
+import { PHONE_PENDING_SQL, SUSPICIOUS_SQL } from "./verify";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
 import { slugOk } from "./blog";
 import { sanitizeHtml } from "../shop/lib/sanitize";
@@ -184,6 +184,7 @@ superApp.get("/", async (c) => {
     usage: await platformUsage(c.env.PLATFORM_DB),
     r2: await r2Status(c.env),
     suspicious: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${SUSPICIOUS_SQL}`).first<{ n: number }>())?.n ?? 0,
+    phonePending: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${PHONE_PENDING_SQL}`).first<{ n: number }>())?.n ?? 0,
   };
   return page(c, "ড্যাশবোর্ড", "dashboard", <DashboardPage d={d} role={me(c).role} />);
 });
@@ -204,6 +205,7 @@ const FILTER_SQL: Record<string, string> = {
   custom_domain: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id)",
   domain_failed: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id AND d.status = 'failed')",
   suspicious: SUSPICIOUS_SQL,
+  phone_pending: PHONE_PENDING_SQL,
 };
 const SORT_SQL: Record<string, string> = {
   new: "s.created_at DESC", old: "s.created_at ASC", orders: "s.confirmed_orders DESC", balance_low: "s.balance ASC",
@@ -376,10 +378,13 @@ superApp.post("/r2/purge", async (c) => {
 superApp.post("/shops/:id/verify", async (c) => {
   if (!allowed(c, "shop.status")) return forbidden(c);
   const id = c.req.param("id");
-  await c.env.PLATFORM_DB.prepare("UPDATE shops SET email_verified = 1, phone_verified = 1 WHERE id = ?").bind(id).run();
+  const what = String((await c.req.parseBody()).what ?? "both");
+  const set = what === "phone" ? "phone_verified = 1" : what === "email" ? "email_verified = 1" : "email_verified = 1, phone_verified = 1";
+  await c.env.PLATFORM_DB.prepare(`UPDATE shops SET ${set} WHERE id = ?`).bind(id).run();
   clearShopCache();
-  await audit(c, "shop.verify", "shop", id, "সুপার অ্যাডমিন যাচাই করা ধরেছেন");
-  flash(c, "ok", "দোকান যাচাই করা ধরা হয়েছে — এখন অর্ডার নিতে পারবে।");
+  await audit(c, "shop.verify", "shop", id, what === "phone" ? "ফোনে কথা বলে মোবাইল যাচাই" : what === "email" ? "ইমেইল যাচাই করা ধরা" : "যাচাই করা ধরা");
+  const after = await c.env.PLATFORM_DB.prepare("SELECT email_verified, phone_verified FROM shops WHERE id = ?").bind(id).first<{ email_verified: number; phone_verified: number }>();
+  flash(c, "ok", after?.email_verified && after.phone_verified ? "যাচাই শেষ — দোকান এখন অর্ডার নিতে পারবে।" : "সেভ হয়েছে — বাকি যাচাই শেষ হলে অর্ডার চালু হবে।");
   return c.redirect(`/super/shops/${id}`, 303);
 });
 superApp.post("/shops/:id/risk-clear", async (c) => {
@@ -938,7 +943,7 @@ superApp.post("/settings/security", async (c) => {
     ["turnstile_site_key", str(b.turnstile_site_key, 120)],
     ["verify_email", b.verify_email === "1" ? "1" : "0"],
     ["verify_email_from", str(b.verify_email_from, 120)],
-    ["verify_phone", b.verify_phone === "1" ? "1" : "0"],
+    ["verify_phone", ["call", "sms"].includes(String(b.verify_phone)) ? String(b.verify_phone) : "0"],
     ["sms_provider", ["bulksmsbd", "smsnetbd"].includes(str(b.sms_provider, 20)) ? str(b.sms_provider, 20) : "bulksmsbd"],
     ["sms_sender_id", str(b.sms_sender_id, 30)],
   ];

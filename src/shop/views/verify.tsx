@@ -3,7 +3,7 @@ import { Icon } from "./icons";
 import { PageHead } from "./ui";
 
 /** দোকানদারের ইমেইল আর মোবাইল যাচাই */
-export const VerifyPage = (p: { state: ShopState; email: string; phone: string; emailReady: boolean; smsReady: boolean; otpSent?: boolean }) => {
+export const VerifyPage = (p: { state: ShopState; email: string; phone: string; emailReady: boolean; smsReady: boolean; phoneMode: "call" | "sms" | "off"; support?: string; otpSent?: boolean }) => {
   const v = p.state.verify ?? { email: true, phone: true };
   const done = v.email && v.phone;
   return (
@@ -26,7 +26,10 @@ export const VerifyPage = (p: { state: ShopState; email: string; phone: string; 
         <section class={`sa-card verify-card${v.phone ? " ok" : ""}`}>
           <h3><Icon name="smartphone" size="sm" /> মোবাইল {v.phone ? <span class="pill pill-ok">যাচাই হয়েছে</span> : <span class="pill pill-warn">বাকি</span>}</h3>
           <p class="muted">{p.phone}</p>
-          {!v.phone && (p.smsReady ? (
+          {!v.phone && p.phoneMode === "call" && (
+            <p class="small">SellxBD টিম শীঘ্রই এই নম্বরে ফোন করে যাচাই করবে (সাধারণত কয়েক ঘণ্টার মধ্যে)। ফোন ধরতে না পারলে বা নম্বর ভুল হলে{p.support ? <> <a href={`tel:${p.support}`}>{p.support}</a> নম্বরে</> : ""} কল বা WhatsApp করুন।</p>
+          )}
+          {!v.phone && p.phoneMode !== "call" && (p.smsReady ? (
             <>
               <form method="post" action="/admin/verify/phone/send">
                 <button class="btn btn-outline"><Icon name="send" size="sm" /> {p.otpSent ? "কোড আবার পাঠান" : "কোড পাঠান"}</button>

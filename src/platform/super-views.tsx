@@ -242,6 +242,7 @@ export type DashData = {
   cron: { daily: string | null; domains: string | null };
   usage: Usage;
   suspicious: number;
+  phonePending: number;
   r2: import("./r2").R2Status;
 };
 
@@ -257,11 +258,12 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
   const sRev = delta(d.revenue.month, d.revenue.lastMonth);
   return (
     <>
-      {(d.pending.topups > 0 || d.pending.failedDomains > 0 || d.dues.shops > 0 || d.suspicious > 0) && (
+      {(d.pending.topups > 0 || d.pending.failedDomains > 0 || d.dues.shops > 0 || d.suspicious > 0 || d.phonePending > 0) && (
         <div class="sa-todo">
           <b>আজকের কাজ:</b>
           {d.pending.topups > 0 && can(role, "topups") && <a href="/super/topups"><Icon name="credit-card" size="sm" /> {bn(d.pending.topups)}টা রিচার্জ অনুমোদনের অপেক্ষায় ({taka(d.pending.topupAmount)})</a>}
           {d.dues.shops > 0 && <a href="/super/shops?filter=dues"><Icon name="triangle-alert" size="sm" /> {bn(d.dues.shops)}টা দোকানের ব্যালেন্স মাইনাস</a>}
+          {d.phonePending > 0 && <a href="/super/shops?filter=phone_pending"><Icon name="phone" size="sm" /> {bn(d.phonePending)}টা নতুন দোকানে ফোন করে যাচাই বাকি</a>}
           {d.suspicious > 0 && <a href="/super/shops?filter=suspicious"><Icon name="shield-check" size="sm" /> {bn(d.suspicious)}টা সন্দেহজনক নতুন দোকান দেখুন</a>}
           {d.pending.failedDomains > 0 && <a href="/super/shops?filter=domain_failed"><Icon name="globe" size="sm" /> {bn(d.pending.failedDomains)}টা ডোমেইনে সমস্যা</a>}
         </div>
@@ -384,6 +386,7 @@ export const SHOP_FILTERS: Record<string, string> = {
   custom_domain: "নিজের ডোমেইন",
   domain_failed: "ডোমেইনে সমস্যা",
   suspicious: "সন্দেহজনক",
+  phone_pending: "ফোনে যাচাই বাকি",
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
 
@@ -978,8 +981,13 @@ export const SecuritySettings = ({ s, emailBinding }: { s: Record<string, string
           <label class="sa-check"><input type="checkbox" name="verify_email" value="1" checked={s.verify_email === "1"} /> ইমেইল যাচাই (লিংক)</label>
           <small class="sa-muted">{emailBinding ? "ইমেইল পাঠানোর ব্যবস্থা যুক্ত আছে।" : "ইমেইল পাঠানোর ব্যবস্থা (Cloudflare Email Sending) এখনো যুক্ত হয়নি — চালু রাখলেও লাগবে না।"}</small>
           <label>যে ঠিকানা থেকে ইমেইল যাবে</label><input type="email" name="verify_email_from" value={s.verify_email_from || ""} placeholder="no-reply@sellxbd.com" />
-          <label class="sa-check"><input type="checkbox" name="verify_phone" value="1" checked={s.verify_phone === "1"} /> মোবাইল যাচাই (SMS-এ OTP)</label>
-          <small class="sa-muted">যাচাই বাকি দোকান চলে কিন্তু অর্ডার নেয় না আর Google-এ যায় না। নিচে SMS না দিলে মোবাইল যাচাই লাগবে না।</small>
+          <label>মোবাইল যাচাই</label>
+          <select name="verify_phone">
+            <option value="0" selected={!["call", "sms", "1"].includes(s.verify_phone || "")}>বন্ধ</option>
+            <option value="call" selected={s.verify_phone === "call"}>টিম ফোন করে যাচাই করবে (হাতে)</option>
+            <option value="sms" selected={s.verify_phone === "sms" || s.verify_phone === "1"}>SMS-এ OTP (নিচে SMS লাগবে)</option>
+          </select>
+          <small class="sa-muted">যাচাই বাকি দোকান চলে কিন্তু অর্ডার নেয় না আর Google-এ যায় না। "ফোন করে" বাছলে ড্যাশবোর্ডের "আজকের কাজ"-এ কাদের ফোন করতে হবে দেখাবে; দোকানের পাতায় "ফোনে কথা হয়েছে" চাপলে চালু।</small>
         </div>
       </Card>
       <Card title="প্ল্যাটফর্মের SMS (OTP-র জন্য)">
@@ -1159,12 +1167,19 @@ const VerifyRiskBox = ({ s, canEdit }: { s: ShopRow; canEdit: boolean }) => {
       {flags.length > 0 && (
         <p>সন্দেহের কারণ: {flags.map((f) => <span class="sa-pill sa-st-closed">{RISK_LABEL[f] ?? f}</span>)}{s.risk_cleared ? <small class="sa-muted"> — আপনি দেখে ঠিক আছে বলেছেন</small> : null}</p>
       )}
-      {unverified && <p class="sa-muted"><small>যাচাই বাকি থাকলে দোকান অর্ডার নেয় না আর Google-এ যায় না। দোকানদারের সাথে কথা বলে নিশ্চিত হলে নিজে যাচাই করে দিতে পারেন।</small></p>}
+      {unverified && <p class="sa-muted"><small>যাচাই বাকি থাকলে দোকান অর্ডার নেয় না আর Google-এ যায় না। {s.phone_verified === 0 && <><a href={`tel:${s.owner_phone}`}>{s.owner_phone}</a> নম্বরে ফোন করে দোকানদারের নাম, দোকান আর কী বিক্রি করবেন জেনে নিন — ঠিক থাকলে নিচের বাটন।</>}</small></p>}
       {canEdit && (
         <div class="sa-r2-btns">
-          {unverified && (
-            <form method="post" action={`/super/shops/${s.id}/verify`} data-confirm="দোকানের ইমেইল আর মোবাইল যাচাই করা ধরবেন? দোকান সাথে সাথে অর্ডার নিতে পারবে।">
-              <button class="sa-btn sa-btn-sm">যাচাই করা ধরুন</button>
+          {s.phone_verified === 0 && (
+            <form method="post" action={`/super/shops/${s.id}/verify`} data-confirm={`${s.owner_phone} নম্বরে ফোন করে দোকানদারের সাথে কথা হয়েছে আর সব ঠিক আছে?`}>
+              <input type="hidden" name="what" value="phone" />
+              <button class="sa-btn sa-btn-sm"><Icon name="phone" size="sm" /> ফোনে কথা হয়েছে — মোবাইল যাচাই</button>
+            </form>
+          )}
+          {s.email_verified === 0 && (
+            <form method="post" action={`/super/shops/${s.id}/verify`} data-confirm="ইমেইল যাচাই করা ধরবেন?">
+              <input type="hidden" name="what" value="email" />
+              <button class="sa-btn sa-btn-sm sa-btn-ghost">ইমেইল যাচাই করা ধরুন</button>
             </form>
           )}
           {flags.length > 0 && !s.risk_cleared && (

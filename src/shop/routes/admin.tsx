@@ -65,7 +65,7 @@ import { allowedEndpoint, pushToShop, vapidKeys } from "../lib/push";
 import { adReport, usdRate } from "../lib/ads";
 import { feedItems } from "../lib/feed";
 
-import { confirmPhoneOtp, loadShop as loadVerifyShop, platformSms, sendEmailLink, sendPhoneOtp } from "../../platform/verify";
+import { confirmPhoneOtp, loadShop as loadVerifyShop, phoneMode, platformSms, sendEmailLink, sendPhoneOtp } from "../../platform/verify";
 import { VerifyPage } from "../views/verify";
 
 export const admin = new Hono<AppEnv>();
@@ -1503,7 +1503,7 @@ async function renderVerify(c: Ctx, otpSent = false) {
   // সাথে সাথে নতুন অবস্থা (Worker-এর cache ৩০ সেকেন্ড পুরনো হতে পারে)
   const state = { ...c.var.shopState, verify: { email: !!shop?.email_verified, phone: !!shop?.phone_verified } };
   return render(c, "দোকান যাচাই", "verify",
-    <VerifyPage state={state} email={shop?.owner_email ?? ""} phone={shop?.owner_phone ?? ""} emailReady={!!c.env.EMAIL} smsReady={!!platformSms(ps)} otpSent={otpSent} />);
+    <VerifyPage state={state} email={shop?.owner_email ?? ""} phone={shop?.owner_phone ?? ""} emailReady={!!c.env.EMAIL} smsReady={!!platformSms(ps)} phoneMode={phoneMode(ps)} support={ps.support_phone || undefined} otpSent={otpSent} />);
 }
 admin.get("/verify", (c) => renderVerify(c, c.req.query("sent") === "1"));
 admin.post("/verify/email", async (c) => {

@@ -566,7 +566,11 @@ export const SignupPage = (p: { values?: Record<string, string>; errors?: Record
           </label>
           <label class="small-check"><input type="checkbox" name="seed_demo" value="1" checked={v.seed_demo !== "0"} /> নমুনা পণ্য দিয়ে শুরু করুন (পরে মুছে ফেলা যাবে)</label>
           {p.verify && (p.verify.email || p.verify.phone) && (
-            <p class="muted small">দোকান খোলার পর {p.verify.email && p.verify.phone ? "ইমেইল আর মোবাইল" : p.verify.email ? "ইমেইল" : "মোবাইল"} যাচাই করলে অর্ডার নেওয়া চালু হবে — প্রতারণা ঠেকাতে, যাতে সব দোকানের ক্রেতা নিরাপদ থাকে।</p>
+            <p class="muted small">
+              {p.verify.email && "দোকান খোলার পর ইমেইলে একটা লিংক যাবে। "}
+              {p.verify.phone && "SellxBD টিম আপনার মোবাইলে ফোন করে নম্বর যাচাই করবে — সঠিক নম্বর দিন। "}
+              যাচাই হলে অর্ডার নেওয়া চালু হবে — প্রতারণা ঠেকাতে, যাতে সব দোকানের ক্রেতা নিরাপদ থাকে।
+            </p>
           )}
           {p.turnstile && <>
             <div class="cf-turnstile" data-sitekey={p.turnstile} data-language="bn" data-theme="light" style="margin:6px 0 12px"></div>

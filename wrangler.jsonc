@@ -43,6 +43,9 @@
   // দোকানের ছবি (R2)। CI-তে scripts/ensure-r2.mjs bucket না পেলে (R2 চালু না থাকলে) এই অংশ বাদ দিয়ে ডিপ্লয় করে
   "r2_buckets": [{ "binding": "IMG_BUCKET", "bucket_name": "sellxbd-images" }],
 
+  // দোকানদারের ইমেইল যাচাই — Cloudflare Email Sending (sellxbd.com চালু করা আছে)
+  "send_email": [{ "name": "EMAIL" }],
+
   // প্রতিটা দোকান = একটা Durable Object = দোকানের নিজস্ব আলাদা SQLite ডাটাবেস
   "durable_objects": {
     "bindings": [
