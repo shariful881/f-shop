@@ -106,10 +106,10 @@ export const ShopShell = (p: {
             ))}
           </nav>
           <div class="sa-me">
-            <div class="sa-me-link">
+            <a href="/admin/account" class="sa-me-link" title="আমার অ্যাকাউন্ট — পাসওয়ার্ড বদল, সব ডিভাইস থেকে লগআউট">
               <span class="sa-avatar">{p.email.slice(0, 1).toUpperCase()}</span>
-              <span><b>{p.email}</b><small>{ROLE_LABEL[p.role]}</small></span>
-            </div>
+              <span><b>{p.email}</b><small>{ROLE_LABEL[p.role]} · অ্যাকাউন্ট</small></span>
+            </a>
             <form method="post" action="/admin/logout"><button class="sa-logout" title="লগআউট" aria-label="লগআউট"><Icon name="log-out" /></button></form>
           </div>
         </aside>

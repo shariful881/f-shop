@@ -4,7 +4,7 @@ import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { priceEditable } from "../views/admin";
 import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
-import { createSession, destroySession, hashPassword, sha256Hex, verifyPassword } from "../lib/auth";
+import { createSession, destroyOtherSessions, destroySession, hashPassword, needsRehash, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
 import { InvoicePage, type InvoiceData } from "../views/invoice";
@@ -15,7 +15,9 @@ import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/them
 import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
 import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsPaymentPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, taka, youtubeId } from "../lib/format";
-import { hitRateLimit } from "../lib/order-guard";
+import { AccountPage, ForgotPage, ResetPage } from "../views/account";
+import { createResetToken, resetBase, resetUser, sendResetEmail } from "../lib/password-reset";
+import { hitRateLimit, peekRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
 import { CouponsPage, LandingBuilderPage, LandingListPage, ReportsPage, TemplateGalleryPage, type CouponRow, type LandingRow } from "../views/admin";
 import { buildReport, resolveRange } from "../lib/reports";
@@ -114,7 +116,9 @@ async function render(c: Ctx, title: string, active: string, body: unknown, stat
 }
 
 /* ---------- লগইন ---------- */
-admin.get("/login", (c) => c.html("<!DOCTYPE html>" + String(<AdminLayout title="লগইন" settings={c.var.settings}><LoginPage /></AdminLayout>)));
+const LOGIN_FAIL_MAX = 8;
+const LOGIN_FAIL_WINDOW = 900;
+admin.get("/login", (c) => c.html("<!DOCTYPE html>" + String(<AdminLayout title="লগইন" settings={c.var.settings} flash={takeFlash(c)}><LoginPage /></AdminLayout>)));
 
 admin.post("/login", async (c) => {
   const body = await c.req.parseBody();
@@ -125,9 +129,20 @@ admin.post("/login", async (c) => {
 
   if (!(await hitRateLimit(c.env.DB, `login:${clientIp(c)}`, 10, 900))) return fail("অনেকবার ভুল চেষ্টা হয়েছে। ১৫ মিনিট পরে চেষ্টা করুন।");
 
+  // অ্যাকাউন্ট ধরে ভুল চেষ্টার সীমা — অনেক IP থেকে একই অ্যাকাউন্টে চেষ্টাও আটকায়
+  if ((await peekRateLimit(c.env.DB, `loginfail:${email}`, LOGIN_FAIL_WINDOW)) >= LOGIN_FAIL_MAX) {
+    return fail("এই অ্যাকাউন্টে অনেকবার ভুল পাসওয়ার্ড দেওয়া হয়েছে। ১৫ মিনিট পরে চেষ্টা করুন, অথবা নিচে \"পাসওয়ার্ড ভুলে গেছেন?\" থেকে নতুন পাসওয়ার্ড নিন।");
+  }
   const user = await c.env.DB.prepare("SELECT id, password_hash, is_admin, active FROM users WHERE email = ?").bind(email)
     .first<{ id: number; password_hash: string; is_admin: number; active: number }>();
-  if (!user || !user.is_admin || !user.active || !(await verifyPassword(password, user.password_hash))) return fail("ইমেইল বা পাসওয়ার্ড ভুল");
+  if (!user || !user.is_admin || !user.active || !(await verifyPassword(password, user.password_hash))) {
+    if (email) await hitRateLimit(c.env.DB, `loginfail:${email}`, LOGIN_FAIL_MAX, LOGIN_FAIL_WINDOW);
+    return fail("ইমেইল বা পাসওয়ার্ড ভুল");
+  }
+  // পুরনো (কম শক্ত) hash নিজে নতুন করে — দোকানদারকে কিছু করতে হয় না
+  if (needsRehash(user.password_hash)) {
+    await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), user.id).run();
+  }
 
   const token = await createSession(c.env.DB, user.id);
   setCookie(c, ADMIN_COOKIE, token, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
@@ -166,8 +181,101 @@ admin.post("/logout", async (c) => {
   return c.redirect("/admin/login", 303);
 });
 
+/* ---------- পাসওয়ার্ড ভুলে গেলে (লগইন ছাড়া) — security/step-3 ---------- */
+const shell = (c: Ctx, title: string, body: unknown, status: 200 | 422 | 429 = 200) => {
+  c.header("Cache-Control", "no-store");
+  c.header("X-Robots-Tag", "noindex");
+  c.header("Referrer-Policy", "no-referrer"); // লিংকের টোকেন অন্য সাইটে না যায়
+  return c.html("<!DOCTYPE html>" + String(<AdminLayout title={title} settings={c.var.settings}>{body as any}</AdminLayout>), status);
+};
+
+admin.get("/forgot", (c) => shell(c, "পাসওয়ার্ড ভুলে গেছেন", <ForgotPage unavailable={!c.env.EMAIL} />));
+
+admin.post("/forgot", async (c) => {
+  const email = str((await c.req.parseBody()).email, 200).toLowerCase();
+  if (!c.env.EMAIL) return shell(c, "পাসওয়ার্ড ভুলে গেছেন", <ForgotPage unavailable />);
+  if (!(await hitRateLimit(c.env.DB, `forgot:${clientIp(c)}`, 5, 3600))) {
+    return shell(c, "পাসওয়ার্ড ভুলে গেছেন", <ForgotPage email={email} error="এক ঘণ্টায় অনেকবার চাওয়া হয়েছে — পরে চেষ্টা করুন" />, 429);
+  }
+  // একই ইমেইলে ঘণ্টায় ৩টার বেশি লিংক নয় — কিন্তু উত্তর সবসময় একই (কারো ইমেইল আছে কিনা বোঝা যায় না)
+  if (email && (await hitRateLimit(c.env.DB, `forgotmail:${email}`, 3, 3600))) {
+    const user = await c.env.DB.prepare("SELECT id, email FROM users WHERE email = ? AND is_admin = 1 AND active = 1").bind(email).first<{ id: number; email: string }>();
+    if (user) {
+      const token = await createResetToken(c.env.DB, user.id);
+      const url = `${resetBase(c.req.url)}/admin/reset?t=${token}`;
+      const job = sendResetEmail(c.env, user.email, url, c.var.settings.site_name || "");
+      try { c.executionCtx.waitUntil(job); } catch { await job; }
+    }
+  }
+  return shell(c, "পাসওয়ার্ড ভুলে গেছেন", <ForgotPage sent />);
+});
+
+admin.get("/reset", async (c) => {
+  const token = str(c.req.query("t"), 100);
+  const u = await resetUser(c.env.DB, token);
+  return shell(c, "নতুন পাসওয়ার্ড", u ? <ResetPage token={token} email={u.email} /> : <ResetPage token="" invalid />);
+});
+
+admin.post("/reset", async (c) => {
+  const b = await c.req.parseBody();
+  const token = str(b.t, 100);
+  const password = typeof b.password === "string" ? b.password : "";
+  if (!(await hitRateLimit(c.env.DB, `reset:${clientIp(c)}`, 20, 3600))) return shell(c, "নতুন পাসওয়ার্ড", <ResetPage token="" invalid />, 429);
+  const u = await resetUser(c.env.DB, token);
+  if (!u) return shell(c, "নতুন পাসওয়ার্ড", <ResetPage token="" invalid />, 422);
+  const err = password.length < 8 ? "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন" : password.length > 200 ? "পাসওয়ার্ড খুব লম্বা" : password !== b.password2 ? "দুই ঘরের পাসওয়ার্ড মেলেনি" : "";
+  if (err) return shell(c, "নতুন পাসওয়ার্ড", <ResetPage token={token} email={u.email} error={err} />, 422);
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), u.id),
+    c.env.DB.prepare("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL").bind(u.id),
+    c.env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(u.id), // সব ডিভাইস থেকে লগআউট
+    c.env.DB.prepare("DELETE FROM rate_limits WHERE key LIKE ?").bind(`loginfail:${u.email}:%`), // ভুল চেষ্টার আটকানো খুলে দেওয়া
+  ]);
+  flash(c, "ok", "পাসওয়ার্ড বদলেছে। নতুন পাসওয়ার্ড দিয়ে লগইন করুন।");
+  return c.redirect("/admin/login", 303);
+});
+
 /* ---------- এর পরের সব পেজে লগইন লাগবে ---------- */
 admin.use("*", requireAdmin);
+
+/* ---------- আমার অ্যাকাউন্ট (সব রোল) — security/step-3 ---------- */
+async function renderAccount(c: Ctx, errors?: Record<string, string>) {
+  const me = c.var.admin!;
+  const n = await c.env.DB.prepare("SELECT COUNT(*) n FROM sessions WHERE user_id = ? AND expires_at > datetime('now')").bind(me.id).first<{ n: number }>();
+  return render(c, "আমার অ্যাকাউন্ট", "account",
+    <AccountPage email={me.email} name={me.name} role={me.role} sessions={n?.n ?? 1} support={getCookie(c, "support_mode") === "1"} errors={errors} />, errors ? 422 : 200);
+}
+
+admin.get("/account", (c) => renderAccount(c));
+
+admin.post("/account/password", async (c) => {
+  if (getCookie(c, "support_mode") === "1") return c.redirect("/admin/account", 303);
+  const me = c.var.admin!;
+  const b = await c.req.parseBody();
+  const current = typeof b.current === "string" ? b.current : "";
+  const password = typeof b.password === "string" ? b.password : "";
+  const errors: Record<string, string> = {};
+  if (!(await hitRateLimit(c.env.DB, `pwchange:${me.id}`, 10, 900))) errors.form = "অনেকবার চেষ্টা হয়েছে — ১৫ মিনিট পরে চেষ্টা করুন";
+  else {
+    const row = await c.env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(me.id).first<{ password_hash: string }>();
+    if (!row || !(await verifyPassword(current, row.password_hash))) errors.current = "এখনকার পাসওয়ার্ড ভুল";
+    if (password.length < 8) errors.password = "কমপক্ষে ৮ অক্ষর";
+    else if (password.length > 200) errors.password = "খুব লম্বা";
+    else if (password === current) errors.password = "নতুন পাসওয়ার্ড আগেরটা থেকে আলাদা দিন";
+    if (password !== b.password2) errors.password2 = "দুই ঘরের পাসওয়ার্ড মেলেনি";
+  }
+  if (Object.keys(errors).length) return renderAccount(c, errors);
+  await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), me.id).run();
+  const n = await destroyOtherSessions(c.env.DB, me.id, getCookie(c, ADMIN_COOKIE));
+  flash(c, "ok", n ? `পাসওয়ার্ড বদলেছে। অন্য ${bn(n)}টা জায়গা থেকে লগআউট করা হয়েছে।` : "পাসওয়ার্ড বদলেছে।");
+  return c.redirect("/admin/account", 303);
+});
+
+admin.post("/account/logout-others", async (c) => {
+  const n = await destroyOtherSessions(c.env.DB, c.var.admin!.id, getCookie(c, ADMIN_COOKIE));
+  flash(c, "ok", n ? `অন্য ${bn(n)}টা জায়গা থেকে লগআউট করা হয়েছে।` : "অন্য কোথাও লগইন করা ছিল না।");
+  return c.redirect("/admin/account", 303);
+});
 
 /* ---------- ড্যাশবোর্ড ---------- */
 admin.get("/", async (c) => {

@@ -3,7 +3,7 @@ import type { Child } from "hono/jsx";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { PCtx, PEnv } from "./lib";
 import {
-  createSuperSession, destroySuperSession, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
+  createSuperSession, destroySuperSession, platformPeekRateLimit, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
 import { checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
 import { DEFAULT_DESC, HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
@@ -18,7 +18,7 @@ import { plans, TRIAL_PLAN } from "./plans";
 import { errorPageHtml } from "../shop/lib/error-page";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
-import { hashPassword, verifyPassword } from "../shop/lib/auth";
+import { hashPassword, needsRehash, verifyPassword } from "../shop/lib/auth";
 import { clearShopCache } from "./resolve";
 import { nicheByKey } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -290,6 +290,7 @@ platformApp.post("/signup", async (c) => {
 });
 
 /* ---------- সুপার অ্যাডমিন ---------- */
+const SUPER_FAIL_MAX = 8;
 platformApp.get("/super/login", (c) => html(c, <PLayout title="সুপার অ্যাডমিন" admin><SuperLoginPage /></PLayout>));
 
 platformApp.post("/super/login", async (c) => {
@@ -298,8 +299,16 @@ platformApp.post("/super/login", async (c) => {
   const password = typeof b.password === "string" ? b.password : "";
   const fail = (msg: string) => html(c, <PLayout title="সুপার অ্যাডমিন" admin><SuperLoginPage error={msg} email={email} /></PLayout>, 422);
   if (!(await platformRateLimit(c.env, `superlogin:${clientIp(c)}`, 10, 900))) return fail("অনেকবার চেষ্টা হয়েছে, ১৫ মিনিট পরে চেষ্টা করুন");
+  // অ্যাকাউন্ট ধরে ভুল চেষ্টার সীমা (অনেক IP থেকে চেষ্টাও আটকায়): ১৫ মিনিটে ৮টা ভুল
+  if ((await platformPeekRateLimit(c.env, `superfail:${email}`, 900)) >= SUPER_FAIL_MAX) return fail("এই অ্যাকাউন্টে অনেকবার ভুল পাসওয়ার্ড — ১৫ মিনিট পরে চেষ্টা করুন");
   const admin = await c.env.PLATFORM_DB.prepare("SELECT id, password_hash FROM super_admins WHERE email = ? AND active = 1").bind(email).first<{ id: number; password_hash: string }>();
-  if (!admin || !(await verifyPassword(password, admin.password_hash))) return fail("ইমেইল বা পাসওয়ার্ড ভুল");
+  if (!admin || !(await verifyPassword(password, admin.password_hash))) {
+    if (email) await platformRateLimit(c.env, `superfail:${email}`, SUPER_FAIL_MAX, 900);
+    return fail("ইমেইল বা পাসওয়ার্ড ভুল");
+  }
+  if (needsRehash(admin.password_hash)) {
+    await c.env.PLATFORM_DB.prepare("UPDATE super_admins SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), admin.id).run();
+  }
   await c.env.PLATFORM_DB.batch([
     c.env.PLATFORM_DB.prepare("UPDATE super_admins SET last_login_at = datetime('now') WHERE id = ?").bind(admin.id),
     c.env.PLATFORM_DB.prepare("INSERT INTO audit_log (admin_id, admin_email, action, ip) VALUES (?, ?, 'login', ?)").bind(admin.id, email, clientIp(c)),

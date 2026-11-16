@@ -118,4 +118,11 @@ export async function hitRateLimit(db: D1Database, key: string, max: number, win
   return (row?.count ?? 1) <= max;
 }
 
+/** গোনা না বাড়িয়ে শুধু দেখা — এই সময়-ঘরে কয়বার হয়েছে */
+export async function peekRateLimit(db: D1Database, key: string, windowSec: number): Promise<number> {
+  const bucket = Math.floor(Date.now() / (windowSec * 1000));
+  const row = await db.prepare("SELECT count FROM rate_limits WHERE key = ?").bind(`${key}:${bucket}`).first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
 export const ORDER_RATE_LIMIT = { max: 5, windowSec: 60 };

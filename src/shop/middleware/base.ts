@@ -38,7 +38,8 @@ export const sameOriginPost: MiddlewareHandler<any> = async (c, next) => {
 export const securityHeaders: MiddlewareHandler<any> = async (c, next) => {
   await next();
   c.header("X-Content-Type-Options", "nosniff");
-  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  // পেজ নিজে কড়া নিয়ম দিলে (যেমন রিসেট লিংকের পেজে no-referrer) সেটাই থাকে
+  if (!c.res.headers.has("Referrer-Policy")) c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   // অন্য সাইট আমাদের পেজ iframe-এ বসিয়ে ক্লিক চুরি করতে পারবে না (নিজের প্রিভিউ চলবে)
   c.header("X-Frame-Options", "SAMEORIGIN");
   c.header("Content-Security-Policy", "frame-ancestors 'self'; base-uri 'self'; object-src 'none'");

@@ -49,6 +49,13 @@ export async function platformRateLimit(env: WorkerEnv, key: string, max: number
   return (row?.count ?? 1) <= max;
 }
 
+/** গোনা না বাড়িয়ে শুধু দেখা */
+export async function platformPeekRateLimit(env: WorkerEnv, key: string, windowSec: number): Promise<number> {
+  const bucket = Math.floor(Date.now() / (windowSec * 1000));
+  const row = await env.PLATFORM_DB.prepare("SELECT count FROM platform_rate_limits WHERE key = ?").bind(`${key}:${bucket}`).first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
 /* ---------- সুপার অ্যাডমিন সেশন ---------- */
 export async function createSuperSession(env: WorkerEnv, adminId: number): Promise<string> {
   const token = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");

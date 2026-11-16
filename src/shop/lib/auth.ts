@@ -24,10 +24,16 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number): P
 }
 
 /**
- * ২০,০০০ বার — Cloudflare ফ্রি প্ল্যানের ১০ms CPU সীমার মধ্যে থাকে (১,০০,০০০ হলে সীমা পার হয়)।
- * লগইনে ভুল চেষ্টার সীমা (rate limit) থাকায় যথেষ্ট নিরাপদ।
+ * ১,০০,০০০ বার (Workers Paid — প্রতি লগইনে ~১২ms CPU)। Cloudflare-এর PBKDF2 এর বেশি নিশ্চিতভাবে চলে না।
+ * পুরনো ২০,০০০-এর hash লগইনের সময় নিজে নতুন করে বানানো হয় (needsRehash) — কাউকে কিছু করতে হয় না।
  */
-export const PASSWORD_ITERATIONS = 20_000;
+export const PASSWORD_ITERATIONS = 100_000;
+
+/** পুরনো (কম বারের) hash — সঠিক পাসওয়ার্ডে লগইনের পর নতুন করে বানানো উচিত */
+export function needsRehash(stored: string): boolean {
+  const iter = parseInt(stored.split("$")[1] ?? "", 10);
+  return !(iter >= PASSWORD_ITERATIONS);
+}
 
 export async function hashPassword(password: string, iterations = PASSWORD_ITERATIONS): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -75,6 +81,13 @@ export async function sessionUser(db: D1Database, token: string | undefined) {
     .first<{ id: number; email: string; name: string; role: Role }>();
 }
 
+/** এই ইউজারের বাকি সব সেশন মোছা (এখনকারটা রেখে) — ফেরত: কয়টা মুছল */
+export async function destroyOtherSessions(db: D1Database, userId: number, keepToken: string | undefined): Promise<number> {
+  const keep = keepToken && /^[0-9a-f]{64}$/.test(keepToken) ? await sha256Hex(keepToken) : "";
+  const r = await db.prepare("DELETE FROM sessions WHERE user_id = ? AND id != ?").bind(userId, keep).run();
+  return r.meta?.changes ?? 0;
+}
+
 export async function destroySession(db: D1Database, token: string | undefined) {
   if (!token) return;
   await db.prepare("DELETE FROM sessions WHERE id = ?").bind(await sha256Hex(token)).run();
@@ -92,6 +105,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 /** কোন পেজ কে দেখতে পারবে */
 export const SECTION_ROLES: Record<string, Role[]> = {
   orders: ["owner", "manager", "orders"],
+  account: ["owner", "manager", "orders"],
   customers: ["owner", "manager", "orders"],
   incomplete: ["owner", "manager", "orders"],
   push: ["owner", "manager", "orders"],

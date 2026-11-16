@@ -108,6 +108,7 @@ export const LoginPage = ({ error, email }: { error?: string; email?: string }) 
       <label class="field"><span>পাসওয়ার্ড</span><input type="password" name="password" required autocomplete="current-password" /></label>
       <button class="btn btn-primary btn-block">লগইন</button>
     </form>
+    <p class="small" style="text-align:center;margin:12px 0 0"><a href="/admin/forgot">পাসওয়ার্ড ভুলে গেছেন?</a></p>
   </div>
 );
 
