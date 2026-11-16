@@ -589,7 +589,7 @@ export const SettingsTrackingPage = ({ s }: { s: Settings }) => (
       </Section>
       <Section title="Google" desc="শুধু আইডি দিন — বাকিটা নিজে থেকে বসে যাবে">
         <F label="Google Analytics 4 — Measurement ID" hint="যেমন G-XXXXXXXXXX"><input type="text" name="ga4_id" value={s.ga4_id ?? ""} maxlength={20} placeholder="G-XXXXXXXXXX" /></F>
-        <F label="Google Tag Manager — Container ID" hint="যেমন GTM-XXXXXXX"><input type="text" name="gtm_id" value={s.gtm_id ?? ""} maxlength={20} placeholder="GTM-XXXXXXX" /></F>
+        <F label="Google Tag Manager — Container ID" hint="যেমন GTM-XXXXXXX। নিরাপত্তার জন্য দোকান যাচাই (ইমেইল আর মোবাইল) শেষ হলে তবেই দোকানে চালু হয়।"><input type="text" name="gtm_id" value={s.gtm_id ?? ""} maxlength={20} placeholder="GTM-XXXXXXX" /></F>
       </Section>
       <Section title="TikTok">
         <F label="TikTok Pixel ID" hint="TikTok Ads Manager → Events → Web Events"><input type="text" name="tiktok_pixel_id" value={s.tiktok_pixel_id ?? ""} maxlength={30} /></F>

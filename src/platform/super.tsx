@@ -23,7 +23,8 @@ import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShops
 import { slugOk } from "./blog";
 import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
-import { shopUrl, superFromCookie, SUPER_COOKIE, type PCtx, type PEnv, type SuperRole } from "./lib";
+import { clearSession, SUPER_COOKIES } from "../shop/lib/session-cookie";
+import { shopUrl, superFromCookie, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
   AccountPage, AnnouncementsPage, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
@@ -919,7 +920,7 @@ superApp.post("/account", async (c) => {
 
 superApp.post("/account/logout-all", async (c) => {
   await c.env.PLATFORM_DB.prepare("DELETE FROM super_sessions WHERE admin_id = ?").bind(me(c).id).run();
-  deleteCookie(c, SUPER_COOKIE, { path: "/" });
+  clearSession(c, SUPER_COOKIES);
   return c.redirect("/super/login", 303);
 });
 

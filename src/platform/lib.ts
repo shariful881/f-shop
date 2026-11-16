@@ -1,13 +1,14 @@
 import type { Context } from "hono";
-import { getCookie } from "hono/cookie";
 import type { WorkerEnv } from "../worker-env";
 import { sha256Hex } from "../shop/lib/auth";
+import { readSession, SUPER_COOKIES } from "../shop/lib/session-cookie";
 
 export type SuperRole = "owner" | "admin" | "support" | "finance";
 export type SuperAdmin = { id: number; email: string; name: string | null; role: SuperRole };
 export type PEnv = { Bindings: WorkerEnv; Variables: { superAdmin?: SuperAdmin } };
 export type PCtx = Context<PEnv>;
 
+/** পুরনো নাম — নতুন লগইন `__Host-super_session` (shop/lib/session-cookie.ts) */
 export const SUPER_COOKIE = "super_session";
 
 /** subdomain-এর জন্য সংরক্ষিত নাম */
@@ -65,7 +66,7 @@ export async function createSuperSession(env: WorkerEnv, adminId: number): Promi
 }
 
 export async function superFromCookie(c: PCtx) {
-  const token = getCookie(c, SUPER_COOKIE);
+  const token = readSession(c, SUPER_COOKIES).token;
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
   return c.env.PLATFORM_DB.prepare(
     `SELECT a.id, a.email, a.name, a.role FROM super_sessions s JOIN super_admins a ON a.id = s.admin_id

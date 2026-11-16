@@ -8,7 +8,7 @@ import { ComingSoonPage, ListingPage, SORTS, StoreHome, TrackPage } from "../vie
 import { normalizePhone } from "../lib/phone";
 import { InvoicePage } from "../views/invoice";
 import { sanitizeHtml } from "../lib/sanitize";
-import { ADMIN_COOKIE } from "../middleware/admin-auth";
+import { adminToken } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, linesSubtotal, productVariants, type Product } from "../lib/products";
@@ -49,7 +49,7 @@ shop.use("*", async (c, next) => {
     // দোকান সাময়িক বন্ধ: ল্যান্ডিং পেজ, অর্ডার, ধন্যবাদ, ট্র্যাকিং খোলা; অ্যাডমিন লগইন থাকলে সব দেখা যায়
     const cfg = themeConfig(c.var.settings);
     const p = c.req.path;
-    if (cfg.coming_soon === "1" && !getCookie(c, ADMIN_COOKIE) && (p === "/" || /^\/(c|search|cart|checkout)(\/|$)/.test(p))) {
+    if (cfg.coming_soon === "1" && !adminToken(c) && (p === "/" || /^\/(c|search|cart|checkout)(\/|$)/.test(p))) {
       c.header("X-Robots-Tag", "noindex");
       return page(c, <ComingSoonPage s={c.var.settings} cfg={cfg} />);
     }

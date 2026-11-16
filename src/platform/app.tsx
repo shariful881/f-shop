@@ -19,6 +19,7 @@ import { errorPageHtml } from "../shop/lib/error-page";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
 import { hashPassword, needsRehash, verifyPassword } from "../shop/lib/auth";
+import { clearSession, readSession, SUPER_COOKIES, writeSession } from "../shop/lib/session-cookie";
 import { clearShopCache } from "./resolve";
 import { nicheByKey } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -313,13 +314,13 @@ platformApp.post("/super/login", async (c) => {
     c.env.PLATFORM_DB.prepare("UPDATE super_admins SET last_login_at = datetime('now') WHERE id = ?").bind(admin.id),
     c.env.PLATFORM_DB.prepare("INSERT INTO audit_log (admin_id, admin_email, action, ip) VALUES (?, ?, 'login', ?)").bind(admin.id, email, clientIp(c)),
   ]);
-  setCookie(c, SUPER_COOKIE, await createSuperSession(c.env, admin.id), { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+  writeSession(c, SUPER_COOKIES, await createSuperSession(c.env, admin.id));
   return c.redirect("/super", 303);
 });
 
 platformApp.post("/super/logout", async (c) => {
-  await destroySuperSession(c.env, getCookie(c, SUPER_COOKIE));
-  deleteCookie(c, SUPER_COOKIE, { path: "/" });
+  await destroySuperSession(c.env, readSession(c, SUPER_COOKIES).token);
+  clearSession(c, SUPER_COOKIES);
   return c.redirect("/super/login", 303);
 });
 

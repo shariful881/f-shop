@@ -106,8 +106,8 @@ describe("প্রতিটা দোকানের ডাটা সম্প�
     const { adminBrowser } = await import("./helpers");
     await createShop(B, "shopb3", "b3.test");
     const a = await adminBrowser();
-    const token = a.cookies.get("admin_session")!;
-    const res = await SELF.fetch("https://b3.test/admin/orders", { headers: { cookie: `admin_session=${token}` }, redirect: "manual" });
+    const token = a.cookies.get("__Host-admin_session")!;
+    const res = await SELF.fetch("https://b3.test/admin/orders", { headers: { cookie: `__Host-admin_session=${token}` }, redirect: "manual" });
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/admin/login");
   });

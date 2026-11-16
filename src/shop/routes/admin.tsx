@@ -3,7 +3,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { priceEditable } from "../views/admin";
 import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
-import { ADMIN_COOKIE, requireAdmin } from "../middleware/admin-auth";
+import { adminToken, requireAdmin } from "../middleware/admin-auth";
+import { ADMIN_COOKIES, clearSession, writeSession } from "../lib/session-cookie";
 import { createSession, destroyOtherSessions, destroySession, hashPassword, needsRehash, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
@@ -145,7 +146,7 @@ admin.post("/login", async (c) => {
   }
 
   const token = await createSession(c.env.DB, user.id);
-  setCookie(c, ADMIN_COOKIE, token, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+  writeSession(c, ADMIN_COOKIES, token);
   await markShopLogin(c);
   return c.redirect("/admin", 303);
 });
@@ -160,7 +161,7 @@ admin.get("/auto-login", async (c) => {
   await db.prepare("DELETE FROM login_tokens WHERE id = ? OR expires_at < datetime('now')").bind(id).run();
   if (!row) return c.redirect("/admin/login", 303);
   const session = await createSession(db, row.user_id);
-  setCookie(c, ADMIN_COOKIE, session, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
+  writeSession(c, ADMIN_COOKIES, session);
   if (c.req.query("support") === "1") {
     setCookie(c, "support_mode", "1", { path: "/admin", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 * 7 });
     flash(c, "ok", "সুপার অ্যাডমিন থেকে এই দোকানের প্যানেলে ঢুকেছেন।");
@@ -172,8 +173,8 @@ admin.get("/auto-login", async (c) => {
 });
 
 admin.post("/logout", async (c) => {
-  await destroySession(c.env.DB, getCookie(c, ADMIN_COOKIE));
-  deleteCookie(c, ADMIN_COOKIE, { path: "/" });
+  await destroySession(c.env.DB, adminToken(c));
+  clearSession(c, ADMIN_COOKIES);
   const wasSupport = getCookie(c, "support_mode") === "1";
   deleteCookie(c, "support_mode", { path: "/admin" });
   // সাপোর্ট মোড থেকে বের হলে সুপার অ্যাডমিনে ফেরা
@@ -266,13 +267,13 @@ admin.post("/account/password", async (c) => {
   }
   if (Object.keys(errors).length) return renderAccount(c, errors);
   await c.env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(await hashPassword(password), me.id).run();
-  const n = await destroyOtherSessions(c.env.DB, me.id, getCookie(c, ADMIN_COOKIE));
+  const n = await destroyOtherSessions(c.env.DB, me.id, adminToken(c));
   flash(c, "ok", n ? `পাসওয়ার্ড বদলেছে। অন্য ${bn(n)}টা জায়গা থেকে লগআউট করা হয়েছে।` : "পাসওয়ার্ড বদলেছে।");
   return c.redirect("/admin/account", 303);
 });
 
 admin.post("/account/logout-others", async (c) => {
-  const n = await destroyOtherSessions(c.env.DB, c.var.admin!.id, getCookie(c, ADMIN_COOKIE));
+  const n = await destroyOtherSessions(c.env.DB, c.var.admin!.id, adminToken(c));
   flash(c, "ok", n ? `অন্য ${bn(n)}টা জায়গা থেকে লগআউট করা হয়েছে।` : "অন্য কোথাও লগইন করা ছিল না।");
   return c.redirect("/admin/account", 303);
 });

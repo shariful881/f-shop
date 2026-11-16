@@ -11,9 +11,9 @@ import { shop, notFound } from "./routes/shop";
 import { device } from "./middleware/device";
 import { admin } from "./routes/admin";
 import { fbCookies } from "./middleware/fb-cookies";
-import { getCookie, setCookie } from "hono/cookie";
+import { setCookie } from "hono/cookie";
 import { sessionUser } from "./lib/auth";
-import { ADMIN_COOKIE } from "./middleware/admin-auth";
+import { adminToken } from "./middleware/admin-auth";
 import { themeOf } from "./lib/settings";
 import { confirmEmailLink } from "../platform/verify";
 
@@ -56,6 +56,17 @@ shopApp.get("/img/*", async (c) => {
 });
 
 shopApp.use("*", securityHeaders, withSettings, sameOriginPost, device);
+
+/**
+ * নিরাপত্তা (security/step-4): GTM দিয়ে দোকানের পেজে যেকোনো JavaScript চালানো যায় —
+ * তাই যাচাই বাকি (ইমেইল/মোবাইল) দোকানে GTM লোড হয় না (প্রতারণার পেজ বানিয়ে sellxbd.com-এর নাম ব্যবহার ঠেকাতে)।
+ * Pixel, GA4, TikTok শুধু আইডি নেয় — নিজের কোড চালানো যায় না, তাই সেগুলো সবসময় চলে।
+ */
+shopApp.use("*", async (c, next) => {
+  // অ্যাডমিনে নয় — নইলে সেটিংস পেজে ঘর খালি দেখাত আর সেভ করলে মুছে যেত
+  if (!c.req.path.startsWith("/admin") && c.var.shopState?.reason === "unverified" && c.var.settings.gtm_id) c.set("settings", { ...c.var.settings, gtm_id: "" });
+  await next();
+});
 shopApp.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : fbCookies(c, next)));
 
 /**
@@ -64,7 +75,7 @@ shopApp.use("*", async (c, next) => (c.req.path.startsWith("/admin") ? next() : 
  */
 shopApp.use("*", async (c, next) => {
   if (c.req.path.startsWith("/admin") || c.req.query("__preview") !== "1") return next();
-  const user = await sessionUser(c.env.DB, getCookie(c, ADMIN_COOKIE));
+  const user = await sessionUser(c.env.DB, adminToken(c));
   if (!user || user.role !== "owner") return next();
   const s = c.var.settings;
   const theme = themeOf(s);

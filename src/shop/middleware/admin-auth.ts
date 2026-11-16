@@ -1,15 +1,21 @@
 import type { MiddlewareHandler } from "hono";
-import { getCookie } from "hono/cookie";
+import { ADMIN_COOKIES, readSession, writeSession } from "../lib/session-cookie";
 import type { AppEnv } from "../env";
 import { canAccess, sessionUser } from "../lib/auth";
 
+/** পুরনো নাম — শুধু পড়ার জন্য রাখা; নতুন লগইন `__Host-admin_session` (lib/session-cookie.ts) */
 export const ADMIN_COOKIE = "admin_session";
+/** এখনকার লগইনের টোকেন (আগে `__Host-`, না থাকলে পুরনো নাম) */
+export const adminToken = (c: Parameters<typeof readSession>[0]) => readSession(c, ADMIN_COOKIES).token;
 const lastSeen = new Map<string, number>();
 
 /** /admin — শুধু লগইন করা is_admin ইউজার */
 export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
-  const user = await sessionUser(c.env.DB, getCookie(c, ADMIN_COOKIE));
+  const sess = readSession(c, ADMIN_COOKIES);
+  const user = await sessionUser(c.env.DB, sess.token);
   if (!user) return c.redirect("/admin/login", 303);
+  // পুরনো নামের কুকি থাকলে নতুন `__Host-` নামে সরানো (security/step-4) — কেউ লগআউট হয় না
+  if (sess.legacy) writeSession(c, ADMIN_COOKIES, sess.token!);
   c.set("admin", user);
   // প্যানেল ব্যবহার = দোকান সচল (অচল দোকান মোছার হিসাবে) — প্রতি দোকানে ৬ ঘণ্টায় একবার লেখা
   const now = Date.now(), last = lastSeen.get(c.env.SHOP_ID) ?? 0;
