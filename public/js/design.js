@@ -4,6 +4,7 @@
   var form = document.getElementById("de-form");
   var frame = document.getElementById("de-frame");
   if (!form || !frame) return;
+  form.addEventListener("submit", function (e) { e.preventDefault(); }); // আগে inline onsubmit ছিল (CSP)
   var wrap = document.querySelector(".de-frame-wrap");
   var loading = document.querySelector(".de-loading");
   var status = document.querySelector(".de-status");

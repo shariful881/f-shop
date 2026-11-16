@@ -343,3 +343,14 @@ document.addEventListener("click", function (e) {
   f.addEventListener("change", calc);
   calc();
 })();
+
+/* সুপার অ্যাডমিন: R2-এর ছবির ঠিকানা ব্রাউজার দিয়ে যাচাই (আগে inline onload/onerror — CSP, security/step-7) */
+(function () {
+  var img = document.querySelector("[data-r2-img]");
+  if (!img) return;
+  var form = img.closest("form");
+  var ok = function () { form.submit(); };
+  var bad = function () { var n = form.querySelector("[data-r2-msg]"); if (n) n.textContent = "ব্রাউজার থেকেও ছবি আসেনি — img ডোমেইন কয়েক মিনিট পরে আবার যাচাই করুন"; };
+  if (img.complete) { if (img.naturalWidth > 0) ok(); else bad(); }
+  else { img.addEventListener("load", ok); img.addEventListener("error", bad); }
+})();

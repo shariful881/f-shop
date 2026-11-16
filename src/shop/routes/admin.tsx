@@ -41,7 +41,7 @@ import { DesignEditorPage } from "../views/design";
 import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type Risk } from "../lib/fraud";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
-import { notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
+import { customSmsUrlError, notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
 import { registerSupport } from "./support";
 import { customersCsv, ordersCsv, productsCsv } from "../lib/export";
 import { BackupPage, type StorageStats } from "../views/backup";
@@ -1006,8 +1006,9 @@ admin.post("/sms", async (c) => {
   const key = str(b.sms_api_key, 500);
   if (key) values.sms_api_key = key;
   else if (b.clear_sms_api_key) values.sms_api_key = "";
-  if (values.sms_custom_url && !/^https?:\/\//i.test(values.sms_custom_url)) {
-    flash(c, "error", "গেটওয়ের URL http:// বা https:// দিয়ে শুরু হতে হবে");
+  const urlErr = values.sms_custom_url ? customSmsUrlError(values.sms_custom_url, c.env.PLATFORM_DOMAIN) : null;
+  if (urlErr) {
+    flash(c, "error", urlErr);
     return c.redirect("/admin/sms", 303);
   }
   await saveSettings(c.env.DB, values);

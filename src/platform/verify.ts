@@ -30,6 +30,23 @@ export const platformSms = (s: PlatformSettings): Settings | null => {
 };
 
 /** ইমেইল পাঠানোর ঠিকানা — sellxbd.com Cloudflare Email Sending-এ চালু থাকতে হবে */
+/**
+ * দোকানের নামে লিংক, ইমেইল বা ফোন নম্বর আছে কিনা (security/step-8)।
+ * নাম ইমেইলের বিষয় আর লেখায় যায় — অন্যের ইমেইল দিয়ে সাইনআপ করে SellxBD-এর নামে প্রতারণার লেখা পাঠানো ঠেকাতে।
+ */
+const NAME_LINK = /(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|xyz|top|bd|info|io|me|link|site|online|shop|store|app|co|cc|ru|in|pk)\b|@)/i;
+const NAME_PHONE = /(\d[\s\-.]*){7,}/; // ৭টার বেশি অঙ্ক (মাঝে ফাঁকা/ড্যাশ থাকলেও)
+const BN_DIGITS = /[০-৯]/g;
+export function badShopName(name: string): boolean {
+  const n = name.replace(BN_DIGITS, (d) => String("০১২৩৪৫৬৭৮৯".indexOf(d)));
+  return NAME_LINK.test(n) || NAME_PHONE.test(n);
+}
+/** ইমেইলে বসানোর আগে নাম নিরাপদ করা — পুরনো দোকানের নামেও লিংক/নম্বর যায় না */
+export function emailSafeName(name: string, fallback = "আপনার দোকান"): string {
+  const clean = (name || "").replace(/[<>&"]/g, "").trim().slice(0, 60);
+  return !clean || badShopName(clean) ? fallback : clean;
+}
+
 export const emailFrom = (env: WorkerEnv, s: PlatformSettings) => (s.verify_email_from || `no-reply@${env.PLATFORM_DOMAIN}`).trim();
 
 /**
@@ -142,7 +159,7 @@ export async function sendEmailLink(env: WorkerEnv, shopId: string, base: string
   await env.PLATFORM_DB.prepare("INSERT INTO verify_codes (shop_id, kind, code_hash, target, expires_at) VALUES (?, 'email', ?, ?, datetime('now', '+2 days'))")
     .bind(shopId, await sha(token), shop.owner_email).run();
   const url = `${base.replace(/\/+$/, "")}/verify/email?t=${token}`;
-  const name = shop.name.replace(/[<>&"]/g, "");
+  const name = emailSafeName(shop.name);
   try {
     await env.EMAIL.send({
       to: shop.owner_email,

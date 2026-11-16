@@ -110,7 +110,7 @@ export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id:
         </main>
 
         <aside class="de-panel">
-          <form id="de-form" enctype="multipart/form-data" onsubmit="return false">
+          <form id="de-form" enctype="multipart/form-data">
             {GROUPS.map((g, i) => (
               <section class="de-sec" data-sec={g.key} hidden={i !== 0}>
                 <h2>{g.title}</h2>

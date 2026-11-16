@@ -1133,7 +1133,7 @@ const R2Box = ({ r, owner }: { r: import("./r2").R2Status; owner: boolean }) => 
       <form method="post" action="/super/r2/confirm" data-r2-check>
         <input type="hidden" name="token" value={r.checkToken} />
         <img src={`${r.publicUrl.replace(/\/+$/, "")}/_check/${r.checkToken}.png`} alt="" width={1} height={1}
-          onload="this.closest('form').submit()" onerror="var n=this.closest('form').querySelector('[data-r2-msg]');if(n)n.textContent='ব্রাউজার থেকেও ছবি আসেনি — img ডোমেইন কয়েক মিনিট পরে আবার যাচাই করুন'" />
+          data-r2-img />
         <small class="sa-muted" data-r2-msg>ব্রাউজার দিয়ে ছবির ঠিকানা যাচাই হচ্ছে…</small>
       </form>
     )}

@@ -44,6 +44,32 @@ export const to880 = (phone: string) => (phone.startsWith("0") ? "88" + phone : 
 
 type Sent = { ok: boolean; response: string };
 
+/**
+ * নিজের গেটওয়ের URL যাচাই (security/step-6): শুধু http/https, URL-এ ইউজার/পাসওয়ার্ড নয়,
+ * localhost / ভেতরের নেটওয়ার্কের IP / আমাদের নিজের ডোমেইন নয় — যাতে SMS ফিচার দিয়ে অন্য জায়গায় রিকোয়েস্ট পাঠানো
+ * (proxy হিসেবে অপব্যবহার) না যায়। অনেক বাংলাদেশি গেটওয়ে শুধু http বা IP ঠিকানা দেয়, তাই সেগুলো চলে।
+ * ঠিক থাকলে null, নইলে বাংলায় কারণ।
+ */
+export function customSmsUrlError(raw: string, platformDomain?: string): string | null {
+  let u: URL;
+  try { u = new URL(raw.replaceAll("{number}", "8801700000000").replaceAll("{phone}", "01700000000").replaceAll("{message}", "x")); }
+  catch { return "গেটওয়ের URL ঠিক নয়"; }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return "গেটওয়ের URL http:// বা https:// দিয়ে শুরু হতে হবে";
+  if (u.username || u.password) return "URL-এ ইউজার/পাসওয়ার্ড দেবেন না — API key প্যারামিটারে দিন";
+  const host = u.hostname.toLowerCase().replace(/\.$/, "");
+  if (host.startsWith("[") || host.includes(":")) return "IPv6 ঠিকানা চলবে না — গেটওয়ের ডোমেইন দিন";
+  if (host === "localhost" || /\.(localhost|local|internal|lan|home|test|invalid)$/.test(host) || !host.includes(".")) return "এই ঠিকানায় SMS পাঠানো যাবে না";
+  const ip = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (ip) {
+    const [a, b] = [Number(ip[1]), Number(ip[2])];
+    const priv = a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+    if (priv) return "ভেতরের নেটওয়ার্কের ঠিকানায় SMS পাঠানো যাবে না";
+  }
+  const base = (platformDomain || "").toLowerCase();
+  if (base && (host === base || host.endsWith(`.${base}`))) return "আমাদের নিজের ঠিকানা গেটওয়ে হতে পারে না";
+  return null;
+}
+
 async function call(url: string, init: RequestInit): Promise<{ status: number; text: string }> {
   try {
     const res = await fetch(url, { ...init, signal: AbortSignal.timeout(15_000) });
@@ -74,9 +100,11 @@ export async function sendSms(s: Settings, phone: string, message: string): Prom
   // নিজের URL
   const fill = (t: string, enc: (x: string) => string) =>
     t.replaceAll("{number}", enc(number)).replaceAll("{phone}", enc(phone)).replaceAll("{message}", enc(message));
+  const bad = customSmsUrlError(s.sms_custom_url || "");
+  if (bad) return { ok: false, response: bad };
   const url = fill(s.sms_custom_url || "", encodeURIComponent);
   const method = s.sms_custom_method === "POST" ? "POST" : "GET";
-  const init: RequestInit = { method };
+  const init: RequestInit = { method, redirect: "manual" }; // অন্য ঠিকানায় ঘুরিয়ে দিলে যাবে না
   if (method === "POST" && s.sms_custom_body) {
     const tpl = s.sms_custom_body;
     const isJson = tpl.trim().startsWith("{");
@@ -86,7 +114,8 @@ export async function sendSms(s: Settings, phone: string, message: string): Prom
   const r = await call(url, init);
   const okWord = (s.sms_custom_success || "").trim();
   const ok = r.status >= 200 && r.status < 300 && (!okWord || r.text.includes(okWord));
-  return { ok, response: r.text || `HTTP ${r.status}` };
+  // উত্তরের শুধু শুরুটা রাখা — পুরো পেজ দেখানো proxy-র মতো কাজে লাগানো যায়
+  return { ok, response: (r.text || `HTTP ${r.status}`).slice(0, 300) };
 }
 
 /**

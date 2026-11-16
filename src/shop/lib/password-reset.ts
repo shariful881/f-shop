@@ -6,7 +6,7 @@
  */
 import { sha256Hex } from "./auth";
 import { platformSettings } from "../../platform/billing";
-import { emailFrom } from "../../platform/verify";
+import { emailFrom, emailSafeName } from "../../platform/verify";
 import type { WorkerEnv } from "../../worker-env";
 
 export const RESET_MINUTES = 30;
@@ -43,7 +43,7 @@ type Env = Pick<WorkerEnv, "PLATFORM_DB" | "EMAIL" | "PLATFORM_DOMAIN">;
 export async function sendResetEmail(env: Env, to: string, url: string, shopName: string): Promise<boolean> {
   if (!env.EMAIL) return false;
   const s = await platformSettings(env.PLATFORM_DB);
-  const name = (shopName || "আপনার দোকান").replace(/[<>&"]/g, "").slice(0, 60);
+  const name = emailSafeName(shopName);
   try {
     await env.EMAIL.send({
       to,

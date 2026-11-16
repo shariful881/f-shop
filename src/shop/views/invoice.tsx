@@ -98,13 +98,13 @@ export const InvoicePage = ({ list, s, size, autoPrint }: { list: InvoiceData[];
       <link rel="stylesheet" href={`/css/invoice.css?v=${ASSET_VERSION}`} />
       <style>{size === "sticker" ? "@page{size:3in 4in;margin:0}" : "@page{size:A4;margin:12mm}"}</style>
     </head>
-    <body class={`iv iv-${size}-body`}>
+    <body class={`iv iv-${size}-body`} data-autoprint={autoPrint ? "1" : undefined}>
       <div class="iv-toolbar">
-        <button type="button" onclick="window.print()">🖨️ প্রিন্ট করুন</button>
+        <button type="button" data-print>🖨️ প্রিন্ট করুন</button>
         <span>{bn(list.length)}টা {size === "sticker" ? "স্টিকার (৩×৪ ইঞ্চি)" : "ইনভয়েস (A4)"}</span>
       </div>
       {list.map((d) => (size === "sticker" ? <Sticker d={d} s={s} /> : <A4 d={d} s={s} />))}
-      {autoPrint && <script dangerouslySetInnerHTML={{ __html: "window.addEventListener('load',function(){setTimeout(function(){window.print()},400)})" }} />}
+      <script src={`/js/invoice.js?v=${ASSET_VERSION}`} defer></script>
     </body>
   </html>
 );

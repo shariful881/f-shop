@@ -5,7 +5,7 @@ import type { PCtx, PEnv } from "./lib";
 import {
   createSuperSession, destroySuperSession, platformPeekRateLimit, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
-import { checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
+import { badShopName, checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
 import { DEFAULT_DESC, HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
 import { num, platformSettings } from "./billing";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
@@ -238,6 +238,7 @@ platformApp.post("/signup", async (c) => {
 
   const errors: Record<string, string> = {};
   if (values.shop_name!.length < 2) errors.shop_name = "দোকানের নাম লিখুন";
+  else if (badShopName(values.shop_name!)) errors.shop_name = "দোকানের নামে লিংক, ইমেইল বা ফোন নম্বর দেওয়া যাবে না";
   const slugErr = validateSlug(values.slug!);
   if (slugErr) errors.slug = slugErr;
   else if (await slugTaken(c.env, values.slug!)) errors.slug = "এই ঠিকানা আগেই নেওয়া হয়েছে";
@@ -367,7 +368,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=42"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=43"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

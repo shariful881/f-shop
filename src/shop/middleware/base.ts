@@ -43,7 +43,11 @@ export const securityHeaders: MiddlewareHandler<any> = async (c, next) => {
   if (!c.res.headers.has("Referrer-Policy")) c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   // অন্য সাইট আমাদের পেজ iframe-এ বসিয়ে ক্লিক চুরি করতে পারবে না (নিজের প্রিভিউ চলবে)
   c.header("X-Frame-Options", "SAMEORIGIN");
-  c.header("Content-Security-Policy", "frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+  // অ্যাডমিন আর সুপার অ্যাডমিনে script শুধু নিজের সাইট থেকে (inline বা অন্য সাইটের script চলে না) — XSS হলে দ্বিতীয় দেয়াল (security/step-7)।
+  // দোকানের পাবলিক পেজে নয় — সেখানে Pixel, GTM, GA4, TikTok আর inline ট্র্যাকিং চলে।
+  const path = new URL(c.req.url).pathname;
+  const panel = /^\/(admin|super)(\/|$)/.test(path);
+  c.header("Content-Security-Policy", `frame-ancestors 'self'; base-uri 'self'; object-src 'none'${panel ? "; script-src 'self'" : ""}`);
   c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   if (new URL(c.req.url).protocol === "https:") c.header("Strict-Transport-Security", "max-age=15552000");
 };
