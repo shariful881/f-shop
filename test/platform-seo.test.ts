@@ -42,6 +42,17 @@ describe("sellxbd.com SEO", () => {
     r = await get("/pricing/");
     expect(r.status).toBe(301);
     expect(r.headers.get("location")).toBe("/pricing");
+    // open redirect নয়: শুরুর বাড়তি / বা \ সাইটের বাইরে পাঠাবে না
+    for (const bad of ["//evil.com/", "///evil.com/", "/\\evil.com/", "//evil.com/x/?a=1"]) {
+      const x = await get(bad);
+      expect(x.status).toBe(301);
+      const loc = x.headers.get("location")!;
+      expect(loc.startsWith("/")).toBe(true);
+      expect(loc.startsWith("//")).toBe(false);
+      expect(loc.startsWith("/\\")).toBe(false);
+      expect(new URL(loc, "https://ourdomain.com").hostname).toBe("ourdomain.com");
+    }
+    expect((await get("//evil.com/")).headers.get("location")).toBe("/evil.com");
     r = await get("/nope-page");
     expect(r.status).toBe(404);
     expect(head(await r.text())).toContain('content="noindex, nofollow"');

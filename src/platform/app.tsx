@@ -50,7 +50,11 @@ platformApp.use("*", async (c, next) => {
   const base = c.env.PLATFORM_DOMAIN;
   if (c.req.method === "GET" || c.req.method === "HEAD") {
     if (url.hostname === `www.${base}`) return c.redirect(`https://${base}${url.pathname}${url.search}`, 301);
-    if (url.pathname.length > 1 && url.pathname.endsWith("/")) return c.redirect(url.pathname.replace(/\/+$/, "") + url.search, 301);
+    // শুরুর একাধিক / বা \ একটাতে নামানো — নইলে //evil.com/ অন্য সাইটে পাঠিয়ে দিত (open redirect)
+    if (url.pathname.length > 1 && url.pathname.endsWith("/")) {
+      const clean = "/" + url.pathname.replace(/^[\/\\]+/, "").replace(/\/+$/, "");
+      return c.redirect(clean + url.search, 301);
+    }
   }
   await next();
 });
