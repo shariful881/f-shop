@@ -14,7 +14,11 @@ export function clientIp(c: Ctx): string {
   return c.req.header("x-real-ip")?.trim() || "0.0.0.0";
 }
 
-/** proxy-র পেছনে থাকলেও আসল https://domain বের করে */
+/**
+ * proxy-র পেছনে থাকলেও আসল https://domain বের করে।
+ * লাইভে X-Forwarded-* হেডার Worker-এর শুরুতেই মুছে যায় (src/index.ts stripProxyHeaders) — তাই এখানে আসল host;
+ * শুধু লোকাল/Codespaces-এ (DEV_MODE=1) proxy-র হেডার মানা হয়।
+ */
 export function publicOrigin(c: Ctx): string {
   const url = new URL(c.req.url);
   const proto = (c.req.header("x-forwarded-proto") || url.protocol.replace(":", "")).split(",")[0]!.trim();

@@ -15,8 +15,22 @@ export { SupportHub } from "./support-hub";
  * সব রিকোয়েস্ট প্রথমে এখানে আসে। ডোমেইন দেখে ঠিক করে:
  * প্ল্যাটফর্ম (সাইনআপ/সুপার অ্যাডমিন) নাকি কোনো দোকান — দোকান হলে সেই দোকানের নিজস্ব Durable Object-এ পাঠায়।
  */
+/**
+ * নিরাপত্তা (security/step-5): বাইরে থেকে আসা proxy হেডার লাইভে মানা হয় না।
+ * Codespaces-এর proxy-র জন্য (DEV_MODE=1) এগুলো রাখা হয়; লাইভে Cloudflare-ই আসল host আর IP দেয়
+ * (url.host, cf-connecting-ip) — কেউ X-Forwarded-Host বদলে লিংক, ফিড, sitemap বা CSRF যাচাই ঘোরাতে পারে না।
+ */
+export const PROXY_HEADERS = ["x-forwarded-host", "x-forwarded-proto", "x-forwarded-for", "x-real-ip"];
+export function stripProxyHeaders(request: Request, dev: boolean): Request {
+  if (dev || !PROXY_HEADERS.some((h) => request.headers.has(h))) return request;
+  const headers = new Headers(request.headers);
+  for (const h of PROXY_HEADERS) headers.delete(h);
+  return new Request(request, { headers });
+}
+
 export default {
-  async fetch(request: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(incoming: Request, env: WorkerEnv, ctx: ExecutionContext): Promise<Response> {
+    const request = stripProxyHeaders(incoming, env.DEV_MODE === "1");
     const url = new URL(request.url);
 
     // লোকাল/Codespaces: ?shop=slug দিয়ে যেকোনো দোকান খোলা (লাইভে বন্ধ)

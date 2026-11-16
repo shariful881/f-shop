@@ -120,12 +120,12 @@ describe("কার্ট আর অর্ডার", () => {
     expect(res.status).toBe(403);
   });
 
-  it("Codespaces proxy-র পেছনে (X-Forwarded-Host) POST কাজ করে", async () => {
+  it("লাইভে বাইরের X-Forwarded-Host মানা হয় না — অন্য সাইটের POST তবুও আটকায় (security/step-5)", async () => {
     const res = await new Browser().post("/cart/add", { product_id: 1 }, {
       origin: "https://abc-8000.app.github.dev",
       "x-forwarded-host": "abc-8000.app.github.dev",
       "x-forwarded-proto": "https",
     });
-    expect(res.status).toBe(303);
+    expect(res.status).toBe(403);
   });
 });

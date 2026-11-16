@@ -11,7 +11,8 @@ export const withSettings: MiddlewareHandler<AppEnv> = async (c, next) => {
 
 /**
  * CSRF সুরক্ষা: POST রিকোয়েস্ট শুধু নিজের সাইট থেকে আসতে পারবে।
- * Codespaces-এর proxy-র পেছনে আসল domain X-Forwarded-Host-এ থাকে, তাই সেটাও মানা হয়।
+ * Codespaces-এর proxy-র পেছনে আসল domain X-Forwarded-Host-এ থাকে, তাই সেটাও মানা হয় — শুধু DEV_MODE=1-এ;
+ * লাইভে ওই হেডার Worker-এর শুরুতেই মুছে যায় (src/index.ts stripProxyHeaders)।
  */
 export const sameOriginPost: MiddlewareHandler<any> = async (c, next) => {
   if (c.req.method === "POST") {
