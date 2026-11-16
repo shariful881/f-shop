@@ -26,6 +26,7 @@ const ALL: SuperRole[] = ["owner", "admin", "support", "finance"];
 export const PERMS: Record<string, SuperRole[]> = {
   dashboard: ALL,
   shops: ALL,
+  "shops.export": ["owner"], // সব মালিকের নাম/ফোন/ইমেইল — শুধু owner
   "shop.note": ALL,
   "shop.status": ["owner", "admin"],
   "shop.trial": ["owner", "admin"],
@@ -390,7 +391,7 @@ export const SHOP_FILTERS: Record<string, string> = {
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
 
-export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; q: string; filter: string; sort: string; page: number; total: number; per: number; shopLink: (slug: string) => string; canEnter?: boolean }) => {
+export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; q: string; filter: string; sort: string; page: number; total: number; per: number; shopLink: (slug: string) => string; canEnter?: boolean; canExport?: boolean }) => {
   const qs = (o: Record<string, string | number>) => {
     const u = new URLSearchParams({ q: p.q, filter: p.filter, sort: p.sort, page: String(p.page), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])) });
     for (const [k, v] of [...u]) if (!v || (k === "page" && v === "1") || (k === "sort" && v === "new")) u.delete(k);
@@ -410,7 +411,7 @@ export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; 
         {p.filter && <input type="hidden" name="filter" value={p.filter} />}
         <select name="sort">{Object.entries(SHOP_SORTS).map(([k, l]) => <option value={k} selected={p.sort === k}>{l}</option>)}</select>
         <button class="sa-btn">খুঁজুন</button>
-        <a class="sa-btn sa-btn-ghost" href={`/super/shops.csv?${new URLSearchParams({ q: p.q, filter: p.filter, sort: p.sort })}`}>⬇ CSV</a>
+        {p.canExport && <a class="sa-btn sa-btn-ghost" href={`/super/shops.csv?${new URLSearchParams({ q: p.q, filter: p.filter, sort: p.sort })}`}>⬇ CSV</a>}
       </form>
       <Card>
         <p class="sa-muted sa-count">{n0(p.total)}টা দোকান{p.q ? ` — "${p.q}"` : ""}</p>

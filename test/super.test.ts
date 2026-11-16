@@ -58,6 +58,18 @@ describe("ড্যাশবোর্ড আর পরিসংখ্যান",
     const csv = await (await get(b, "/super/shops.csv?filter=dues")).text();
     expect(csv).toContain(`"'=HYPERLINK(1)"`);
     expect((await pdb().prepare("SELECT action FROM audit_log WHERE action = 'export.shops'").first())).toBeTruthy();
+    expect(dues).toContain("/super/shops.csv?");
+  });
+
+  it("দোকানের CSV (সব মালিকের ফোন/ইমেইল) শুধু owner নামাতে পারে", async () => {
+    for (const role of ["admin", "support", "finance"]) {
+      const b = await member(`${role}@t.com`, role);
+      const r = await get(b, "/super/shops.csv");
+      expect(r.status).toBe(403);
+      expect(await r.text()).not.toContain("owner_phone");
+      expect(await (await get(b, "/super/shops")).text()).not.toContain("/super/shops.csv?");
+    }
+    expect((await pdb().prepare("SELECT action FROM audit_log WHERE action = 'export.shops'").first())).toBeFalsy();
   });
 });
 

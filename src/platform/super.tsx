@@ -244,11 +244,12 @@ superApp.get("/shops", async (c) => {
   const counts = Object.fromEntries(Object.entries((cnt!.results[0] ?? {}) as Record<string, number>).map(([k, v]) => [k, Number(v) || 0]));
   return page(c, "দোকান", "shops",
     <ShopsPage rows={list!.results as ShopRow[]} counts={counts} q={q} filter={filter} sort={sort} page={pg} per={PER_PAGE}
-      total={(total!.results[0] as { n: number }).n} shopLink={(slug) => shopUrl(c.env, slug)} canEnter={allowed(c, "shop.impersonate")} />);
+      total={(total!.results[0] as { n: number }).n} shopLink={(slug) => shopUrl(c.env, slug)} canEnter={allowed(c, "shop.impersonate")} canExport={allowed(c, "shops.export")} />);
 });
 
 /** CSV — Excel-এ খোলার জন্য (সূত্র-ইনজেকশন থেকে নিরাপদ) */
 superApp.get("/shops.csv", async (c) => {
+  if (!allowed(c, "shops.export")) return forbidden(c);
   const { where, binds, sort } = shopQuery(c);
   const { results } = await c.env.PLATFORM_DB.prepare(`${SHOP_SELECT} WHERE ${where} ORDER BY ${SORT_SQL[sort]} LIMIT 20000`).bind(...binds).all<ShopRow>();
   const cell = (v: unknown) => {
