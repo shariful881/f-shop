@@ -42,12 +42,15 @@ export async function productsCsv(db: D1Database): Promise<string> {
 }
 
 export async function customersCsv(db: D1Database): Promise<string> {
+  // এক পাসে নম্বর ধরে হিসাব, তারপর শেষ অর্ডারটা id দিয়ে (প্রতি নম্বরে আলাদা খোঁজ নয় — বড় দোকানেও দ্রুত)
   const { results } = await db.prepare(
-    `SELECT phone, (SELECT o2.name FROM orders o2 WHERE o2.phone = o.phone ORDER BY o2.id DESC LIMIT 1) AS name,
-            (SELECT o3.address FROM orders o3 WHERE o3.phone = o.phone ORDER BY o3.id DESC LIMIT 1) AS address,
-            COUNT(*) AS orders, SUM(status IN ('confirmed','shipped')) AS delivered, SUM(status IN ('cancelled','fake')) AS bad,
-            COALESCE(SUM(CASE WHEN status IN ('confirmed','shipped') THEN total END), 0) AS spent, MAX(created_at) AS last_at
-     FROM orders o GROUP BY phone ORDER BY MAX(id) DESC LIMIT ?`,
+    `WITH g AS (
+       SELECT phone, MAX(id) AS last_id, COUNT(*) AS orders, SUM(status IN ('confirmed','shipped')) AS delivered, SUM(status IN ('cancelled','fake')) AS bad,
+              COALESCE(SUM(CASE WHEN status IN ('confirmed','shipped') THEN total END), 0) AS spent, MAX(created_at) AS last_at
+       FROM orders GROUP BY phone ORDER BY last_id DESC LIMIT ?
+     )
+     SELECT g.phone, o.name, o.address, g.orders, g.delivered, g.bad, g.spent, g.last_at
+     FROM g JOIN orders o ON o.id = g.last_id ORDER BY g.last_id DESC`,
   ).bind(MAX_ROWS).all<Record<string, unknown>>();
   return toCsv(
     ["মোবাইল", "নাম", "শেষ ঠিকানা", "মোট অর্ডার", "ডেলিভারি", "বাতিল/ফেক", "মোট কেনা", "শেষ অর্ডার (UTC)"],

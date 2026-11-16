@@ -27,6 +27,7 @@ import m0021 from "../../migrations/shop/0021_advance.sql";
 import m0022 from "../../migrations/shop/0022_reviews_profit.sql";
 import m0023 from "../../migrations/shop/0023_push_blog.sql";
 import m0024 from "../../migrations/shop/0024_images_r2.sql";
+import m0025 from "../../migrations/shop/0025_orders_created_idx.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
 import { mediaUsage } from "./lib/media";
@@ -59,6 +60,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0022_reviews_profit", m0022],
   ["0023_push_blog", m0023],
   ["0024_images_r2", m0024],
+  ["0025_orders_created_idx", m0025],
 ];
 
 export type SetupInput = {

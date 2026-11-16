@@ -14,13 +14,25 @@ export function clearShopCache() {
   cache.clear();
 }
 
+/** এলোমেলো subdomain দিয়ে কেউ অনেক অনুরোধ পাঠালেও মেমোরি সীমার মধ্যে থাকে */
+const MAX_ENTRIES = 2000;
+
 async function cached(key: string, load: () => Promise<ShopRow | null>) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.shop;
   const shop = await load();
+  cache.delete(key);
+  if (cache.size >= MAX_ENTRIES) {
+    // আগে মেয়াদ শেষ হওয়াগুলো, তারপরও বেশি থাকলে সবচেয়ে পুরনোগুলো (Map ঢোকানোর ক্রম রাখে)
+    const now = Date.now();
+    for (const [k, v] of cache) if (now - v.at >= TTL) cache.delete(k);
+    for (const k of cache.keys()) { if (cache.size < MAX_ENTRIES * 0.9) break; cache.delete(k); }
+  }
   cache.set(key, { at: Date.now(), shop });
   return shop;
 }
+
+export const shopCacheSize = () => cache.size;
 
 export function shopBySlug(env: WorkerEnv, slug: string) {
   return cached(`s:${slug}`, () =>
@@ -51,10 +63,12 @@ export async function resolveHost(env: WorkerEnv, hostname: string): Promise<Tar
   if (host === base || host === `www.${base}`) return { kind: "platform" };
   if (host.endsWith(`.${base}`)) {
     const slug = host.slice(0, -(base.length + 1));
-    if (!/^[a-z0-9-]+$/.test(slug)) return { kind: "unknown" };
+    // দোকানের ঠিকানার নিয়মের বাইরে হলে ডাটাবেসে খোঁজার দরকার নেই
+    if (!/^[a-z0-9-]{1,40}$/.test(slug)) return { kind: "unknown" };
     const shop = await shopBySlug(env, slug);
     return shop ? { kind: "shop", shop } : { kind: "unknown" };
   }
+  if (host.length > 253 || !/^[a-z0-9.-]+$/.test(host) || !host.includes(".")) return { kind: "unknown" };
   const shop = await shopByDomain(env, host);
   return shop ? { kind: "shop", shop } : { kind: "unknown" };
 }
