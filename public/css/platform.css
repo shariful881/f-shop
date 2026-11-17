@@ -382,8 +382,18 @@ a.p-contact-card:hover { border-color: #0f766e; }
   .p-header .p-logo .brand-mark { width: 28px; height: 28px; }
   .p-header .brand-name { font-size: 1.08rem; }
   .p-header .admin-nav { gap: 6px; }
-  .p-header .admin-nav a.p-nav-cta { font-size: .98rem; padding: 10px 13px; }
-  .p-header .admin-nav a.p-nav-cta .ic { display: none; }
+  .p-header .admin-nav a.p-nav-cta { font-size: .96rem; padding: 10px 12px; gap: 5px; }
+  .p-header .admin-nav a.p-nav-cta .ic { width: 16px; height: 16px; }
   .p-menu > summary { width: 40px; height: 40px; }
 }
-@media (max-width: 340px) { .p-header .brand-name { display: none; } }
+@media (max-width: 374px) {
+  .p-header .admin-header-inner { gap: 6px; padding: 8px 8px; }
+  .p-header .p-logo { gap: 5px; }
+  .p-header .p-logo .brand-mark { width: 26px; height: 26px; }
+  .p-header .brand-name { font-size: .98rem; }
+  .p-header .admin-nav { gap: 5px; }
+  .p-header .admin-nav a.p-nav-cta { font-size: .9rem; padding: 9px 10px; gap: 4px; }
+  .p-header .admin-nav a.p-nav-cta .ic { width: 15px; height: 15px; }
+  .p-menu > summary { width: 38px; height: 38px; }
+}
+@media (max-width: 345px) { .p-header .brand-name { display: none; } }
