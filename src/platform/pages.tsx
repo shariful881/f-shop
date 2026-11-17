@@ -95,6 +95,7 @@ export const PricingPage = ({ f }: { f: Fees }) => (
       sub={`প্রথম ${bn(f.trialDays)} দিন "বাড়ন্ত" প্ল্যান পুরো ফ্রি। কার্ড লাগে না। ফেক বা বাতিল অর্ডার গোনা হয় না।`} />
     <section class="p-section">
       <div class="wrap">
+        <h2 class="p-h2">প্ল্যান ও মাসিক দাম</h2>
         <div class="p-plans">
           {PLAN_ORDER.map((k) => {
             const pl = f.plans[k];
@@ -148,6 +149,41 @@ export const PricingPage = ({ f }: { f: Fees }) => (
             <small>অর্ডারপ্রতি মাত্র <span data-calc-per>৳{(Math.round((f.plans.small.price / f.plans.small.orders) * 100) / 100).toLocaleString("bn-BD")}</span></small>
           </div>
         </div>
+      </div>
+    </section>
+    <section class="p-section p-soft">
+      <div class="wrap p-narrow p-prose">
+        <h2>ই-কমার্স ওয়েবসাইট বানাতে কী কী খরচ হয়?</h2>
+        <p>নিজে বা ডেভেলপার দিয়ে ই-কমার্স ওয়েবসাইট বানালে খরচ শুধু একবারের নয় — প্রতি বছর ডোমেইন আর হোস্টিং নবায়ন, প্লাগইন/থিমের লাইসেন্স, নিরাপত্তা আপডেট, সাইট ধীর বা হ্যাক হলে ঠিক করা, কুরিয়ার আর Pixel জোড়া লাগানোর কাজ — সবকিছুর জন্য আলাদা টাকা আর সময় লাগে।</p>
+        <p>{PLATFORM_NAME}-এ এগুলো এক প্ল্যানের মধ্যে: হোস্টিং, নিরাপত্তা, আপডেট, কুরিয়ার, ফেক অর্ডার আটকানো — আলাদা কিছু কিনতে হয় না। শুধু নিজের ডোমেইন (yourshop.com) চাইলে সেটা আপনি যেকোনো জায়গা থেকে কিনবেন।</p>
+        <table class="p-table">
+          <thead><tr><th>খরচের খাত</th><th>নিজে/ডেভেলপার দিয়ে বানালে</th><th>{PLATFORM_NAME}</th></tr></thead>
+          <tbody>
+            <tr><td>সাইট বানানো</td><td>ডেভেলপারের ফি বা নিজের অনেক সময়</td><td>২ মিনিটে রেডি দোকান</td></tr>
+            <tr><td>হোস্টিং ও স্পিড</td><td>আলাদা কিনতে হয়, প্রতি বছর নবায়ন</td><td>প্ল্যানের মধ্যে, Cloudflare-এ</td></tr>
+            <tr><td>নিরাপত্তা ও আপডেট</td><td>নিজের দায়িত্ব</td><td>আমরা করি</td></tr>
+            <tr><td>কুরিয়ার (Steadfast/Pathao/RedX)</td><td>আলাদা প্লাগইন বা কোড</td><td>বিল্ট-ইন</td></tr>
+            <tr><td>ফেক অর্ডার আটকানো</td><td>সাধারণত থাকে না</td><td>বিল্ট-ইন</td></tr>
+            <tr><td>Pixel + Conversions API</td><td>আলাদা সেটআপ</td><td>আইডি বসালেই চালু</td></tr>
+            <tr><td>সাপোর্ট</td><td>ডেভেলপারের সময়মতো</td><td>২৪ ঘণ্টা, বাংলায়</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="p-section">
+      <div class="wrap p-narrow">
+        <h2 class="p-h2">দাম নিয়ে সাধারণ প্রশ্ন</h2>
+        <div class="p-faq">
+          {[
+            ["ফ্রি প্ল্যানে কী পাব?", `সব ফিচার, মাসে ${bn(f.plans.free.orders)}টা কনফার্ম অর্ডার পর্যন্ত — একদম ৳০। ফ্রি সাবডোমেইনে (shop.sellxbd.com) দোকান চলে।`],
+            ["ট্রায়াল শেষ হলে কী হয়?", `প্রথম ${bn(f.trialDays)} দিন "বাড়ন্ত" প্ল্যান ফ্রি। এরপর রিচার্জ না করলে দোকান বন্ধ হয় না, ফ্রি প্ল্যানে চলে। কার্ড লাগে না।`],
+            ["টাকা কীভাবে দেব?", "bKash বা Nagad দিয়ে রিচার্জ। প্ল্যানের টাকা বিলের দিন ব্যালেন্স থেকে কাটে, প্রতিটা হিসাব প্যানেলে দেখা যায়।"],
+            ["সীমার বেশি অর্ডার হলে?", `প্রতি কনফার্ম অর্ডারে বাড়তি ৳${bn(f.plans.small.extra)}/${bn(f.plans.grow.extra)}/${bn(f.plans.big.extra)} (প্ল্যান অনুযায়ী), মাস শেষে একবারে। সীমার ৮০% আর ১০০% হলে আগেই জানানো হয়। ফেক বা বাতিল অর্ডার গোনা হয় না।`],
+            ["মাঝপথে প্ল্যান বদলানো যায়?", "হ্যাঁ। বড় প্ল্যান নিলে এখনই চালু হয়, আগের প্ল্যানের না-ব্যবহৃত টাকা বাদ যায়। ছোট প্ল্যানে গেলে পরের বিলের দিন থেকে।"],
+            ["ডোমেইনের দাম কি প্ল্যানে আছে?", "না। পেইড প্ল্যানে নিজের ডোমেইন যুক্ত করা যায়; ডোমেইন আপনি নিজে কিনবেন। ডোমেইন না থাকলে ফ্রি সাবডোমেইন।"],
+          ].map(([q, a]) => <details><summary>{q}</summary><p>{a}</p></details>)}
+        </div>
+        <p class="p-muted-note">টাকা ফেরতের নিয়ম: <a href="/refund">রিফান্ড নীতি</a> · আরও প্রশ্ন: <a href="/help/billing">বিলিং গাইড</a> বা <a href="/contact">যোগাযোগ</a></p>
       </div>
     </section>
     <script dangerouslySetInnerHTML={{ __html: `(function(){var b=document.querySelector("[data-calc]");if(!b)return;var P=JSON.parse(b.dataset.plans),i=b.querySelector("[data-calc-orders]"),t=b.querySelector("[data-calc-total]"),pl=b.querySelector("[data-calc-plan]"),p=b.querySelector("[data-calc-per]");function f(n){return n.toLocaleString("bn-BD")}function go(){var n=Math.max(0,Math.min(100000,parseInt(i.value||"0",10)||0)),best=null;P.forEach(function(x){var c=x.p+Math.ceil(Math.round(Math.max(0,n-x.o)*x.e*100)/100);if(!best||c<best.c)best={n:x.n,c:c};});pl.textContent=best.n;t.textContent="৳"+f(best.c);p.textContent=n?"৳"+f(Math.round(best.c/n*100)/100):"—";}i.addEventListener("input",go);go();})();` }} />
