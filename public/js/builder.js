@@ -57,12 +57,12 @@
       fd.append("folder", "landing");
       fetch("/admin/upload-image", { method: "POST", body: fd, credentials: "same-origin" })
         .then(function (r) { return r.json(); })
-        .then(function (d) { if (d.key) onDone(d.key); else alert(d.message || "আপলোড হয়নি"); })
+        .then(function (d) { if (d.key) { onDone(d.key); changed(); } else alert(d.message || "আপলোড হয়নি"); })
         .catch(function () { alert("আপলোড হয়নি"); })
         .finally(function () { inp.value = ""; });
     });
     var btn = el("button", { type: "button", class: "btn btn-sm btn-outline", text: "＋ ছবি বাছুন (লাইব্রেরি / আপলোড)", onclick: function () {
-      if (window.SellxMedia) window.SellxMedia.choose({ folder: "landing", ratio: ratio || "free", filter: "" }, function (k) { onDone(k); });
+      if (window.SellxMedia) window.SellxMedia.choose({ folder: "landing", ratio: ratio || "free", filter: "" }, function (k) { onDone(k); changed(); });
       else inp.click();
     } });
     var wrap = el("div", { class: "b-upload" });
@@ -78,10 +78,10 @@
       obj[key].forEach(function (v, i) {
         wrap.appendChild(el("div", { class: "b-row" }, [
           el("input", { type: "text", value: v, placeholder: ph, oninput: function (e) { obj[key][i] = e.target.value; } }),
-          el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { obj[key].splice(i, 1); draw(); } }),
+          el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { obj[key].splice(i, 1); draw(); changed(); } }),
         ]));
       });
-      wrap.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ যোগ করুন", onclick: function () { obj[key].push(""); draw(); } }));
+      wrap.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ যোগ করুন", onclick: function () { obj[key].push(""); draw(); changed(); } }));
     }
     draw();
     return wrap;
@@ -106,7 +106,7 @@
           d.images.forEach(function (k, i) {
             g.appendChild(el("div", { class: "b-img" }, [
               el("img", { src: "/img/" + k, alt: "" }),
-              el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.images.splice(i, 1); drawG(); } }),
+              el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.images.splice(i, 1); drawG(); changed(); } }),
             ]));
           });
         };
@@ -137,15 +137,15 @@
             [5, 4, 3, 2, 1].forEach(function (n) { var o = el("option", { value: n, text: "★".repeat(n) }); if ((r.rating || 5) === n) o.selected = true; stars.appendChild(o); });
             var card = el("div", { class: "b-card" }, [
               el("div", { class: "b-row" }, [text(r, "name", "নাম", 60), stars,
-                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.reviews.splice(i, 1); drawR(); } })]),
+                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.reviews.splice(i, 1); drawR(); changed(); } })]),
               area(r, "text", "রিভিউ", 2),
               r.image ? el("div", { class: "b-img" }, [el("img", { src: "/img/" + r.image, alt: "" }),
-                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { r.image = ""; drawR(); } })]) : null,
+                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { r.image = ""; drawR(); changed(); } })]) : null,
               field("স্ক্রিনশট (ঐচ্ছিক)", upload(function (k) { r.image = k; drawR(); })),
             ]);
             rw.appendChild(card);
           });
-          rw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ রিভিউ যোগ করুন", onclick: function () { d.reviews.push({ name: "", rating: 5, text: "", image: "" }); drawR(); } }));
+          rw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ রিভিউ যোগ করুন", onclick: function () { d.reviews.push({ name: "", rating: 5, text: "", image: "" }); drawR(); changed(); } }));
         };
         drawR();
         box.appendChild(rw);
@@ -159,11 +159,11 @@
           d.faqs.forEach(function (f, i) {
             fw.appendChild(el("div", { class: "b-card" }, [
               el("div", { class: "b-row" }, [text(f, "q", "প্রশ্ন", 300),
-                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.faqs.splice(i, 1); drawF(); } })]),
+                el("button", { type: "button", class: "btn-link danger", text: "✕", onclick: function () { d.faqs.splice(i, 1); drawF(); changed(); } })]),
               area(f, "a", "উত্তর", 2),
             ]));
           });
-          fw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ প্রশ্ন যোগ করুন", onclick: function () { d.faqs.push({ q: "", a: "" }); drawF(); } }));
+          fw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ প্রশ্ন যোগ করুন", onclick: function () { d.faqs.push({ q: "", a: "" }); drawF(); changed(); } }));
         };
         drawF();
         box.appendChild(fw);
@@ -229,7 +229,7 @@
               el("div", { class: "b-row" }, [text(r, "us", "আমাদের (ফাঁকা = ✓)", 120), text(r, "them", "অন্যরা (ফাঁকা = ✕)", 120)]),
             ]));
           });
-          cw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ সারি যোগ করুন", onclick: function () { d.rows.push({ label: "", us: "", them: "" }); drawC(); } }));
+          cw.appendChild(el("button", { type: "button", class: "btn btn-outline btn-sm", text: "+ সারি যোগ করুন", onclick: function () { d.rows.push({ label: "", us: "", them: "" }); drawC(); changed(); } }));
         };
         drawC();
         box.appendChild(cw);
