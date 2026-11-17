@@ -57,7 +57,9 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
       </>}
       {!p.admin && <link rel="alternate" type="application/rss+xml" title={`${PLATFORM_NAME} ব্লগ`} href="/blog/feed.xml" />}
       <meta name="theme-color" content="#0f766e" />
-      <link rel="icon" href="/favicon.ico" sizes="32x32" />
+      {/* Google: ICO/PNG সমর্থিত (SVG নয়), ৪৮px-এর বড় ভালো */}
+      <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48 64x64" />
+      <link rel="icon" href="/brand/favicon-96.png" type="image/png" sizes="96x96" />
       <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       <link rel="manifest" href="/site.webmanifest" />

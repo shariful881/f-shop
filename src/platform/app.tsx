@@ -230,7 +230,7 @@ platformApp.get("/", async (c) => {
     description: homeDesc(fees), areaServed: "BD",
     ...(fees.support ? { contactPoint: { "@type": "ContactPoint", telephone: `+88${fees.support}`, contactType: "customer support", areaServed: "BD", availableLanguage: ["bn", "en"] } } : {}),
   };
-  const site = { "@context": "https://schema.org", "@type": "WebSite", "@id": `${base}/#site`, name: PLATFORM_NAME, url: base, inLanguage: "bn-BD", publisher: { "@id": `${base}/#org` } };
+  const site = { "@context": "https://schema.org", "@type": "WebSite", "@id": `${base}/#site`, name: PLATFORM_NAME, alternateName: ["Sellx BD", "সেলএক্সবিডি"], url: base, inLanguage: "bn-BD", publisher: { "@id": `${base}/#org` } };
   const app = {
     "@context": "https://schema.org", "@type": "SoftwareApplication", name: PLATFORM_NAME, url: base,
     applicationCategory: "BusinessApplication", operatingSystem: "Web", inLanguage: "bn-BD", description: homeDesc(fees),

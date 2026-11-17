@@ -118,3 +118,22 @@ describe("ডেমো দোকান", () => {
     expect(r.headers.get("x-robots-tag")).toBe("noindex, follow");
   });
 });
+
+describe("Google-এর গাইডলাইন: https আর favicon", () => {
+  it("http → https 301 (মূল সাইট আর সাবডোমেইন), https ঠিক থাকে", async () => {
+    const { SELF } = await import("cloudflare:test");
+    for (const [from, to] of [["http://ourdomain.com/pricing?a=1", "https://ourdomain.com/pricing?a=1"], ["http://demo.ourdomain.com/", "https://demo.ourdomain.com/"]]) {
+      const r = await SELF.fetch(from, { redirect: "manual" });
+      expect(r.status).toBe(301);
+      expect(r.headers.get("location")).toBe(to);
+    }
+    expect((await SELF.fetch("https://ourdomain.com/", { redirect: "manual" })).status).toBe(200);
+  });
+
+  it("favicon: ৪৮px+ ICO আর PNG লিংক; site name-এ alternateName", async () => {
+    const h = head(await (await get("/")).text());
+    expect(h).toContain('href="/brand/favicon-96.png"');
+    expect(h).toContain('sizes="16x16 32x32 48x48 64x64"');
+    expect(h).toContain('"alternateName":["Sellx BD","সেলএক্সবিডি"]');
+  });
+});

@@ -33,6 +33,14 @@ export default {
     const request = stripProxyHeaders(incoming, env.DEV_MODE === "1");
     const url = new URL(request.url);
 
+    // http → https (sellxbd.com আর তার সাবডোমেইন): একই পেজের দুই ঠিকানা যেন Google-এ না থাকে।
+    // নিজের ডোমেইনের দোকান বাদ — তাদের SSL তৈরি হতে সময় লাগতে পারে।
+    if (url.protocol === "http:" && env.DEV_MODE !== "1" && env.PLATFORM_DOMAIN
+      && (url.hostname === env.PLATFORM_DOMAIN || url.hostname.endsWith(`.${env.PLATFORM_DOMAIN}`))) {
+      url.protocol = "https:";
+      return Response.redirect(url.toString(), 301);
+    }
+
     // লোকাল/Codespaces: ?shop=slug দিয়ে যেকোনো দোকান খোলা (লাইভে বন্ধ)
     if (env.DEV_MODE === "1" && url.searchParams.has("shop")) {
       const slug = (url.searchParams.get("shop") || "").toLowerCase().replace(/[^a-z0-9-]/g, "");
