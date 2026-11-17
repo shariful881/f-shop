@@ -16,6 +16,10 @@
 
   var root = document.getElementById("builder");
   if (!root) return;
+  // ফোনে এক লাইনের নোটিশ — চাপলে পুরোটা দেখায় (লিংকে চাপলে লিংকই খুলবে)
+  document.querySelectorAll(".banner").forEach(function (b) {
+    b.addEventListener("click", function (e) { if (!e.target.closest("a, button")) b.classList.toggle("open"); });
+  });
   var state = JSON.parse(root.dataset.landing);
   var LABEL = JSON.parse(root.dataset.labels);
   var FONTS = JSON.parse(root.dataset.fonts || "{}");

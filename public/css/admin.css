@@ -240,3 +240,11 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
   body.admin:has(#builder) .sx-widget:not(.open) { bottom: 76px; }
 }
 @media (max-width: 960px) { body.admin:has(.lb.panel-open) .sx-widget:not(.open) { display: none; } }
+/* ল্যান্ডিং এডিটরে ফোনে উপরের নোটিশগুলো এক লাইনে — চাপলে পুরোটা খোলে */
+@media (max-width: 960px) {
+  body.admin:has(#builder) .banner:not(.banner-support) { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 6px 30px 6px 12px; font-size: .78rem; text-align: left; position: relative; cursor: pointer; }
+  body.admin:has(#builder) .banner:not(.banner-support)::after { content: "▾"; position: absolute; right: 10px; top: 5px; opacity: .7; }
+  body.admin:has(#builder) .banner.open { white-space: normal; }
+  body.admin:has(#builder) .banner.open::after { content: "▴"; }
+}
