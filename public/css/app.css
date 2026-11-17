@@ -632,3 +632,5 @@ dialog.cfm .btn:focus-visible { outline: 3px solid rgba(15, 118, 110, .45); outl
 .rv-slider .reviews-list { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
 .rv-slider .review { flex: 0 0 82%; max-width: 340px; scroll-snap-align: start; }
 @media (min-width: 700px) { .rv-slider .review { flex-basis: 320px; } }
+/* ল্যান্ডিং পেজে ফুটার লুকালে শুধু ছোট কপিরাইট */
+.lp-mini-foot { text-align: center; font-size: .82rem; color: #64748b; padding: 18px 12px 84px; border-top: 1px solid #e5e7eb; margin-top: 24px; }

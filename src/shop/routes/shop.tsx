@@ -14,7 +14,7 @@ import { themeOf } from "../lib/settings";
 import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, linesSubtotal, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, maxQty, readCart, readCartEntries, removeFromCart, setCartQty, upsertCart } from "../lib/cart";
 import { ProductPage } from "../views/product";
-import { parseLanding } from "../lib/landing";
+import { landingChrome, parseLanding } from "../lib/landing";
 import { createOrder, getOrderByNo, orderPrefix } from "../lib/orders";
 import { checkCoupon, normalizeCode } from "../lib/coupons";
 import { deliveryCharge, minOrderAmount } from "../lib/settings";
@@ -125,7 +125,7 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
     : [];
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
-    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
+    <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare {...landingChrome(p.landing_json)}
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related}
         reviews={reviewsOn(c) && cfg.rv_landing !== "0" ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id, reviewLimit(cfg))} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} cfg={cfg} /> : undefined} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />

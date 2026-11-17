@@ -308,7 +308,11 @@
     host.innerHTML = "";
     host.appendChild(el("div", { class: "b-section lb-page" }, [
       el("div", { class: "b-head" }, [el("strong", { text: "পুরো পেজ" })]),
-      el("div", { class: "b-body" }, [selectField(state.style, "font", "পেজের ফন্ট", fontOptions("থিমের ফন্ট"))]),
+      el("div", { class: "b-body" }, [
+        selectField(state.style, "font", "পেজের ফন্ট", fontOptions("থিমের ফন্ট")),
+        selectField(state.style, "header", "দোকানের হেডার (লোগো, মেনু, সার্চ)", { "": "দেখাবে", hide: "লুকাবে" }),
+        selectField(state.style, "footer", "দোকানের ফুটার", { "": "দেখাবে", hide: "লুকাবে (শুধু ছোট কপিরাইট থাকবে)" }),
+      ]),
     ]));
   }
 

@@ -2140,7 +2140,8 @@ admin.post("/products/:id{[0-9]+}/landing/preview", async (c) => {
   const s = c.var.settings;
   c.header("Cache-Control", "no-store");
   return c.html("<!DOCTYPE html>" + String(
-    <Layout title={`প্রিভিউ — ${p.name}`} settings={s} head={editor ? <style>{EDITOR_CSS}</style> : undefined}>
+    <Layout title={`প্রিভিউ — ${p.name}`} settings={s} head={editor ? <style>{EDITOR_CSS}</style> : undefined}
+      hideHeader={landing.style?.header === "hide"} hideFooter={landing.style?.footer === "hide"}>
       {!editor && <div class="banner banner-warn">প্রিভিউ — এখনো সেভ হয়নি</div>}
       <BuiltLanding p={p} landing={landing} variants={await productVariants(c.env.DB, p.id)} settings={s} editor={editor} />
     </Layout>,

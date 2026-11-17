@@ -5,7 +5,7 @@ import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
 import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "47";
+export const ASSET_VERSION = "48";
 
 export type LayoutProps = {
   title: string;
@@ -22,6 +22,10 @@ export type LayoutProps = {
   pages?: { title: string; slug: string; href?: string }[];
   /** প্রো থিম: ল্যান্ডিং/চেকআউটে নিচের মেনু লুকানো (অর্ডার বাটনের জায়গা) */
   bare?: boolean;
+  /** ল্যান্ডিং পেজে দোকানের হেডার লুকানো */
+  hideHeader?: boolean;
+  /** ল্যান্ডিং পেজে পুরো ফুটার লুকানো — ছোট কপিরাইট আর "SellxBD দিয়ে তৈরি" থাকে */
+  hideFooter?: boolean;
   /** সার্চ বক্সে আগের লেখা */
   q?: string;
 };
@@ -82,9 +86,14 @@ export const Layout = (p: LayoutProps) => {
           {s.demo_signup_url && <a href={s.demo_signup_url}>এই ডিজাইনে নিজের দোকান খুলুন →</a>}
         </div>
       )}
-      <StoreHeader s={s} cfg={cfg} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} pages={p.pages ?? []} />
+      {!p.hideHeader && <StoreHeader s={s} cfg={cfg} cartCount={p.cartCount ?? 0} nav={p.nav ?? []} q={p.q} pages={p.pages ?? []} />}
       <main>{p.children}</main>
-      <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} pages={p.pages ?? []} />
+      {p.hideFooter ? (
+        <footer class="lp-mini-foot">
+          <div>© {s.site_name || ""}</div>
+          <div class="made-by"><a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener">SellxBD দিয়ে তৈরি</a></div>
+        </footer>
+      ) : <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} pages={p.pages ?? []} />}
       <StoreFloating s={s} cfg={cfg} cartCount={p.cartCount ?? 0} bare={p.bare} />
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <script src={`/js/app.js?v=${ASSET_VERSION}`} defer></script>

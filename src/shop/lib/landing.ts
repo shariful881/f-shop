@@ -44,7 +44,8 @@ export type SectionStyle = {
   bg?: string; color?: string; btn_bg?: string; btn_color?: string;
   font?: string; size?: keyof typeof SIZES; align?: "left" | "center";
 };
-export type PageStyle = { font?: string };
+/** header/footer: "hide" হলে ল্যান্ডিং পেজে দোকানের হেডার/পুরো ফুটার দেখায় না (ছোট কপিরাইট আর "SellxBD দিয়ে তৈরি" থাকে) */
+export type PageStyle = { font?: string; header?: "hide"; footer?: "hide" };
 
 export type Review = { name: string; rating: number; text: string; image: string };
 export type Section = {
@@ -205,9 +206,13 @@ export function normalizeLanding(input: unknown): Landing {
     ids.add(x.id);
   }
   let seen = false;
-  const pf = font((input as { style?: { font?: unknown } } | null)?.style?.font);
+  const ist = (input as { style?: { font?: unknown; header?: unknown; footer?: unknown } } | null)?.style;
+  const pst: PageStyle = {};
+  const pf = font(ist?.font); if (pf) pst.font = pf;
+  if (ist?.header === "hide") pst.header = "hide";
+  if (ist?.footer === "hide") pst.footer = "hide";
   return {
-    ...(pf ? { style: { font: pf } } : {}),
+    ...(Object.keys(pst).length ? { style: pst } : {}),
     sections: sections
       .filter((x) => (x.type === "order_form" ? (seen ? false : (seen = true)) : true))
       .map((x) => (x.type === "order_form" ? { ...x, enabled: true } : x)),
@@ -240,4 +245,10 @@ export function defaultLanding(p: Product): Landing {
       sec("order_form", { title: "অর্ডার করতে নিচের ফর্মটি পূরণ করুন" }),
     ],
   });
+}
+
+/** ল্যান্ডিং পেজে দোকানের হেডার/ফুটার লুকানো আছে কি না */
+export function landingChrome(json: string | null | undefined): { hideHeader: boolean; hideFooter: boolean } {
+  const l = parseLanding(json);
+  return { hideHeader: l?.style?.header === "hide", hideFooter: l?.style?.footer === "hide" };
 }
