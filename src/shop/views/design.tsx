@@ -40,10 +40,14 @@ const Presets = () => (
 
 const GROUP_ICON: Record<string, IconName> = {
   style: "palette", header: "layout-template", home: "layout-dashboard", sections: "layout-template", popup: "megaphone",
-  product: "package", card: "tag", footer: "file-text", float: "message-square", other: "sliders-horizontal",
+  product: "package", reviews: "star", card: "tag", footer: "file-text", float: "message-square", other: "sliders-horizontal",
 };
 
-export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; categories: { id: number; name: string }[]; versions: string[]; hasDraft: boolean; shopName: string }) => (
+export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; categories: { id: number; name: string }[]; versions: string[]; hasDraft: boolean; shopName: string; sampleSlug?: string }) => {
+  const productUrl = p.sampleSlug ? `/product/${encodeURIComponent(p.sampleSlug)}` : "";
+  /** কোন ভাগ খুললে প্রিভিউতে কোন পেজ — "" মানে যে পেজে আছে সেখানেই থাকবে (হেডার/ফুটার সব পেজে থাকে) */
+  const groupPage: Record<string, string> = { home: "/", sections: "/", popup: "/", product: productUrl, reviews: productUrl ? `${productUrl}#reviews` : "", card: "/search?q=" };
+  return (
   <html lang="bn">
     <head>
       <meta charset="utf-8" />
@@ -71,6 +75,7 @@ export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id:
         <select class="de-page" aria-label="কোন পেজ দেখবেন">
           <option value="/">হোমপেজ</option>
           <option value="/search?q=">সব পণ্য</option>
+          {productUrl && <option value={productUrl}>পণ্যের পেজ</option>}
           <option value="/cart">কার্ট</option>
         </select>
         <span class="de-status" data-status={p.hasDraft ? "draft" : "live"}>{p.hasDraft ? "খসড়া — ক্রেতারা এখনো দেখছে না" : "সব পাবলিশ করা"}</span>
@@ -95,7 +100,7 @@ export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id:
       <div class="de-body">
         <nav class="de-groups" aria-label="সেটিংসের ভাগ">
           {GROUPS.map((g, i) => (
-            <button type="button" data-group={g.key} class={i === 0 ? "active" : ""}>
+            <button type="button" data-group={g.key} data-page={groupPage[g.key] ?? ""} class={i === 0 ? "active" : ""}>
               <Icon name={GROUP_ICON[g.key] ?? "settings"} />
               <span><strong>{g.title}</strong><small>{g.desc}</small></span>
             </button>
@@ -135,4 +140,5 @@ export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id:
       <script src={`/js/design.js?v=${ASSET_VERSION}`} defer></script>
     </body>
   </html>
-);
+  );
+};

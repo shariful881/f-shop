@@ -1394,9 +1394,11 @@ admin.get("/design", async (c) => {
   const theme = themeOf(c.var.settings);
   const { results: products } = await c.env.DB.prepare("SELECT id, name FROM products WHERE is_active = 1 ORDER BY sort_order, id DESC LIMIT 300").all<{ id: number; name: string }>();
   const { results: categories } = await c.env.DB.prepare("SELECT id, name FROM categories ORDER BY sort_order, id").all<{ id: number; name: string }>();
+  // প্রিভিউতে পণ্যের পেজ দেখাতে — রিভিউ বেশি এমন পণ্য আগে, যাতে রিভিউ অংশটাও দেখা যায়
+  const sample = await c.env.DB.prepare("SELECT slug FROM products WHERE is_active = 1 ORDER BY COALESCE(rating_count, 0) DESC, sort_order, id DESC LIMIT 1").first<{ slug: string }>();
   const draft = c.var.settings[`theme_draft_${theme}`] || "";
   const cfg = themeConfig(draft ? { ...c.var.settings, [`theme_cfg_${theme}`]: draft } : c.var.settings, theme);
-  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} categories={categories} versions={themeVersions(c.var.settings, theme).map((v) => v.at)} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} />);
+  return c.html(<DesignEditorPage theme={theme} cfg={cfg} products={products} categories={categories} versions={themeVersions(c.var.settings, theme).map((v) => v.at)} hasDraft={!!draft} shopName={c.var.settings.site_name || ""} sampleSlug={sample?.slug} />);
 });
 
 admin.post("/design/draft", async (c) => {

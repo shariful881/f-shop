@@ -29,7 +29,7 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
       </a>
       <div class="card-body">
         <a href={href} class="card-title">{p.name}</a>
-        {(p.rating_count ?? 0) > 0 && cfg?._reviews !== "0" && <div class="card-stars"><span class="stars-on">{"★".repeat(Math.round(p.rating_avg ?? 0))}</span> <small>({bn(p.rating_count!)})</small></div>}
+        {(p.rating_count ?? 0) > 0 && cfg?._reviews !== "0" && cfg?.rv_card_stars !== "0" && <div class="card-stars"><span class="stars-on">{"★".repeat(Math.round(p.rating_avg ?? 0))}</span> <small>({bn(p.rating_count!)})</small></div>}
         <div class="price-row">
           <span class="price">{taka(p.price)}</span>
           {p.compare_price && p.compare_price > p.price && <del class="compare">{taka(p.compare_price)}</del>}

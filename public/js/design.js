@@ -28,10 +28,49 @@
     loading.hidden = false;
     try { frame.contentWindow.location.reload(); } catch (e) { frame.src = frame.src; }
   }
+  var pendingHash = "";
   frame.addEventListener("load", function () {
     loading.hidden = true;
-    try { frame.contentWindow.scrollTo(0, scrollY); } catch (e) { /* অন্য পেজ */ }
+    if (pendingHash) { var h = pendingHash; pendingHash = ""; scrollToPart(h); }
+    else { try { frame.contentWindow.scrollTo(0, scrollY); } catch (e) { /* অন্য পেজ */ } }
+    syncPageSelect();
   });
+  function framePath() {
+    try { return frame.contentWindow.location.pathname; } catch (e) { return ""; }
+  }
+  /* প্রিভিউর ভিতরের অংশে স্ক্রল করে একটু আলাদা করে দেখানো (যেমন #reviews) */
+  function scrollToPart(hash) {
+    try {
+      var el = frame.contentWindow.document.getElementById(hash.replace("#", ""));
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.style.transition = "box-shadow .3s";
+      el.style.boxShadow = "0 0 0 3px #6366f1";
+      el.style.borderRadius = "12px";
+      setTimeout(function () { el.style.boxShadow = ""; }, 1600);
+    } catch (e) { /* অন্য পেজ */ }
+  }
+  /* যে ভাগের সেটিং খোলা, প্রিভিউতে সেই পেজ */
+  function openPage(url) {
+    if (!url) return;
+    var hash = url.indexOf("#") >= 0 ? url.slice(url.indexOf("#")) : "";
+    var base = hash ? url.slice(0, url.indexOf("#")) : url;
+    var path = base.split("?")[0];
+    var cur = framePath();
+    // কার্ড হোমপেজ, ক্যাটাগরি আর সার্চ — তিন জায়গাতেই দেখা যায়
+    if (base === "/search?q=" && (cur === "/" || cur === "/search" || cur.indexOf("/c/") === 0)) return;
+    if (cur === path) { if (hash) scrollToPart(hash); return; }
+    pendingHash = hash;
+    loading.hidden = false;
+    frame.src = base + (base.indexOf("?") >= 0 ? "&" : "?") + "__preview=1";
+  }
+  function syncPageSelect() {
+    var cur = framePath();
+    if (!page || !cur) return;
+    for (var i = 0; i < page.options.length; i++) {
+      if (page.options[i].value.split("?")[0] === cur) { page.selectedIndex = i; return; }
+    }
+  }
 
   /* ---------- খসড়া সেভ ---------- */
   var timer = null, busy = false, again = false;
@@ -128,6 +167,7 @@
       document.querySelectorAll(".de-groups button").forEach(function (x) { x.classList.toggle("active", x === b); });
       document.querySelectorAll(".de-sec").forEach(function (s) { s.hidden = s.dataset.sec !== b.dataset.group; });
       document.querySelector(".de-panel").scrollTop = 0;
+      openPage(b.dataset.page);
       setTab("settings");
     });
   });

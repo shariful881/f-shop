@@ -128,7 +128,7 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
     <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related}
-        reviews={reviewsOn(c) ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id)} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} /> : undefined} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
+        reviews={reviewsOn(c) && cfg.rv_landing !== "0" ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id, reviewLimit(cfg))} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} cfg={cfg} /> : undefined} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     status,
   );
@@ -159,7 +159,7 @@ async function renderProduct(c: Ctx, p: Product, error?: string) {
     <Layout title={p.meta_title || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
       <ProductPage p={p} images={images} variants={variants} s={s} cfg={cfg} related={rel.results} category={cat} error={error}
-        reviews={reviewsOn(c) ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id)} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} /> : undefined}
+        reviews={reviewsOn(c) && cfg.rv_show !== "0" ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id, reviewLimit(cfg))} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} cfg={cfg} /> : undefined}
         closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     error ? 422 : 200,
@@ -707,6 +707,7 @@ shop.get("/admin-sw.js", (c) => c.body(ADMIN_SW, 200, { "Content-Type": "text/ja
 /* ---------- রিভিউ: শুধু যে কিনেছে (অর্ডার নম্বর + মোবাইল) ---------- */
 const REVIEW_IMG: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const reviewsOn = (c: Ctx) => c.var.settings.reviews_enabled !== "0";
+const reviewLimit = (cfg: Record<string, string>) => Math.min(20, Math.max(1, parseInt(cfg.rv_count || "20", 10) || 20));
 
 async function renderReview(c: Ctx, f: ReviewFormState, status: 200 | 422 | 429 = 200) {
   const s = c.var.settings;

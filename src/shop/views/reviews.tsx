@@ -10,27 +10,35 @@ import { EmptyState, PageHead } from "./ui";
 export const Stars = ({ avg, count }: { avg: number; count: number }) =>
   count > 0 ? <span class="stars" title={`${bn(avg)} / ৫ (${bn(count)}টা রিভিউ)`}><span class="stars-on">{stars(avg)}</span> <small>{bn(avg)} ({bn(count)})</small></span> : null;
 
-export const ReviewsBlock = ({ reviews, avg, count, slug }: { reviews: Review[]; avg: number; count: number; slug: string }) => (
-  <section class="reviews-block" id="reviews">
-    <div class="reviews-head">
-      <h2 class="section-title">ক্রেতাদের রিভিউ</h2>
-      {count > 0 && <div class="reviews-avg"><b>{bn(avg)}</b><span class="stars-on">{stars(avg)}</span><small>{bn(count)}টা রিভিউ</small></div>}
-    </div>
-    {reviews.length === 0 ? <p class="muted center">এখনো কোনো রিভিউ নেই।</p> : (
-      <div class="reviews-list">
-        {reviews.map((r) => (
-          <article class="review">
-            <div class="review-top"><b>{shortName(r.name)}</b><span class="review-verified">✓ যাচাই করা ক্রেতা</span><span class="stars-on">{stars(r.rating)}</span></div>
-            {r.body && <p>{r.body}</p>}
-            {r.image && <a href={imageUrl(r.image)} target="_blank" rel="noopener" class="review-img"><img src={imageUrl(r.image)} alt="ক্রেতার ছবি" loading="lazy" width="120" height="120" /></a>}
-            {r.reply && <p class="review-reply"><b>দোকানের উত্তর:</b> {r.reply}</p>}
-          </article>
-        ))}
+/** পণ্যের পেজ/ল্যান্ডিং পেজের রিভিউ অংশ — থিম এডিটরের "ক্রেতাদের রিভিউ" সেটিং মেনে (cfg না দিলে আগের মতো) */
+export const ReviewsBlock = ({ reviews, avg, count, slug, cfg = {} }: { reviews: Review[]; avg: number; count: number; slug: string; cfg?: Record<string, string> }) => {
+  const on = (k: string) => cfg[k] !== "0";
+  const layout = cfg.rv_layout === "grid" || cfg.rv_layout === "slider" ? cfg.rv_layout : "list";
+  const max = parseInt(cfg.rv_count || "20", 10) || 20;
+  const list = reviews.slice(0, max);
+  if (list.length === 0 && cfg.rv_empty === "hide") return null;
+  return (
+    <section class={`reviews-block rv-${layout}`} id="reviews" data-de-part="reviews">
+      <div class="reviews-head">
+        <h2 class="section-title">{cfg.rv_title || "ক্রেতাদের রিভিউ"}</h2>
+        {count > 0 && on("rv_summary") && <div class="reviews-avg"><b>{bn(avg)}</b><span class="stars-on">{stars(avg)}</span><small>{bn(count)}টা রিভিউ</small></div>}
       </div>
-    )}
-    <p class="center"><a href={`/review?from=${encodeURIComponent(slug)}`} class="btn btn-outline">এই পণ্য কিনেছেন? রিভিউ দিন</a></p>
-  </section>
-);
+      {list.length === 0 ? <p class="muted center">{cfg.rv_empty_text || "এখনো কোনো রিভিউ নেই।"}</p> : (
+        <div class="reviews-list">
+          {list.map((r) => (
+            <article class="review">
+              <div class="review-top"><b>{shortName(r.name)}</b>{on("rv_verified") && <span class="review-verified">✓ যাচাই করা ক্রেতা</span>}<span class="stars-on">{stars(r.rating)}</span></div>
+              {r.body && <p>{r.body}</p>}
+              {r.image && on("rv_photos") && <a href={imageUrl(r.image)} target="_blank" rel="noopener" class="review-img"><img src={imageUrl(r.image)} alt="ক্রেতার ছবি" loading="lazy" width="120" height="120" /></a>}
+              {r.reply && on("rv_reply") && <p class="review-reply"><b>দোকানের উত্তর:</b> {r.reply}</p>}
+            </article>
+          ))}
+        </div>
+      )}
+      {on("rv_btn") && <p class="center"><a href={`/review?from=${encodeURIComponent(slug)}`} class="btn btn-outline">{cfg.rv_btn_text || "এই পণ্য কিনেছেন? রিভিউ দিন"}</a></p>}
+    </section>
+  );
+};
 
 /* ---------- ক্রেতার রিভিউ ফর্ম ---------- */
 export type ReviewFormState = {

@@ -627,3 +627,8 @@ dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
 dialog.cfm .btn-danger-solid { background: #dc2626; border-color: #dc2626; color: #fff; }
 dialog.cfm .btn-danger-solid:hover { background: #b91c1c; border-color: #b91c1c; }
 dialog.cfm .btn:focus-visible { outline: 3px solid rgba(15, 118, 110, .45); outline-offset: 2px; }
+/* রিভিউ অংশের সাজানো (থিম এডিটর) */
+@media (min-width: 700px) { .rv-grid .reviews-list { grid-template-columns: 1fr 1fr; } }
+.rv-slider .reviews-list { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+.rv-slider .review { flex: 0 0 82%; max-width: 340px; scroll-snap-align: start; }
+@media (min-width: 700px) { .rv-slider .review { flex-basis: 320px; } }

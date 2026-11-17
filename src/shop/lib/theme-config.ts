@@ -158,6 +158,26 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     ],
   },
   {
+    key: "reviews", title: "ক্রেতাদের রিভিউ", desc: "পণ্যের পেজ আর ল্যান্ডিং পেজের রিভিউ অংশ। রিভিউ নেওয়া পুরো চালু/বন্ধ আর অনুমোদন: অ্যাডমিন › রিভিউ।",
+    fields: [
+      { key: "rv_show", type: "toggle", label: "পণ্যের পেজে রিভিউ অংশ দেখাবে" },
+      { key: "rv_landing", type: "toggle", label: "ল্যান্ডিং পেজেও রিভিউ দেখাবে" },
+      { key: "rv_title", type: "text", label: "শিরোনাম", max: 60 },
+      { key: "rv_layout", type: "select", label: "রিভিউ সাজানোর ধরন", options: { list: "একটার নিচে একটা", grid: "২ কলামের কার্ড", slider: "পাশাপাশি স্লাইড (মোবাইলে সোয়াইপ)" } },
+      { key: "rv_count", type: "select", label: "কয়টা রিভিউ দেখাবে", options: { "3": "৩টা", "6": "৬টা", "10": "১০টা", "20": "২০টা" }, hint: "ছবিসহ রিভিউ আগে দেখায়" },
+      { key: "rv_summary", type: "toggle", label: "উপরে গড় রেটিং (★ ৪.৮ · ২৫টা রিভিউ)" },
+      { key: "rv_verified", type: "toggle", label: "\"✓ যাচাই করা ক্রেতা\" ব্যাজ" },
+      { key: "rv_photos", type: "toggle", label: "ক্রেতার দেওয়া ছবি দেখাবে" },
+      { key: "rv_reply", type: "toggle", label: "দোকানের উত্তর দেখাবে" },
+      { key: "rv_empty", type: "select", label: "কোনো রিভিউ না থাকলে", options: { show: "লেখা আর \"রিভিউ দিন\" বাটন দেখাবে", hide: "পুরো অংশ লুকাবে" } },
+      { key: "rv_empty_text", type: "text", label: "রিভিউ না থাকলে যে লেখা দেখাবে", max: 80 },
+      { key: "rv_btn", type: "toggle", label: "\"রিভিউ দিন\" বাটন" },
+      { key: "rv_btn_text", type: "text", label: "রিভিউ বাটনের লেখা", max: 40 },
+      { key: "rv_card_stars", type: "toggle", label: "পণ্যের কার্ডে তারা (★) দেখাবে" },
+      { key: "c_star", type: "color", label: "তারার রং", hint: "না বাছলে সোনালি" },
+    ],
+  },
+  {
     key: "card", title: "পণ্যের কার্ড", desc: "হোম, ক্যাটাগরি আর সার্চ পেজের পণ্যের বক্স।",
     fields: [
       { key: "card_design", type: "select", label: "কার্ডের ডিজাইন", options: { pro: "পরিষ্কার, হালকা ছায়া", classic: "বর্ডার, মাঝে লেখা, কোণে ছাড়ের ফিতা", minimal: "বর্ডার নেই, লেখার মতো বাটন", bold: "মোটা বর্ডার আর গাঢ় ছায়া" } },
@@ -244,6 +264,8 @@ const BASE: Cfg = {
   pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4",
   card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
   hero_style: "slider", title_style: "ribbon", marquee: "0", offers_countdown: "0", card_design: "classic",
+  rv_show: "1", rv_landing: "1", rv_title: "ক্রেতাদের রিভিউ", rv_layout: "list", rv_count: "10", rv_summary: "1", rv_verified: "1", rv_photos: "1", rv_reply: "1",
+  rv_empty: "show", rv_empty_text: "এখনো কোনো রিভিউ নেই।", rv_btn: "1", rv_btn_text: "এই পণ্য কিনেছেন? রিভিউ দিন", rv_card_stars: "1",
   coming_soon: "0", coming_soon_text: "আমাদের দোকান খুব শীঘ্রই আসছে। অর্ডার করতে কল করুন।", breadcrumbs: "1", track_link: "1",
   ...TRUST_DEFAULTS,
 };
@@ -362,6 +384,7 @@ export function cfgCss(cfg: Cfg): string {
   if (c("c_btn_text")) r.push(`.btn-primary,.theme-pro .card-actions .btn-primary,.sticky-order{color:${c("c_btn_text")}}`);
   if (c("c_price")) r.push(`.price,.theme-pro .price{color:${c("c_price")}}`);
   if (c("c_badge")) r.push(`.badge,.theme-pro .badge{background:${c("c_badge")}}`);
+  if (c("c_star")) r.push(`.stars-on{color:${c("c_star")}}`);
   if (c("c_footer_bg")) r.push(`.site-footer,.px-footer{background:${c("c_footer_bg")}}`);
   if (c("c_footer_text")) r.push(`.site-footer,.px-footer,.px-footer a,.px-footer h4,.px-copy,.site-footer a{color:${c("c_footer_text")}}`);
   const fb = FONTS[c("font_body") ?? ""]; if (fb) r.push(`body{font-family:${fb.family},"Noto Sans Bengali",sans-serif}`);
