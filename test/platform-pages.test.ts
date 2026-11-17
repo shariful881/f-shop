@@ -37,3 +37,15 @@ describe("sellxbd.com-এর পাবলিক পেজ", () => {
     for (const a of HELP) if (a.admin) expect(a.admin.startsWith("/admin")).toBe(true);
   });
 });
+
+describe("হেডার মেনু", () => {
+  it("হোমপেজের হেডারে ব্লগ লিংক নেই, ফুটারে আছে, /blog পেজ চলে", async () => {
+    const html = await (await get("/")).text();
+    const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    expect(header).toContain('href="/pricing"');
+    expect(header).not.toContain('href="/blog"');
+    const footer = html.slice(html.indexOf("<footer"));
+    expect(footer).toContain('href="/blog"');
+    expect((await get("/blog")).status).toBe(200);
+  });
+});

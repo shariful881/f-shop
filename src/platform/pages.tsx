@@ -16,7 +16,6 @@ export const PublicNav = () => (
   <>
     <a href="/pricing" class="p-nav-link">দাম</a>
     <a href="/#ready" class="p-nav-link p-hide-sm">ডেমো</a>
-    <a href="/blog" class="p-nav-link">ব্লগ</a>
     <a href="/help" class="p-nav-link">সাহায্য</a>
     <a href="/signup" class="p-nav-cta">ফ্রি দোকান খুলুন</a>
   </>
