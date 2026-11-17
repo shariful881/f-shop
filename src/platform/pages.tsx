@@ -24,7 +24,7 @@ export const PublicNav = () => (
     <div class="p-links">
       {NAV.map((n) => <a href={n.href} class="p-nav-link">{n.label}</a>)}
     </div>
-    <a href="/signup" class="p-nav-cta"><Icon name="rocket" size="sm" /><span class="p-cta-long">ফ্রি দোকান খুলুন</span><span class="p-cta-short">ফ্রি শুরু</span></a>
+    <a href="/signup" class="p-nav-cta"><Icon name="rocket" size="sm" /><span>ফ্রিতে দোকান খুলুন</span></a>
     <details class="p-menu">
       <summary aria-label="মেনু খুলুন"><Icon name="menu" class="p-menu-open" /><Icon name="x" class="p-menu-close" /></summary>
       <div class="p-menu-panel">
@@ -35,7 +35,7 @@ export const PublicNav = () => (
             <Icon name="arrow-right" size="sm" class="p-menu-go" />
           </a>
         ))}
-        <a href="/signup" class="p-menu-cta"><Icon name="rocket" size="sm" /> ফ্রি দোকান খুলুন</a>
+        <a href="/signup" class="p-menu-cta"><Icon name="rocket" size="sm" /> ফ্রিতে দোকান খুলুন</a>
       </div>
     </details>
   </>
