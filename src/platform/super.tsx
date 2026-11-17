@@ -20,7 +20,7 @@ import { registerSuperSupport } from "./support-routes";
 import { platformUsage } from "./usage";
 import { PHONE_PENDING_SQL, SUSPICIOUS_SQL } from "./verify";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
-import { slugOk } from "./blog";
+import { okCover, slugOk } from "./blog";
 import { okGa4, okVerify, verifyCode } from "./views";
 import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
@@ -628,10 +628,31 @@ function blogInput(b: Record<string, unknown>) {
     excerpt: str(b.excerpt, 300),
     body_html: sanitizeHtml(String(b.body_html ?? "").slice(0, 60000)),
     status: b.status === "published" ? "published" : "draft",
+    seo_title: str(b.seo_title, 70),
+    meta_description: str(b.meta_description, 170),
+    cover_image: str(b.cover_image, 400),
+    author_name: str(b.author_name, 60),
   };
 }
+
+/** কভার ছবি আপলোড → R2 (img ডোমেইন); JPG/PNG/WebP, ২MB পর্যন্ত */
+const COVER_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+async function uploadCover(c: PCtx, file: unknown, slug: string): Promise<{ url?: string; error?: string }> {
+  if (!(file instanceof File) || file.size === 0) return {};
+  const ext = COVER_TYPES[file.type];
+  if (!ext) return { error: "কভার ছবি JPG, PNG বা WebP দিন।" };
+  if (file.size > 2 * 1024 * 1024) return { error: "কভার ছবি ২MB-এর মধ্যে দিন (১২০০×৬৩০ ভালো)।" };
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const isJpg = head[0] === 0xff && head[1] === 0xd8, isPng = head[0] === 0x89 && head[1] === 0x50, isWebp = head[8] === 0x57 && head[9] === 0x45;
+  if (!(isJpg || isPng || isWebp)) return { error: "ফাইলটা আসল ছবি মনে হচ্ছে না।" };
+  if (!c.env.IMG_BUCKET || !c.env.IMG_PUBLIC_URL) return { error: "ছবি রাখার R2 চালু নেই — ছবির https লিংক দিন।" };
+  const key = `blog/${slug || "post"}-${Date.now().toString(36)}.${ext}`;
+  await c.env.IMG_BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type, cacheControl: "public, max-age=31536000, immutable" } });
+  return { url: `${c.env.IMG_PUBLIC_URL.replace(/\/+$/, "")}/${key}` };
+}
 async function saveBlog(c: PCtx, id: number | null) {
-  const v = blogInput(await c.req.parseBody());
+  const body = await c.req.parseBody();
+  const v = blogInput(body);
   const db = c.env.PLATFORM_DB;
   const fail = (error: string) => page(c, id ? "পোস্ট এডিট" : "নতুন পোস্ট", "blog", <BlogEditPage post={{ ...v, id: id ?? undefined }} error={error} />);
   if (!v.title) return fail("শিরোনাম দিন।");
@@ -639,15 +660,19 @@ async function saveBlog(c: PCtx, id: number | null) {
   if (v.body_html.replace(/<[^>]*>/g, "").trim().length < 20) return fail("লেখা আরেকটু বড় করুন।");
   const dup = await db.prepare("SELECT id FROM blog_posts WHERE slug = ? AND id != ?").bind(v.slug, id ?? 0).first();
   if (dup) return fail("এই লিংকে আরেকটা পোস্ট আছে — অন্য slug দিন।");
+  const up = await uploadCover(c, body.cover_file, v.slug);
+  if (up.error) return fail(up.error);
+  if (up.url) v.cover_image = up.url;
+  if (v.cover_image && !okCover(v.cover_image)) return fail("কভার ছবির লিংক https:// দিয়ে শুরু হতে হবে।");
   let newId = id;
   if (id) {
     await db.prepare(
-      "UPDATE blog_posts SET title=?, slug=?, excerpt=?, body_html=?, status=?, published_at = CASE WHEN ?='published' THEN COALESCE(published_at, datetime('now')) ELSE published_at END, updated_at=datetime('now') WHERE id=?",
-    ).bind(v.title, v.slug, v.excerpt, v.body_html, v.status, v.status, id).run();
+      "UPDATE blog_posts SET title=?, slug=?, excerpt=?, body_html=?, status=?, seo_title=?, meta_description=?, cover_image=?, author_name=?, published_at = CASE WHEN ?='published' THEN COALESCE(published_at, datetime('now')) ELSE published_at END, updated_at=datetime('now') WHERE id=?",
+    ).bind(v.title, v.slug, v.excerpt, v.body_html, v.status, v.seo_title, v.meta_description, v.cover_image, v.author_name, v.status, id).run();
   } else {
     const r = await db.prepare(
-      "INSERT INTO blog_posts (slug, title, excerpt, body_html, status, published_at) VALUES (?, ?, ?, ?, ?, CASE WHEN ?='published' THEN datetime('now') END) RETURNING id",
-    ).bind(v.slug, v.title, v.excerpt, v.body_html, v.status, v.status).first<{ id: number }>();
+      "INSERT INTO blog_posts (slug, title, excerpt, body_html, status, seo_title, meta_description, cover_image, author_name, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ?='published' THEN datetime('now') END) RETURNING id",
+    ).bind(v.slug, v.title, v.excerpt, v.body_html, v.status, v.seo_title, v.meta_description, v.cover_image, v.author_name, v.status).first<{ id: number }>();
     newId = r?.id ?? null;
   }
   await audit(c, "blog.save", "blog", String(newId ?? ""), v.title);

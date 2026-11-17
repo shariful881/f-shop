@@ -10,7 +10,7 @@ import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetu
 import { num, platformSettings } from "./billing";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
 import { helpBySlug, HELP } from "./help";
-import { publishedPosts, postBySlug } from "./blog";
+import { okCover, publishedPosts, postBySlug } from "./blog";
 import { superApp } from "./super";
 import { sameOriginPost, securityHeaders } from "../shop/middleware/base";
 import { logError } from "./errors";
@@ -146,20 +146,51 @@ platformApp.get("/blog/:slug{[a-z0-9-]+}", async (c) => {
   if (!post) return publicPage(c, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404);
   const more = (await publishedPosts(c.env.PLATFORM_DB, 6)).filter((x) => x.id !== post.id).slice(0, 4);
   const path = `/blog/${post.slug}`;
+  const cover = post.cover_image && okCover(post.cover_image) ? post.cover_image : "";
+  const desc = post.meta_description || post.excerpt;
   return publicPage(c, post.title, () => <BlogPostPage post={post} more={more} />, 200, {
-    description: post.excerpt, path, ogType: "article",
+    fullTitle: `${post.seo_title || post.title} — ${PLATFORM_NAME}`,
+    description: desc, path, ogType: "article", image: cover || undefined,
     crumbs: [["ব্লগ", "/blog"], [post.title, path]],
     jsonLd: [{
-      "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description: post.excerpt,
+      "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description: desc,
       datePublished: isoDate(post.published_at || post.created_at), dateModified: isoDate(post.updated_at),
-      mainEntityOfPage: canon(c, path), image: canon(c, "/brand/og.jpg"), inLanguage: "bn-BD",
-      author: { "@type": "Organization", name: PLATFORM_NAME, url: siteBase(c) },
+      mainEntityOfPage: canon(c, path), image: cover || canon(c, "/brand/og.jpg"), inLanguage: "bn-BD",
+      wordCount: post.body_html.replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length,
+      author: post.author_name ? { "@type": "Person", name: post.author_name, worksFor: { "@id": `${siteBase(c)}/#org` } } : { "@type": "Organization", name: `${PLATFORM_NAME} টিম`, url: siteBase(c) },
       publisher: { "@type": "Organization", name: PLATFORM_NAME, logo: { "@type": "ImageObject", url: canon(c, "/brand/icon-512.png") } },
     }],
   });
 });
 /** "2026-11-15 10:00:00" (UTC) → ISO */
 const isoDate = (d: string) => (d.includes("T") ? d : d.replace(" ", "T") + "Z");
+
+/** ব্লগের RSS — নতুন লেখা দ্রুত খুঁজে পেতে (Google, Feedly, ফিড রিডার) */
+platformApp.get("/blog/feed.xml", async (c) => {
+  const base = siteBase(c);
+  const posts = await publishedPosts(c.env.PLATFORM_DB, 30);
+  const x = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const rfc = (d: string) => new Date(isoDate(d)).toUTCString();
+  const items = posts.map((p) => `<item><title>${x(p.title)}</title><link>${base}/blog/${p.slug}</link><guid isPermaLink="true">${base}/blog/${p.slug}</guid><pubDate>${rfc(p.published_at || p.created_at)}</pubDate><description>${x(p.meta_description || p.excerpt)}</description></item>`).join("");
+  const last = posts[0] ? `<lastBuildDate>${rfc(posts[0].updated_at)}</lastBuildDate>` : "";
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>${PLATFORM_NAME} ব্লগ</title><link>${base}/blog</link><atom:link href="${base}/blog/feed.xml" rel="self" type="application/rss+xml"/><description>বাংলাদেশের অনলাইন সেলারদের জন্য গাইড</description><language>bn-BD</language>${last}${items}</channel></rss>`, 200, { "Content-Type": "application/rss+xml; charset=utf-8", "Cache-Control": "public, max-age=1800" });
+});
+
+/** llms.txt — AI সহকারীদের জন্য সাইটের সংক্ষিপ্ত পরিচয় (ঐচ্ছিক মানদণ্ড, র‍্যাঙ্কিং ফ্যাক্টর নয়) */
+platformApp.get("/llms.txt", async (c) => {
+  const base = siteBase(c);
+  const f = await loadFees(c);
+  const posts = await publishedPosts(c.env.PLATFORM_DB, 30);
+  const lines = [
+    `# ${PLATFORM_NAME}`, "",
+    `> বাংলাদেশের ফেসবুক ও অনলাইন সেলারদের জন্য ই-কমার্স ওয়েবসাইট প্ল্যাটফর্ম (SaaS): কোড ছাড়া নিজের অনলাইন দোকান, ল্যান্ডিং পেজ, ফেক অর্ডার আটকানো, Steadfast/Pathao/RedX কুরিয়ার, Facebook Pixel + Conversions API। ফ্রি প্ল্যান আছে; পেইড প্ল্যান মাসে ৳${f.plans.small.price} থেকে।`, "",
+    "## মূল পেজ",
+    `- [দাম ও প্ল্যান](${base}/pricing)`, `- [দোকান খুলুন](${base}/signup)`, `- [হেল্প সেন্টার](${base}/help)`, `- [আমাদের সম্পর্কে](${base}/about)`, `- [যোগাযোগ](${base}/contact)`, "",
+    "## গাইড", ...HELP.map((h) => `- [${h.title}](${base}/help/${h.slug}): ${h.summary}`), "",
+    ...(posts.length ? ["## ব্লগ", ...posts.map((p) => `- [${p.title}](${base}/blog/${p.slug}): ${p.meta_description || p.excerpt}`)] : []),
+  ];
+  return c.text(lines.join("\n") + "\n", 200, { "Cache-Control": "public, max-age=3600" });
+});
 
 platformApp.get("/robots.txt", (c) => c.text(`User-agent: *\nDisallow: /super\nDisallow: /admin\nDisallow: /help?q=\nSitemap: https://${c.env.PLATFORM_DOMAIN}/sitemap.xml\n`, 200, { "Cache-Control": "public, max-age=3600" }));
 platformApp.get("/sitemap.xml", async (c) => {
@@ -390,7 +421,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=52"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=53"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

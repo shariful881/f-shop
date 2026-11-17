@@ -1102,7 +1102,7 @@ export const DemosPage = ({ rows, support }: { rows: DemoRow[]; support: string 
 );
 
 /* ---------- ব্লগ (ধাপ ৮) ---------- */
-export type BlogRow = { id: number; slug: string; title: string; excerpt: string; body_html: string; status: string; published_at: string | null; updated_at: string };
+export type BlogRow = { id: number; slug: string; title: string; excerpt: string; body_html: string; status: string; published_at: string | null; updated_at: string; seo_title?: string; meta_description?: string; cover_image?: string; author_name?: string };
 export const BlogListPage = ({ rows }: { rows: BlogRow[] }) => (
   <Card title="ব্লগ পোস্ট" action={<a class="sa-btn sa-btn-sm" href="/super/blog/new">+ নতুন পোস্ট</a>}>
     <p class="sa-muted">sellxbd.com/blog-এ দেখায় — দোকান মালিকদের কাজের টিপস, যাতে Google থেকে নতুন মালিক আসে।</p>
@@ -1128,10 +1128,23 @@ export const BlogListPage = ({ rows }: { rows: BlogRow[] }) => (
 export const BlogEditPage = ({ post, error }: { post?: Partial<BlogRow>; error?: string }) => (
   <Card title={post?.id ? "পোস্ট এডিট" : "নতুন পোস্ট"}>
     {error && <div class="sa-alert sa-alert-err">{error}</div>}
-    <form method="post" action={post?.id ? `/super/blog/${post.id}` : "/super/blog/new"} class="sa-form">
+    <form method="post" action={post?.id ? `/super/blog/${post.id}` : "/super/blog/new"} class="sa-form" enctype="multipart/form-data">
       <label>শিরোনাম</label><input type="text" name="title" required maxlength={150} value={post?.title ?? ""} />
       <label>লিংক (slug — ইংরেজি ছোট হাতের অক্ষর, সংখ্যা আর -)</label><input type="text" name="slug" required maxlength={80} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={post?.slug ?? ""} placeholder="jemon-fake-order-komanor-upay" />
       <label>সারাংশ (Google-এ দেখাবে, ১৬০ অক্ষরের মধ্যে ভালো)</label><textarea name="excerpt" rows={2} maxlength={300}>{post?.excerpt ?? ""}</textarea>
+      <fieldset class="sa-fieldset">
+        <legend>Google আর শেয়ারের জন্য (SEO)</legend>
+        <label>Google-এর শিরোনাম <small class="sa-muted">(খালি রাখলে উপরের শিরোনাম; ৬০ অক্ষরের মধ্যে, মূল কিওয়ার্ড শুরুতে)</small></label>
+        <input type="text" name="seo_title" maxlength={70} value={post?.seo_title ?? ""} />
+        <label>Google-এর বিবরণ <small class="sa-muted">(খালি রাখলে সারাংশ; ১২০–১৬০ অক্ষর)</small></label>
+        <textarea name="meta_description" rows={2} maxlength={170}>{post?.meta_description ?? ""}</textarea>
+        <label>কভার ছবি <small class="sa-muted">(ফেসবুকে শেয়ার আর Google-এ দেখাবে — ১২০০×৬৩০, JPG/PNG/WebP, ২MB পর্যন্ত)</small></label>
+        {post?.cover_image && <img src={post.cover_image} alt="" width={240} height={126} style="border-radius:8px;object-fit:cover" />}
+        <input type="file" name="cover_file" accept="image/jpeg,image/png,image/webp" />
+        <input type="url" name="cover_image" maxlength={400} value={post?.cover_image ?? ""} placeholder="অথবা ছবির https লিংক" />
+        <label>লেখকের নাম <small class="sa-muted">(খালি রাখলে "SellxBD টিম")</small></label>
+        <input type="text" name="author_name" maxlength={60} value={post?.author_name ?? ""} />
+      </fieldset>
       <label>লেখা (HTML — &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;a&gt;, &lt;img&gt; চলবে)</label><textarea name="body_html" rows={18} maxlength={60000} class="sa-mono">{post?.body_html ?? ""}</textarea>
       <label>অবস্থা</label>
       <select name="status"><option value="draft" selected={post?.status !== "published"}>খসড়া</option><option value="published" selected={post?.status === "published"}>প্রকাশিত</option></select>

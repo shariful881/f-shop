@@ -357,6 +357,7 @@ export const BlogIndexPage = ({ posts }: { posts: BlogPost[] }) => (
           <div class="p-blog-list">
             {posts.map((x) => (
               <article class="p-blog-card">
+                {x.cover_image && <a href={`/blog/${x.slug}`} class="p-blog-cover"><img src={x.cover_image} alt={x.title} width={1200} height={630} loading="lazy" decoding="async" /></a>}
                 <small class="muted">{dateBn(x.published_at)}</small>
                 <h2><a href={`/blog/${x.slug}`}>{x.title}</a></h2>
                 <p>{x.excerpt}</p>
@@ -376,13 +377,17 @@ export const BlogPostPage = ({ post, more }: { post: BlogPost; more: BlogPost[] 
       <div class="wrap p-narrow">
         <a href="/blog" class="p-back">← ব্লগ</a>
         <h1>{post.title}</h1>
-        <p class="muted">{dateBn(post.published_at)}</p>
+        <p class="muted p-byline">
+          <span>লিখেছেন {post.author_name || "SellxBD টিম"}</span> · <time datetime={(post.published_at || post.created_at).slice(0, 10)}>{dateBn(post.published_at)}</time>
+          {post.published_at && post.updated_at.slice(0, 10) > post.published_at.slice(0, 10) && <> · আপডেট <time datetime={post.updated_at.slice(0, 10)}>{dateBn(post.updated_at)}</time></>}
+        </p>
       </div>
     </section>
+    {post.cover_image && <div class="wrap p-narrow p-post-cover"><img src={post.cover_image} alt={post.title} width={1200} height={630} fetchpriority="high" decoding="async" /></div>}
     <section class="p-section">
       <article class="wrap p-narrow p-prose" dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.body_html) }} />
       <div class="wrap p-narrow">
-        <div class="p-tip"><b>নিজের অনলাইন দোকান খুলুন</b><p>কোড ছাড়া কয়েক মিনিটে — অর্ডার, কুরিয়ার, ফেক অর্ডার ব্লক সব এক জায়গায়। <a href="/signup">ফ্রি শুরু করুন →</a></p></div>
+        <div class="p-tip"><b>নিজের অনলাইন দোকান খুলুন</b><p>কোড ছাড়া কয়েক মিনিটে — অর্ডার, কুরিয়ার, ফেক অর্ডার ব্লক সব এক জায়গায়। <a href="/signup">ফ্রি শুরু করুন →</a> · <a href="/help">ধাপে ধাপে গাইড</a> · <a href="/pricing">দাম</a></p></div>
         {more.length > 0 && <><h2>আরও পড়ুন</h2><ul>{more.map((x) => <li><a href={`/blog/${x.slug}`}>{x.title}</a></li>)}</ul></>}
       </div>
     </section>

@@ -397,3 +397,9 @@ a.p-contact-card:hover { border-color: #0f766e; }
   .p-menu > summary { width: 38px; height: 38px; }
 }
 @media (max-width: 345px) { .p-header .brand-name { display: none; } }
+
+/* ব্লগ: কভার ছবি আর লেখক — CLS এড়াতে নির্দিষ্ট অনুপাত */
+.p-blog-cover { display: block; margin: -4px 0 10px; }
+.p-blog-cover img, .p-post-cover img { width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; border-radius: 14px; display: block; background: #f1f5f9; }
+.p-post-cover { margin-top: 18px; }
+.p-byline { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
