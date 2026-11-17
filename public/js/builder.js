@@ -446,6 +446,7 @@
     clearTimeout(autoTimer);
     autoTimer = setTimeout(function () {
       if (!dirty) return;
+      var sent = ver;
       var fd = new FormData();
       fd.append("landing_json", JSON.stringify(state));
       fd.append("ajax", "1");
@@ -454,6 +455,7 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (!d.ok) throw new Error();
+          if (ver !== sent) { autosave(); return; } // সেভের মাঝে আবার বদল — সেটাও সেভ হবে
           dirty = false;
           if (statusEl) statusEl.textContent = "নিজে থেকে সেভ হয়েছে ✓";
         })
@@ -463,8 +465,10 @@
 
   /* ---------- লাইভ প্রিভিউ ---------- */
   var timer = null, seq = 0, pendingScroll = null;
+  var ver = 0; // প্রতিটা বদলে বাড়ে — সেভ চলার মাঝে নতুন বদল এলে সেটা হারাবে না
   function changed() {
     dirty = true;
+    ver++;
     clearTimeout(timer);
     timer = setTimeout(function () { snapshot(); refresh(); autosave(); }, 400);
   }
@@ -481,7 +485,7 @@
         var doc = frame.contentDocument;
         pendingScroll = doc && doc.scrollingElement ? doc.scrollingElement.scrollTop : 0;
         frame.srcdoc = html;
-        if (statusEl && dirty) statusEl.textContent = "বদল হয়েছে…";
+        if (statusEl) statusEl.textContent = dirty ? "বদল হয়েছে…" : "";
       })
       .catch(function () { if (statusEl) statusEl.textContent = "প্রিভিউ আপডেট হয়নি"; });
   }

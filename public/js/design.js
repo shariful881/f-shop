@@ -112,6 +112,8 @@
   form.addEventListener("change", function (e) {
     if (DEVICE_OF[e.target.name]) showDevice(DEVICE_OF[e.target.name]);
     if (e.target.type === "file") return; // ফাইল নয়, লাইব্রেরি/পিকারের key যায় (media.js)
+    var t = e.target;
+    if ((t.type === "text" || t.tagName === "TEXTAREA" || t.type === "url") && e.isTrusted) return; // লেখা input-এই সেভ হয়েছে
     schedule(250);
   });
 
@@ -123,11 +125,14 @@
     var go = function () {
       fetch("/admin/design/publish", { method: "POST", credentials: "same-origin" })
         .then(function (r) { return r.json(); })
-        .then(function () { setDraft(false); setStatus("live", "পাবলিশ হয়েছে ✓ ক্রেতারা এখন নতুন ডিজাইন দেখছে"); })
+        .then(function (d) {
+          if (!d || !d.ok) throw new Error();
+          setDraft(false); setStatus("live", "পাবলিশ হয়েছে ✓ ক্রেতারা এখন নতুন ডিজাইন দেখছে");
+        })
         .catch(function () { publish.disabled = false; setStatus("error", "পাবলিশ হয়নি — আবার চেষ্টা করুন"); });
     };
     // অপেক্ষায় থাকা বদল আগে সেভ
-    if (status.dataset.status === "saving") fetch("/admin/design/draft", { method: "POST", body: new FormData(form), credentials: "same-origin" }).then(go);
+    if (status.dataset.status === "saving") fetch("/admin/design/draft", { method: "POST", body: new FormData(form), credentials: "same-origin" }).then(go, function () { publish.disabled = false; setStatus("error", "সেভ হয়নি — ইন্টারনেট দেখুন"); });
     else go();
   });
   discard.addEventListener("click", function () {

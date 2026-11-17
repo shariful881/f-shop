@@ -233,3 +233,10 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
   .lb-panel { max-height: calc(100vh - 170px); }
   .lb-frame-wrap iframe { height: calc(100vh - 250px); }
 }
+/* ল্যান্ডিং এডিটরে ফোনে: নিচের "সেভ/এডিট" বার অ্যাডমিনের নিচের মেনুর নিচে চাপা পড়ত — এডিটরে মেনু লুকানো, সাপোর্ট বাটন বারের উপরে */
+@media (max-width: 960px) {
+  body.admin:has(#builder) .sa-tabbar { display: none; }
+  body.admin:has(#builder) .sa-main { padding-bottom: 76px; }
+  body.admin:has(#builder) .sx-widget:not(.open) { bottom: 76px; }
+}
+@media (max-width: 960px) { body.admin:has(.lb.panel-open) .sx-widget:not(.open) { display: none; } }
