@@ -31,6 +31,8 @@ shopApp.use("*", async (c, next) => {
   await next();
   // যাচাই বাকি দোকানের পাবলিক পেজ Google-এ নয়
   if (state.reason === "unverified" && !c.req.path.startsWith("/admin")) c.header("X-Robots-Tag", "noindex, nofollow");
+  // ডেমো দোকান: পণ্য আসল নয়, অর্ডার বন্ধ — Google-এ নয় (লিংক ধরে sellxbd.com-এ ফেরা চলে)
+  else if (c.var.settings?.demo_mode === "1" && !c.req.path.startsWith("/admin")) c.header("X-Robots-Tag", "noindex, follow");
 });
 
 /** ইমেইলের যাচাই লিংক (লগইন লাগে না — লিংকের টোকেনই প্রমাণ) */

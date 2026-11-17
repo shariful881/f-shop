@@ -1,7 +1,7 @@
 /** মূল সাইটের টেকনিক্যাল SEO: title/description, Search Console/GA4, ব্লগের SEO ঘর, RSS, llms.txt */
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Browser, resetDb } from "./helpers";
+import { Browser, DB, resetDb } from "./helpers";
 import { hashPassword } from "../src/shop/lib/auth";
 import { clearSettingsCache } from "../src/platform/billing";
 
@@ -107,5 +107,14 @@ describe("RSS আর llms.txt", () => {
     expect(llms).toMatch(/^# SellxBD/);
     expect(llms).toContain("/pricing)");
     expect(llms).toContain("/help/");
+  });
+});
+
+describe("ডেমো দোকান", () => {
+  it("ডেমো দোকান noindex, follow; সাধারণ দোকান নয়", async () => {
+    expect((await new Browser().get("/")).headers.get("x-robots-tag")).toBeNull();
+    await DB.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_mode', '1')").run();
+    const r = await new Browser().get("/");
+    expect(r.headers.get("x-robots-tag")).toBe("noindex, follow");
   });
 });
