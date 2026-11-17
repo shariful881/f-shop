@@ -44,4 +44,18 @@ describe("থিম এডিটর — পেজ অনুযায়ী ভ�
       expect(cfgCss(d)).toContain("@media(min-width:700px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(3,1fr)}}");
     }
   });
+
+  it("সম্পর্কিত পণ্যের আলাদা কলাম মোবাইল আর কম্পিউটারে; auto হলে আলাদা নিয়ম নেই", () => {
+    const base = THEME_DEFAULTS.classic;
+    expect(cfgCss(base)).not.toContain(".pd-related .grid");
+    const css = cfgCss({ ...base, pd_related_mobile: "1", pd_related_desktop: "6" });
+    expect(css).toContain("@media(max-width:699px){.pd-related .grid,.theme-pro .pd-related .px-grid{grid-template-columns:repeat(1,1fr)}}");
+    expect(css).toContain("@media(min-width:1000px){.pd-related .grid,.theme-pro .pd-related .px-grid{grid-template-columns:repeat(6,1fr)}}");
+  });
+
+  it("এডিটরে সম্পর্কিত পণ্যের কলামের বাটন", async () => {
+    const html = await (await (await adminBrowser()).get("/admin/design")).text();
+    expect(html).toContain('name="pd_related_mobile" value="2"');
+    expect(html).toContain('name="pd_related_desktop" value="5"');
+  });
 });

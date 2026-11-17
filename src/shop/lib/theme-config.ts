@@ -151,7 +151,9 @@ const ALL_GROUPS: { key: string; title: string; desc: string; fields: Field[] }[
       { key: "pd_share", type: "toggle", label: "শেয়ার বাটন (Facebook, WhatsApp, লিংক কপি)" },
       { key: "pd_related", type: "toggle", label: "সম্পর্কিত পণ্য (একই ক্যাটাগরির)" },
       { key: "pd_related_title", type: "text", label: "সম্পর্কিত পণ্যের শিরোনাম", max: 60 },
-      { key: "pd_related_count", type: "select", label: "কয়টা সম্পর্কিত পণ্য", options: { "4": "৪টা", "6": "৬টা", "8": "৮টা" } },
+      { key: "pd_related_count", type: "select", label: "কয়টা সম্পর্কিত পণ্য", options: { "2": "২টা", "3": "৩টা", "4": "৪টা", "6": "৬টা", "8": "৮টা", "12": "১২টা" } },
+      { key: "pd_related_mobile", type: "choice", label: "📱 মোবাইলে সম্পর্কিত পণ্য এক সারিতে", preview: "cols", options: { auto: "পণ্যের তালিকার মতো", "1": "১টা", "2": "২টা", "3": "৩টা" } },
+      { key: "pd_related_desktop", type: "choice", label: "💻 কম্পিউটারে সম্পর্কিত পণ্য এক সারিতে", preview: "cols", options: { auto: "পণ্যের তালিকার মতো", "2": "২টা", "3": "৩টা", "4": "৪টা", "5": "৫টা", "6": "৬টা" } },
     ],
   },
   {
@@ -283,7 +285,7 @@ const BASE: Cfg = {
   popup_on: "0", popup_image: "", popup_link: "", popup_delay: "3",
   product_link: "product", pd_cart_text: "কার্টে যোগ করুন", pd_buy_text: "এখনই কিনুন", pd_delivery_info: "1", pd_trust: "1",
   pd_call: "1", pd_call_text: "কল করে অর্ডার করুন", pd_wa: "1", pd_wa_text: "WhatsApp-এ জিজ্ঞাসা করুন", pd_msg: "0", pd_msg_text: "Messenger-এ মেসেজ দিন",
-  pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4",
+  pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4", pd_related_mobile: "auto", pd_related_desktop: "auto",
   card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
   hero_style: "slider", title_style: "ribbon", marquee: "0", offers_countdown: "0", card_design: "classic",
   rv_show: "1", rv_landing: "1", rv_title: "ক্রেতাদের রিভিউ", rv_layout: "list", rv_count: "10", rv_summary: "1", rv_verified: "1", rv_photos: "1", rv_reply: "1",
@@ -435,6 +437,13 @@ export function cfgCss(cfg: Cfg): string {
   r.push(`.grid,.theme-pro .px-grid{grid-template-columns:repeat(${m},1fr)}@media(min-width:700px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${t},1fr)}}@media(min-width:1000px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${d},1fr)}}`);
   if (m === 1 && c("m1_style") === "list") r.push("@media(max-width:699px){.grid .card,.theme-pro .px-grid .card{flex-direction:row;align-items:stretch}.grid .card-img,.theme-pro .px-grid .card-img{flex:0 0 38%;max-width:38%;align-self:flex-start}.grid .card-body{min-width:0}}");
   if (m === 1 && c("m1_style") !== "list") r.push("@media(max-width:699px){.grid .card-actions{grid-template-columns:1fr 1fr}}");
+  // সম্পর্কিত পণ্যের আলাদা কলাম ("auto" হলে উপরের পণ্যের তালিকার মতোই)
+  const rm = parseInt(c("pd_related_mobile") || "", 10), rd = parseInt(c("pd_related_desktop") || "", 10);
+  if (rm >= 1 && rm <= 3) {
+    r.push(`@media(max-width:699px){.pd-related .grid,.theme-pro .pd-related .px-grid{grid-template-columns:repeat(${rm},1fr)}}`);
+    if (rm !== 1 && m === 1 && c("m1_style") === "list") r.push("@media(max-width:699px){.pd-related .grid .card,.theme-pro .pd-related .px-grid .card{flex-direction:column}.pd-related .grid .card-img,.theme-pro .pd-related .px-grid .card-img{flex:none;max-width:none;align-self:auto}}");
+  }
+  if (rd >= 2 && rd <= 6) r.push(`@media(min-width:1000px){.pd-related .grid,.theme-pro .pd-related .px-grid{grid-template-columns:repeat(${rd},1fr)}}`);
   if (m === 3) r.push("@media(max-width:699px){.card-actions .btn{font-size:.78rem;padding:6px 4px}.card-title{font-size:.85rem}}");
   const ratio = { "1/1": "1/1", "4/5": "4/5", "3/4": "3/4", "4/3": "4/3", "16/9": "16/9" }[c("img_ratio") as "1/1"] ?? "1/1";
   r.push(`.card-img{aspect-ratio:${ratio}}.card-img img{width:100%;height:100%}`);

@@ -102,7 +102,7 @@
     schedule(t.type === "text" || t.tagName === "TEXTAREA" || t.type === "url" ? 900 : 500);
   });
   /* মোবাইলের সেটিং বদলালে প্রিভিউ মোবাইল মাপে, কম্পিউটারের সেটিং বদলালে ডেস্কটপ মাপে */
-  var DEVICE_OF = { per_row_mobile: "mobile", m1_style: "mobile", per_row_desktop: "desktop" };
+  var DEVICE_OF = { per_row_mobile: "mobile", m1_style: "mobile", per_row_desktop: "desktop", pd_related_mobile: "mobile", pd_related_desktop: "desktop" };
   function showDevice(d) {
     var b = document.querySelector('.de-devices button[data-device="' + d + '"]');
     if (b && !b.classList.contains("active")) b.click();
