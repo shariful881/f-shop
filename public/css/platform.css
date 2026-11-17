@@ -403,3 +403,15 @@ a.p-contact-card:hover { border-color: #0f766e; }
 .p-blog-cover img, .p-post-cover img { width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; border-radius: 14px; display: block; background: #f1f5f9; }
 .p-post-cover { margin-top: 18px; }
 .p-byline { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+
+/* আইকনের মূল স্টাইল সব পাবলিক পেজে (আগে শুধু home.css-এ ছিল — অন্য পেজে ☰ মেনু ফাঁকা দেখাত) */
+.platform .ic { width: 18px; height: 18px; flex: none; display: inline-block; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.platform .ic-sm { width: 15px; height: 15px; vertical-align: -2px; }
+.platform .ic-lg { width: 22px; height: 22px; }
+.p-header .p-menu .p-menu-close, .p-header .p-menu[open] .p-menu-open { display: none; }
+.p-header .p-menu[open] .p-menu-close { display: block; }
+/* লোগো সব পাবলিক পেজে হোমের মতো (আগে শুধু home.css-এ) */
+.platform .p-logo { display: inline-flex; align-items: center; gap: 8px; text-decoration: none !important; }
+.platform .brand-name { font-weight: 800; letter-spacing: -.02em; color: #0f172a; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.platform .brand-x { color: #ea580c; }
+body.platform .brand-name { font-size: 1.32rem; }
