@@ -354,3 +354,12 @@ document.addEventListener("click", function (e) {
   if (img.complete) { if (img.naturalWidth > 0) ok(); else bad(); }
   else { img.addEventListener("load", ok); img.addEventListener("error", bad); }
 })();
+
+/* মূল সাইটের মোবাইল মেনু: লিংকে চাপলে বা বাইরে চাপলে বন্ধ */
+(function () {
+  var m = document.querySelector(".p-menu");
+  if (!m) return;
+  m.addEventListener("click", function (e) { if (e.target.closest && e.target.closest("a")) m.removeAttribute("open"); });
+  document.addEventListener("click", function (e) { if (m.open && !m.contains(e.target)) m.removeAttribute("open"); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") m.removeAttribute("open"); });
+})();

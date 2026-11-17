@@ -9,15 +9,35 @@ import { HELP, HELP_CATS, type HelpArticle } from "./help";
 import { PLATFORM_NAME } from "./views";
 import { dateBn, type BlogPost } from "./blog";
 import { sanitizeHtml } from "../shop/lib/sanitize";
+import { Icon, type IconName } from "../shop/views/icons";
 
 export type Fees = { plans: Record<PlanKey, Plan>; staff: number; trialDays: number; trialOrders: number; support: string };
 
+/** মূল সাইটের হেডার মেনু — বড় পর্দায় পাশাপাশি লিংক, মোবাইলে ☰ চাপলে নিচে খোলে (JS ছাড়া, <details>) */
+const NAV: { href: string; label: string; icon: IconName; hint: string }[] = [
+  { href: "/pricing", label: "দাম", icon: "tag", hint: "প্ল্যান আর খরচের হিসাব" },
+  { href: "/#ready", label: "ডেমো", icon: "store", hint: "রেডি দোকান ঘুরে দেখুন" },
+  { href: "/help", label: "সাহায্য", icon: "life-buoy", hint: "হেল্প সেন্টার আর গাইড" },
+];
 export const PublicNav = () => (
   <>
-    <a href="/pricing" class="p-nav-link">দাম</a>
-    <a href="/#ready" class="p-nav-link p-hide-sm">ডেমো</a>
-    <a href="/help" class="p-nav-link">সাহায্য</a>
-    <a href="/signup" class="p-nav-cta">ফ্রি দোকান খুলুন</a>
+    <div class="p-links">
+      {NAV.map((n) => <a href={n.href} class="p-nav-link">{n.label}</a>)}
+    </div>
+    <a href="/signup" class="p-nav-cta"><Icon name="rocket" size="sm" /><span class="p-cta-long">ফ্রি দোকান খুলুন</span><span class="p-cta-short">ফ্রি শুরু</span></a>
+    <details class="p-menu">
+      <summary aria-label="মেনু খুলুন"><Icon name="menu" class="p-menu-open" /><Icon name="x" class="p-menu-close" /></summary>
+      <div class="p-menu-panel">
+        {NAV.map((n) => (
+          <a href={n.href} class="p-menu-item">
+            <span class="p-menu-ic"><Icon name={n.icon} /></span>
+            <span><b>{n.label}</b><small>{n.hint}</small></span>
+            <Icon name="arrow-right" size="sm" class="p-menu-go" />
+          </a>
+        ))}
+        <a href="/signup" class="p-menu-cta"><Icon name="rocket" size="sm" /> ফ্রি দোকান খুলুন</a>
+      </div>
+    </details>
   </>
 );
 
