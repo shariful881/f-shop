@@ -355,3 +355,8 @@
   .hp-bill-tabs { width: 100%; }
   .hp-bill-tabs button { flex: 1; justify-content: center; }
 }
+
+/* ব্লগ গাইড সেকশন */
+.hp-more { margin: 18px 0 0; text-align: center; }
+.hp-help-card h3 a { color: inherit; text-decoration: none; }
+.hp-help-card h3 a:hover { color: #0f766e; }

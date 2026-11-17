@@ -12,7 +12,7 @@ import { raw } from "hono/html";
 
 export type PFlash = { type: "ok" | "error"; text: string } | null;
 
-export const DEFAULT_DESC = "ফেসবুক সেলারদের নিজের অনলাইন দোকান — ফেক অর্ডার আটকানো, রেডি দোকান, ল্যান্ডিং পেজ, Pixel + CAPI, Steadfast/Pathao/RedX এক ক্লিকে, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট। ১৪ দিন ফ্রি।";
+export const DEFAULT_DESC = "ফেসবুক সেলারদের নিজের অনলাইন দোকান — ফেক অর্ডার আটকানো, রেডি দোকান, ল্যান্ডিং পেজ, Pixel + CAPI, Steadfast/Pathao/RedX এক ক্লিকে, ইনভয়েস, SMS আর ২৪ ঘণ্টা সাপোর্ট। ফ্রি প্ল্যান চিরকাল।";
 
 /** JSON-LD নিরাপদে বসানো (</script> ভাঙতে না পারে) */
 const ld = (o: unknown) => raw(`<script type="application/ld+json">${JSON.stringify(o).replace(/</g, "\\u003c")}</script>`);
@@ -26,7 +26,14 @@ export type PSeo = {
   /** পুরো ঠিকানা; না দিলে সাধারণ ছবি */
   image?: string;
   jsonLd?: unknown[];
+  /** Search Console / Bing যাচাইয়ের কোড আর GA4 আইডি (শুধু পাবলিক পেজে) */
+  site?: { gsc?: string; bing?: string; ga4?: string };
 };
+
+/** সেটিংসে মেটা ট্যাগ পুরোটা পেস্ট করলেও শুধু কোডটা নেওয়া */
+export const verifyCode = (v: string) => { const m = /content=["']([^"']+)["']/.exec(v); return (m ? m[1]! : v).trim(); };
+export const okVerify = (v: string) => /^[A-Za-z0-9_\-]{10,100}$/.test(v);
+export const okGa4 = (v: string) => /^G-[A-Z0-9]{4,15}$/.test(v);
 
 export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash?: PFlash; admin?: boolean; description?: string; head?: Child; seo?: PSeo }) => {
   const desc = p.description || DEFAULT_DESC;
@@ -42,6 +49,13 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
       <meta name="description" content={desc} />
       {(p.admin || seo.noindex) && <meta name="robots" content="noindex, nofollow" />}
       {seo.canonical && <link rel="canonical" href={seo.canonical} />}
+      {!p.admin && seo.site?.gsc && okVerify(seo.site.gsc) && <meta name="google-site-verification" content={seo.site.gsc} />}
+      {!p.admin && seo.site?.bing && okVerify(seo.site.bing) && <meta name="msvalidate.01" content={seo.site.bing} />}
+      {!p.admin && seo.site?.ga4 && okGa4(seo.site.ga4) && <>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${seo.site.ga4}`}></script>
+        {raw(`<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config","${seo.site.ga4}");</script>`)}
+      </>}
+      {!p.admin && <link rel="alternate" type="application/rss+xml" title={`${PLATFORM_NAME} ব্লগ`} href="/blog/feed.xml" />}
       <meta name="theme-color" content="#0f766e" />
       <link rel="icon" href="/favicon.ico" sizes="32x32" />
       <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -166,7 +180,7 @@ export const BrandMark = ({ size = 30 }: { size?: number }) =>
   raw(`<svg class="brand-mark" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="bm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#bm)"/><path d="M9.5 12.5h13l-1 11a2 2 0 0 1-2 1.8h-7a2 2 0 0 1-2-1.8z" fill="#fff"/><path d="M12.5 12.5V11a3.5 3.5 0 0 1 7 0v1.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="23.5" cy="8.5" r="3.2" fill="#f97316" stroke="#fff" stroke-width="1.6"/></svg>`);
 export const BrandName = () => <span class="brand-name">Sell<span class="brand-x">x</span>BD</span>;
 
-export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; fees: HomeFees; demos?: DemoLink[] }) => {
+export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode: boolean; fees: HomeFees; demos?: DemoLink[]; posts?: { slug: string; title: string; excerpt: string }[] }) => {
   const demoOf = (key: string, name: string) => demos.find((d) => d.key === key || d.name === name);
   const P = f.plans;
   return (
@@ -503,7 +517,7 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
             ["টাকা কাটে কীভাবে?", `আগে bKash/Nagad দিয়ে রিচার্জ করবেন। প্ল্যানের টাকা (৳${bn(P.small.price)} থেকে) বিলের দিন কাটে; সীমার বেশি অর্ডার হলে মাস শেষে প্রতি অর্ডারে ৳${bn(P.small.extra)}/${bn(P.grow.extra)}/${bn(P.big.extra)} (প্ল্যান অনুযায়ী) — সীমার কাছে গেলে আগেই জানানো হয়। প্রতিটা হিসাব প্যানেলে দেখা যায়।`],
             ["নিজের ডোমেইন ব্যবহার করা যাবে?", "হ্যাঁ, পেইড প্ল্যানে। প্যানেলে ডোমেইন যোগ করলে দুটো নেমসার্ভার পাবেন, ডোমেইন প্যানেলে বসালেই চালু। ডোমেইন না থাকলে ফ্রি subdomain।"],
             ["কোন কোন কুরিয়ার আর SMS আছে?", "কুরিয়ার: Steadfast, Pathao আর RedX — নিজের মার্চেন্ট অ্যাকাউন্ট, পার্সেলের টাকা সরাসরি আপনার কাছে। SMS: BulkSMSBD, SMS.net.bd অথবা যেকোনো গেটওয়ের লিংক।"],
-            ["আমার আর কাস্টমারের তথ্য কি নিরাপদ?", "প্রতিটা দোকানের তথ্য আলাদা ডাটাবেসে থাকে, অন্য দোকান দেখতে পায় না। ক্রেতার রেকর্ডে নম্বর গোপন কোডে রাখা হয়, দোকানের নাম দেখায় না। যখন খুশি সব তথ্য CSV-তে নামাতে পারেন।"],
+            ["আমার আর কাস্টমারের তথ্য কি নিরাপদ?", "প্রতিটা দোকানের তথ্য আলাদা ডাটাবেসে থাকে, অন্য দোকান দেখতে পায় না। ক্রেতার রেকর্ডে নম্বর গোপন কোডে রাখা হয়, দোকানের নাম দেখায় না। নিরাপত্তার জন্য প্যানেল থেকে এক ক্লিকে সব কাস্টমারের তালিকা নামানো বন্ধ — Excel কপি লাগলে সাপোর্ট থেকে পাবেন।"],
             ["সমস্যা হলে কীভাবে সাহায্য পাব?", "প্যানেলের কোণে সাপোর্ট বাটন — লাইভ চ্যাট বা স্ক্রিনশটসহ টিকেট, ২৪ ঘণ্টা। এছাড়া হেল্প সেন্টারে ধাপে ধাপে গাইড আছে।"],
           ].map(([q, a]) => (
             <details><summary>{q}</summary><p>{a}</p></details>
@@ -511,6 +525,27 @@ export const HomePage = ({ devMode, fees: f, demos = [] }: { devMode: boolean; f
         </div>
       </div>
     </section>
+
+    {/* ===== সেলারদের জন্য গাইড (ব্লগ) — Google-এর কাছে ব্লগের গুরুত্ব বাড়ায় ===== */}
+    {posts.length > 0 && (
+      <section class="hp-sec">
+        <div class="wrap">
+          <p class="hp-eyebrow">ব্লগ</p>
+          <h2 class="hp-title">অনলাইনে বিক্রির গাইড — সেলারদের জন্য</h2>
+          <div class="hp-help">
+            {posts.slice(0, 3).map((x) => (
+              <article class="hp-help-card">
+                <span class="hp-ic"><Icon name="file-text" /></span>
+                <h3><a href={`/blog/${x.slug}`}>{x.title}</a></h3>
+                <p>{x.excerpt}</p>
+                <a href={`/blog/${x.slug}`} class="hp-link">পুরোটা পড়ুন <Icon name="arrow-right" size="sm" /></a>
+              </article>
+            ))}
+          </div>
+          <p class="hp-more"><a href="/blog" class="hp-link">সব লেখা দেখুন <Icon name="arrow-right" size="sm" /></a></p>
+        </div>
+      </section>
+    )}
 
     {/* ===== শেষ ডাক ===== */}
     <section class="hp-final">

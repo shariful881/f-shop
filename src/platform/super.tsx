@@ -21,12 +21,13 @@ import { platformUsage } from "./usage";
 import { PHONE_PENDING_SQL, SUSPICIOUS_SQL } from "./verify";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
 import { slugOk } from "./blog";
+import { okGa4, okVerify, verifyCode } from "./views";
 import { sanitizeHtml } from "../shop/lib/sanitize";
 import { PLAN_KEYS, plans } from "./plans";
 import { clearSession, SUPER_COOKIES } from "../shop/lib/session-cookie";
 import { shopUrl, superFromCookie, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -952,7 +953,27 @@ const TEXT_KEYS = ["bkash_number", "nagad_number", "support_phone"];
 superApp.get("/settings", async (c) => {
   if (!allowed(c, "settings")) return forbidden(c);
   const ps = await platformSettings(c.env.PLATFORM_DB, true);
-  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /></>);
+  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><GoogleSettings s={ps} /></>);
+});
+
+superApp.post("/settings/seo", async (c) => {
+  if (!allowed(c, "settings")) return forbidden(c);
+  const b = await c.req.parseBody();
+  const db = c.env.PLATFORM_DB;
+  const gsc = verifyCode(str(b.gsc_verification, 300));
+  const bing = verifyCode(str(b.bing_verification, 300));
+  const ga4 = str(b.ga4_id, 20).toUpperCase();
+  const bad = (gsc && !okVerify(gsc)) || (bing && !okVerify(bing)) || (ga4 && !okGa4(ga4));
+  if (bad) {
+    flash(c, "error", "কোডটা ঠিক মনে হচ্ছে না — Search Console/Bing-এর মেটা ট্যাগ বা শুধু content-এর কোড, আর GA4-এ G- দিয়ে শুরু আইডি দিন।");
+    return c.redirect("/super/settings", 303);
+  }
+  const vals: [string, string][] = [["gsc_verification", gsc], ["bing_verification", bing], ["ga4_id", ga4]];
+  await db.batch(vals.map(([k, v]) => db.prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v)));
+  clearSettingsCache();
+  await audit(c, "settings.seo", "settings", null, vals.map(([k, v]) => `${k}: ${v || "—"}`).join(", "));
+  flash(c, "ok", "Google/Bing সেটিংস সেভ হয়েছে — মূল সাইটের পেজে বসে গেছে।");
+  return c.redirect("/super/settings", 303);
 });
 
 superApp.post("/settings/security", async (c) => {

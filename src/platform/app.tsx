@@ -6,7 +6,7 @@ import {
   createSuperSession, destroySuperSession, platformPeekRateLimit, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
 import { badShopName, checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
-import { DEFAULT_DESC, HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
+import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
 import { num, platformSettings } from "./billing";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
 import { helpBySlug, HELP } from "./help";
@@ -79,8 +79,17 @@ async function loadFees(c: PCtx): Promise<Fees> {
   return { plans: plans(s), staff: num(s, "staff_fee", 49), trialDays: num(s, "trial_days", 30), trialOrders: num(s, "trial_orders", 400), support };
 }
 
+/** হোমের description — ট্রায়ালের দিন সেটিংস থেকে (আগে "১৪ দিন" লেখা ছিল, আসলে ৩০) */
+const homeDesc = (f: Fees) => `কোড ছাড়া নিজের ই-কমার্স ওয়েবসাইট — রেডি দোকান, ল্যান্ডিং পেজ, ফেক অর্ডার আটকানো, Steadfast/Pathao/RedX, Pixel + CAPI। ${f.trialDays.toLocaleString("bn-BD")} দিন সব ফিচার ফ্রি, ফ্রি প্ল্যান চিরকাল।`;
+
+/** Search Console/Bing যাচাই আর GA4 — সুপার অ্যাডমিন → সেটিংস → Google */
+async function siteTags(c: PCtx): Promise<PSeo["site"]> {
+  const s = await platformSettings(c.env.PLATFORM_DB);
+  return { gsc: s.gsc_verification || "", bing: s.bing_verification || "", ga4: s.ga4_id || "" };
+}
+
 /** পাবলিক পেজ: মেনু + পেজ + ফুটার */
-type PageOpts = { description?: string | ((f: Fees) => string); path?: string; crumbs?: [string, string][]; jsonLd?: unknown[]; ogType?: PSeo["ogType"]; noindex?: boolean };
+type PageOpts = { description?: string | ((f: Fees) => string); path?: string; crumbs?: [string, string][]; jsonLd?: unknown[]; ogType?: PSeo["ogType"]; noindex?: boolean; image?: string; fullTitle?: string };
 const publicPage = async (c: PCtx, title: string, body: (f: Fees) => Child, status: 200 | 404 = 200, o: PageOpts = {}) => {
   const f = await loadFees(c);
   const path = o.path ?? new URL(c.req.url).pathname;
@@ -89,14 +98,17 @@ const publicPage = async (c: PCtx, title: string, body: (f: Fees) => Child, stat
     canonical: status === 200 ? canon(c, path) : undefined,
     noindex: o.noindex || status !== 200,
     ogType: o.ogType,
+    image: o.image,
     jsonLd: [...(o.crumbs ? [crumbs(c, o.crumbs)] : []), ...(o.jsonLd ?? [])],
+    site: status === 200 ? await siteTags(c) : undefined,
   };
-  return html(c, <PLayout title={`${title} — ${PLATFORM_NAME}`} nav={publicNav} description={description} seo={seo}>{body(f)}<SiteFooter support={f.support} /></PLayout>, status, !o.noindex);
+  return html(c, <PLayout title={o.fullTitle ?? `${title} — ${PLATFORM_NAME}`} nav={publicNav} description={description} seo={seo}>{body(f)}<SiteFooter support={f.support} /></PLayout>, status, !o.noindex);
 };
 
 const tk = (n: number) => "৳" + n.toLocaleString("bn-BD");
 platformApp.get("/pricing", (c) => publicPage(c, "দাম ও হিসাব", (f) => <PricingPage f={f} />, 200, {
-  description: (f) => `SellxBD-এর দাম: ফ্রি প্ল্যান থেকে শুরু, পেইড প্ল্যান মাসে ${tk(f.plans.small.price)} থেকে। প্ল্যানের মধ্যে সব অর্ডার, লুকানো খরচ নেই — ক্যালকুলেটরে হিসাব করে দেখুন কোনটা আপনার জন্য।`,
+  fullTitle: `ই-কমার্স ওয়েবসাইটের খরচ ও প্ল্যান — ফ্রি থেকে শুরু | ${PLATFORM_NAME}`,
+  description: (f) => `ই-কমার্স ওয়েবসাইট বানাতে কত খরচ? SellxBD-তে ফ্রি প্ল্যান থেকে শুরু, পেইড প্ল্যান মাসে ${tk(f.plans.small.price)} থেকে — ডোমেইন, হোস্টিং, সব ফিচার একসাথে, লুকানো খরচ নেই। ক্যালকুলেটরে হিসাব করে দেখুন।`,
   crumbs: [["দাম ও হিসাব", "/pricing"]],
 }));
 platformApp.get("/about", (c) => publicPage(c, "আমাদের সম্পর্কে", (f) => <AboutPage f={f} />, 200, {
@@ -104,16 +116,18 @@ platformApp.get("/about", (c) => publicPage(c, "আমাদের সম্প�
   crumbs: [["আমাদের সম্পর্কে", "/about"]],
 }));
 platformApp.get("/contact", (c) => publicPage(c, "যোগাযোগ", (f) => <ContactPage f={f} />, 200, {
+  fullTitle: `যোগাযোগ — কল/WhatsApp, ২৪ ঘণ্টা সাপোর্ট | ${PLATFORM_NAME}`,
   description: (f) => `SellxBD টিমের সাথে যোগাযোগ — ফোন/WhatsApp${f.support ? ` ${f.support}` : ""}, ২৪ ঘণ্টা সাপোর্ট। দোকান খোলা, ডোমেইন, কুরিয়ার বা বিল নিয়ে প্রশ্ন থাকলে জানান।`,
   crumbs: [["যোগাযোগ", "/contact"]],
 }));
 platformApp.get("/terms", (c) => publicPage(c, "শর্তাবলি", (f) => <TermsPage f={f} />, 200, { description: "SellxBD ব্যবহারের শর্তাবলি — সেবা, অ্যাকাউন্ট, চার্জ ও রিচার্জ, যা বিক্রি করা যাবে না।", crumbs: [["শর্তাবলি", "/terms"]] }));
 platformApp.get("/privacy", (c) => publicPage(c, "প্রাইভেসি নীতি", () => <PrivacyPage />, 200, { description: "SellxBD দোকানদার আর ক্রেতার কোন তথ্য রাখে, কীভাবে সুরক্ষিত রাখে আর কাদের সাথে শেয়ার হয়।", crumbs: [["প্রাইভেসি নীতি", "/privacy"]] }));
-platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />, 200, { description: "SellxBD-তে রিচার্জের টাকা ফেরত পাওয়ার নিয়ম।", crumbs: [["রিফান্ড নীতি", "/refund"]] }));
+platformApp.get("/refund", (c) => publicPage(c, "রিফান্ড নীতি", () => <RefundPage />, 200, { description: "SellxBD-তে রিচার্জের টাকা কখন, কীভাবে ফেরত পাবেন — ব্যবহার না হওয়া ব্যালেন্স, ভুল রিচার্জ আর সময়সীমার নিয়ম।", crumbs: [["রিফান্ড নীতি", "/refund"]] }));
 platformApp.notFound((c) => publicPage(c as PCtx, "পাওয়া যায়নি", () => <PlatformNotFoundPage />, 404));
 platformApp.get("/help", (c) => {
   const q = (c.req.query("q") || "").slice(0, 60);
   return publicPage(c, "হেল্প সেন্টার", () => <HelpIndexPage q={q} />, 200, {
+    fullTitle: `হেল্প সেন্টার — অনলাইন দোকান চালানোর ধাপে ধাপে গাইড | ${PLATFORM_NAME}`,
     description: `SellxBD হেল্প সেন্টার — দোকান খোলা, পণ্য, অর্ডার, ফেক অর্ডার আটকানো, কুরিয়ার, Pixel, পেমেন্টসহ ${HELP.length.toLocaleString("bn-BD")}টা ধাপে ধাপে গাইড।`,
     path: "/help", noindex: !!q, crumbs: [["হেল্প সেন্টার", "/help"]],
   });
@@ -122,7 +136,8 @@ platformApp.get("/help", (c) => {
 platformApp.get("/blog", async (c) => {
   const posts = await publishedPosts(c.env.PLATFORM_DB);
   return publicPage(c, "ব্লগ", () => <BlogIndexPage posts={posts} />, 200, {
-    description: "ফেসবুকে অনলাইন বিক্রি, ফেক অর্ডার কমানো, কুরিয়ার আর অ্যাডের খরচ নিয়ে বাংলায় কাজের লেখা — SellxBD ব্লগ।",
+    fullTitle: `অনলাইন বিজনেস গাইড — ফেসবুক সেল, ফেক অর্ডার, কুরিয়ার | ${PLATFORM_NAME} ব্লগ`,
+    description: "অনলাইন বিজনেস শুরু, ফেসবুকে বিক্রি বাড়ানো, ফেক অর্ডার কমানো, কুরিয়ার আর অ্যাডের খরচ — বাংলাদেশের সেলারদের জন্য বাংলায় কাজের গাইড।",
     crumbs: [["ব্লগ", "/blog"]],
   });
 });
@@ -181,19 +196,21 @@ platformApp.get("/", async (c) => {
   const org = {
     "@context": "https://schema.org", "@type": "Organization", "@id": `${base}/#org`, name: PLATFORM_NAME, url: base,
     logo: `${base}/brand/icon-512.png`, image: `${base}/brand/og.jpg`,
-    description: DEFAULT_DESC, areaServed: "BD",
+    description: homeDesc(fees), areaServed: "BD",
     ...(fees.support ? { contactPoint: { "@type": "ContactPoint", telephone: `+88${fees.support}`, contactType: "customer support", areaServed: "BD", availableLanguage: ["bn", "en"] } } : {}),
   };
   const site = { "@context": "https://schema.org", "@type": "WebSite", "@id": `${base}/#site`, name: PLATFORM_NAME, url: base, inLanguage: "bn-BD", publisher: { "@id": `${base}/#org` } };
   const app = {
     "@context": "https://schema.org", "@type": "SoftwareApplication", name: PLATFORM_NAME, url: base,
-    applicationCategory: "BusinessApplication", operatingSystem: "Web", inLanguage: "bn-BD", description: DEFAULT_DESC,
+    applicationCategory: "BusinessApplication", operatingSystem: "Web", inLanguage: "bn-BD", description: homeDesc(fees),
     publisher: { "@id": `${base}/#org` },
     offers: (["free", "small", "grow", "big"] as const).map((k) => ({ "@type": "Offer", name: P[k].name, price: String(P[k].price), priceCurrency: "BDT", url: `${base}/pricing` })),
   };
-  return html(c, <PLayout title={`${PLATFORM_NAME} — ফেসবুক সেলারদের নিজের অনলাইন দোকান, ফেক অর্ডার আটকানো`} nav={publicNav}
-    seo={{ canonical: `${base}/`, jsonLd: [org, site, app] }}
-    head={<link rel="stylesheet" href={`/css/home.css?v=${ASSET_VERSION}`} />}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} /></PLayout>, 200, true);
+  const posts = (await publishedPosts(c.env.PLATFORM_DB, 3)).map((p) => ({ slug: p.slug, title: p.title, excerpt: p.excerpt }));
+  return html(c, <PLayout title={`ফ্রিতে ই-কমার্স ওয়েবসাইট বানান — ফেসবুক সেলারদের অনলাইন দোকান | ${PLATFORM_NAME}`} nav={publicNav}
+    description={homeDesc(fees)}
+    seo={{ canonical: `${base}/`, jsonLd: [org, site, app], site: await siteTags(c) }}
+    head={<link rel="stylesheet" href={`/css/home.css?v=${ASSET_VERSION}`} />}><HomePage devMode={c.env.DEV_MODE === "1"} fees={fees} demos={await demoLinks(c)} posts={posts} /></PLayout>, 200, true);
 });
 
 /* ---------- সাইনআপ ---------- */
@@ -201,7 +218,7 @@ platformApp.get("/signup", async (c) => {
   const niche = nicheByKey(c.req.query("niche"))?.key ?? "";
   return html(c, <PLayout title={`দোকান খুলুন, ১ মাস ফ্রি — ${PLATFORM_NAME}`} nav={publicNav}
     description="২ মিনিটে নিজের অনলাইন দোকান খুলুন — কোনো কোড বা কার্ড লাগবে না। রেডি দোকান, ফেক অর্ডার আটকানো, কুরিয়ার আর Pixel সব সাথেই। ১ মাস ফ্রি।"
-    seo={{ canonical: canon(c, "/signup"), jsonLd: [crumbs(c, [["দোকান খুলুন", "/signup"]])] }}>
+    seo={{ canonical: canon(c, "/signup"), jsonLd: [crumbs(c, [["দোকান খুলুন", "/signup"]])], site: await siteTags(c) }}>
     <SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} {...await signupGuardProps(c)} /></PLayout>);
 });
 
@@ -233,8 +250,9 @@ platformApp.post("/signup", async (c) => {
   };
   const password = typeof b.password === "string" ? b.password : "";
   const guard = await signupGuardProps(c);
+  const tags = await siteTags(c);
   const fail = (errors: Record<string, string>, alert?: string, status: 422 | 429 = 422) =>
-    html(c, <PLayout title="দোকান খুলুন" nav={publicNav} seo={{ noindex: true }}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={values} errors={errors} alert={alert} {...guard} /></PLayout>, status);
+    html(c, <PLayout title="দোকান খুলুন" nav={publicNav} seo={{ noindex: true, site: tags }}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={values} errors={errors} alert={alert} {...guard} /></PLayout>, status);
 
   if (!(await platformRateLimit(c.env, `signup:${clientIp(c)}`, 5, 3600))) {
     return fail({}, "এক ঘণ্টায় অনেকবার চেষ্টা হয়েছে। পরে আবার চেষ্টা করুন।", 429);

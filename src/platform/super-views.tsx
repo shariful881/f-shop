@@ -969,6 +969,22 @@ export const SettingsPage = ({ s }: { s: Record<string, string> }) => (
 );
 
 /** সাইনআপের পাহারা — Turnstile, ইমেইল/ফোন যাচাই, প্ল্যাটফর্মের SMS */
+/** Google Search Console, Bing আর GA4 — মূল সাইটের SEO মাপার জন্য */
+export const GoogleSettings = ({ s }: { s: Record<string, string> }) => (
+  <form method="post" action="/super/settings/seo" style="margin-top:16px">
+    <Card title="Google ও Bing (সার্চে আসা আর ভিজিট মাপা)">
+      <div class="sa-form">
+        <p class="sa-muted"><small>Search Console-এ "URL prefix" দিয়ে https://sellxbd.com যোগ করে "HTML tag" বাছলে যে মেটা ট্যাগ দেয়, পুরোটা বা শুধু content-এর কোড এখানে বসান — সেভ করে Search Console-এ Verify চাপুন। (Domain property হলে Cloudflare DNS-এ TXT রেকর্ডই যথেষ্ট, এখানে লাগবে না।)</small></p>
+        <label>Google Search Console যাচাই কোড</label><input type="text" name="gsc_verification" value={s.gsc_verification || ""} maxlength={300} autocomplete="off" placeholder='<meta name="google-site-verification" content="…">' />
+        <label>Bing Webmaster যাচাই কোড (msvalidate.01)</label><input type="text" name="bing_verification" value={s.bing_verification || ""} maxlength={300} autocomplete="off" />
+        <label>Google Analytics 4 — Measurement ID</label><input type="text" name="ga4_id" value={s.ga4_id || ""} maxlength={20} autocomplete="off" placeholder="G-XXXXXXXXXX" />
+        <small class="sa-muted">শুধু মূল সাইটের পাবলিক পেজে বসে (হোম, দাম, ব্লগ, সাইনআপ…) — দোকান, অ্যাডমিন আর সুপার অ্যাডমিনে নয়।</small>
+        <button class="sa-btn">সেভ করুন</button>
+      </div>
+    </Card>
+  </form>
+);
+
 export const SecuritySettings = ({ s, emailBinding }: { s: Record<string, string>; emailBinding: boolean }) => {
   const set = (k: string) => !!(s[k] || "").trim();
   return (
