@@ -51,14 +51,14 @@
     } catch (e) { /* অন্য পেজ */ }
   }
   /* যে ভাগের সেটিং খোলা, প্রিভিউতে সেই পেজ */
-  function openPage(url) {
+  function openPage(url, stay) {
     if (!url) return;
     var hash = url.indexOf("#") >= 0 ? url.slice(url.indexOf("#")) : "";
     var base = hash ? url.slice(0, url.indexOf("#")) : url;
     var path = base.split("?")[0];
     var cur = framePath();
     // কার্ড হোমপেজ, ক্যাটাগরি আর সার্চ — তিন জায়গাতেই দেখা যায়
-    if (base === "/search?q=" && (cur === "/" || cur === "/search" || cur.indexOf("/c/") === 0)) return;
+    if (stay && (cur === "/" || cur === "/search" || cur.indexOf("/c/") === 0)) return;
     if (cur === path) { if (hash) scrollToPart(hash); return; }
     pendingHash = hash;
     loading.hidden = false;
@@ -101,7 +101,14 @@
     if (t.type === "file") return;
     schedule(t.type === "text" || t.tagName === "TEXTAREA" || t.type === "url" ? 900 : 500);
   });
+  /* মোবাইলের সেটিং বদলালে প্রিভিউ মোবাইল মাপে, কম্পিউটারের সেটিং বদলালে ডেস্কটপ মাপে */
+  var DEVICE_OF = { per_row_mobile: "mobile", m1_style: "mobile", per_row_desktop: "desktop" };
+  function showDevice(d) {
+    var b = document.querySelector('.de-devices button[data-device="' + d + '"]');
+    if (b && !b.classList.contains("active")) b.click();
+  }
   form.addEventListener("change", function (e) {
+    if (DEVICE_OF[e.target.name]) showDevice(DEVICE_OF[e.target.name]);
     if (e.target.type === "file") return; // ফাইল নয়, লাইব্রেরি/পিকারের key যায় (media.js)
     schedule(250);
   });
@@ -167,7 +174,7 @@
       document.querySelectorAll(".de-groups button").forEach(function (x) { x.classList.toggle("active", x === b); });
       document.querySelectorAll(".de-sec").forEach(function (s) { s.hidden = s.dataset.sec !== b.dataset.group; });
       document.querySelector(".de-panel").scrollTop = 0;
-      openPage(b.dataset.page);
+      openPage(b.dataset.page, b.dataset.stay === "1");
       setTab("settings");
     });
   });

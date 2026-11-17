@@ -17,7 +17,7 @@ export type Field =
   | { key: string; type: "textarea"; label: string; max: number; hint?: string }
   | { key: string; type: "url"; label: string; placeholder?: string; hint?: string }
   | { key: string; type: "order"; label: string; hint?: string }
-  | { key: string; type: "choice"; label: string; options: Opt; preview: string; hint?: string }
+  | { key: string; type: "choice"; label: string; options: Opt; preview: string; hint?: string; legacy?: Opt }
   | { key: string; type: "products"; label: string; hint?: string }
   | { key: string; type: "image"; label: string; hint?: string };
 
@@ -41,7 +41,7 @@ export const ICONS: Opt = { truck: "🚚 ডেলিভারি", cash: "💵 
 
 const fontOpts: Opt = { "": "থিমের ডিফল্ট", ...Object.fromEntries(Object.entries(FONTS).map(([k, v]) => [k, v.label])) };
 
-export const GROUPS: { key: string; title: string; desc: string; fields: Field[] }[] = [
+const ALL_GROUPS: { key: string; title: string; desc: string; fields: Field[] }[] = [
   {
     key: "style", title: "রং, ফন্ট আর বাটন", desc: "উপরের তৈরি রং থেকে এক ক্লিকে বাছুন, বা নিচে একটা একটা করে। রং না বাছলে থিমের নিজের রং থাকে।",
     fields: [
@@ -85,7 +85,7 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     ],
   },
   {
-    key: "home", title: "হোমপেজ", desc: "কোন সেকশন দেখাবে, কোন ক্রমে, আর এক সারিতে কয়টা পণ্য।",
+    key: "home", title: "হোমপেজ", desc: "কোন সেকশন দেখাবে, কোন ক্রমে, ব্যানার আর শিরোনামের ডিজাইন।",
     fields: [
       { key: "hero_style", type: "select", label: "উপরের অংশের (ব্যানার) ডিজাইন", options: { sidebar: "বাঁয়ে ক্যাটাগরি মেনু + ব্যানার + ডানে তথ্য (মার্কেটপ্লেস)", slider: "চওড়া ব্যানার স্লাইডার", full: "পুরো স্ক্রিনজুড়ে ব্যানার (প্রিমিয়াম)", skew: "তির্যক ব্যানার + চলন্ত লেখা (ফ্যাশন)" }, hint: "ব্যানারের ছবি না থাকলে দোকানের নাম আর ঘোষণার লেখা দিয়ে একটা বড় শিরোনাম দেখায়" },
       { key: "title_style", type: "select", label: "সেকশনের শিরোনামের ডিজাইন", options: { bar: "বাঁয়ে রঙিন দাগ, সাদা বক্সে সেকশন", ribbon: "মাঝে রঙিন ফিতা", eyebrow: "ছোট উপশিরোনাম + বড় পাতলা লেখা", marker: "মোটা লেখা + হাইলাইট" } },
@@ -95,9 +95,6 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
       { key: "title_categories", type: "text", label: "ক্যাটাগরি সেকশনের শিরোনাম", max: 60 },
       { key: "cat_style", type: "select", label: "ক্যাটাগরির ডিজাইন", options: { icons: "ছোট টাইলের গ্রিড (মার্কেটপ্লেস)", circle: "গোল ছবি", square: "চারকোনা ছবি", tiles: "বড় ছবির টাইল (প্রিমিয়াম)", cards: "ছবির উপর লেখা, বড় কার্ড (ফ্যাশন)" } },
       { key: "title_offers", type: "text", label: "অফার সেকশনের শিরোনাম", max: 60 },
-      { key: "per_row_mobile", type: "select", label: "মোবাইলে এক সারিতে পণ্য", options: { "1": "১টা", "2": "২টা", "3": "৩টা" } },
-      { key: "per_row_tablet", type: "select", label: "ট্যাবলেটে এক সারিতে পণ্য", options: { "2": "২টা", "3": "৩টা", "4": "৪টা" } },
-      { key: "per_row_desktop", type: "select", label: "কম্পিউটারে এক সারিতে পণ্য", options: { "3": "৩টা", "4": "৪টা", "5": "৫টা", "6": "৬টা" } },
       { key: "per_section", type: "select", label: "প্রতি ক্যাটাগরিতে কয়টা পণ্য দেখাবে", options: { "4": "৪টা", "8": "৮টা", "12": "১২টা", "0": "সব" } },
       { key: "show_more", type: "toggle", label: "\"সব দেখুন\" লিংক" },
       { key: "text_title", type: "text", label: "নিজের লেখার শিরোনাম", max: 100, placeholder: "যেমন: আমাদের সম্পর্কে" },
@@ -178,20 +175,35 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     ],
   },
   {
-    key: "card", title: "পণ্যের কার্ড", desc: "হোম, ক্যাটাগরি আর সার্চ পেজের পণ্যের বক্স।",
+    key: "layout", title: "কলাম আর ছবির আকার", desc: "এক সারিতে কয়টা পণ্য আর পণ্যের ছবি কেমন আকারে দেখাবে। হোম, ক্যাটাগরি, সার্চ আর সম্পর্কিত পণ্য — সব জায়গায় একই।",
+    fields: [
+      { key: "per_row_mobile", type: "choice", label: "📱 মোবাইলে এক সারিতে পণ্য", preview: "cols", options: { "1": "১টা", "2": "২টা", "3": "৩টা" } },
+      { key: "m1_style", type: "choice", label: "মোবাইলে ১টা করে দেখালে কার্ডের ধরন", preview: "m1", options: { card: "বড় কার্ড", list: "তালিকা (ছবি বাঁয়ে)" }, hint: "শুধু মোবাইলে ১টা কলাম বাছলে কাজ করে" },
+      { key: "per_row_desktop", type: "choice", label: "💻 কম্পিউটারে এক সারিতে পণ্য", preview: "cols", options: { "3": "৩টা", "4": "৪টা", "5": "৫টা", "6": "৬টা" } },
+      { key: "per_row_tablet", type: "select", label: "ট্যাবলেটে এক সারিতে পণ্য (ঐচ্ছিক)", options: { auto: "নিজে থেকে (মোবাইল আর কম্পিউটারের মাঝামাঝি)", "2": "২টা", "3": "৩টা", "4": "৪টা" } },
+      { key: "img_ratio", type: "choice", label: "পণ্যের ছবির আকার", preview: "ratio", options: { "1/1": "বর্গাকার", "4/5": "লম্বা", "4/3": "চওড়া" }, legacy: { "3/4": "আরও লম্বা", "16/9": "খুব চওড়া" }, hint: "বর্গাকার: সাধারণ পণ্য, গ্যাজেট · লম্বা: পোশাক, মডেলের ছবি · চওড়া: ফার্নিচার, বড় জিনিস" },
+      { key: "img_fit", type: "select", label: "ছবি কীভাবে বসবে", options: { cover: "পুরো বক্স ভরে (কিছুটা কাটা যেতে পারে)", contain: "পুরো ছবি দেখাবে" } },
+    ],
+  },
+  {
+    key: "listpage", title: "ক্যাটাগরি আর সার্চ পেজ", desc: "ক্যাটাগরি, সব পণ্য আর সার্চের ফলাফলের পেজ।",
+    fields: [
+      { key: "list_per_page", type: "select", label: "এক পাতায় কয়টা পণ্য", options: { "24": "২৪টা", "48": "৪৮টা", "96": "৯৬টা" } },
+      { key: "list_filter", type: "toggle", label: "দামের ফিল্টার (সর্বনিম্ন–সর্বোচ্চ)" },
+      { key: "list_sort", type: "toggle", label: "\"সাজান\" (দাম কম-বেশি, নতুন)" },
+      { key: "breadcrumbs", type: "toggle", label: "উপরে পথ দেখানো (হোম › ...)" },
+    ],
+  },
+  {
+    key: "card", title: "কার্ডের ডিজাইন আর বাটন", desc: "প্রতিটা পণ্যের বক্স: ডিজাইন, বাটন, ব্যাজ, ট্যাগ।",
     fields: [
       { key: "card_design", type: "select", label: "কার্ডের ডিজাইন", options: { pro: "পরিষ্কার, হালকা ছায়া", classic: "বর্ডার, মাঝে লেখা, কোণে ছাড়ের ফিতা", minimal: "বর্ডার নেই, লেখার মতো বাটন", bold: "মোটা বর্ডার আর গাঢ় ছায়া" } },
       { key: "card_order_btn", type: "toggle", label: "\"অর্ডার করুন\" বাটন" },
       { key: "card_order_text", type: "text", label: "অর্ডার বাটনের লেখা", max: 30 },
       { key: "card_cart_btn", type: "toggle", label: "\"কার্টে যোগ\" বাটন" },
       { key: "card_cart_text", type: "text", label: "কার্ট বাটনের লেখা", max: 30 },
-      { key: "img_ratio", type: "select", label: "ছবির আকার (অনুপাত)", options: { "1/1": "বর্গাকার ১:১", "4/5": "লম্বা ৪:৫ (পোশাকের জন্য)", "3/4": "লম্বা ৩:৪", "4/3": "চওড়া ৪:৩", "16/9": "চওড়া ১৬:৯" } },
       { key: "free_tag", type: "toggle", label: "\"ফ্রি ডেলিভারি\" ট্যাগ", hint: "ডেলিভারি সেটিংসে ফ্রি ডেলিভারির টাকা দেওয়া থাকলে, তার বেশি দামের পণ্যে দেখাবে" },
       { key: "card_btn_size", type: "select", label: "বাটনের লেখার সাইজ", options: { sm: "ছোট", md: "মাঝারি", lg: "বড়" } },
-      { key: "list_filter", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে দামের ফিল্টার (সর্বনিম্ন–সর্বোচ্চ)" },
-      { key: "list_per_page", type: "select", label: "ক্যাটাগরি/সার্চ পেজে এক পাতায় কয়টা পণ্য", options: { "24": "২৪টা", "48": "৪৮টা", "96": "৯৬টা" } },
-      { key: "list_sort", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে \"সাজান\" (দাম কম-বেশি, নতুন)" },
-      { key: "img_fit", type: "select", label: "ছবি কীভাবে বসবে", options: { cover: "পুরো বক্স ভরে (কিছুটা কাটা যেতে পারে)", contain: "পুরো ছবি দেখাবে" } },
       { key: "badge_fmt", type: "select", label: "ছাড়ের ব্যাজ", options: { pct: "২৪% ছাড়", minus: "-২৪%", off: "দেখাবে না" } },
     ],
   },
@@ -229,11 +241,21 @@ export const GROUPS: { key: string; title: string; desc: string; fields: Field[]
     fields: [
       { key: "coming_soon", type: "toggle", label: "দোকান সাময়িক বন্ধ (Coming Soon)", hint: "কাস্টমার শুধু নিচের লেখা দেখবে। আপনি অ্যাডমিনে লগইন থাকলে দোকান দেখতে পাবেন। ল্যান্ডিং পেজ খোলা থাকে।" },
       { key: "coming_soon_text", type: "textarea", label: "বন্ধ থাকার সময়ের লেখা", max: 300 },
-      { key: "breadcrumbs", type: "toggle", label: "ক্যাটাগরি/সার্চ পেজে উপরে পথ দেখানো (হোম › ...)" },
       { key: "track_link", type: "toggle", label: "\"অর্ডার ট্র্যাক করুন\" লিংক (মেনু আর ফুটারে)" },
     ],
   },
 ];
+
+/** থিম এডিটরে সেটিং পেজ অনুযায়ী সাজানো — দোকানদার যে পেজ বদলাতে চান সেটা খুঁজে পান */
+export const PAGES: { key: string; title: string; desc: string; groups: string[] }[] = [
+  { key: "all", title: "পুরো দোকান", desc: "সব পেজে একই থাকে", groups: ["style", "header", "footer", "float", "popup", "other"] },
+  { key: "home", title: "হোমপেজ", desc: "দোকানের প্রথম পেজ", groups: ["home", "sections"] },
+  { key: "list", title: "পণ্যের তালিকা", desc: "হোম, ক্যাটাগরি আর সার্চে পণ্যের গ্রিড", groups: ["layout", "card", "listpage"] },
+  { key: "product", title: "পণ্যের পেজ", desc: "একটা পণ্যের বিস্তারিত পেজ", groups: ["product", "reviews"] },
+];
+const ORDER = PAGES.flatMap((p) => p.groups);
+export const GROUPS = [...ALL_GROUPS].sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+export const pageOfGroup = (key: string) => PAGES.find((p) => p.groups.includes(key))?.key ?? "all";
 
 const TRUST_DEFAULTS: Cfg = {
   trust_1: "ক্যাশ অন ডেলিভারি", trust_1_sub: "পণ্য হাতে পেয়ে টাকা দিন",
@@ -251,7 +273,7 @@ const BASE: Cfg = {
   card_order_btn: "1", card_order_text: "অর্ডার করুন", card_cart_btn: "1", card_cart_text: "কার্টে যোগ", img_fit: "cover", badge_fmt: "pct",
   footer_style: "simple", footer_trust: "0", footer_about: "", social_instagram: "", social_youtube: "", social_tiktok: "", footer_copy: "",
   float_whatsapp: "0", float_call: "0", float_messenger: "", bottom_nav: "0", back_top: "1",
-  header_layout: "colored", cart_icon: "cart", per_row_tablet: "3", img_ratio: "1/1", free_tag: "1", list_sort: "1",
+  header_layout: "colored", cart_icon: "cart", per_row_tablet: "auto", m1_style: "card", img_ratio: "1/1", free_tag: "1", list_sort: "1",
   sec_features: "0", sec_offer1: "0", sec_latest: "0", sec_midbanner: "0", sec_offer2: "0", sec_video: "0", sec_offer3: "0",
   latest_title: "নতুন পণ্য", latest_count: "8", offer1_title: "বিশেষ অফার", offer1_products: "", offer2_title: "সেরা বিক্রি", offer2_products: "", offer3_title: "আপনার জন্য", offer3_products: "",
   mid_banner: "", mid_banner_link: "", video_title: "ভিডিওতে দেখুন", video_url: "",
@@ -324,7 +346,7 @@ function clean(input: Record<string, unknown>, def: Cfg): Cfg {
       case "toggle": out[f.key] = v === "1" ? "1" : "0"; break;
       case "text": case "textarea": out[f.key] = v.slice(0, f.max); break;
       case "url": out[f.key] = URL_RE.test(v) && v.length <= 200 ? v : ""; break;
-      case "choice": out[f.key] = v in f.options ? v : def[f.key] ?? ""; break;
+      case "choice": out[f.key] = v in f.options || (f.legacy && v in f.legacy) ? v : def[f.key] ?? ""; break;
       case "products": out[f.key] = [...new Set(v.split(",").map((x) => parseInt(x, 10)).filter((n) => n > 0))].slice(0, 24).join(","); break;
       case "image": out[f.key] = /^[a-z0-9_]+\/[a-z0-9-]+\.(jpg|png|webp)$/i.test(v) ? v : ""; break;
       case "order": {
@@ -408,9 +430,11 @@ export function cfgCss(cfg: Cfg): string {
   if (c("header_sticky") === "0") r.push(".site-header,.px-header{position:static}");
   if (c("cat_style") === "square") r.push(".px-cat-img{border-radius:16px}");
   const m = Math.min(3, Math.max(1, parseInt(c("per_row_mobile") || "2", 10)));
-  const t = Math.min(4, Math.max(2, parseInt(c("per_row_tablet") || "3", 10)));
   const d = Math.min(6, Math.max(3, parseInt(c("per_row_desktop") || "4", 10)));
+  const t = Math.min(4, Math.max(2, c("per_row_tablet") === "auto" || !c("per_row_tablet") ? Math.min(3, Math.round((m + d) / 2)) : parseInt(c("per_row_tablet")!, 10)));
   r.push(`.grid,.theme-pro .px-grid{grid-template-columns:repeat(${m},1fr)}@media(min-width:700px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${t},1fr)}}@media(min-width:1000px){.grid,.theme-pro .px-grid{grid-template-columns:repeat(${d},1fr)}}`);
+  if (m === 1 && c("m1_style") === "list") r.push("@media(max-width:699px){.grid .card,.theme-pro .px-grid .card{flex-direction:row;align-items:stretch}.grid .card-img,.theme-pro .px-grid .card-img{flex:0 0 38%;max-width:38%;align-self:flex-start}.grid .card-body{min-width:0}}");
+  if (m === 1 && c("m1_style") !== "list") r.push("@media(max-width:699px){.grid .card-actions{grid-template-columns:1fr 1fr}}");
   if (m === 3) r.push("@media(max-width:699px){.card-actions .btn{font-size:.78rem;padding:6px 4px}.card-title{font-size:.85rem}}");
   const ratio = { "1/1": "1/1", "4/5": "4/5", "3/4": "3/4", "4/3": "4/3", "16/9": "16/9" }[c("img_ratio") as "1/1"] ?? "1/1";
   r.push(`.card-img{aspect-ratio:${ratio}}.card-img img{width:100%;height:100%}`);

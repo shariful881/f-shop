@@ -361,3 +361,16 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa-verify-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
 .sa-verify p { margin: 8px 0 0; }
 .sa-verify .sa-pill { margin-right: 4px; }
+/* কলাম, ছবির আকার, ১ কলামের ধরনের ছোট ছবি */
+.cz-choices-cols, .cz-choices-ratio, .cz-choices-m1 { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+.cz-pv-cols { display: grid; gap: 3px; padding: 6px; align-content: center; }
+.cz-pv-cols i { position: static; background: #94a3b8; height: 17px; }
+.cz-pv-ratio { display: grid; place-items: center; padding: 5px; }
+.cz-pv-ratio i { position: static; height: 44px; max-width: 64px; background: #94a3b8; border-radius: 4px; }
+.cz-pv-m1 i { background: #94a3b8; }
+.cz-pv-m1-card i.a { left: 25%; width: 50%; top: 5px; height: 30px; } .cz-pv-m1-card i.b { left: 25%; width: 50%; top: 39px; height: 8px; background: #0f766e; }
+.cz-pv-m1-list i.a { left: 12%; width: 28%; top: 9px; height: 36px; } .cz-pv-m1-list i.b { left: 46%; width: 40%; top: 14px; height: 7px; box-shadow: 0 12px 0 #cbd5e1, 0 24px 0 #0f766e; }
+/* থিম এডিটর: পেজ অনুযায়ী ভাগ */
+.de-page-head { display: block; padding: 14px 12px 4px; font-size: .74rem; font-weight: 700; letter-spacing: .02em; color: #0f766e; text-transform: none; }
+.de-page-head small { display: block; font-weight: 500; color: #94a3b8; font-size: .7rem; }
+.de-page-head:first-child { padding-top: 6px; }

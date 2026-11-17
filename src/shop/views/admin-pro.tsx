@@ -608,6 +608,9 @@ const ChoicePreview = ({ kind, k }: { kind: string; k: string }) => {
     const d = { cart: "M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6M9.5 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM17.5 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2", basket: "M3 10h18l-2 10H5zM8 10l4-6 4 6M9 14v3M15 14v3" }[k as "cart"];
     return <span class="cz-pv cz-pv-cart"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d={d} /></svg></span>;
   }
+  if (kind === "cols") return <span class="cz-pv cz-pv-cols" style={`grid-template-columns:repeat(${parseInt(k, 10) || 1},1fr)`}>{Array.from({ length: (parseInt(k, 10) || 1) * 2 }, () => <i />)}</span>;
+  if (kind === "ratio") return <span class="cz-pv cz-pv-ratio"><i style={`aspect-ratio:${k}`} /></span>;
+  if (kind === "m1") return <span class={`cz-pv cz-pv-m1 cz-pv-m1-${k}`}><i class="a" /><i class="b" /></span>;
   return <span class={`cz-pv cz-pv-${kind} cz-pv-${kind}-${k}`}><i class="a" /><i class="b" /><i class="c" /><i class="d" /></span>;
 };
 
@@ -619,7 +622,7 @@ export const CfgField = ({ f, cfg, products, categories }: { f: Field; cfg: Cfg;
         <div class="set-field wide">
           <span>{f.label}</span>
           <div class={`cz-choices cz-choices-${f.preview}`}>
-            {Object.entries(f.options).map(([k, l]) => (
+            {Object.entries({ ...f.options, ...Object.fromEntries(Object.entries(f.legacy ?? {}).filter(([k]) => k === v)) }).map(([k, l]) => (
               <label class="cz-choice">
                 <input type="radio" name={f.key} value={k} checked={k === v} />
                 <ChoicePreview kind={f.preview} k={k} />

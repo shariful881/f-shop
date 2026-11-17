@@ -2,7 +2,7 @@
  * থিম লাইভ এডিটর — বাঁয়ে সেটিংসের ভাগ, মাঝে দোকানের আসল প্রিভিউ, ডানে সেটিং।
  * বদলালেই খসড়া সেভ হয়ে প্রিভিউ নতুন হয়; "পাবলিশ" চাপলে তবেই ক্রেতারা দেখে।
  */
-import { GROUPS, type Cfg } from "../lib/theme-config";
+import { GROUPS, PAGES, type Cfg } from "../lib/theme-config";
 import { THEMES, type ThemeKey } from "../lib/settings";
 import { ASSET_VERSION } from "./layout";
 import { CfgField } from "./admin-pro";
@@ -40,13 +40,16 @@ const Presets = () => (
 
 const GROUP_ICON: Record<string, IconName> = {
   style: "palette", header: "layout-template", home: "layout-dashboard", sections: "layout-template", popup: "megaphone",
-  product: "package", reviews: "star", card: "tag", footer: "file-text", float: "message-square", other: "sliders-horizontal",
+  product: "package", reviews: "star", card: "tag", layout: "layout-dashboard", listpage: "search", footer: "file-text", float: "message-square", other: "sliders-horizontal",
 };
 
 export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id: number; name: string }[]; categories: { id: number; name: string }[]; versions: string[]; hasDraft: boolean; shopName: string; sampleSlug?: string }) => {
   const productUrl = p.sampleSlug ? `/product/${encodeURIComponent(p.sampleSlug)}` : "";
   /** কোন ভাগ খুললে প্রিভিউতে কোন পেজ — "" মানে যে পেজে আছে সেখানেই থাকবে (হেডার/ফুটার সব পেজে থাকে) */
-  const groupPage: Record<string, string> = { home: "/", sections: "/", popup: "/", product: productUrl, reviews: productUrl ? `${productUrl}#reviews` : "", card: "/search?q=" };
+  const groupPage: Record<string, string> = { home: "/", sections: "/", popup: "/", product: productUrl, reviews: productUrl ? `${productUrl}#reviews` : "", layout: "/search?q=", card: "/search?q=", listpage: "/search?q=" };
+  /** কার্ড আর কলাম হোম/ক্যাটাগরি/সার্চ — যেখানেই থাকুন দেখা যায়, তাই সেখানেই থাকে */
+  const stay = new Set(["layout", "card"]);
+  const byKey = Object.fromEntries(GROUPS.map((g) => [g.key, g]));
   return (
   <html lang="bn">
     <head>
@@ -99,11 +102,16 @@ export const DesignEditorPage = (p: { theme: ThemeKey; cfg: Cfg; products: { id:
 
       <div class="de-body">
         <nav class="de-groups" aria-label="সেটিংসের ভাগ">
-          {GROUPS.map((g, i) => (
-            <button type="button" data-group={g.key} data-page={groupPage[g.key] ?? ""} class={i === 0 ? "active" : ""}>
-              <Icon name={GROUP_ICON[g.key] ?? "settings"} />
-              <span><strong>{g.title}</strong><small>{g.desc}</small></span>
-            </button>
+          {PAGES.map((pg) => (
+            <>
+              <span class="de-page-head">{pg.title}<small>{pg.desc}</small></span>
+              {pg.groups.map((k) => byKey[k]).filter(Boolean).map((g) => (
+                <button type="button" data-group={g!.key} data-page={groupPage[g!.key] ?? ""} data-stay={stay.has(g!.key) ? "1" : undefined} class={g!.key === GROUPS[0]!.key ? "active" : ""}>
+                  <Icon name={GROUP_ICON[g!.key] ?? "settings"} />
+                  <span><strong>{g!.title}</strong><small>{g!.desc}</small></span>
+                </button>
+              ))}
+            </>
           ))}
         </nav>
 
