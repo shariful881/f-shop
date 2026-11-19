@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { dateBn } from "../../platform/blog";
+import { platformSettings } from "../../platform/billing";
+import { courierRecordReady, orderCourierReport, platformCourierKeys } from "../lib/courier";
 import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
@@ -594,6 +596,14 @@ shop.post("/order", async (c) => {
     }
 
     await markConverted(c.env.DB, v.phone, order.id);
+    // কুরিয়ারে ক্রেতার রেকর্ড — অর্ডারে একবার খুঁজে সেভ (রেসপন্সের পরে, ক্রেতাকে অপেক্ষা করাতে হয় না)
+    if (st.demo_mode !== "1") {
+      const crJob = (async () => {
+        const plat = platformCourierKeys(await platformSettings(c.env.PLATFORM_DB));
+        if (courierRecordReady(st, plat)) await orderCourierReport(c.env.DB, st, plat, order.id, v.phone);
+      })().catch((e) => { console.error("courier report at order", e); });
+      try { c.executionCtx.waitUntil(crJob); } catch { await crJob; }
+    }
     // দোকানদারের ফোনে নোটিফিকেশন (রেসপন্সের পরে)
     const pushJob = pushToShop(c.env.DB, c.env.PLATFORM_DB, {
       title: `নতুন অর্ডার ${order.order_no}`,

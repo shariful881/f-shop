@@ -51,31 +51,66 @@ describe("কুরিয়ার রিপোর্ট", () => {
     expect(await (await admin.get("/admin/orders?status=new")).text()).not.toContain("cr-card");
     await setP("cr_bdcourier_token", "PLATFORM-TOKEN"); clearSettingsCache();
     const html = await (await admin.get("/admin/orders?status=new")).text();
-    expect(html).toContain(`data-cr-auto="${PHONE}"`);
+    expect(html).toContain(`data-cr-auto="${(await lastOrder())!.id}"`);
     expect(html).toContain('id="fr-dlg"');
   });
 
-  it("কার্ড: সুপার অ্যাডমিনের চাবি দিয়ে খোঁজে, '২২টার মধ্যে ২১টা ডেলিভারি', পরের বার ক্যাশ থেকে", async () => {
+  it("অর্ডার এলেই একবার খুঁজে অর্ডারে সেভ; তালিকা বা আবার দেখলে আর খোঁজে না", async () => {
     await setP("cr_bdcourier_token", "PLATFORM-TOKEN"); clearSettingsCache();
     const admin = await adminBrowser();
-    const card = await (await admin.post("/admin/fraud-report/card", { phone: PHONE })).text();
-    expect(calls.filter((c) => c.url.includes("bdcourier")).length).toBe(1);
-    expect(calls[0]!.auth).toBe("Bearer PLATFORM-TOKEN");
-    expect(card).toContain("২২টার মধ্যে ২১টা ডেলিভারি");
-    expect(card).toContain("cr-ok");
-    await admin.post("/admin/fraud-report/card", { phone: PHONE });
-    expect(calls.filter((c) => c.url.includes("bdcourier")).length).toBe(1); // ক্যাশ
-    // তালিকাতেও এখন ক্যাশ থেকে বার
     await new Browser().order({ phone: PHONE });
-    expect(await (await admin.get("/admin/orders?status=new")).text()).toContain("২২টার মধ্যে ২১টা ডেলিভারি");
+    const o = (await lastOrder())!;
+    await new Promise((r) => setTimeout(r, 50));
+    const bd = () => calls.filter((c) => c.url.includes("bdcourier")).length;
+    expect(bd()).toBe(1);
+    expect(calls[0]!.auth).toBe("Bearer PLATFORM-TOKEN");
+    const saved = await DB.prepare("SELECT courier_report FROM orders WHERE id = ?").bind(o.id).first<{ courier_report: string }>();
+    expect(JSON.parse(saved!.courier_report)).toMatchObject({ total: 22, success: 21, source: "BD Courier" });
+    // তালিকায় সেভ করা থেকে, বাইরের কল ছাড়া
+    const list = await (await admin.get("/admin/orders?status=new")).text();
+    expect(list).toContain("২২টার মধ্যে ২১টা ডেলিভারি");
+    expect(list).not.toContain(`data-cr-auto="${o.id}"`);
+    await admin.post("/admin/fraud-report/card", { order_id: String(o.id) });
+    await admin.get(`/admin/fraud-report?phone=${PHONE}&order=${o.id}`);
+    expect(bd()).toBe(1);
+    // "আবার খুঁজুন" চাপলেই শুধু নতুন করে খোঁজে আর অর্ডারে সেভ
+    await admin.post(`/admin/fraud-report?phone=${PHONE}&order=${o.id}`, {});
+    expect(bd()).toBe(2);
   });
 
-  it("দোকানের নিজের চাবি থাকলে সেটাই আগে", async () => {
-    await setP("cr_bdcourier_token", "PLATFORM-TOKEN"); clearSettingsCache();
+  it("পুরনো অর্ডারে (রিপোর্ট নেই) তালিকা খুললে কার্ড একবার খুঁজে সেভ করে", async () => {
     const admin = await adminBrowser();
-    await admin.post("/admin/courier", { bdcourier_token: "SHOP-TOKEN", fraud_share: "1" });
-    await admin.post("/admin/fraud-report/card", { phone: PHONE });
-    expect(calls.find((c) => c.url.includes("bdcourier"))!.auth).toBe("Bearer SHOP-TOKEN");
+    await new Browser().order({ phone: PHONE }); // তখন চাবি ছিল না → খোঁজা হয়নি
+    const o = (await lastOrder())!;
+    expect(calls.length).toBe(0);
+    await setP("cr_bdcourier_token", "PLATFORM-TOKEN"); clearSettingsCache();
+    expect(await (await admin.get("/admin/orders?status=new")).text()).toContain(`data-cr-auto="${o.id}"`);
+    const card = await (await admin.post("/admin/fraud-report/card", { order_id: String(o.id) })).text();
+    expect(card).toContain("২২টার মধ্যে ২১টা ডেলিভারি");
+    await admin.post("/admin/fraud-report/card", { order_id: String(o.id) });
+    expect(calls.filter((c) => c.url.includes("bdcourier")).length).toBe(1);
+    expect((await DB.prepare("SELECT courier_report FROM orders WHERE id = ?").bind(o.id).first<{ courier_report: string | null }>())!.courier_report).toBeTruthy();
+  });
+
+  it("শুধু সুপার অ্যাডমিনের Steadfast চাবি: অর্ডারে Steadfast-এর রিপোর্ট সেভ", async () => {
+    vi.restoreAllMocks();
+    calls = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: any, init?: any) => {
+      const url = typeof input === "string" ? input : input.url;
+      calls.push({ url, auth: new Headers(init?.headers).get("api-key") || "" });
+      if (url.includes("/fraud_check/score/")) return json({ delivery_ratio: 88, volume_band: "medium", total_reports: 1 });
+      return json({ ok: true });
+    });
+    await setP("cr_steadfast_key", "SF-K"); await setP("cr_steadfast_secret", "SF-S"); clearSettingsCache();
+    const admin = await adminBrowser();
+    await new Browser().order({ phone: PHONE });
+    const o = (await lastOrder())!;
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls.find((c) => c.url.includes("/fraud_check/score/"))!.auth).toBe("SF-K");
+    const list = await (await admin.get("/admin/orders?status=new")).text();
+    expect(list).toContain("ডেলিভারি সফল ৮৮% (Steadfast)");
+    expect(list).toContain("১টা ফ্রড রিপোর্ট");
+    expect(JSON.parse((await DB.prepare("SELECT courier_report FROM orders WHERE id = ?").bind(o.id).first<{ courier_report: string }>())!.courier_report).source).toBe("Steadfast (medium)");
   });
 
   it("পুরো রিপোর্ট: কুরিয়ার অনুযায়ী ভাগ, নিরাপদ লোগো, এই দোকানের অর্ডার", async () => {
@@ -96,7 +131,7 @@ describe("কুরিয়ার রিপোর্ট", () => {
   it("দোকানপ্রতি দৈনিক সীমা — শেষ হলে সুপার অ্যাডমিনের চাবিতে আর খোঁজে না", async () => {
     await setP("cr_bdcourier_token", "PLATFORM-TOKEN"); await setP("cr_daily_limit", "2"); clearSettingsCache();
     const admin = await adminBrowser();
-    for (const p of ["01711111111", "01722222222", "01733333333"]) await admin.post("/admin/fraud-report/card", { phone: p });
+    for (const p of ["01711111111", "01722222222", "01733333333"]) await admin.get(`/admin/fraud-check?phone=${p}`);
     expect(calls.filter((c) => c.url.includes("bdcourier")).length).toBe(2);
     const html = await (await admin.get("/admin/fraud-report?phone=01744444444")).text();
     expect(html).toContain("আজকের ফ্রি খোঁজার সীমা শেষ");

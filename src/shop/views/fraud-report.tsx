@@ -32,11 +32,11 @@ const Bar = ({ ok, bad }: { ok: number; bad: number }) => {
 };
 
 /** অর্ডার তালিকার ছোট কার্ড — চাপলে পুরো রিপোর্ট খোলে */
-export const CourierCard = ({ phone, sum, ready, error }: { phone: string; sum?: CourierSummary | null; ready: boolean; error?: string }) => {
+export const CourierCard = ({ phone, orderId, sum, ready, error }: { phone: string; orderId?: number; sum?: CourierSummary | null; ready: boolean; error?: string }) => {
   if (!sum) {
     if (!ready) return null;
     return (
-      <button type="button" class="cr-card cr-wait" data-cr-open={phone} data-cr-auto={error ? undefined : phone} title="পুরো রিপোর্ট দেখুন">
+      <button type="button" class="cr-card cr-wait" data-cr-open={phone} data-cr-order={orderId} data-cr-auto={error || !orderId ? undefined : String(orderId)} title="পুরো রিপোর্ট দেখুন">
         <span class="cr-head"><Icon name="truck" size="sm" /> কুরিয়ার রিপোর্ট</span>
         <Bar ok={0} bad={0} />
         <span class="cr-text">{error ? "খোঁজা যায়নি — চেপে আবার দেখুন" : "খুঁজছি…"}</span>
@@ -50,7 +50,7 @@ export const CourierCard = ({ phone, sum, ready, error }: { phone: string; sum?:
       : `${bn(sum.total)}টার মধ্যে ${bn(sum.success)}টা ডেলিভারি`;
   const g = grade(sum.ratio, sum.total);
   return (
-    <button type="button" class={`cr-card cr-${g.tone}`} data-cr-open={phone} title="পুরো রিপোর্ট দেখুন">
+    <button type="button" class={`cr-card cr-${g.tone}`} data-cr-open={phone} data-cr-order={orderId} title="পুরো রিপোর্ট দেখুন">
       <span class="cr-head"><Icon name="truck" size="sm" /> কুরিয়ার রিপোর্ট{(sum.reports ?? 0) > 0 && <span class="cr-flag">{bn(sum.reports!)}টা ফ্রড রিপোর্ট</span>}</span>
       <Bar ok={sum.success} bad={sum.cancelled} />
       <span class="cr-text">{text}</span>
@@ -59,7 +59,7 @@ export const CourierCard = ({ phone, sum, ready, error }: { phone: string; sum?:
 };
 
 export type ReportOrder = { id: number; order_no: string; created_at: string; total: number; status: string; outcome: string | null; consignment_id: string | null };
-export type ReportData = { phone: string; courier: CourierSummary | null; own?: Own; shared?: Shared; sharing: boolean; orders: ReportOrder[]; ready: boolean; error?: string };
+export type ReportData = { phone: string; orderId?: number; courier: CourierSummary | null; own?: Own; shared?: Shared; sharing: boolean; orders: ReportOrder[]; ready: boolean; error?: string };
 
 /** পুরো রিপোর্ট (মোডাল আর চেকার পেজ দুজায়গায়) */
 export const FraudReport = ({ d, refresh = true }: { d: ReportData; refresh?: boolean }) => {
@@ -105,12 +105,12 @@ export const FraudReport = ({ d, refresh = true }: { d: ReportData; refresh?: bo
               </tbody>
             </table></div>
           ) : <p class="muted small">কুরিয়ারে মোট {bn(c.total)}টা পার্সেল, সফল {bn(c.ratio ?? 0)}%।</p>}
-          <p class="muted small">সূত্র: {c.source}{c.approx ? " — Steadfast শুধু শতাংশ দেয়, সঠিক সংখ্যা নয়" : ""}{c.checked_at ? ` · খোঁজা হয়েছে ${dhakaTime(c.checked_at)}` : ""}</p>
+          <p class="muted small">{d.orderId ? "এই অর্ডারের জন্য একবার খোঁজা, অর্ডারে সেভ করা · " : ""}সূত্র: {c.source}{c.approx ? " — Steadfast শুধু শতাংশ দেয়, সঠিক সংখ্যা নয়" : ""}{c.checked_at ? ` · খোঁজা হয়েছে ${dhakaTime(c.checked_at)}` : ""}</p>
         </>
       ) : d.error ? <p class="fr-alert">{d.error}</p>
         : d.ready ? <p class="muted small">এখনো কুরিয়ারে খোঁজা হয়নি।</p>
         : <p class="muted small">কুরিয়ারের রিপোর্ট দেখতে <a href="/admin/courier">কুরিয়ার সেটিংসে</a> Steadfast-এর চাবি বা BD Courier-এর API কী দিন।</p>}
-      {d.ready && refresh && <button type="button" class="btn btn-outline btn-sm" data-cr-refresh={d.phone}><Icon name="rotate-ccw" size="sm" /> {c ? "কুরিয়ারে আবার খুঁজুন" : "কুরিয়ারে খুঁজুন"}</button>}
+      {d.ready && refresh && <button type="button" class="btn btn-outline btn-sm" data-cr-refresh={d.phone} data-cr-order={d.orderId}><Icon name="rotate-ccw" size="sm" /> {c ? "কুরিয়ারে আবার খুঁজুন" : "কুরিয়ারে খুঁজুন"}</button>}
 
       <h3 class="fr-h">SellxBD-এর অন্য দোকানে</h3>
       {d.sharing

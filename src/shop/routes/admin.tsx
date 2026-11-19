@@ -38,7 +38,7 @@ import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/cu
 import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMedia, type MediaFolder } from "../lib/media";
 import { MediaPage } from "../views/media";
 import { DesignEditorPage } from "../views/design";
-import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, platformCourierKeys, type PlatformCourierKeys, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
+import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, orderCourierReport, parseOrderReport, platformCourierKeys, type PlatformCourierKeys, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type CourierSummary, type Risk } from "../lib/fraud";
 import { CourierCard, FraudCheckPage, FraudDialog, FraudReport, type ReportData, type ReportOrder } from "../views/fraud-report";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
@@ -365,16 +365,18 @@ async function platformCourier(c: Ctx): Promise<PlatformCourierKeys | undefined>
 }
 
 /** পুরো ফ্রড রিপোর্টের তথ্য — lookup: ক্যাশে না থাকলে কুরিয়ারে খোঁজা */
-async function fraudReportData(c: Ctx, phone: string, lookup: "never" | "missing" | "force"): Promise<ReportData> {
+async function fraudReportData(c: Ctx, phone: string, lookup: "never" | "missing" | "force", orderId?: number): Promise<ReportData> {
   const db = c.env.DB;
   const plat = await platformCourier(c);
   const ready = courierRecordReady(c.var.settings, plat);
-  let courier: CourierSummary | null = (await cachedCourierRecords(db, [phone]))[phone] ?? null;
+  // অর্ডারের রিপোর্ট: অর্ডারে সেভ করা (একবার খোঁজা); অর্ডার ছাড়া (ফ্রড চেকার): নম্বরের ক্যাশ
+  const order = orderId ? await db.prepare("SELECT id, phone, courier_report FROM orders WHERE id = ? AND phone = ?").bind(orderId, phone).first<{ id: number; phone: string; courier_report: string | null }>() : null;
+  let courier: CourierSummary | null = order ? parseOrderReport(order.courier_report) : (await cachedCourierRecords(db, [phone]))[phone] ?? null;
   let error: string | undefined;
   if (ready && (lookup === "force" || (lookup === "missing" && !courier))) {
     if (!(await hitRateLimit(db, "courier-check", 60, 60))) error = "অনেকবার খোঁজা হয়েছে, এক মিনিট পরে চেষ্টা করুন";
     else {
-      const r = await courierRecord(db, c.var.settings, phone, plat);
+      const r = order ? await orderCourierReport(db, c.var.settings, plat, order.id, phone, lookup === "force") : await courierRecord(db, c.var.settings, phone, plat);
       if ("error" in r) error = r.error; else courier = r;
     }
   }
@@ -383,38 +385,37 @@ async function fraudReportData(c: Ctx, phone: string, lookup: "never" | "missing
     sharedRecords(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, [phone]),
     db.prepare("SELECT id, order_no, created_at, total, status, outcome, consignment_id FROM orders WHERE phone = ? ORDER BY id DESC LIMIT 30").bind(phone).all<ReportOrder>(),
   ]);
-  return { phone, courier, own: own[phone], shared: shared[phone], sharing: c.var.settings.fraud_share !== "0", orders: orders.results, ready, error };
+  return { phone, orderId: order?.id, courier, own: own[phone], shared: shared[phone], sharing: c.var.settings.fraud_share !== "0", orders: orders.results, ready, error };
 }
 
-/** অর্ডার তালিকার কার্ড — না থাকলে খুঁজে আনে (তালিকা খুললে স্ক্রিনের অর্ডারগুলোর জন্য JS ডাকে) */
+/** অর্ডার তালিকার কার্ড — অর্ডারে সেভ না থাকলে একবার খুঁজে সেভ (তালিকা খুললে পুরনো অর্ডারের জন্য JS ডাকে) */
 admin.post("/fraud-report/card", async (c) => {
   const b = await c.req.parseBody();
-  const phone = normalizePhone(String(b.phone ?? ""));
-  if (!phone) return c.html("", 400);
+  const id = toInt(b.order_id, 0);
+  const o = id ? await c.env.DB.prepare("SELECT id, phone FROM orders WHERE id = ?").bind(id).first<{ id: number; phone: string }>() : null;
+  if (!o) return c.html("", 400);
   const plat = await platformCourier(c);
   const ready = courierRecordReady(c.var.settings, plat);
-  let sum: CourierSummary | null = (await cachedCourierRecords(c.env.DB, [phone]))[phone] ?? null;
+  let sum: CourierSummary | null = null;
   let error: string | undefined;
-  if (!sum && ready) {
-    if (!(await hitRateLimit(c.env.DB, "courier-check", 60, 60))) error = "busy";
-    else {
-      const r = await courierRecord(c.env.DB, c.var.settings, phone, plat);
-      if ("error" in r) error = r.error; else sum = r;
-    }
+  if (!(await hitRateLimit(c.env.DB, "courier-card", 120, 60))) error = "busy";
+  else {
+    const r = await orderCourierReport(c.env.DB, c.var.settings, plat, o.id, o.phone);
+    if ("error" in r) error = r.error; else sum = r;
   }
-  return c.html(<CourierCard phone={phone} sum={sum} ready={ready} error={error} />);
+  return c.html(<CourierCard phone={o.phone} orderId={o.id} sum={sum} ready={ready} error={error} />);
 });
 
 /** পুরো রিপোর্ট (মোডালের ভিতরে) — GET: ক্যাশ থেকে (না থাকলে খোঁজে), POST: আবার খোঁজা */
 admin.get("/fraud-report", async (c) => {
   const phone = normalizePhone(c.req.query("phone") || "");
   if (!phone) return c.html(<p class="fr-alert">সঠিক মোবাইল নম্বর নয়</p>, 400);
-  return c.html(<FraudReport d={await fraudReportData(c, phone, "missing")} />);
+  return c.html(<FraudReport d={await fraudReportData(c, phone, "missing", toInt(c.req.query("order"), 0) || undefined)} />);
 });
 admin.post("/fraud-report", async (c) => {
   const phone = normalizePhone(c.req.query("phone") || "");
   if (!phone) return c.html(<p class="fr-alert">সঠিক মোবাইল নম্বর নয়</p>, 400);
-  return c.html(<FraudReport d={await fraudReportData(c, phone, "force")} />);
+  return c.html(<FraudReport d={await fraudReportData(c, phone, "force", toInt(c.req.query("order"), 0) || undefined)} />);
 });
 
 /** ফ্রড চেকার পেজ — যেকোনো নম্বর */
@@ -469,7 +470,10 @@ admin.get("/orders", async (c) => {
     for (const r of h) history[r.phone] = { good: r.good, bad: r.bad };
   }
   const risk = await riskMap(c, phones);
-  const courierSums = await cachedCourierRecords(db, phones);
+  // অর্ডারে সেভ করা রিপোর্ট আগে; না থাকলে (পুরনো অর্ডার) নম্বরের ক্যাশ
+  const phoneCache = await cachedCourierRecords(db, phones);
+  const courierSums: Record<number, CourierSummary> = {};
+  for (const o of orders) { const r = parseOrderReport(o.courier_report) ?? phoneCache[o.phone]; if (r) courierSums[o.id] = r; }
   const crReady = courierRecordReady(c.var.settings, await platformCourier(c));
 
   return render(c, "অর্ডার", "orders",
@@ -570,6 +574,14 @@ admin.post("/orders/new", async (c) => {
     flash(c, r.ok && !r.purchaseFail ? "ok" : "error", `অর্ডার ${order.order_no} তৈরি হয়েছে। ${r.message}`);
   } else {
     flash(c, "ok", `অর্ডার ${order.order_no} তৈরি হয়েছে — "নতুন" তালিকায় আছে। কথা বলে নিশ্চিত হলে কনফার্ম করুন।`);
+  }
+  // কুরিয়ারে ক্রেতার রেকর্ড — একবার খুঁজে অর্ডারে সেভ (পেছনে)
+  if (c.var.settings.demo_mode !== "1") {
+    const crJob = (async () => {
+      const plat = await platformCourier(c);
+      if (courierRecordReady(c.var.settings, plat)) await orderCourierReport(c.env.DB, c.var.settings, plat, order.id, v.phone);
+    })().catch(() => {});
+    try { c.executionCtx.waitUntil(crJob); } catch { await crJob; }
   }
   return c.redirect(`/admin/orders/${order.id}`, 303);
 });
@@ -700,7 +712,7 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
     sharedRecords(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, [o.phone]),
     cachedCourierRecords(db, [o.phone]),
   ]);
-  const record = { own: own[o.phone], shared: shared[o.phone], courier: cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings, await platformCourier(c)) };
+  const record = { own: own[o.phone], shared: shared[o.phone], courier: parseOrderReport(o.courier_report) ?? cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings, await platformCourier(c)) };
   return render(c, o.order_no, "orders",
     <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
       record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} wa={waMessages(o, data.items, c.var.settings, publicOrigin(c))} />);
@@ -951,7 +963,7 @@ admin.post("/orders/:id{[0-9]+}/courier-check", async (c) => {
   if (!(await hitRateLimit(c.env.DB, "courier-check", 60, 60))) {
     flash(c, "error", "অনেকবার খোঁজা হয়েছে, এক মিনিট পরে চেষ্টা করুন");
   } else {
-    const r = await courierRecord(c.env.DB, c.var.settings, o.phone, await platformCourier(c));
+    const r = await orderCourierReport(c.env.DB, c.var.settings, await platformCourier(c), id, o.phone, true);
     flash(c, "error" in r ? "error" : "ok", "error" in r ? r.error : `কুরিয়ারের রেকর্ড পাওয়া গেছে (${r.source})`);
   }
   return c.redirect(`/admin/orders/${id}`, 303);

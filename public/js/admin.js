@@ -385,7 +385,7 @@ document.addEventListener("click", function (e) {
 })();
 
 /* কুরিয়ার রিপোর্ট / ফ্রড রিপোর্ট:
-   - অর্ডার তালিকায় স্ক্রিনে আসা কার্ডগুলোর রিপোর্ট নিজে থেকে আনা (একই নম্বর একবার, একসাথে ৩টা)
+   - প্রতিটা অর্ডারে একবার খোঁজা হয়ে অর্ডারে সেভ থাকে; তালিকায় স্ক্রিনে আসা যেসব অর্ডারে এখনো নেই, শুধু সেগুলো (একসাথে ৩টা)
    - কার্ডে চাপলে পুরো রিপোর্ট মোডালে */
 (function () {
   var post = function (url, data) {
@@ -393,29 +393,26 @@ document.addEventListener("click", function (e) {
     Object.keys(data || {}).forEach(function (k) { fd.append(k, data[k]); });
     return fetch(url, { method: "POST", body: fd, credentials: "same-origin" });
   };
-  var cardsOf = function (phone) { return document.querySelectorAll('[data-cr-open="' + phone + '"].cr-card'); };
-  var replaceCards = function (phone, html) {
-    if (!html) return;
-    cardsOf(phone).forEach(function (el) { el.outerHTML = html; });
+  var replaceCard = function (orderId, html) {
+    if (!html || !orderId) return;
+    document.querySelectorAll('.cr-card[data-cr-order="' + orderId + '"]').forEach(function (el) { el.outerHTML = html; });
+  };
+  var cardFor = function (orderId) {
+    return post("/admin/fraud-report/card", { order_id: orderId }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (h) { replaceCard(orderId, h); });
   };
 
-  /* নিজে থেকে আনা */
+  /* স্ক্রিনে আসা অর্ডারগুলোর জন্য একবার */
   var queue = [], seen = {}, running = 0;
   var pump = function () {
     while (running < 3 && queue.length) {
-      var phone = queue.shift();
       running++;
-      post("/admin/fraud-report/card", { phone: phone })
-        .then(function (r) { return r.ok ? r.text() : ""; })
-        .then((function (p) { return function (html) { replaceCards(p, html); }; })(phone))
-        .catch(function () {})
-        .then(function () { running--; pump(); });
+      cardFor(queue.shift()).catch(function () {}).then(function () { running--; pump(); });
     }
   };
   var want = function (el) {
-    var phone = el.getAttribute("data-cr-auto");
-    if (!phone || seen[phone]) return;
-    seen[phone] = 1; queue.push(phone); pump();
+    var id = el.getAttribute("data-cr-auto");
+    if (!id || seen[id]) return;
+    seen[id] = 1; queue.push(id); pump();
   };
   var autos = document.querySelectorAll("[data-cr-auto]");
   if (autos.length) {
@@ -432,16 +429,12 @@ document.addEventListener("click", function (e) {
   if (!dlg) return;
   var body = dlg.querySelector("[data-fr-body]");
   var title = dlg.querySelector("[data-fr-title-phone]");
-  var load = function (phone, refresh) {
+  var urlOf = function (phone, order) { return "/admin/fraud-report?phone=" + encodeURIComponent(phone) + (order ? "&order=" + encodeURIComponent(order) : ""); };
+  var load = function (phone, order, refresh) {
     body.innerHTML = '<p class="muted center">' + (refresh ? "কুরিয়ারে খুঁজছি…" : "লোড হচ্ছে…") + "</p>";
-    var url = "/admin/fraud-report?phone=" + encodeURIComponent(phone);
-    (refresh ? post(url, {}) : fetch(url, { credentials: "same-origin" }))
+    (refresh ? post(urlOf(phone, order), {}) : fetch(urlOf(phone, order), { credentials: "same-origin" }))
       .then(function (r) { return r.text(); })
-      .then(function (html) {
-        body.innerHTML = html;
-        // নতুন খোঁজার পর তালিকার কার্ডও বদলানো
-        if (refresh) post("/admin/fraud-report/card", { phone: phone }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (h) { replaceCards(phone, h); }).catch(function () {});
-      })
+      .then(function (html) { body.innerHTML = html; if (refresh && order) cardFor(order).catch(function () {}); })
       .catch(function () { body.innerHTML = '<p class="fr-alert">লোড হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন</p>'; });
   };
   document.addEventListener("click", function (e) {
@@ -451,16 +444,17 @@ document.addEventListener("click", function (e) {
       var phone = open.getAttribute("data-cr-open");
       title.textContent = phone;
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
-      load(phone, false);
+      load(phone, open.getAttribute("data-cr-order"), false);
       return;
     }
     var re = e.target.closest && e.target.closest("[data-cr-refresh]");
     if (re) {
-      if (dlg.contains(re)) { load(re.getAttribute("data-cr-refresh"), true); return; }
+      var p = re.getAttribute("data-cr-refresh"), o = re.getAttribute("data-cr-order");
+      if (dlg.contains(re)) { load(p, o, true); return; }
       // ফ্রড চেকার পেজে: রিপোর্টটাই বদলানো
       var box = re.closest(".fr");
       re.disabled = true; re.textContent = "কুরিয়ারে খুঁজছি…";
-      post("/admin/fraud-report?phone=" + encodeURIComponent(re.getAttribute("data-cr-refresh")), {})
+      post(urlOf(p, o), {})
         .then(function (r) { return r.text(); })
         .then(function (html) { if (box) box.outerHTML = html; })
         .catch(function () { re.disabled = false; re.textContent = "আবার চেষ্টা করুন"; });

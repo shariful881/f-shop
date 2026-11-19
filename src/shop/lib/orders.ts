@@ -36,6 +36,8 @@ export type Order = {
   discount: number;
   courier: string | null;
   consignment_id: string | null;
+  /** কুরিয়ারে একবার খোঁজা ক্রেতার রিপোর্ট (JSON — CourierSummary) */
+  courier_report?: string | null;
   tracking_code: string | null;
   courier_status: string | null;
   courier_sent_at: string | null;

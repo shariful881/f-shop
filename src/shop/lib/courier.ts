@@ -299,3 +299,28 @@ export async function courierRecord(db: D1Database, s: Settings, phone: string, 
     .run();
   return { ...found, checked_at: new Date().toISOString().slice(0, 19).replace("T", " ") };
 }
+
+/** অর্ডারে সেভ করা রিপোর্ট পড়া */
+export function parseOrderReport(raw: string | null | undefined): CourierSummary | null {
+  if (!raw) return null;
+  try { return JSON.parse(raw) as CourierSummary; } catch { return null; }
+}
+
+/**
+ * প্রতিটা অর্ডারে একবার: সেভ করা থাকলে সেটাই, না থাকলে খুঁজে অর্ডারের সাথে স্থায়ীভাবে সেভ।
+ * একই নম্বর ১২ ঘণ্টার মধ্যে খোঁজা থাকলে আবার কুরিয়ারে যায় না। force = "আবার খুঁজুন"।
+ */
+export async function orderCourierReport(db: D1Database, s: Settings, platform: PlatformCourierKeys | undefined, orderId: number, phone: string, force = false): Promise<CourierSummary | { error: string }> {
+  if (!force) {
+    const row = await db.prepare("SELECT courier_report FROM orders WHERE id = ?").bind(orderId).first<{ courier_report: string | null }>();
+    const saved = parseOrderReport(row?.courier_report);
+    if (saved) return saved;
+  }
+  if (!courierRecordReady(s, platform)) return { error: "কুরিয়ার রেকর্ড দেখার চাবি দেওয়া নেই" };
+  let found: CourierSummary | { error: string } | undefined = force ? undefined : (await cachedCourierRecords(db, [phone]))[phone];
+  if (!found) found = await courierRecord(db, s, phone, platform);
+  if ("error" in found) return found;
+  const report = { ...found, checked_at: found.checked_at ?? new Date().toISOString().slice(0, 19).replace("T", " ") };
+  await db.prepare("UPDATE orders SET courier_report = ? WHERE id = ?").bind(JSON.stringify(report), orderId).run();
+  return report;
+}

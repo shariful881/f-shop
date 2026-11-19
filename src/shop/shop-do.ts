@@ -30,6 +30,7 @@ import m0023 from "../../migrations/shop/0023_push_blog.sql";
 import m0024 from "../../migrations/shop/0024_images_r2.sql";
 import m0025 from "../../migrations/shop/0025_orders_created_idx.sql";
 import m0026 from "../../migrations/shop/0026_password_resets.sql";
+import m0027 from "../../migrations/shop/0027_order_courier_report.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
 import { mediaUsage } from "./lib/media";
@@ -64,6 +65,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0024_images_r2", m0024],
   ["0025_orders_created_idx", m0025],
   ["0026_password_resets", m0026],
+  ["0027_order_courier_report", m0027],
 ];
 
 export type SetupInput = {
