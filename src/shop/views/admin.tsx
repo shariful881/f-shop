@@ -11,7 +11,7 @@ import { ASSET_VERSION } from "./layout";
 import { Icon } from "./icons";
 import { EmptyState, PageHead } from "./ui";
 import { MediaField } from "./media-field";
-import type { ShopState } from "../../platform/billing";
+import { topupMethod, type ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
@@ -769,9 +769,10 @@ export type TopupRow = { id: number; amount: number; method: string; sender: str
 const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
 const TOPUP_STATUS: Record<string, string> = { pending: "অপেক্ষায়", approved: "যোগ হয়েছে", rejected: "বাতিল" };
 
-export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; online?: boolean; errors?: Record<string, string>; values?: Record<string, string> }) => {
+export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; errors?: Record<string, string>; values?: Record<string, string> }) => {
   const e = p.errors ?? {};
   const v = p.values ?? {};
+  const bank = !!(p.fees.dbbl_account_no || "").trim();
   return (
     <>
       <h1>বিলিং ও প্ল্যান</h1>
@@ -791,32 +792,29 @@ export const BillingPage = (p: { state: ShopState; fees: Record<string, string>;
         </section>
         <section class="panel">
           <h2>রিচার্জ করুন</h2>
-          {p.online && (
-            <form method="post" action="/admin/billing/pay" class="order-form pay-online">
-              <p class="pay-online-head"><Icon name="zap" size="sm" /> <strong>অনলাইনে পে করুন — সাথে সাথে ব্যালেন্সে যোগ হবে</strong><br /><small class="muted">bKash, Nagad, Rocket, Upay — TrxID লেখার দরকার নেই</small></p>
-              <div class="pay-online-row">
-                <label class="field"><span>টাকা (সর্বনিম্ন {taka(Number(p.fees.min_topup || 100))})</span>
-                  <input type="number" name="amount" min={p.fees.min_topup || "100"} max="100000" value={v.pay_amount ?? ""} required inputmode="numeric" />
-                  {e.pay_amount && <small class="error">{e.pay_amount}</small>}
-                </label>
-                <button class="btn btn-primary">পে করুন →</button>
-              </div>
-            </form>
-          )}
-          {p.online && <p class="muted pay-or">অথবা নিজে Send Money করে TrxID দিন (যাচাইয়ে কিছু সময় লাগে):</p>}
           <ol class="small-list">
-            <li>bKash <strong>{p.fees.bkash_number}</strong> অথবা Nagad <strong>{p.fees.nagad_number}</strong> নম্বরে <strong>Send Money</strong> করুন</li>
-            <li>নিচে টাকার পরিমাণ, আপনার নম্বর আর Transaction ID দিন</li>
+            <li>bKash <strong>{p.fees.bkash_number}</strong> অথবা Nagad <strong>{p.fees.nagad_number}</strong> নম্বরে <strong>Send Money</strong> করুন{bank ? <>, অথবা নিচের DBBL ব্যাংক অ্যাকাউন্টে টাকা পাঠান</> : null}</li>
+            <li>নিচে টাকার পরিমাণ, যে নম্বর/অ্যাকাউন্ট থেকে পাঠিয়েছেন আর Transaction ID দিন</li>
             <li>যাচাই করে আমরা ব্যালেন্সে যোগ করে দেব</li>
           </ol>
+          {bank && (
+            <div class="bank-box">
+              <strong>DBBL (ডাচ্-বাংলা ব্যাংক)</strong>
+              <dl>
+                {p.fees.dbbl_account_name && <><dt>অ্যাকাউন্টের নাম</dt><dd>{p.fees.dbbl_account_name}</dd></>}
+                <dt>অ্যাকাউন্ট নম্বর</dt><dd><b>{p.fees.dbbl_account_no}</b></dd>
+                {p.fees.dbbl_branch && <><dt>শাখা</dt><dd>{p.fees.dbbl_branch}</dd></>}
+              </dl>
+            </div>
+          )}
           <form method="post" action="/admin/billing/topup" class="order-form">
             <div class="form-grid">
               <label class="field"><span>মাধ্যম</span>
-                <select name="method"><option value="bkash" selected={v.method !== "nagad"}>bKash</option><option value="nagad" selected={v.method === "nagad"}>Nagad</option></select>
+                <select name="method"><option value="bkash" selected={!v.method || v.method === "bkash"}>bKash</option><option value="nagad" selected={v.method === "nagad"}>Nagad</option>{bank && <option value="dbbl" selected={v.method === "dbbl"}>DBBL ব্যাংক</option>}</select>
               </label>
               <label class="field"><span>টাকা (সর্বনিম্ন {taka(Number(p.fees.min_topup || 100))})</span><input type="number" name="amount" min={p.fees.min_topup || "100"} value={v.amount ?? ""} required />{e.amount && <small class="error">{e.amount}</small>}</label>
-              <label class="field"><span>যে নম্বর থেকে পাঠিয়েছেন</span><input type="tel" name="sender" value={v.sender ?? ""} required />{e.sender && <small class="error">{e.sender}</small>}</label>
-              <label class="field"><span>Transaction ID</span><input type="text" name="trx_id" value={v.trx_id ?? ""} required maxlength={30} />{e.trx_id && <small class="error">{e.trx_id}</small>}</label>
+              <label class="field"><span>যে নম্বর বা অ্যাকাউন্ট থেকে পাঠিয়েছেন</span><input type="tel" name="sender" value={v.sender ?? ""} required />{e.sender && <small class="error">{e.sender}</small>}</label>
+              <label class="field"><span>Transaction ID (ব্যাংকে রেফারেন্স নম্বর)</span><input type="text" name="trx_id" value={v.trx_id ?? ""} required maxlength={30} />{e.trx_id && <small class="error">{e.trx_id}</small>}</label>
             </div>
             <button class="btn btn-primary">রিচার্জের অনুরোধ পাঠান</button>
           </form>
@@ -826,7 +824,7 @@ export const BillingPage = (p: { state: ShopState; fees: Record<string, string>;
         <section class="panel">
           <h2>রিচার্জের অনুরোধ</h2>
           <table class="table compact"><tbody>
-            {p.topups.map((t) => <tr><td>{dhakaTime(t.created_at)}</td><td>{t.method === "bkash" ? "bKash" : "Nagad"} · {t.trx_id}</td><td>{taka(t.amount)}</td><td><span class={`pill ${t.status === "approved" ? "pill-ok" : t.status === "rejected" ? "pill-bad" : ""}`}>{TOPUP_STATUS[t.status]}</span></td></tr>)}
+            {p.topups.map((t) => <tr><td>{dhakaTime(t.created_at)}</td><td>{topupMethod(t.method)} · {t.trx_id}</td><td>{taka(t.amount)}</td><td><span class={`pill ${t.status === "approved" ? "pill-ok" : t.status === "rejected" ? "pill-bad" : ""}`}>{TOPUP_STATUS[t.status]}</span></td></tr>)}
           </tbody></table>
         </section>
       )}

@@ -379,3 +379,42 @@ describe("প্ল্যানের সীমার সতর্কবার�
     expect(html).toContain("৳৫");
   });
 });
+
+describe("হাতে রিচার্জ — DBBL ব্যাংক", () => {
+  const setP = (k: string, v: string) => pdb().prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v).run();
+  beforeEach(async () => { await resetDb(); await pdb().prepare("DELETE FROM topups").run(); });
+
+  it("অ্যাকাউন্ট নম্বর না দিলে ব্যাংকের অপশন নেই; দিলে তথ্য আর অপশন দেখায়", async () => {
+    await setP("dbbl_account_no", ""); clearSettingsCache();
+    const a = await adminBrowser();
+    expect(await (await a.get("/admin/billing")).text()).not.toContain('value="dbbl"');
+    await setP("dbbl_account_no", "1234567890123"); await setP("dbbl_account_name", "SellxBD Ltd"); await setP("dbbl_branch", "বগুড়া"); clearSettingsCache();
+    const html = await (await a.get("/admin/billing")).text();
+    expect(html).toContain('value="dbbl"');
+    expect(html).toContain("1234567890123");
+    expect(html).toContain("SellxBD Ltd");
+  });
+
+  it("ব্যাংকে পাঠানো রিচার্জ জমা আর অনুমোদনে ব্যালেন্সে যোগ", async () => {
+    await setP("dbbl_account_no", "1234567890123"); clearSettingsCache();
+    const a = await adminBrowser();
+    const before = (await shop()).balance;
+    const r = await a.post("/admin/billing/topup", { method: "dbbl", amount: 500, sender: "1051 2345 678", trx_id: "ft-778899" });
+    expect(r.status).toBe(303);
+    const t = await pdb().prepare("SELECT * FROM topups").first<Record<string, any>>();
+    expect(t).toMatchObject({ method: "dbbl", sender: "10512345678", trx_id: "FT-778899", status: "pending", amount: 500 });
+    const sa = await superBrowser();
+    const list = await (await sa.fetch("/super/topups", { base: P } as RequestInit)).text();
+    expect(list).toContain("DBBL ব্যাংক");
+    await sa.fetch(`/super/topups/${t!.id}/approve`, { method: "POST", base: P, body: new URLSearchParams() } as RequestInit);
+    expect((await shop()).balance).toBe(before + 500);
+    expect((await ledger("topup")).at(-1)!.ref).toBe(`topup:${t!.id}`);
+  });
+
+  it("ব্যাংক বন্ধ থাকলে dbbl পাঠালেও bKash ধরা হয়", async () => {
+    await setP("dbbl_account_no", ""); clearSettingsCache();
+    const a = await adminBrowser();
+    await a.post("/admin/billing/topup", { method: "dbbl", amount: 200, sender: "01812345678", trx_id: "BK123456" });
+    expect((await pdb().prepare("SELECT method FROM topups").first<{ method: string }>())!.method).toBe("bkash");
+  });
+});

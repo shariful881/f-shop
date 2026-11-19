@@ -5,6 +5,7 @@
 import { RISK_LABEL } from "./verify";
 import { WARN_AT, type Usage } from "./usage";
 import { plans } from "./plans";
+import { topupMethod } from "./billing";
 import type { Child } from "hono/jsx";
 import { ASSET_VERSION } from "../shop/views/layout";
 import { Icon, type IconName } from "../shop/views/icons";
@@ -668,14 +669,14 @@ export const TopupTable = ({ rows, role, showShop = true }: { rows: TopupRow[]; 
       <tr>
         {showShop && <td><a href={`/super/shops/${t.shop_id}`}>{t.shop_name}</a><br /><small class="sa-muted">{t.slug}</small></td>}
         <td><small>{dhakaTime(t.created_at)}</small></td>
-        <td><span class={`sa-pill sa-pm-${t.method}`}>{t.method === "bkash" ? "bKash" : "Nagad"}</span></td>
+        <td><span class={`sa-pill sa-pm-${t.method}`}>{topupMethod(t.method)}</span></td>
         <td><code class="sa-code">{t.trx_id}</code></td>
         <td>{t.sender}</td>
         <td class="sa-r"><b>{taka(t.amount)}</b></td>
         <td>
           {t.status === "pending" && can(role, "topups") ? (
             <div class="sa-row">
-              <form method="post" action={`/super/topups/${t.id}/approve`} class="sa-inline" data-confirm={`bKash/Nagad অ্যাপে ${t.trx_id} মিলিয়েছেন? ${taka(t.amount)} ব্যালেন্সে যোগ হবে।`}><button class="sa-btn sa-btn-sm">✓ অনুমোদন</button></form>
+              <form method="post" action={`/super/topups/${t.id}/approve`} class="sa-inline" data-confirm={`${t.method === "dbbl" ? "DBBL ব্যাংক স্টেটমেন্টে" : `${topupMethod(t.method)} অ্যাপে`} ${t.trx_id} মিলিয়েছেন? ${taka(t.amount)} ব্যালেন্সে যোগ হবে।`}><button class="sa-btn sa-btn-sm">✓ অনুমোদন</button></form>
               <form method="post" action={`/super/topups/${t.id}/reject`} class="sa-inline" data-confirm="এই অনুরোধ বাতিল করবেন?"><button class="sa-btn sa-btn-sm sa-btn-danger">✕</button></form>
             </div>
           ) : <span class={`sa-pill sa-tp-${t.status}`}>{t.status === "approved" ? "অনুমোদিত" : t.status === "rejected" ? "বাতিল" : "অপেক্ষায়"}</span>}
@@ -692,7 +693,7 @@ export const TopupsPage = (p: { pending: TopupRow[]; recent: TopupRow[]; role: S
       <Kpi label="আজ অনুমোদিত" value={taka(p.stats.today)} />
       <Kpi label="৩০ দিনে অনুমোদিত" value={taka(p.stats.d30)} />
     </div>
-    <Card title="অনুমোদনের অপেক্ষায়" action={<span class="sa-muted">bKash/Nagad অ্যাপে Transaction ID আর টাকা মিলিয়ে তারপর অনুমোদন দিন</span>}>
+    <Card title="অনুমোদনের অপেক্ষায়" action={<span class="sa-muted">bKash/Nagad অ্যাপে বা DBBL স্টেটমেন্টে Transaction ID আর টাকা মিলিয়ে তারপর অনুমোদন দিন</span>}>
       {p.pending.length === 0 ? <Empty text="অপেক্ষায় কোনো অনুরোধ নেই ✓" /> : <TopupTable rows={p.pending} role={p.role} />}
     </Card>
     <Card title="আগের অনুরোধ" action={
@@ -716,7 +717,7 @@ export const FinancePage = ({ f }: { f: FinanceData }) => (
   <>
     <div class="sa-kpis">
       <Kpi label="মোট আয় (সব সময়)" value={taka(f.totals.revenue)} sub="অর্ডার চার্জ + মাসিক চার্জ" />
-      <Kpi label="মোট রিচার্জ এসেছে" value={taka(f.totals.topups)} sub="অনুমোদিত bKash/Nagad" />
+      <Kpi label="মোট রিচার্জ এসেছে" value={taka(f.totals.topups)} sub="অনুমোদিত bKash/Nagad/ব্যাংক" />
       <Kpi label="দোকানের কাছে জমা" value={taka(f.totals.credit)} sub="অগ্রিম ব্যালেন্স (দায়)" />
       <Kpi label="বকেয়া" value={taka(f.totals.dues)} sub="মাইনাস ব্যালেন্সের যোগফল" tone={f.totals.dues < 0 ? "down" : ""} />
     </div>
@@ -958,6 +959,10 @@ export const SettingsPage = ({ s }: { s: Record<string, string> }) => (
       <div class="sa-form">
         <label>bKash নম্বর</label><input type="text" name="bkash_number" value={s.bkash_number} />
         <label>Nagad নম্বর</label><input type="text" name="nagad_number" value={s.nagad_number} />
+        <label>DBBL — অ্যাকাউন্টের নাম</label><input type="text" name="dbbl_account_name" value={s.dbbl_account_name || ""} maxlength={60} />
+        <label>DBBL — অ্যাকাউন্ট নম্বর</label><input type="text" name="dbbl_account_no" value={s.dbbl_account_no || ""} maxlength={30} />
+        <label>DBBL — শাখা</label><input type="text" name="dbbl_branch" value={s.dbbl_branch || ""} maxlength={60} />
+        <small class="sa-muted">অ্যাকাউন্ট নম্বর না দিলে দোকানদারের রিচার্জে ব্যাংকের অপশন দেখাবে না।</small>
         <label>সাপোর্ট নম্বর (হোমপেজে দেখাবে)</label><input type="text" name="support_phone" value={s.support_phone} />
       </div>
     </Card>
@@ -983,53 +988,6 @@ export const GoogleSettings = ({ s }: { s: Record<string, string> }) => (
       </div>
     </Card>
   </form>
-);
-
-/** অনলাইন রিচার্জ (UddoktaPay) — key কখনো পেজে দেখানো হয় না */
-export const PaymentSettings = ({ s, domain }: { s: Record<string, string>; domain: string }) => {
-  const hasKey = !!(s.uddokta_key || "").trim();
-  return (
-    <form method="post" action="/super/settings/payment" style="margin-top:16px">
-      <Card title="অনলাইন রিচার্জ (UddoktaPay)">
-        <div class="sa-form">
-          <p class="sa-muted"><small>চালু থাকলে দোকানদার বিলিং পেজে টাকা লিখে bKash/Nagad/Rocket-এ পে করবেন — যাচাই হলে নিজে থেকে ব্যালেন্সে যোগ হবে, আপনাকে অনুমোদন দিতে হবে না। হাতে TrxID দেওয়ার ব্যবস্থাও থাকবে।</small></p>
-          <label class="sa-check"><input type="checkbox" name="uddokta_on" value="1" checked={s.uddokta_on === "1"} /> অনলাইন রিচার্জ চালু</label>
-          <label>UddoktaPay প্যানেলের লিংক</label>
-          <input type="url" name="uddokta_url" value={s.uddokta_url || ""} placeholder="https://pay.আপনার-ডোমেইন.com" autocomplete="off" />
-          <small class="sa-muted">UddoktaPay প্যানেলের ঠিকানা (শেষে /api ছাড়া)। পরীক্ষার জন্য: https://sandbox.uddoktapay.com</small>
-          <label>API Key {hasKey && <small class="sa-muted">(দেওয়া আছে — বদলাতে নতুনটা লিখুন)</small>}</label>
-          <input type="password" name="uddokta_key" value="" placeholder={hasKey ? "••••••••" : ""} autocomplete="new-password" />
-          <small class="sa-muted">UddoktaPay প্যানেল → Brand Settings / API থেকে।</small>
-          <label>Webhook (IPN) লিংক — তথ্যের জন্য</label>
-          <input type="text" readonly value={`https://${domain}/api/uddoktapay/ipn`} onclick="this.select()" />
-          <small class="sa-muted">প্রতিটা পেমেন্টের সাথে এই লিংক নিজে থেকে পাঠানো হয়; আলাদা কিছু বসাতে হবে না।</small>
-          <button class="sa-btn">সেভ করুন</button>
-        </div>
-      </Card>
-    </form>
-  );
-};
-
-export type OnlinePayRow = { id: number; shop_id: string; shop_name: string; slug: string; amount: number; status: string; method: string | null; sender: string | null; trx_id: string | null; invoice_id: string | null; created_at: string };
-const PAY_STATUS: Record<string, [string, string]> = { completed: ["যোগ হয়েছে", "ok"], pending: ["যাচাই হচ্ছে", "warn"], created: ["পেজ খোলা হয়েছে", ""], failed: ["হয়নি / বাতিল", "bad"] };
-export const OnlinePayments = ({ rows }: { rows: OnlinePayRow[] }) => (
-  <Card title="অনলাইন রিচার্জ (UddoktaPay) — নিজে থেকে যোগ হয়">
-    {rows.length === 0 ? <Empty text="এখনো কোনো অনলাইন পেমেন্ট নেই" /> : (
-      <div class="sa-table-wrap"><table class="sa-table">
-        <thead><tr><th>সময়</th><th>দোকান</th><th class="sa-r">টাকা</th><th>মাধ্যম</th><th>TrxID</th><th>অবস্থা</th></tr></thead>
-        <tbody>{rows.map((r) => (
-          <tr>
-            <td>{dhakaTime(r.created_at)}</td>
-            <td><a href={`/super/shops/${r.shop_id}`}>{r.shop_name}</a></td>
-            <td class="sa-r">{taka(r.amount)}</td>
-            <td>{r.method ?? "—"}{r.sender ? <small class="sa-muted"> · {r.sender}</small> : null}</td>
-            <td><code>{r.trx_id ?? "—"}</code></td>
-            <td><span class={`sa-pill ${PAY_STATUS[r.status]?.[1] ?? ""}`}>{PAY_STATUS[r.status]?.[0] ?? r.status}</span></td>
-          </tr>
-        ))}</tbody>
-      </table></div>
-    )}
-  </Card>
 );
 
 export const SecuritySettings = ({ s, emailBinding }: { s: Record<string, string>; emailBinding: boolean }) => {

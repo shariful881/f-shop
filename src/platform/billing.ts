@@ -170,6 +170,10 @@ async function countOrder(db: D1Database, shopId: string) {
   await db.prepare("UPDATE shops SET confirmed_orders = confirmed_orders + 1, last_order_at = datetime('now') WHERE id = ?").bind(shopId).run();
 }
 
+/** হাতে রিচার্জের মাধ্যম */
+export const TOPUP_METHOD: Record<string, string> = { bkash: "bKash", nagad: "Nagad", dbbl: "DBBL ব্যাংক" };
+export const topupMethod = (m: string) => TOPUP_METHOD[m] ?? m;
+
 /** রিচার্জ অনুমোদন */
 export async function approveTopup(db: D1Database, topupId: number): Promise<{ ok: boolean; message: string }> {
   const t = await db.prepare("SELECT * FROM topups WHERE id = ?").bind(topupId).first<{ id: number; shop_id: string; amount: number; method: string; trx_id: string; status: string }>();
@@ -177,7 +181,7 @@ export async function approveTopup(db: D1Database, topupId: number): Promise<{ o
   if (t.status !== "pending") return { ok: false, message: "এটা আগেই সিদ্ধান্ত হয়েছে" };
   const upd = await db.prepare("UPDATE topups SET status = 'approved', decided_at = datetime('now') WHERE id = ? AND status = 'pending'").bind(topupId).run();
   if (!upd.meta.changes) return { ok: false, message: "এটা আগেই সিদ্ধান্ত হয়েছে" };
-  await applyLedger(db, t.shop_id, "topup", t.amount, `topup:${t.id}`, `${t.method === "bkash" ? "bKash" : "Nagad"} ${t.trx_id}`);
+  await applyLedger(db, t.shop_id, "topup", t.amount, `topup:${t.id}`, `${topupMethod(t.method)} ${t.trx_id}`);
   await db.prepare("UPDATE shops SET first_topup_at = COALESCE(first_topup_at, datetime('now')) WHERE id = ?").bind(t.shop_id).run();
   return { ok: true, message: `৳${t.amount} ব্যালেন্সে যোগ হয়েছে` };
 }

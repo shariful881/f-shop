@@ -31,7 +31,6 @@ import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerR
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
 import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
-import { createCharge, settlePayment, uddoktaConfig } from "../../platform/uddoktapay";
 import { extraStaff, isCycle, isPlan, onOldPrices, planForShop, plansForShop } from "../../platform/plans";
 import { PlanPanel } from "../views/billing-plans";
 import { clearShopCache } from "../../platform/resolve";
@@ -1589,11 +1588,10 @@ async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; va
     pdb.prepare("SELECT id, type, amount, balance_after, ref, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 AND type != 'plan_order' ORDER BY id DESC LIMIT 200").bind(shopId),
     pdb.prepare("SELECT id, amount, method, sender, trx_id, status, created_at FROM topups WHERE shop_id = ? ORDER BY id DESC LIMIT 20").bind(shopId),
   ]);
-  const online = !!uddoktaConfig(fees);
   const plan = shop ? <PlanPanel plans={plansForShop(fees, shop.created_at)} oldPrices={onOldPrices(fees, shop.created_at)} oldUntil={fees.old_prices_until} shop={shop} trial={c.var.shopState.status === "trial"} staffFee={toInt(fees.staff_fee, 49)} settings={fees} /> : null;
   return render(c, "বিলিং ও প্ল্যান", "billing",
     <BillingPage state={c.var.shopState} fees={fees} ledger={ledger!.results as LedgerRow[]} topups={topups!.results as TopupRow[]}
-      plan={plan} online={online} errors={form?.errors} values={form?.values} />,
+      plan={plan} errors={form?.errors} values={form?.values} />,
     form ? 422 : 200);
 }
 
@@ -1649,10 +1647,12 @@ admin.post("/billing/topup", async (c) => {
   const amount = toInt(values.amount, 0);
   const min = toInt(fees.min_topup, 100);
   if (amount < min || amount > 100000) errors.amount = `৳${min} থেকে ৳১,০০,০০০ এর মধ্যে দিন`;
-  const sender = normalizePhone(values.sender);
-  if (!sender) errors.sender = "সঠিক নম্বর দিন";
-  if (!/^[A-Z0-9]{6,30}$/.test(values.trx_id)) errors.trx_id = "সঠিক Transaction ID দিন";
-  const method = values.method === "nagad" ? "nagad" : "bkash";
+  const bankOn = !!(fees.dbbl_account_no || "").trim();
+  const method = values.method === "nagad" ? "nagad" : values.method === "dbbl" && bankOn ? "dbbl" : "bkash";
+  // ব্যাংকে পাঠানোর অ্যাকাউন্ট নম্বর বা মোবাইল (DBBL Rocket/অ্যাপ) দুটোই চলে
+  const sender = method === "dbbl" ? (normalizePhone(values.sender) || (/^[0-9][0-9 -]{5,24}$/.test(values.sender) ? values.sender.replace(/[ -]/g, "") : "")) : normalizePhone(values.sender);
+  if (!sender) errors.sender = method === "dbbl" ? "যে অ্যাকাউন্ট বা মোবাইল থেকে পাঠিয়েছেন সেটা দিন" : "সঠিক নম্বর দিন";
+  if (!(method === "dbbl" ? /^[A-Z0-9-]{4,30}$/ : /^[A-Z0-9]{6,30}$/).test(values.trx_id)) errors.trx_id = method === "dbbl" ? "সঠিক রেফারেন্স/Transaction নম্বর দিন" : "সঠিক Transaction ID দিন";
   if (!errors.trx_id) {
     const dup = await c.env.PLATFORM_DB.prepare("SELECT 1 FROM topups WHERE trx_id = ?").bind(values.trx_id).first();
     if (dup) errors.trx_id = "এই Transaction ID আগেই দেওয়া হয়েছে";
@@ -1665,53 +1665,6 @@ admin.post("/billing/topup", async (c) => {
     return renderBilling(c, { errors: { trx_id: "এই Transaction ID আগেই দেওয়া হয়েছে" }, values });
   }
   flash(c, "ok", "রিচার্জের অনুরোধ পাঠানো হয়েছে। যাচাই হলে ব্যালেন্সে যোগ হবে।");
-  return c.redirect("/admin/billing", 303);
-});
-
-/* ---------- অনলাইন রিচার্জ (UddoktaPay) ---------- */
-admin.post("/billing/pay", async (c) => {
-  const pdb = c.env.PLATFORM_DB;
-  const fees = await platformSettings(pdb, true);
-  const cfg = uddoktaConfig(fees);
-  const b = await c.req.parseBody();
-  const amount = toInt(b.amount, 0);
-  const min = toInt(fees.min_topup, 100);
-  if (!cfg) { flash(c, "error", "অনলাইন পেমেন্ট এখন বন্ধ — নিচের bKash/Nagad দিয়ে রিচার্জ করুন।"); return c.redirect("/admin/billing", 303); }
-  if (amount < min || amount > 100000) return renderBilling(c, { errors: { pay_amount: `৳${min} থেকে ৳১,০০,০০০ এর মধ্যে দিন` }, values: { pay_amount: String(b.amount ?? "") } });
-  // একসাথে অনেক খোলা পেমেন্ট নয় (ঘণ্টায় ১০টা)
-  const recent = await pdb.prepare("SELECT COUNT(*) n FROM online_payments WHERE shop_id = ? AND created_at > datetime('now', '-1 hour')").bind(c.env.SHOP_ID).first<{ n: number }>();
-  if ((recent?.n ?? 0) >= 10) { flash(c, "error", "অনেকবার চেষ্টা হয়েছে — একটু পরে আবার করুন।"); return c.redirect("/admin/billing", 303); }
-  const shop = await pdb.prepare("SELECT name, owner_name, owner_email FROM shops WHERE id = ?").bind(c.env.SHOP_ID).first<{ name: string; owner_name: string | null; owner_email: string | null }>();
-  const ins = await pdb.prepare("INSERT INTO online_payments (shop_id, amount) VALUES (?, ?) RETURNING id").bind(c.env.SHOP_ID, amount).first<{ id: number }>();
-  const origin = new URL(c.req.url).origin;
-  const back = `${origin}/admin/billing/pay/return?p=${ins!.id}`;
-  const r = await createCharge(cfg, {
-    fullName: (shop?.owner_name || shop?.name || "SellxBD দোকান").slice(0, 60),
-    email: shop?.owner_email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shop.owner_email) ? shop.owner_email : `${c.env.SHOP_ID}@shops.${c.env.PLATFORM_DOMAIN}`,
-    amount, metadata: { shop_id: c.env.SHOP_ID, pay_id: String(ins!.id) },
-    redirectUrl: back, cancelUrl: `${back}&cancel=1`, webhookUrl: `https://${c.env.PLATFORM_DOMAIN}/api/uddoktapay/ipn`,
-  });
-  if (!r.ok) {
-    await pdb.prepare("UPDATE online_payments SET status = 'failed' WHERE id = ?").bind(ins!.id).run();
-    flash(c, "error", `পেমেন্ট পেজ খোলা যায়নি: ${r.message}`);
-    return c.redirect("/admin/billing", 303);
-  }
-  return c.redirect(r.url, 303);
-});
-
-/** পেমেন্ট শেষে গেটওয়ে এখানে ফেরত পাঠায় — invoice_id নিজে যাচাই করে ব্যালেন্সে যোগ */
-admin.get("/billing/pay/return", async (c) => {
-  const pdb = c.env.PLATFORM_DB;
-  const id = toInt(c.req.query("p"), 0);
-  const invoice = (c.req.query("invoice_id") || "").trim();
-  if (c.req.query("cancel") === "1" || !invoice) {
-    if (id) await pdb.prepare("UPDATE online_payments SET status = 'failed' WHERE id = ? AND shop_id = ? AND status = 'created'").bind(id, c.env.SHOP_ID).run();
-    flash(c, "error", "পেমেন্ট বাতিল হয়েছে — কোনো টাকা কাটা হয়নি।");
-    return c.redirect("/admin/billing", 303);
-  }
-  const r = await settlePayment(pdb, invoice, c.env.SHOP_ID);
-  if (r.status === "completed") c.header("x-fshop-clear-cache", "1");
-  flash(c, r.status === "completed" ? "ok" : "error", r.message);
   return c.redirect("/admin/billing", 303);
 });
 
