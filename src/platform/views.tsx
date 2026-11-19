@@ -460,6 +460,8 @@ export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode
                 <li><Icon name="check" size="sm" /> ছবির জায়গা {storageLabel(P[k].storage)}</li>
                 <li>{P[k].domain ? <><Icon name="check" size="sm" /> নিজের ডোমেইন</> : <><Icon name="x" size="sm" class="hp-no" /> নিজের ডোমেইন নেই</>}</li>
               </ul>
+              {/* পুরো বক্সে চাপলেও সাইনআপে যায় (বাটনের ::after বক্স ঢেকে রাখে) */}
+              <a href="/signup" class={`btn ${k === "grow" ? "btn-accent" : "btn-outline"} hp-plan-cta`}>ফ্রি ট্রায়াল শুরু করুন <Icon name="arrow-right" size="sm" /></a>
             </div>
           ))}
         </div>

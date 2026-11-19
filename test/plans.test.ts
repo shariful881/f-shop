@@ -75,6 +75,8 @@ describe("হোমপেজে মাসিক/বাৎসরিক ট্য�
     expect(html).toContain('data-mode="month"');
     expect(html).toMatch(/class="on" aria-selected="true" data-bill="month">মাসিক/);
     expect(html.indexOf('data-bill="month"')).toBeLessThan(html.indexOf('data-bill="year"'));
+    // প্রতিটা প্যাকেজ বক্সে সাইনআপের বাটন
+    expect(html.match(/href="\/signup" class="btn [a-z-]+ hp-plan-cta">ফ্রি ট্রায়াল শুরু করুন/g)?.length).toBe(4);
     expect(html).toContain("৳৪,৫৮০");
     expect(html).toContain("৳৪৪৯");
     expect(html).toContain("/বছর");

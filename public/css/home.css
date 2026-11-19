@@ -360,3 +360,9 @@
 .hp-more { margin: 18px 0 0; text-align: center; }
 .hp-help-card h3 a { color: inherit; text-decoration: none; }
 .hp-help-card h3 a:hover { color: #0f766e; }
+/* প্যাকেজ বক্স: নিচে ট্রায়াল বাটন, পুরো বক্সে চাপলে সাইনআপ */
+.hp-plan ul { flex: 1; }
+.hp-plan-cta { margin-top: 16px; width: 100%; justify-content: center; }
+.hp-plan-cta::after { content: ""; position: absolute; inset: 0; border-radius: 18px; }
+.hp-plan { cursor: pointer; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.hp-plan:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(15, 118, 110, .12); border-color: #5eead4; }
