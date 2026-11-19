@@ -62,3 +62,22 @@ describe("ল্যান্ডিং: নতুন ব্লক প্রিভ
     expect(b).toContain('value="image_text"');
   });
 });
+
+describe("ল্যান্ডিং: '+ সেকশন' লিস্ট ভাগ করা", () => {
+  it("অর্ডার ফর্ম ছাড়া সব সেকশন কোনো একটা ভাগে আছে, একবারই", async () => {
+    const { SECTION_GROUPS, SECTION_TYPES } = await import("../src/shop/lib/landing");
+    const vals = SECTION_GROUPS.flatMap((g) => g.items.map((i) => i.value));
+    expect(new Set(vals).size).toBe(vals.length);
+    for (const t of SECTION_TYPES) if (t !== "order_form") expect(vals).toContain(t);
+    expect(vals).toContain("gallery_grid");
+  });
+
+  it("বিল্ডারে ভাগগুলো optgroup হিসেবে আসে", async () => {
+    const a = await adminBrowser();
+    const p = await DB.prepare("SELECT id FROM products LIMIT 1").first<{ id: number }>();
+    const b = await (await a.get(`/admin/products/${p!.id}/landing`)).text();
+    expect(b).toContain('<optgroup label="✍️ শিরোনাম ও লেখা">');
+    expect(b).toContain('<optgroup label="🛒 অর্ডারে উৎসাহ">');
+    expect(b).not.toContain('<option value="order_form"');
+  });
+});

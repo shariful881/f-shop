@@ -8,6 +8,7 @@ import { THEMES, type Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
 import { ASSET_VERSION } from "./layout";
+import { SECTION_GROUPS } from "../lib/landing";
 import { Icon } from "./icons";
 import { EmptyState, PageHead } from "./ui";
 import { MediaField } from "./media-field";
@@ -1266,11 +1267,9 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
         <div id="sections"></div>
         <div class="b-add">
           <select id="new-type">
-            {Object.entries(p.labels).filter(([k]) => k !== "order_form").flatMap(([k, l]) => [
-              <option value={k}>{l}</option>,
-              // গ্যালারির পরেই "ছবির গ্রিড" — একই সেকশন, শুরু থেকে গ্রিড মোডে
-              k === "gallery" ? <option value="gallery_grid">ছবির গ্রিড (১/২/৩ কলাম)</option> : null,
-            ])}
+            {SECTION_GROUPS.map((g) => (
+              <optgroup label={g.label}>{g.items.map((it) => <option value={it.value}>{it.label}</option>)}</optgroup>
+            ))}
           </select>
           <button type="button" class="btn btn-outline" id="add-section">+ সেকশন</button>
         </div>
