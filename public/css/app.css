@@ -670,3 +670,17 @@ dialog.cfm .btn:focus-visible { outline: 3px solid rgba(15, 118, 110, .45); outl
 @media (min-width: 700px) { .rv-slider .review { flex-basis: 320px; } }
 /* ল্যান্ডিং পেজে ফুটার লুকালে শুধু ছোট কপিরাইট */
 .lp-mini-foot { text-align: center; font-size: .82rem; color: #64748b; padding: 18px 12px 84px; border-top: 1px solid #e5e7eb; margin-top: 24px; }
+
+/* ===== ছোট সংখ্যার ব্যাজ (সাইডবার, মোবাইলের নিচের মেনু, সাপোর্ট, কার্ট, সুপার অ্যাডমিনের ফিল্টার) =====
+   বাংলা অঙ্ক (বিশেষ করে ০) ছোট আর হালকা লেখায় ভেঙে/কেটে দেখাত — একটু বড়, মোটা, ব্যাজের ঠিক মাঝখানে।
+   app.css সবার আগে লোড হয়, তাই html body দিয়ে পরের ফাইলগুলোর চেয়ে জোরালো। */
+html body :is(.sa-badge, .sx-fab-badge, .sx-tab-badge, .sa-tab-badge, .px-cart-count) {
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1;
+  font-weight: 700; font-variant-numeric: tabular-nums; font-size: .8rem;
+}
+html body :is(.sa-tab-badge, .px-cart-count, .sx-tab-badge) { min-width: 20px; height: 20px; }
+html body .sa-badge { min-width: 22px; height: 20px; padding: 0 7px; }
+html body .cart-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; line-height: 1.4; font-weight: 700; font-variant-numeric: tabular-nums; }
+html body .sa-chips a span { font-weight: 700; font-variant-numeric: tabular-nums; }
+html body :is(.sa-badge, .sx-fab-badge, .sx-tab-badge, .sa-tab-badge, .px-cart-count, .cart-count)[hidden] { display: none; }
+html body .px-bottom-cart i { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; line-height: 1; font-size: .76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
