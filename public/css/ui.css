@@ -704,3 +704,7 @@ body.admin .verify-otp .field { flex: 1 1 160px; margin: 0; }
 body.admin .verify-otp input { letter-spacing: 4px; font-size: 18px; }
 body.admin .verify-done { display: flex; align-items: center; gap: 8px; color: var(--c-ok); }
 body.admin .verify-grid + p { margin-bottom: 80px; }
+/* অর্ডার ট্যাবের সংখ্যা: বাংলা অঙ্ক (বিশেষ করে ০) ছোট লেখায় ভেঙে/কেটে দেখাত — বড়, মোটা আর মাঝখানে */
+body.admin .tab-count { display: inline-flex; align-items: center; justify-content: center; height: 22px; min-width: 24px; padding: 0 7px;
+  font-size: .9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; vertical-align: middle; }
+body.admin .tab { align-items: center; gap: 6px; }
