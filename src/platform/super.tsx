@@ -99,6 +99,10 @@ function series(days: string[], rows: { d: string; v: number }[]) {
   return days.map((d) => ({ label: dayLabel(d), value: m.get(d) ?? 0 }));
 }
 
+/** ডেমো দোকান (demo_niche আছে) মোট দোকান, আয় আর হিসাবে গোনা হয় না */
+const NO_DEMO = "demo_niche IS NULL";
+const LEDGER_NO_DEMO = "shop_id NOT IN (SELECT id FROM shops WHERE demo_niche IS NOT NULL)";
+
 /* ---------- ড্যাশবোর্ড ---------- */
 superApp.get("/", async (c) => {
   const db = c.env.PLATFORM_DB;
@@ -107,7 +111,7 @@ superApp.get("/", async (c) => {
   const since = "datetime('now', '-30 days')";
   const q = (sql: string) => db.prepare(sql);
   const res = await db.batch([
-    q("SELECT status, COUNT(*) n FROM shops GROUP BY status"),
+    q(`SELECT status, COUNT(*) n FROM shops WHERE ${NO_DEMO} GROUP BY status`),
     q(`SELECT
          SUM(created_at >= datetime(date('now', ${DHAKA}), '-6 hours')) today,
          SUM(created_at >= datetime('now', '-7 days')) d7,
@@ -122,7 +126,7 @@ superApp.get("/", async (c) => {
          SUM(balance < 0) dues_shops,
          SUM(CASE WHEN status = 'active' AND demo_niche IS NULL THEN (CASE plan WHEN 'small' THEN ? WHEN 'grow' THEN ? WHEN 'big' THEN ? ELSE 0 END) ELSE 0 END) mrr_sub,
          SUM(status = 'active') active_n
-       FROM shops`).bind(plans(s).small.price, plans(s).grow.price, plans(s).big.price),
+       FROM shops WHERE ${NO_DEMO}`).bind(plans(s).small.price, plans(s).grow.price, plans(s).big.price),
     q(`SELECT
          -SUM(CASE WHEN type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= datetime(strftime('%Y-%m-01', 'now', ${DHAKA}), '-6 hours') THEN amount ELSE 0 END) month,
          -SUM(CASE WHEN type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= datetime(strftime('%Y-%m-01', 'now', ${DHAKA}, '-1 month'), '-6 hours')
@@ -133,16 +137,16 @@ superApp.get("/", async (c) => {
          SUM(CASE WHEN type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= datetime(date('now', ${DHAKA}), '-6 hours') THEN 1 ELSE 0 END) orders_today,
          SUM(CASE WHEN type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= ${since} THEN 1 ELSE 0 END) orders30,
          SUM(CASE WHEN type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= datetime('now', '-60 days') AND created_at < ${since} THEN 1 ELSE 0 END) orders_prev30
-       FROM ledger WHERE applied = 1 AND created_at >= datetime('now', '-62 days')`),
-    q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM shops WHERE created_at >= ${since} GROUP BY d`),
-    q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= ${since} GROUP BY d`),
-    q(`SELECT date(created_at, ${DHAKA}) d, -SUM(amount) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= ${since} GROUP BY d`),
+       FROM ledger WHERE applied = 1 AND created_at >= datetime('now', '-62 days') AND ${LEDGER_NO_DEMO}`),
+    q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM shops WHERE created_at >= ${since} AND ${NO_DEMO} GROUP BY d`),
+    q(`SELECT date(created_at, ${DHAKA}) d, COUNT(*) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'trial_order', 'plan_order') AND created_at >= ${since} AND ${LEDGER_NO_DEMO} GROUP BY d`),
+    q(`SELECT date(created_at, ${DHAKA}) d, -SUM(amount) v FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND created_at >= ${since} AND ${LEDGER_NO_DEMO} GROUP BY d`),
     q(`SELECT s.id, s.name, s.slug, COUNT(*) n FROM ledger l JOIN shops s ON s.id = l.shop_id
-       WHERE l.applied = 1 AND l.type IN ('order_fee', 'trial_order', 'plan_order') AND l.created_at >= ${since} GROUP BY l.shop_id ORDER BY n DESC LIMIT 8`),
-    q(`SELECT id, name, trial_ends_at, trial_orders_left, owner_phone FROM shops WHERE status = 'trial' AND trial_ends_at <= datetime('now', '+3 days') ORDER BY trial_ends_at LIMIT 6`),
-    q(`SELECT id, name, last_order_at, balance FROM shops WHERE status = 'active' AND (last_order_at IS NULL OR last_order_at < datetime('now', '-14 days'))
+       WHERE l.applied = 1 AND l.type IN ('order_fee', 'trial_order', 'plan_order') AND l.created_at >= ${since} AND s.demo_niche IS NULL GROUP BY l.shop_id ORDER BY n DESC LIMIT 8`),
+    q(`SELECT id, name, trial_ends_at, trial_orders_left, owner_phone FROM shops WHERE status = 'trial' AND trial_ends_at <= datetime('now', '+3 days') AND ${NO_DEMO} ORDER BY trial_ends_at LIMIT 6`),
+    q(`SELECT id, name, last_order_at, balance FROM shops WHERE status = 'active' AND (last_order_at IS NULL OR last_order_at < datetime('now', '-14 days')) AND ${NO_DEMO}
        ORDER BY confirmed_orders DESC LIMIT 6`),
-    q("SELECT id, name, slug, status, created_at FROM shops ORDER BY created_at DESC LIMIT 6"),
+    q(`SELECT id, name, slug, status, created_at FROM shops WHERE ${NO_DEMO} ORDER BY created_at DESC LIMIT 6`),
     q(`SELECT a.*, s.name shop_name FROM audit_log a LEFT JOIN shops s ON a.target_type = 'shop' AND s.id = a.target_id ORDER BY a.id DESC LIMIT 6`),
     q("SELECT COUNT(*) n, COALESCE(SUM(amount), 0) amount FROM topups WHERE status = 'pending'"),
     q("SELECT SUM(status = 'pending') pending, SUM(status = 'failed') failed FROM domains"),
@@ -185,8 +189,8 @@ superApp.get("/", async (c) => {
     cron: { daily: cron.cron_daily_at ?? null, domains: cron.cron_domains_at ?? null },
     usage: await platformUsage(c.env.PLATFORM_DB),
     r2: await r2Status(c.env),
-    suspicious: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${SUSPICIOUS_SQL}`).first<{ n: number }>())?.n ?? 0,
-    phonePending: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${PHONE_PENDING_SQL}`).first<{ n: number }>())?.n ?? 0,
+    suspicious: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${SUSPICIOUS_SQL} AND s.demo_niche IS NULL`).first<{ n: number }>())?.n ?? 0,
+    phonePending: (await c.env.PLATFORM_DB.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${PHONE_PENDING_SQL} AND s.demo_niche IS NULL`).first<{ n: number }>())?.n ?? 0,
   };
   return page(c, "ড্যাশবোর্ড", "dashboard", <DashboardPage d={d} role={me(c).role} />);
 });
@@ -208,6 +212,7 @@ const FILTER_SQL: Record<string, string> = {
   domain_failed: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id AND d.status = 'failed')",
   suspicious: SUSPICIOUS_SQL,
   phone_pending: PHONE_PENDING_SQL,
+  demo: "s.demo_niche IS NOT NULL",
 };
 const SORT_SQL: Record<string, string> = {
   new: "s.created_at DESC", old: "s.created_at ASC", orders: "s.confirmed_orders DESC", balance_low: "s.balance ASC",
@@ -222,6 +227,8 @@ function shopQuery(c: PCtx) {
   const conds: string[] = [];
   const binds: unknown[] = [];
   if (filter) conds.push(FILTER_SQL[filter]!);
+  // ডেমো দোকান আসল হিসাবে নয় — শুধু "ডেমো" ফিল্টারে বা নাম দিয়ে খুঁজলে দেখায়
+  if (filter !== "demo" && !q) conds.push("s.demo_niche IS NULL");
   if (q) {
     const like = `%${q.replace(/[%_]/g, "")}%`;
     const phone = normalizePhone(q);
@@ -236,11 +243,11 @@ superApp.get("/shops", async (c) => {
   const db = c.env.PLATFORM_DB;
   const { q, filter, sort, where, binds } = shopQuery(c);
   const pg = Math.max(1, toInt(c.req.query("page"), 1));
-  const countCols = Object.entries(FILTER_SQL).map(([k, v]) => `SUM(${v}) AS "${k}"`).join(", ");
+  const countCols = Object.entries(FILTER_SQL).map(([k, v]) => (k === "demo" ? `SUM(${v}) AS "${k}"` : `SUM((${v}) AND s.demo_niche IS NULL) AS "${k}"`)).join(", ");
   const [list, total, cnt] = await db.batch([
     db.prepare(`${SHOP_SELECT} WHERE ${where} ORDER BY ${SORT_SQL[sort]} LIMIT ? OFFSET ?`).bind(...binds, PER_PAGE, (pg - 1) * PER_PAGE),
     db.prepare(`SELECT COUNT(*) n FROM shops s WHERE ${where}`).bind(...binds),
-    db.prepare(`SELECT COUNT(*) AS "", ${countCols} FROM shops s`),
+    db.prepare(`SELECT SUM(s.demo_niche IS NULL) AS "", ${countCols} FROM shops s`),
   ]);
   const counts = Object.fromEntries(Object.entries((cnt!.results[0] ?? {}) as Record<string, number>).map(([k, v]) => [k, Number(v) || 0]));
   return page(c, "দোকান", "shops",
@@ -564,13 +571,13 @@ superApp.get("/finance", async (c) => {
         -SUM(CASE WHEN type = 'order_fee' THEN amount ELSE 0 END) fees,
         -SUM(CASE WHEN type = 'monthly' THEN amount ELSE 0 END) monthly,
         SUM(CASE WHEN type = 'topup' THEN amount ELSE 0 END) topups
-      FROM ledger WHERE applied = 1 AND created_at >= datetime('now', '-13 months') GROUP BY ym`),
+      FROM ledger WHERE applied = 1 AND created_at >= datetime('now', '-13 months') AND ${LEDGER_NO_DEMO} GROUP BY ym`),
     db.prepare(`SELECT
-        (SELECT -COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly', 'overage', 'plan_change')) revenue,
-        (SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type = 'topup') topups,
-        (SELECT COALESCE(SUM(balance), 0) FROM shops WHERE balance < 0) dues,
-        (SELECT COALESCE(SUM(balance), 0) FROM shops WHERE balance > 0) credit`),
-    db.prepare(`SELECT l.*, s.name shop_name FROM ledger l JOIN shops s ON s.id = l.shop_id WHERE l.applied = 1 ${type ? "AND l.type = ?" : "AND l.type != 'trial_order'"} ORDER BY l.id DESC LIMIT 100`)
+        (SELECT -COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type IN ('order_fee', 'monthly', 'overage', 'plan_change') AND ${LEDGER_NO_DEMO}) revenue,
+        (SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE applied = 1 AND type = 'topup' AND ${LEDGER_NO_DEMO}) topups,
+        (SELECT COALESCE(SUM(balance), 0) FROM shops WHERE balance < 0 AND ${NO_DEMO}) dues,
+        (SELECT COALESCE(SUM(balance), 0) FROM shops WHERE balance > 0 AND ${NO_DEMO}) credit`),
+    db.prepare(`SELECT l.*, s.name shop_name FROM ledger l JOIN shops s ON s.id = l.shop_id WHERE l.applied = 1 AND s.demo_niche IS NULL ${type ? "AND l.type = ?" : "AND l.type != 'trial_order'"} ORDER BY l.id DESC LIMIT 100`)
       .bind(...(type ? [type] : [])),
   ]);
   const byMonth = new Map((m!.results as { ym: string; fees: number; monthly: number; topups: number }[]).map((r) => [r.ym, r]));

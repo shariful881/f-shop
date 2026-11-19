@@ -196,3 +196,29 @@ describe("সেটিংস অডিট", () => {
     await post(o, "/super/settings", { ...form });
   });
 });
+
+describe("ডেমো দোকান হিসাবে গোনা হয় না", () => {
+  it("ডেমো দোকান তালিকা আর গণনায় নেই, শুধু 'ডেমো' ফিল্টারে", async () => {
+    const b = await member("owner@t.com", "owner");
+    const total = async () => (await pdb().prepare("SELECT COUNT(*) n FROM shops WHERE demo_niche IS NULL").first<{ n: number }>())!.n;
+    const n0 = await total();
+    const before = await (await get(b, "/super/shops")).text();
+    expect(before).toContain("সব");
+    // demoshop-কে ডেমো বানানো
+    await pdb().prepare("UPDATE shops SET demo_niche = 'test-niche', name = 'ডেমো-টেস্ট-দোকান' WHERE id = ?").bind(DEMO_SHOP_ID).run();
+    await pdb().prepare("INSERT INTO ledger (shop_id, type, amount, balance_after, ref, applied) VALUES (?, 'monthly', -999, 0, 'demo-fee', 1)").bind(DEMO_SHOP_ID).run();
+    expect(await total()).toBe(n0 - 1);
+    const list = await (await get(b, "/super/shops")).text();
+    expect(list).not.toContain("ডেমো-টেস্ট-দোকান");
+    const demo = await (await get(b, "/super/shops?filter=demo")).text();
+    expect(demo).toContain("ডেমো-টেস্ট-দোকান");
+    expect(demo).toContain("ডেমো (হিসাবে নেই)");
+    // নাম দিয়ে খুঁজলে পাওয়া যায়
+    expect(await (await get(b, "/super/shops?q=" + encodeURIComponent("ডেমো-টেস্ট"))).text()).toContain("ডেমো-টেস্ট-দোকান");
+    // ড্যাশবোর্ড আর আয়ে ডেমোর টাকা নেই
+    const dash = await (await get(b, "/super")).text();
+    expect(dash).not.toContain("ডেমো-টেস্ট-দোকান");
+    const fin = await (await get(b, "/super/finance")).text();
+    expect(fin).not.toContain("৳৯৯৯");
+  });
+});

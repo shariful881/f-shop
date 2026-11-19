@@ -389,6 +389,7 @@ export const SHOP_FILTERS: Record<string, string> = {
   domain_failed: "ডোমেইনে সমস্যা",
   suspicious: "সন্দেহজনক",
   phone_pending: "ফোনে যাচাই বাকি",
+  demo: "ডেমো (হিসাবে নেই)",
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
 
