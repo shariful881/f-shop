@@ -43,3 +43,12 @@ describe("ল্যান্ডিং পেজ — দোকানের হে
     expect(html).toContain("lp-mini-foot");
   });
 });
+
+describe("ল্যান্ডিং এডিটরে AI লেখার বক্স বন্ধ", () => {
+  it("এডিটরে 'AI দিয়ে লেখা বানান' দেখায় না", async () => {
+    const html = await (await (await adminBrowser()).get("/admin/products/1/landing")).text();
+    expect(html).toContain('id="builder"');
+    expect(html).not.toContain("AI দিয়ে লেখা বানান");
+    expect(html).not.toContain("data-ai-form");
+  });
+});

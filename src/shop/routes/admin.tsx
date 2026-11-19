@@ -2027,8 +2027,8 @@ admin.get("/products/:id{[0-9]+}/landing", async (c) => {
   if (!p) return c.redirect("/admin/products", 303);
   const landing = parseLanding(p.landing_json) ?? defaultLanding(p);
   return render(c, "ল্যান্ডিং পেজ", "landing",
-    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} products={await productChoices(c)} fonts={FONT_LABELS}
-      ai={{ canUndo: `ai_prev_landing_${p.id}` in c.var.settings, about: c.var.settings.ai_last_about ?? "" }} />);
+    // "AI দিয়ে লেখা বানান" বক্স বন্ধ (মালিকের সিদ্ধান্ত) — ai না দিলে এডিটরে দেখায় না
+    <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} products={await productChoices(c)} fonts={FONT_LABELS} />);
 });
 
 /** ডিজাইনটা অন্য পণ্যে সরানো (এখনকার পরিবর্তনসহ) */
