@@ -30,6 +30,36 @@ export const SECTION_LABEL: Record<SectionType, string> = {
   order_form: "অর্ডার ফর্ম",
 };
 
+/** "+ সেকশন" লিস্টে কাজ অনুযায়ী ভাগ — একই রকম সেকশন একসাথে। "gallery_grid" = গ্রিড মোডের গ্যালারি */
+export const SECTION_GROUPS: { label: string; items: { value: string; label: string }[] }[] = [
+  { label: "✍️ শিরোনাম ও লেখা", items: [
+    { value: "hero", label: "বড় শিরোনাম + দাম + অর্ডার বাটন" },
+    { value: "heading", label: "শিরোনাম" },
+    { value: "text", label: "লেখা / বিস্তারিত" },
+    { value: "image_text", label: "ছবি + লেখা (পাশাপাশি)" },
+  ] },
+  { label: "🖼️ ছবি ও ভিডিও", items: [
+    { value: "image", label: "বড় ছবি / ব্যানার" },
+    { value: "gallery", label: "ছবির স্লাইড (সরিয়ে দেখা)" },
+    { value: "gallery_grid", label: "ছবির গ্রিড (১/২/৩ কলাম)" },
+    { value: "before_after", label: "আগে-পরে (দুই ছবি)" },
+    { value: "video", label: "ভিডিও" },
+  ] },
+  { label: "⭐ বিশ্বাস ও সুবিধা", items: [
+    { value: "benefits", label: "সুবিধার তালিকা" },
+    { value: "comparison", label: "তুলনা (আমাদের বনাম অন্যরা)" },
+    { value: "reviews", label: "কাস্টমার রিভিউ" },
+    { value: "guarantee", label: "গ্যারান্টি" },
+    { value: "trust", label: "বিশ্বাসের ব্যাজ" },
+    { value: "faq", label: "প্রশ্নোত্তর" },
+  ] },
+  { label: "🛒 অর্ডারে উৎসাহ", items: [
+    { value: "cta", label: "মাঝে অর্ডারের বাটন" },
+    { value: "countdown", label: "কাউন্টডাউন টাইমার" },
+    { value: "steps", label: "কীভাবে অর্ডার করবেন (ধাপ)" },
+  ] },
+];
+
 /** বাংলা ফন্ট (Google Fonts) — শুধু বাছাই করা ফন্টটাই লোড হয় */
 export const FONTS: Record<string, { label: string; family: string; query: string }> = {
   hind: { label: "Hind Siliguri", family: "'Hind Siliguri'", query: "Hind+Siliguri:wght@400;600;700" },
