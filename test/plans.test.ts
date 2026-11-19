@@ -70,10 +70,11 @@ describe("প্ল্যান অনুযায়ী সুবিধা", ()
 });
 
 describe("হোমপেজে মাসিক/বাৎসরিক ট্যাব", () => {
-  it("বাৎসরিক আগে খোলা, দুই দামই পেজে", async () => {
+  it("মাসিক আগে খোলা (প্রথম ট্যাব), দুই দামই পেজে", async () => {
     const html = await (await new Browser().fetch("/", { base: "https://ourdomain.com" } as RequestInit)).text();
-    expect(html).toContain('data-mode="year"');
-    expect(html).toMatch(/class="on" aria-selected="true" data-bill="year"/);
+    expect(html).toContain('data-mode="month"');
+    expect(html).toMatch(/class="on" aria-selected="true" data-bill="month">মাসিক/);
+    expect(html.indexOf('data-bill="month"')).toBeLessThan(html.indexOf('data-bill="year"'));
     expect(html).toContain("৳৪,৫৮০");
     expect(html).toContain("৳৪৪৯");
     expect(html).toContain("/বছর");

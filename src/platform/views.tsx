@@ -437,10 +437,10 @@ export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode
         <h2 class="hp-title">৳০ থেকে শুরু — যত বড় হবেন, তত প্ল্যান</h2>
         <p class="hp-sub">সব প্ল্যানে সব ফিচার। পার্থক্য শুধু মাসে কয়টা কনফার্ম অর্ডার। ফেক বা বাতিল অর্ডার গোনা হয় না।</p>
         <div class="hp-bill-tabs" role="tablist" aria-label="মাসিক বা বাৎসরিক">
-          <button type="button" role="tab" class="on" aria-selected="true" data-bill="year">বাৎসরিক <span>১৫% ছাড়</span></button>
-          <button type="button" role="tab" aria-selected="false" data-bill="month">মাসিক</button>
+          <button type="button" role="tab" class="on" aria-selected="true" data-bill="month">মাসিক</button>
+          <button type="button" role="tab" aria-selected="false" data-bill="year">বাৎসরিক <span>১৫% ছাড়</span></button>
         </div>
-        <div class="hp-plans" data-mode="year">
+        <div class="hp-plans" data-mode="month">
           {(["free", "small", "grow", "big"] as const).map((k) => (
             <div class={`hp-plan${k === "grow" ? " hp-plan-hot" : ""}`}>
               {k === "grow" && <span class="hp-plan-badge">সবচেয়ে জনপ্রিয়</span>}
