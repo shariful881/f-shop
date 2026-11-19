@@ -769,6 +769,15 @@ export type TopupRow = { id: number; amount: number; method: string; sender: str
 const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
 const TOPUP_STATUS: Record<string, string> = { pending: "অপেক্ষায়", approved: "যোগ হয়েছে", rejected: "বাতিল" };
 
+/** রিচার্জের নম্বর/অ্যাকাউন্ট — এক চাপে কপি */
+const PayRow = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => (
+  <div class="pay-row">
+    <span class="pay-row-label">{label}</span>
+    <span class={`pay-row-value${strong ? " strong" : ""}`}>{value}</span>
+    <button type="button" class="pay-copy" data-copy-text={value} aria-label={`${label} কপি করুন`}><Icon name="copy" size="sm" /> <span>কপি</span></button>
+  </div>
+);
+
 export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; errors?: Record<string, string>; values?: Record<string, string> }) => {
   const e = p.errors ?? {};
   const v = p.values ?? {};
@@ -793,20 +802,23 @@ export const BillingPage = (p: { state: ShopState; fees: Record<string, string>;
         <section class="panel">
           <h2>রিচার্জ করুন</h2>
           <ol class="small-list">
-            <li>bKash <strong>{p.fees.bkash_number}</strong> অথবা Nagad <strong>{p.fees.nagad_number}</strong> নম্বরে <strong>Send Money</strong> করুন{bank ? <>, অথবা নিচের DBBL ব্যাংক অ্যাকাউন্টে টাকা পাঠান</> : null}</li>
+            <li>নিচের যেকোনো একটায় টাকা পাঠান (bKash/Nagad-এ <strong>Send Money</strong>{bank ? ", ব্যাংকে ট্রান্সফার" : ""}) — নম্বরের পাশের <strong>কপি</strong> চাপলেই কপি হবে</li>
             <li>নিচে টাকার পরিমাণ, যে নম্বর/অ্যাকাউন্ট থেকে পাঠিয়েছেন আর Transaction ID দিন</li>
             <li>যাচাই করে আমরা ব্যালেন্সে যোগ করে দেব</li>
           </ol>
-          {bank && (
-            <div class="bank-box">
-              <strong>DBBL (ডাচ্-বাংলা ব্যাংক)</strong>
-              <dl>
-                {p.fees.dbbl_account_name && <><dt>অ্যাকাউন্টের নাম</dt><dd>{p.fees.dbbl_account_name}</dd></>}
-                <dt>অ্যাকাউন্ট নম্বর</dt><dd><b>{p.fees.dbbl_account_no}</b></dd>
-                {p.fees.dbbl_branch && <><dt>শাখা</dt><dd>{p.fees.dbbl_branch}</dd></>}
-              </dl>
-            </div>
-          )}
+          <div class="pay-acc">
+            {p.fees.bkash_number && <PayRow label="bKash (Send Money)" value={p.fees.bkash_number} strong />}
+            {p.fees.nagad_number && <PayRow label="Nagad (Send Money)" value={p.fees.nagad_number} strong />}
+            {bank && (
+              <div class="pay-acc-bank">
+                <p class="pay-acc-head">DBBL ব্যাংক</p>
+                <PayRow label="ব্যাংকের নাম" value="Dutch-Bangla Bank Limited (DBBL)" />
+                {p.fees.dbbl_account_name && <PayRow label="অ্যাকাউন্টের নাম" value={p.fees.dbbl_account_name} />}
+                <PayRow label="অ্যাকাউন্ট নম্বর" value={p.fees.dbbl_account_no!} strong />
+                {p.fees.dbbl_branch && <PayRow label="শাখা" value={p.fees.dbbl_branch} />}
+              </div>
+            )}
+          </div>
           <form method="post" action="/admin/billing/topup" class="order-form">
             <div class="form-grid">
               <label class="field"><span>মাধ্যম</span>

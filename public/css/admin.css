@@ -248,7 +248,16 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
   body.admin:has(#builder) .banner.open { white-space: normal; }
   body.admin:has(#builder) .banner.open::after { content: "▴"; }
 }
-/* রিচার্জ: ব্যাংকের তথ্য */
-.bank-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; margin: 6px 0 12px; font-size: .92rem; }
-.bank-box dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 6px 0 0; }
-.bank-box dt { color: #64748b; } .bank-box dd { margin: 0; }
+/* রিচার্জ: নম্বর আর ব্যাংকের তথ্য, এক চাপে কপি */
+.pay-acc { border: 1px solid #e2e8f0; border-radius: 12px; padding: 4px 12px; margin: 8px 0 14px; background: #f8fafc; }
+.pay-row { display: grid; grid-template-columns: minmax(96px, auto) 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
+.pay-row:last-child { border-bottom: 0; }
+.pay-row-label { color: #64748b; font-size: .86rem; }
+.pay-row-value { font-size: .95rem; word-break: break-word; }
+.pay-row-value.strong { font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; }
+.pay-copy { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #cbd5e1; background: #fff; color: #0f766e; border-radius: 8px; padding: 6px 10px; font: inherit; font-size: .82rem; cursor: pointer; white-space: nowrap; min-height: 34px; }
+.pay-copy:hover { background: #f0fdfa; border-color: #5eead4; }
+.pay-copy.copied { background: #dcfce7; border-color: #86efac; color: #166534; }
+.pay-acc-bank { border-top: 1px solid #e2e8f0; margin-top: 2px; }
+.pay-acc-head { margin: 10px 0 0; font-weight: 700; font-size: .9rem; }
+@media (max-width: 480px) { .pay-row { grid-template-columns: 1fr auto; } .pay-row-label { grid-column: 1 / -1; margin-bottom: -6px; } }

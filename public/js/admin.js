@@ -133,6 +133,26 @@ document.addEventListener("change", function (e) {
   });
 })();
 
+/* রিচার্জের নম্বর/অ্যাকাউন্ট — data-copy-text-এর লেখা কপি */
+document.addEventListener("click", function (e) {
+  var b = e.target.closest && e.target.closest("[data-copy-text]");
+  if (!b) return;
+  var text = b.getAttribute("data-copy-text");
+  var fallback = function () {
+    var t = document.createElement("textarea");
+    t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } catch (x) { /* পুরনো ব্রাউজার */ }
+    document.body.removeChild(t);
+  };
+  (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text) : Promise.reject()).catch(fallback);
+  var label = b.querySelector("span");
+  b.classList.add("copied");
+  if (label) label.textContent = "কপি হয়েছে ✓";
+  clearTimeout(b._t);
+  b._t = setTimeout(function () { b.classList.remove("copied"); if (label) label.textContent = "কপি"; }, 1600);
+});
+
 /* দোকানের লিংক কপি */
 document.addEventListener("click", function (e) {
   var b = e.target.closest && e.target.closest("[data-copy]");
