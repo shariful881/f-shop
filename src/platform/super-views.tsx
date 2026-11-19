@@ -11,7 +11,7 @@ import { ASSET_VERSION } from "../shop/views/layout";
 import { Icon, type IconName } from "../shop/views/icons";
 import { bn, dhakaTime, taka } from "../shop/lib/format";
 import type { SuperAdmin, SuperRole } from "./lib";
-import { PLATFORM_NAME } from "./views";
+import { BrandMark, BrandName, PLATFORM_NAME } from "./views";
 
 export type SFlash = { type: "ok" | "error"; text: string } | null;
 
@@ -112,7 +112,7 @@ export const SuperShell = (p: {
     <body class="sa">
       <input type="checkbox" id="sa-nav-toggle" class="sa-nav-toggle" aria-label="মেনু" />
       <aside class="sa-side">
-        <a href="/super" class="sa-brand"><span class="sa-logo">S</span><span>{PLATFORM_NAME}<small>কন্ট্রোল সেন্টার</small></span></a>
+        <a href="/super" class="sa-brand" aria-label={`${PLATFORM_NAME} কন্ট্রোল সেন্টার`}><BrandMark size={36} /><span><BrandName /><small>কন্ট্রোল সেন্টার</small></span></a>
         <nav class="sa-nav">
           {NAV.filter((n) => can(p.admin.role, n.key)).map((n, i, arr) => (
             <>

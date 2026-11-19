@@ -375,3 +375,8 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .de-page-head small { display: block; font-weight: 500; color: #94a3b8; font-size: .7rem; }
 .de-page-head:first-child { padding-top: 6px; }
 .cz-pv-auto { display: grid; place-items: center; font-size: 1.4rem; color: #64748b; }
+/* সাইডবারের লোগো: আসল লোগো + "SellxBD" নাম (হোমপেজের মতো) */
+.sa-brand .brand-mark { flex: none; filter: drop-shadow(0 4px 10px rgba(20, 184, 166, .35)); }
+.sa-brand .brand-name { display: block; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; font-size: 1.32rem; letter-spacing: -.025em; line-height: 1.1; color: #fff; }
+.sa-brand .brand-x { color: #fb923c; }
+.sa-brand small { margin-top: 2px; }
