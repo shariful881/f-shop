@@ -36,6 +36,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "courier", href: "/admin/courier", icon: "truck", label: "কুরিয়ার", group: "ডেলিভারি" },
   { key: "delivery", href: "/admin/settings/delivery", icon: "package", label: "ডেলিভারি চার্জ", perm: "settings" },
   { key: "payment", href: "/admin/settings/payment", icon: "wallet", label: "অগ্রিম পেমেন্ট", perm: "settings" },
+  { key: "fraud-check", href: "/admin/fraud-check", icon: "search", label: "ফ্রড চেকার" },
   { key: "blacklist", href: "/admin/blacklist", icon: "shield-alert", label: "ফেক অর্ডার ব্লক" },
   { key: "settings", href: "/admin/settings", icon: "settings", label: "দোকানের সেটিংস", group: "সেটিংস" },
   { key: "domains", href: "/admin/domain", icon: "globe", label: "ডোমেইন" },

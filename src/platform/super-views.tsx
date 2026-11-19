@@ -991,6 +991,36 @@ export const GoogleSettings = ({ s }: { s: Record<string, string> }) => (
   </form>
 );
 
+/** সব দোকানের কুরিয়ার রিপোর্টের চাবি — চাবি কখনো পেজে দেখানো হয় না */
+export const CourierReportSettings = ({ s }: { s: Record<string, string> }) => {
+  const has = (k: string) => !!(s[k] || "").trim();
+  const Secret = ({ name, label, hint }: { name: string; label: string; hint?: string }) => (
+    <>
+      <label>{label} {has(name) && <small class="sa-muted">(দেওয়া আছে — বদলাতে নতুনটা লিখুন)</small>}</label>
+      <input type="password" name={name} value="" placeholder={has(name) ? "••••••••" : ""} autocomplete="new-password" />
+      {hint && <small class="sa-muted">{hint}</small>}
+      {has(name) && <label class="sa-check"><input type="checkbox" name={`${name}_clear`} value="1" /> এই চাবি মুছে ফেলুন</label>}
+    </>
+  );
+  return (
+    <form method="post" action="/super/settings/courier-report" style="margin-top:16px">
+      <Card title="কুরিয়ার রিপোর্ট / ফ্রড চেক — সব দোকানের জন্য">
+        <div class="sa-form">
+          <p class="sa-muted"><small>যেসব দোকান নিজের Steadfast বা BD Courier চাবি দেয়নি, তারা এখানের চাবি দিয়ে ক্রেতার কুরিয়ার রিপোর্ট দেখবে। দোকানের নিজের চাবি থাকলে আগে সেটাই ব্যবহার হয়।</small></p>
+          <label class="sa-check"><input type="checkbox" name="cr_on" value="1" checked={s.cr_on !== "0"} /> সব দোকানের জন্য চালু</label>
+          <Secret name="cr_bdcourier_token" label="BD Courier API কী (সব কুরিয়ার, কুরিয়ার অনুযায়ী ভাগসহ)" hint="bdcourier.com-এ রেজিস্ট্রেশন করে অ্যাকাউন্ট সেটিংস থেকে।" />
+          <Secret name="cr_steadfast_key" label="Steadfast API Key (BD Courier না থাকলে বা কাজ না করলে)" />
+          <Secret name="cr_steadfast_secret" label="Steadfast Secret Key" />
+          <label>দোকানপ্রতি দিনে সর্বোচ্চ কতবার খুঁজবে</label>
+          <input type="number" name="cr_daily_limit" min="0" max="5000" value={s.cr_daily_limit || "100"} />
+          <small class="sa-muted">একই নম্বর ২৪ ঘণ্টা মনে রাখা হয় — আবার খুঁজলে গোনা হয় না। ০ দিলে শুধু নিজের চাবিওয়ালা দোকান দেখবে।</small>
+          <button class="sa-btn">সেভ করুন</button>
+        </div>
+      </Card>
+    </form>
+  );
+};
+
 export const SecuritySettings = ({ s, emailBinding }: { s: Record<string, string>; emailBinding: boolean }) => {
   const set = (k: string) => !!(s[k] || "").trim();
   return (

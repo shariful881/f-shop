@@ -282,3 +282,63 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .rt-area ul, .rt-area ol { padding-left: 1.3em; margin: .4em 0; }
 .rt-area p { margin: .3em 0; }
 .rt-area a { color: #2563eb; text-decoration: underline; }
+/* ===== কুরিয়ার রিপোর্ট কার্ড (অর্ডার তালিকা) ===== */
+.cr-card { display: grid; gap: 5px; width: 100%; max-width: 250px; margin-top: 8px; padding: 8px 10px; text-align: left; font: inherit; cursor: pointer;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; color: inherit; transition: border-color .15s, box-shadow .15s; }
+.cr-card:hover { border-color: #5eead4; box-shadow: 0 4px 12px rgba(15, 118, 110, .1); }
+.cr-head { display: flex; align-items: center; gap: 5px; font-size: .68rem; font-weight: 700; letter-spacing: .04em; color: #64748b; text-transform: uppercase; }
+.cr-flag { margin-left: auto; background: #fee2e2; color: #991b1b; border-radius: 99px; padding: 1px 7px; font-size: .66rem; letter-spacing: 0; text-transform: none; }
+.cr-bar { display: flex; height: 7px; border-radius: 99px; overflow: hidden; background: #e2e8f0; }
+.cr-bar i { display: block; height: 100%; }
+.cr-ok { background: linear-gradient(90deg, #059669, #10b981); }
+.cr-bad { background: #f87171; }
+.cr-text { font-size: .8rem; color: #334155; }
+.cr-wait .cr-bar { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: cr-shine 1.2s linear infinite; }
+.cr-wait .cr-text { color: #94a3b8; }
+.cr-bad .cr-text, .cr-card.cr-bad { border-color: #fecaca; }
+.cr-card.cr-bad { background: #fff7f7; }
+.cr-card.cr-warn { background: #fffbeb; border-color: #fde68a; }
+@keyframes cr-shine { to { background-position: -200% 0; } }
+
+/* ===== পুরো ফ্রড রিপোর্ট ===== */
+.fr-dlg { width: min(760px, 96vw); max-height: 90vh; padding: 0; border: 0; border-radius: 16px; box-shadow: 0 24px 60px rgba(15, 23, 42, .25); }
+.fr-dlg::backdrop { background: rgba(15, 23, 42, .45); }
+.fr-dlg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; background: #fff; z-index: 1; }
+.fr-dlg-head strong { font-size: 1.1rem; }
+.fr-x { border: 0; background: #f1f5f9; border-radius: 8px; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer; color: #475569; }
+.fr-x:hover { background: #e2e8f0; }
+.fr-dlg-body { padding: 16px 20px 22px; overflow: auto; }
+.fr-cards { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 10px; }
+.fr-cards > div { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; background: #f8fafc; display: grid; gap: 6px; align-content: start; }
+.fr-cards small { font-size: .7rem; font-weight: 700; letter-spacing: .04em; color: #64748b; text-transform: uppercase; }
+.fr-cards b { font-size: 1.5rem; line-height: 1.1; }
+.fr-main b { font-size: 2rem; }
+.fr-main.fr-ok, .fr-main.fr-good { background: #ecfdf5; border-color: #a7f3d0; } .fr-main.fr-ok b, .fr-main.fr-good b { color: #047857; }
+.fr-main.fr-warn { background: #fffbeb; border-color: #fde68a; } .fr-main.fr-warn b { color: #b45309; }
+.fr-main.fr-bad { background: #fef2f2; border-color: #fecaca; } .fr-main.fr-bad b { color: #b91c1c; }
+.fr-main .cr-bar { height: 8px; }
+.fr-okc { color: #047857; } .fr-badc { color: #b91c1c; }
+.fr-h { margin: 18px 0 8px; font-size: .74rem; font-weight: 700; letter-spacing: .05em; color: #64748b; text-transform: uppercase; }
+.fr-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.fr-table tr.fr-zero td { color: #94a3b8; }
+.fr-courier { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.fr-courier img { border-radius: 6px; background: #fff; border: 1px solid #e2e8f0; object-fit: contain; }
+.fr-logo-x { width: 22px; height: 22px; border-radius: 6px; background: #e2e8f0; display: grid; place-items: center; font-size: .72rem; color: #475569; }
+.fr-pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: .76rem; font-weight: 700; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.fr-pill.ok { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.fr-pill.warn { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.fr-pill.bad { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.fr-alert { display: flex; gap: 6px; align-items: center; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+.fr-search { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 16px; max-width: 520px; }
+.fr-search input { flex: 1 1 220px; font-size: 1.05rem; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+@media (max-width: 640px) {
+  .fr-cards { grid-template-columns: 1fr 1fr 1fr; }
+  .fr-main { grid-column: 1 / -1; }
+  .fr-dlg-body { padding: 14px; }
+}
+@media (max-width: 640px) {
+  .fr-table th, .fr-table td { padding: 7px 6px; font-size: .84rem; }
+  .fr-table th { font-size: .7rem; }
+  .fr-courier { gap: 5px; }
+  .fr-courier img, .fr-logo-x { width: 18px; height: 18px; }
+}

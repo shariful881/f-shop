@@ -27,7 +27,7 @@ import { PLAN_KEYS, plans } from "./plans";
 import { clearSession, SUPER_COOKIES } from "../shop/lib/session-cookie";
 import { shopUrl, superFromCookie, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, CourierReportSettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -986,7 +986,7 @@ const LONG_TEXT_KEYS = ["dbbl_account_name", "dbbl_branch"];
 superApp.get("/settings", async (c) => {
   if (!allowed(c, "settings")) return forbidden(c);
   const ps = await platformSettings(c.env.PLATFORM_DB, true);
-  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><GoogleSettings s={ps} /></>);
+  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><CourierReportSettings s={ps} /><GoogleSettings s={ps} /></>);
 });
 
 superApp.post("/settings/seo", async (c) => {
@@ -1030,6 +1030,24 @@ superApp.post("/settings/security", async (c) => {
   const changed = vals.filter(([k, v]) => (before[k] ?? "") !== v).map(([k, v]) => (secret.has(k) ? `${k}: বদলেছে` : `${k}: ${before[k] ?? ""} → ${v}`));
   if (changed.length) await audit(c, "settings.security", "settings", null, changed.join(", "));
   flash(c, "ok", "নিরাপত্তা সেটিংস সেভ হয়েছে।");
+  return c.redirect("/super/settings", 303);
+});
+
+superApp.post("/settings/courier-report", async (c) => {
+  if (!allowed(c, "settings")) return forbidden(c);
+  const b = await c.req.parseBody();
+  const db = c.env.PLATFORM_DB;
+  const vals: [string, string][] = [["cr_on", b.cr_on === "1" ? "1" : "0"], ["cr_daily_limit", String(Math.min(5000, Math.max(0, toInt(b.cr_daily_limit, 100))))]];
+  for (const k of ["cr_bdcourier_token", "cr_steadfast_key", "cr_steadfast_secret"]) {
+    if (b[`${k}_clear`] === "1") vals.push([k, ""]);
+    else { const v = str(b[k], 300); if (v) vals.push([k, v]); }
+  }
+  const before = await platformSettings(db, true);
+  await db.batch(vals.map(([k, v]) => db.prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v)));
+  clearSettingsCache();
+  const changed = vals.filter(([k, v]) => (before[k] ?? "") !== v).map(([k, v]) => (k.endsWith("_token") || k.endsWith("_key") || k.endsWith("_secret") ? `${k}: ${v ? "বদলেছে" : "মোছা"}` : `${k}: ${before[k] ?? ""} → ${v}`));
+  if (changed.length) await audit(c, "settings.courier_report", "settings", null, changed.join(", "));
+  flash(c, "ok", "কুরিয়ার রিপোর্টের সেটিংস সেভ হয়েছে।");
   return c.redirect("/super/settings", 303);
 });
 

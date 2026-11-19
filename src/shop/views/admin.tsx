@@ -15,6 +15,7 @@ import { topupMethod, type ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
+import { CourierCard, FraudDialog } from "./fraud-report";
 import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
 import { waLink, type WaMsg } from "../lib/whatsapp";
 import { bn } from "../lib/format";
@@ -150,6 +151,9 @@ export const OrdersPage = (p: {
   range?: keyof typeof RANGE_LABEL;
   history?: Record<string, { good: number; bad: number }>;
   risk?: Record<string, Risk & { shared?: number; courier?: number | null }>;
+  /** কুরিয়ার রিপোর্টের ক্যাশ আর খোঁজা যায় কি না */
+  courier?: Record<string, CourierSummary>;
+  crReady?: boolean;
   couriers?: CourierKey[];
   payPending?: boolean;
   payCount?: number;
@@ -235,7 +239,8 @@ export const OrdersPage = (p: {
               <tr>
                 {bulk && <td><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
                 <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
-                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a> <a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="wa-mini" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a> <RiskBadge r={p.risk?.[o.phone]} /></td>
+                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a> <a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="wa-mini" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a> <RiskBadge r={p.risk?.[o.phone]} />
+                  {(p.crReady || p.courier?.[o.phone]) && <CourierCard phone={o.phone} sum={p.courier?.[o.phone]} ready={!!p.crReady} />}</td>
                 <td>{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
                 <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
@@ -254,6 +259,7 @@ export const OrdersPage = (p: {
       {p.page > 1 && <a class="btn btn-outline" href={qs({ page: p.page - 1 })}>← আগের</a>}
       {p.hasMore && <a class="btn btn-outline" href={qs({ page: p.page + 1 })}>পরের →</a>}
     </div>
+    <FraudDialog />
   </>
   );
 };
@@ -370,6 +376,8 @@ const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
         </tbody>
       </table>
       {(own?.open ?? 0) > 0 && <p class="small">এই নম্বরের আরও {bn(own!.open)}টা অর্ডার চলছে।</p>}
+      <p><button type="button" class="btn btn-primary btn-sm" data-cr-open={o.phone}><Icon name="shield-alert" size="sm" /> পুরো ফ্রড রিপোর্ট</button></p>
+      <FraudDialog />
       {r.canCheck
         ? <form method="post" action={`/admin/orders/${o.id}/courier-check`}><button class="btn btn-outline btn-sm"><Icon name="search" size="sm" /> {r.courier ? "কুরিয়ারে আবার খুঁজুন" : "কুরিয়ারে রেকর্ড খুঁজুন"}</button></form>
         : <p class="muted small">কুরিয়ারে রেকর্ড দেখতে <a href="/admin/courier">কুরিয়ার সেটিংসে</a> Steadfast-এর চাবি বা BD Courier-এর ফ্রি API কী দিন।</p>}

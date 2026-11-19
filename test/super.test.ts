@@ -222,3 +222,22 @@ describe("ডেমো দোকান হিসাবে গোনা হয়
     expect(fin).not.toContain("৳৯৯৯");
   });
 });
+
+describe("কুরিয়ার রিপোর্টের চাবি (সব দোকানের জন্য)", () => {
+  it("সেভ হয়, চাবি পেজে দেখায় না, মোছা যায়", async () => {
+    const b = await member("owner@t.com", "owner");
+    expect((await post(b, "/super/settings/courier-report", { cr_on: "1", cr_bdcourier_token: "SECRET-TOKEN-1", cr_daily_limit: "50" })).status).toBe(303);
+    const ps = async () => Object.fromEntries((await pdb().prepare("SELECT key, value FROM platform_settings WHERE key LIKE 'cr_%'").all<{ key: string; value: string }>()).results.map((r) => [r.key, r.value]));
+    expect(await ps()).toMatchObject({ cr_on: "1", cr_bdcourier_token: "SECRET-TOKEN-1", cr_daily_limit: "50" });
+    const page = await (await get(b, "/super/settings")).text();
+    expect(page).toContain("কুরিয়ার রিপোর্ট / ফ্রড চেক");
+    expect(page).not.toContain("SECRET-TOKEN-1");
+    // খালি রাখলে আগের চাবি থাকে; মোছার টিকে মোছে
+    await post(b, "/super/settings/courier-report", { cr_on: "1", cr_daily_limit: "50" });
+    expect((await ps()).cr_bdcourier_token).toBe("SECRET-TOKEN-1");
+    await post(b, "/super/settings/courier-report", { cr_on: "1", cr_bdcourier_token_clear: "1", cr_daily_limit: "50" });
+    expect((await ps()).cr_bdcourier_token).toBe("");
+    const log = await pdb().prepare("SELECT detail FROM audit_log WHERE action = 'settings.courier_report' ORDER BY id DESC").first<{ detail: string }>();
+    expect(log!.detail).not.toContain("SECRET");
+  });
+});

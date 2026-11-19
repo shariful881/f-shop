@@ -4,7 +4,8 @@
  */
 import type { Settings } from "./settings";
 import type { Order, OrderItem } from "./orders";
-import type { CourierSummary } from "./fraud";
+import type { CourierRow, CourierSummary } from "./fraud";
+import { hitRateLimit } from "./order-guard";
 
 export type CourierKey = "steadfast" | "pathao" | "redx";
 export const COURIER_NAME: Record<CourierKey, string> = { steadfast: "Steadfast", pathao: "Pathao", redx: "RedX" };
@@ -21,10 +22,10 @@ export function configuredCouriers(s: Settings): CourierKey[] {
   return out;
 }
 
-async function call(url: string, init: RequestInit): Promise<{ status: number; json: any; text: string }> {
+async function call(url: string, init: RequestInit, maxText = 4000): Promise<{ status: number; json: any; text: string }> {
   try {
     const res = await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) });
-    const text = (await res.text()).slice(0, 4000);
+    const text = (await res.text()).slice(0, maxText);
     let json: any = null;
     try { json = JSON.parse(text); } catch {}
     return { status: res.status, json, text };
@@ -192,40 +193,61 @@ export async function parcelStatus(s: Settings, o: Order, save: (k: Record<strin
 
 /* ---------------- ক্রেতার ডেলিভারি রেকর্ড (কনফার্মের আগে দেখা) ---------------- */
 
-/** BD Courier (bdcourier.com) — ফ্রি রেজিস্ট্রেশনের API কী দিয়ে সব কুরিয়ারের মিলিত হিসাব */
+/** BD Courier (bdcourier.com) — এক চাবিতে সব কুরিয়ারের হিসাব, কুরিয়ার অনুযায়ী ভাগসহ */
 async function bdcourierRecord(token: string, phone: string): Promise<CourierSummary | { error: string }> {
   const r = await call("https://api.bdcourier.com/courier-check", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ phone }),
-  });
-  const sum = r.json?.data?.summary ?? r.json?.courierData?.summary;
+  }, 60_000);
+  const data = r.json?.data ?? r.json?.courierData;
+  const sum = data?.summary;
   if (r.status === 200 && sum && typeof sum === "object") {
     const total = Number(sum.total_parcel) || 0;
     const success = Number(sum.success_parcel) || 0;
     const cancelled = Number(sum.cancelled_parcel) || 0;
-    const reports = Array.isArray(r.json?.data?.reports) ? r.json.data.reports.length : 0;
-    return { total, success, cancelled, ratio: total ? Math.round((success / total) * 100) : null, reports, source: "BD Courier" };
+    const reports = Array.isArray(data?.reports) ? data.reports.length : Array.isArray(r.json?.reports) ? r.json.reports.length : 0;
+    const couriers: CourierRow[] = [];
+    for (const [key, v] of Object.entries(data as Record<string, any>)) {
+      if (key === "summary" || key === "reports" || !v || typeof v !== "object" || !("total_parcel" in v)) continue;
+      const t = Number(v.total_parcel) || 0;
+      const ok = Number(v.success_parcel) || 0;
+      couriers.push({
+        key: key.replace(/[^a-z0-9_-]/gi, "").slice(0, 30), name: String(v.name || key).slice(0, 40),
+        logo: typeof v.logo === "string" && /^https:\/\/[^\s"'<>]+$/.test(v.logo) ? v.logo.slice(0, 300) : undefined,
+        total: t, success: ok, cancelled: Number(v.cancelled_parcel) || Math.max(0, t - ok), ratio: t ? Math.round((ok / t) * 100) : null,
+      });
+    }
+    couriers.sort((a, b) => b.total - a.total);
+    return { total, success, cancelled, ratio: total ? Math.round((success / total) * 100) : null, reports, source: "BD Courier", couriers };
   }
   return { error: `BD Courier: ${errMsg(r)}` };
 }
 
-/** Steadfast-এর নিজের API (দোকানের Steadfast চাবি দিয়ে) — শুধু শতাংশ দেয়, সংখ্যা নয় */
-async function steadfastRecord(s: Settings, phone: string): Promise<CourierSummary | { error: string }> {
-  const r = await call(`${SF}/fraud_check/score/${encodeURIComponent(phone)}`, { headers: sfHeaders(s) });
+/** Steadfast-এর নিজের API — শুধু শতাংশ আর আনুমানিক পরিমাণ দেয়, সঠিক সংখ্যা নয় */
+async function steadfastRecord(keys: { key: string; secret: string }, phone: string): Promise<CourierSummary | { error: string }> {
+  const r = await call(`${SF}/fraud_check/score/${encodeURIComponent(phone)}`, { headers: { "Api-Key": keys.key, "Secret-Key": keys.secret, "Content-Type": "application/json" } });
   if (r.status === 200 && r.json && ("delivery_ratio" in r.json || "volume_band" in r.json)) {
     const band = String(r.json.volume_band ?? "none");
-    // সংখ্যা দেয় না, তাই আনুমানিক পরিমাণ (none/low/medium/high) থেকে ছোট একটা সংখ্যা
     const approx: Record<string, number> = { none: 0, low: 3, medium: 10, high: 30, very_high: 100 };
     const total = approx[band] ?? 0;
     const ratio = r.json.delivery_ratio == null ? null : Number(r.json.delivery_ratio);
     const success = ratio == null ? 0 : Math.round((total * ratio) / 100);
-    return { total, success, cancelled: total - success, ratio, reports: Number(r.json.total_reports) || 0, source: `Steadfast (${band})` };
+    return { total, success, cancelled: total - success, ratio, reports: Number(r.json.total_reports) || 0, source: `Steadfast (${band})`, approx: true,
+      couriers: [{ key: "steadfast", name: "Steadfast", total, success, cancelled: total - success, ratio }] };
   }
   return { error: `Steadfast: ${errMsg(r)}` };
 }
 
-export const courierRecordReady = (s: Settings) => !!s.bdcourier_token || !!(s.steadfast_api_key && s.steadfast_secret_key);
+/** সুপার অ্যাডমিনে বসানো চাবি — দোকানের নিজের চাবি না থাকলে এগুলো দিয়ে খোঁজা */
+export type PlatformCourierKeys = { bd?: string; sfKey?: string; sfSecret?: string; dailyLimit: number };
+export function platformCourierKeys(ps: Record<string, string>): PlatformCourierKeys | undefined {
+  if (ps.cr_on === "0") return undefined;
+  const k: PlatformCourierKeys = { bd: ps.cr_bdcourier_token || undefined, sfKey: ps.cr_steadfast_key || undefined, sfSecret: ps.cr_steadfast_secret || undefined, dailyLimit: Math.max(0, parseInt(ps.cr_daily_limit || "100", 10) || 0) };
+  return k.bd || (k.sfKey && k.sfSecret) ? k : undefined;
+}
+const shopReady = (s: Settings) => !!s.bdcourier_token || !!(s.steadfast_api_key && s.steadfast_secret_key);
+export const courierRecordReady = (s: Settings, p?: PlatformCourierKeys) => shopReady(s) || !!p;
 
 /** খোঁজা রেকর্ড ক্যাশে আছে কিনা (১২ ঘণ্টা) — অনেক নম্বর একবারে, বাইরের কল ছাড়া */
 export async function cachedCourierRecords(db: D1Database, phones: string[]): Promise<Record<string, CourierSummary>> {
@@ -241,8 +263,11 @@ export async function cachedCourierRecords(db: D1Database, phones: string[]): Pr
   return out;
 }
 
-/** কুরিয়ারে খোঁজা: আগে BD Courier (সব কুরিয়ার), না থাকলে Steadfast; ফল ক্যাশে রাখা */
-export async function courierRecord(db: D1Database, s: Settings, phone: string): Promise<CourierSummary | { error: string }> {
+/**
+ * কুরিয়ারে খোঁজা: দোকানের নিজের চাবি (BD Courier, তারপর Steadfast), না থাকলে বা কাজ না করলে
+ * সুপার অ্যাডমিনের চাবি (দোকানপ্রতি দৈনিক সীমা)। ফল ক্যাশে রাখা।
+ */
+export async function courierRecord(db: D1Database, s: Settings, phone: string, platform?: PlatformCourierKeys): Promise<CourierSummary | { error: string }> {
   const errors: string[] = [];
   let found: CourierSummary | null = null;
   if (s.bdcourier_token) {
@@ -250,13 +275,27 @@ export async function courierRecord(db: D1Database, s: Settings, phone: string):
     if ("error" in r) errors.push(r.error); else found = r;
   }
   if (!found && s.steadfast_api_key && s.steadfast_secret_key) {
-    const r = await steadfastRecord(s, phone);
+    const r = await steadfastRecord({ key: s.steadfast_api_key, secret: s.steadfast_secret_key }, phone);
     if ("error" in r) errors.push(r.error); else found = r;
+  }
+  if (!found && platform) {
+    if (!(await hitRateLimit(db, "courier-platform", platform.dailyLimit, 86_400))) {
+      errors.push("আজকের ফ্রি খোঁজার সীমা শেষ — কাল আবার, অথবা কুরিয়ার সেটিংসে নিজের চাবি দিন");
+    } else {
+      if (platform.bd) {
+        const r = await bdcourierRecord(platform.bd, phone);
+        if ("error" in r) errors.push(r.error); else found = r;
+      }
+      if (!found && platform.sfKey && platform.sfSecret) {
+        const r = await steadfastRecord({ key: platform.sfKey, secret: platform.sfSecret }, phone);
+        if ("error" in r) errors.push(r.error); else found = r;
+      }
+    }
   }
   if (!found) return { error: errors.join(" · ") || "কুরিয়ার রেকর্ড দেখার চাবি দেওয়া নেই" };
   await db
     .prepare("INSERT INTO courier_checks (phone, data, checked_at) VALUES (?, ?, datetime('now')) ON CONFLICT(phone) DO UPDATE SET data = excluded.data, checked_at = excluded.checked_at")
     .bind(phone, JSON.stringify(found))
     .run();
-  return found;
+  return { ...found, checked_at: new Date().toISOString().slice(0, 19).replace("T", " ") };
 }

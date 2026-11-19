@@ -12,8 +12,10 @@ export type Outcome = "delivered" | "returned" | "cancelled" | "fake";
 export type Shared = { delivered: number; returned: number; cancelled: number; fake: number; shops: number };
 /** এই দোকানের নিজের হিসাব */
 export type Own = { delivered: number; returned: number; cancelled: number; fake: number; open: number };
-/** কুরিয়ারের হিসাব (সব কুরিয়ার মিলে) */
-export type CourierSummary = { total: number; success: number; cancelled: number; ratio: number | null; reports?: number; source: string; checked_at?: string };
+/** এক কুরিয়ারের হিসাব */
+export type CourierRow = { key: string; name: string; logo?: string; total: number; success: number; cancelled: number; ratio: number | null };
+/** কুরিয়ারের হিসাব (সব কুরিয়ার মিলে) — couriers: কুরিয়ার অনুযায়ী ভাগ; approx: সংখ্যা আনুমানিক (Steadfast শুধু শতাংশ দেয়) */
+export type CourierSummary = { total: number; success: number; cancelled: number; ratio: number | null; reports?: number; source: string; checked_at?: string; couriers?: CourierRow[]; approx?: boolean };
 
 export type Risk = { level: "new" | "good" | "warn" | "bad"; label: string; ratio: number | null; records: number };
 
