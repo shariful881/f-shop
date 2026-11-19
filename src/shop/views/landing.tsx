@@ -33,12 +33,48 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
       case "gallery": {
         const imgs = d.images?.length ? d.images : prod.image ? [prod.image] : [];
         if (!imgs.length) return null;
+        if (d.layout === "grid") {
+          // গ্রিড: ১/২/৩ কলাম, মোবাইলে ৩ কলাম → ২ কলাম (CSS)
+          const [w, h] = d.ratio === "portrait" ? [600, 800] : [800, 800];
+          return (
+            <section class={`lp-gallery lp-grid lp-cols-${d.cols ?? 2} lp-ratio-${d.ratio ?? "square"}`}>
+              {imgs.map((k, i) => (
+                <figure>
+                  <img src={imageUrl(k)} alt={d.captions?.[i] || prod.name} width={String(w)} height={String(h)} loading={i ? "lazy" : "eager"} />
+                  {d.captions?.[i] && <figcaption>{d.captions[i]}</figcaption>}
+                </figure>
+              ))}
+            </section>
+          );
+        }
         return (
           <section class="lp-gallery">
             <div class="gallery-track">
               {imgs.map((k, i) => <img src={imageUrl(k)} alt={prod.name} width="800" height="800" loading={i ? "lazy" : "eager"} fetchpriority={i ? undefined : "high"} />)}
             </div>
             {imgs.length > 1 && <p class="muted center">← সরিয়ে আরও ছবি দেখুন →</p>}
+          </section>
+        );
+      }
+      case "heading":
+        if (!d.headline && !d.subheadline) return null;
+        return (
+          <section class={`lp-heading lp-h-${d.hsize ?? "md"} lp-al-${d.align ?? "center"}`}>
+            {d.headline && <h2>{d.headline}</h2>}
+            {d.subheadline && <p>{d.subheadline}</p>}
+          </section>
+        );
+      case "image_text": {
+        const k = d.images?.[0];
+        if (!k && !d.title && !d.html) return null;
+        return (
+          <section class={`lp-imgtext lp-img-${d.side ?? "left"}${d.mobile_first === "text" ? " lp-text-first" : ""}`}>
+            {k ? <img class="lp-it-img" src={imageUrl(k)} alt={d.title || prod.name} width="800" height="800" loading="lazy" /> : <span class="lp-it-img lp-ba-empty"></span>}
+            <div class="lp-it-body">
+              {d.title && <h2>{d.title}</h2>}
+              {d.html && <div class="lp-rich" dangerouslySetInnerHTML={{ __html: d.html }} />}
+              {d.button_text && <a href="#order" class="btn btn-primary">{d.button_text}</a>}
+            </div>
           </section>
         );
       }

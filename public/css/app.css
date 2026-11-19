@@ -564,6 +564,42 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .lp-sec.lp-has-fg .lp-guarantee p, .lp-sec.lp-has-fg .lp-compare td:last-child { color: var(--lp-fg); }
 .lp-sec.lp-has-btn .lp-steps li::before, .lp-sec.lp-has-btn .lp-g-ico { background: var(--lp-btn); color: var(--lp-btn-fg, #fff); }
 
+/* ল্যান্ডিং: শিরোনাম সেকশন */
+.lp-heading { margin: 18px 0 10px; }
+.lp-heading h2 { margin: 0; line-height: 1.3; font-size: 1.4rem; }
+.lp-heading p { margin: 6px 0 0; color: var(--muted); }
+.lp-h-sm h2 { font-size: 1.15rem; }
+.lp-h-lg h2 { font-size: 1.75rem; }
+.lp-h-xl h2 { font-size: 2.1rem; }
+@media (min-width: 700px) { .lp-h-lg h2 { font-size: 2rem; } .lp-h-xl h2 { font-size: 2.6rem; } }
+.lp-al-left { text-align: left; } .lp-al-center { text-align: center; } .lp-al-right { text-align: right; }
+.lp-sec.lp-has-fg .lp-heading p { color: var(--lp-fg); opacity: .85; }
+
+/* ল্যান্ডিং: ছবি + লেখা — বড় স্ক্রিনে পাশাপাশি, ফোনে উপর-নিচে */
+.lp-imgtext { display: grid; gap: 14px; margin: 18px 0; align-items: center; }
+.lp-it-img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); display: block; }
+.lp-it-body h2 { margin: 0 0 8px; font-size: 1.3rem; line-height: 1.35; }
+.lp-it-body .btn { margin-top: 10px; }
+.lp-rich > :first-child { margin-top: 0; } .lp-rich > :last-child { margin-bottom: 0; }
+.lp-rich ul, .lp-rich ol { padding-left: 1.3em; }
+.lp-text-first .lp-it-body { order: -1; }
+@media (min-width: 560px) {
+  .lp-imgtext { grid-template-columns: 1fr 1fr; gap: 20px; }
+  .lp-text-first .lp-it-body { order: 0; }
+  .lp-img-right .lp-it-img { order: 2; }
+}
+
+/* ল্যান্ডিং: ছবির গ্রিড — ১/২/৩ কলাম, ফোনে ৩ → ২ */
+.lp-grid { display: grid; gap: 10px; margin: 16px 0; grid-template-columns: repeat(var(--lp-cols, 2), minmax(0, 1fr)); }
+.lp-cols-1 { --lp-cols: 1; } .lp-cols-2 { --lp-cols: 2; } .lp-cols-3 { --lp-cols: 2; }
+@media (min-width: 560px) { .lp-cols-3 { --lp-cols: 3; } }
+.lp-grid figure { margin: 0; }
+.lp-grid img { width: 100%; height: auto; display: block; border-radius: 10px; object-fit: cover; cursor: zoom-in; }
+.lp-ratio-square img { aspect-ratio: 1; }
+.lp-ratio-portrait img { aspect-ratio: 3 / 4; }
+.lp-grid figcaption { font-size: .88rem; text-align: center; margin-top: 5px; color: var(--muted); }
+.lp-sec.lp-has-fg .lp-grid figcaption { color: var(--lp-fg); }
+
 /* ---------- অ্যাডমিন: নিশ্চিত করার পপআপ আর টোস্ট ---------- */
 dialog.cfm { border: 0; border-radius: 14px; padding: 22px; max-width: 380px; width: calc(100% - 32px); box-shadow: 0 20px 50px rgba(15, 23, 42, .25); font: inherit; color: #0f172a; }
 dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }

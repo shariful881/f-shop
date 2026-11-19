@@ -6,11 +6,13 @@ import { sanitizeHtml } from "./sanitize";
 import { youtubeId } from "./format";
 import type { Product } from "./products";
 
-export const SECTION_TYPES = ["hero", "gallery", "image", "video", "text", "benefits", "before_after", "steps", "comparison", "reviews", "guarantee", "faq", "countdown", "cta", "trust", "order_form"] as const;
+export const SECTION_TYPES = ["hero", "heading", "gallery", "image", "image_text", "video", "text", "benefits", "before_after", "steps", "comparison", "reviews", "guarantee", "faq", "countdown", "cta", "trust", "order_form"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 export const SECTION_LABEL: Record<SectionType, string> = {
   hero: "বড় শিরোনাম",
+  heading: "শিরোনাম",
+  image_text: "ছবি + লেখা",
   gallery: "ছবির গ্যালারি",
   image: "বড় ছবি / ব্যানার",
   before_after: "আগে-পরে (দুই ছবি)",
@@ -59,8 +61,16 @@ export type Section = {
     items?: string[]; reviews?: Review[]; faqs?: { q: string; a: string }[];
     mode?: "fixed" | "evergreen"; ends_at?: string; minutes?: number;
     labels?: string[]; rows?: { label: string; us: string; them: string }[];
+    /** শিরোনাম: সাইজ ও সাজানো */
+    hsize?: HeadingSize; align?: "left" | "center" | "right";
+    /** ছবি + লেখা: ছবি কোন পাশে, মোবাইলে কোনটা আগে */
+    side?: "left" | "right"; mobile_first?: "image" | "text";
+    /** গ্যালারি: স্লাইড না গ্রিড, কলাম, ছবির আকার, প্রতি ছবির নিচের লেখা */
+    layout?: "slide" | "grid"; cols?: 1 | 2 | 3; ratio?: "square" | "original" | "portrait"; captions?: string[];
   };
 };
+export const HEADING_SIZES = { sm: "ছোট", md: "মাঝারি", lg: "বড়", xl: "খুব বড়" } as const;
+export type HeadingSize = keyof typeof HEADING_SIZES;
 export type Landing = { sections: Section[]; style?: PageStyle };
 
 const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : "");
@@ -123,8 +133,34 @@ export function normalizeLanding(input: unknown): Landing {
         data.show_price = d.show_price !== false;
         data.button_text = s(d.button_text, 60) || "এখনই অর্ডার করুন";
         break;
-      case "gallery":
-        data.images = (Array.isArray(d.images) ? d.images : []).map(imgKey).filter(Boolean).slice(0, 12);
+      case "gallery": {
+        // ছবি আর তার নিচের লেখা একসাথে যাচাই — খারাপ ছবি বাদ গেলে লেখাও বাদ
+        const imgs = Array.isArray(d.images) ? d.images : [];
+        const caps = Array.isArray(d.captions) ? d.captions : [];
+        const pairs = imgs.slice(0, 24).map((k, i) => [imgKey(k), s(caps[i], 120)] as const).filter(([k]) => k).slice(0, 12);
+        data.images = pairs.map(([k]) => k);
+        if (d.layout === "grid") {
+          data.layout = "grid";
+          const c = parseInt(String(d.cols ?? 2), 10);
+          data.cols = c === 1 || c === 3 ? c : 2;
+          data.ratio = d.ratio === "original" || d.ratio === "portrait" ? d.ratio : "square";
+          if (pairs.some(([, c2]) => c2)) data.captions = pairs.map(([, c2]) => c2);
+        }
+        break;
+      }
+      case "heading":
+        data.headline = s(d.headline, 200);
+        data.subheadline = s(d.subheadline, 500);
+        data.hsize = typeof d.hsize === "string" && Object.hasOwn(HEADING_SIZES, d.hsize) ? (d.hsize as HeadingSize) : "md";
+        data.align = d.align === "left" || d.align === "right" ? d.align : "center";
+        break;
+      case "image_text":
+        data.images = (Array.isArray(d.images) ? d.images : []).map(imgKey).filter(Boolean).slice(0, 1);
+        data.title = s(d.title, 200);
+        data.html = sanitizeHtml(typeof d.html === "string" ? d.html.slice(0, 20_000) : "");
+        data.button_text = s(d.button_text, 60);
+        data.side = d.side === "right" ? "right" : "left";
+        data.mobile_first = d.mobile_first === "text" ? "text" : "image";
         break;
       case "video":
         data.youtube_url = youtubeId(s(d.youtube_url, 300)) ? s(d.youtube_url, 300) : "";
