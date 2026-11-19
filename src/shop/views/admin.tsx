@@ -769,7 +769,7 @@ export type TopupRow = { id: number; amount: number; method: string; sender: str
 const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
 const TOPUP_STATUS: Record<string, string> = { pending: "অপেক্ষায়", approved: "যোগ হয়েছে", rejected: "বাতিল" };
 
-export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; errors?: Record<string, string>; values?: Record<string, string> }) => {
+export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; online?: boolean; errors?: Record<string, string>; values?: Record<string, string> }) => {
   const e = p.errors ?? {};
   const v = p.values ?? {};
   return (
@@ -791,6 +791,19 @@ export const BillingPage = (p: { state: ShopState; fees: Record<string, string>;
         </section>
         <section class="panel">
           <h2>রিচার্জ করুন</h2>
+          {p.online && (
+            <form method="post" action="/admin/billing/pay" class="order-form pay-online">
+              <p class="pay-online-head"><Icon name="zap" size="sm" /> <strong>অনলাইনে পে করুন — সাথে সাথে ব্যালেন্সে যোগ হবে</strong><br /><small class="muted">bKash, Nagad, Rocket, Upay — TrxID লেখার দরকার নেই</small></p>
+              <div class="pay-online-row">
+                <label class="field"><span>টাকা (সর্বনিম্ন {taka(Number(p.fees.min_topup || 100))})</span>
+                  <input type="number" name="amount" min={p.fees.min_topup || "100"} max="100000" value={v.pay_amount ?? ""} required inputmode="numeric" />
+                  {e.pay_amount && <small class="error">{e.pay_amount}</small>}
+                </label>
+                <button class="btn btn-primary">পে করুন →</button>
+              </div>
+            </form>
+          )}
+          {p.online && <p class="muted pay-or">অথবা নিজে Send Money করে TrxID দিন (যাচাইয়ে কিছু সময় লাগে):</p>}
           <ol class="small-list">
             <li>bKash <strong>{p.fees.bkash_number}</strong> অথবা Nagad <strong>{p.fees.nagad_number}</strong> নম্বরে <strong>Send Money</strong> করুন</li>
             <li>নিচে টাকার পরিমাণ, আপনার নম্বর আর Transaction ID দিন</li>

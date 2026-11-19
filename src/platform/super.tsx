@@ -27,7 +27,7 @@ import { PLAN_KEYS, plans } from "./plans";
 import { clearSession, SUPER_COOKIES } from "../shop/lib/session-cookie";
 import { shopUrl, superFromCookie, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, PaymentSettings, OnlinePayments, type OnlinePayRow, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -529,8 +529,9 @@ superApp.get("/topups", async (c) => {
       FROM topups`),
   ]);
   const x = st!.results[0] as { pending_amount: number; today: number; d30: number };
+  const { results: online } = await db.prepare("SELECT o.*, s.name AS shop_name, s.slug FROM online_payments o JOIN shops s ON s.id = o.shop_id WHERE o.status != 'created' OR o.created_at > datetime('now', '-1 day') ORDER BY o.id DESC LIMIT 50").all<OnlinePayRow>();
   return page(c, "রিচার্জ", "topups",
-    <TopupsPage pending={p!.results as TopupRow[]} recent={r!.results as TopupRow[]} role={me(c).role} status={status} stats={{ pendingAmount: x.pending_amount, today: x.today, d30: x.d30 }} />);
+    <><TopupsPage pending={p!.results as TopupRow[]} recent={r!.results as TopupRow[]} role={me(c).role} status={status} stats={{ pendingAmount: x.pending_amount, today: x.today, d30: x.d30 }} /><OnlinePayments rows={online} /></>);
 });
 
 superApp.post("/topups/:id/approve", async (c) => {
@@ -978,7 +979,7 @@ const TEXT_KEYS = ["bkash_number", "nagad_number", "support_phone"];
 superApp.get("/settings", async (c) => {
   if (!allowed(c, "settings")) return forbidden(c);
   const ps = await platformSettings(c.env.PLATFORM_DB, true);
-  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><GoogleSettings s={ps} /></>);
+  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><PaymentSettings s={ps} domain={c.env.PLATFORM_DOMAIN} /><GoogleSettings s={ps} /></>);
 });
 
 superApp.post("/settings/seo", async (c) => {
@@ -1022,6 +1023,28 @@ superApp.post("/settings/security", async (c) => {
   const changed = vals.filter(([k, v]) => (before[k] ?? "") !== v).map(([k, v]) => (secret.has(k) ? `${k}: বদলেছে` : `${k}: ${before[k] ?? ""} → ${v}`));
   if (changed.length) await audit(c, "settings.security", "settings", null, changed.join(", "));
   flash(c, "ok", "নিরাপত্তা সেটিংস সেভ হয়েছে।");
+  return c.redirect("/super/settings", 303);
+});
+
+superApp.post("/settings/payment", async (c) => {
+  if (!allowed(c, "settings")) return forbidden(c);
+  const b = await c.req.parseBody();
+  const db = c.env.PLATFORM_DB;
+  const url = str(b.uddokta_url, 200).replace(/\/+$/, "");
+  if (url && !/^https:\/\/[a-z0-9.-]+(:\d+)?(\/[\w./-]*)?$/i.test(url)) {
+    flash(c, "error", "UddoktaPay লিংক https:// দিয়ে শুরু হতে হবে।");
+    return c.redirect("/super/settings", 303);
+  }
+  const vals: [string, string][] = [["uddokta_on", b.uddokta_on === "1" ? "1" : "0"], ["uddokta_url", url]];
+  const key = str(b.uddokta_key, 200); if (key) vals.push(["uddokta_key", key]);
+  const before = await platformSettings(db, true);
+  await db.batch(vals.map(([k, v]) => db.prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v)));
+  clearSettingsCache();
+  const changed = vals.filter(([k, v]) => (before[k] ?? "") !== v).map(([k, v]) => (k === "uddokta_key" ? "uddokta_key: বদলেছে" : `${k}: ${before[k] ?? ""} → ${v}`));
+  if (changed.length) await audit(c, "settings.payment", "settings", null, changed.join(", "));
+  const after = { ...before, ...Object.fromEntries(vals) };
+  const on = after.uddokta_on === "1";
+  flash(c, on && !(after.uddokta_url && after.uddokta_key) ? "error" : "ok", on && !(after.uddokta_url && after.uddokta_key) ? "সেভ হয়েছে, কিন্তু লিংক আর API Key দুটো না দিলে অনলাইন রিচার্জ দেখাবে না।" : "পেমেন্ট সেটিংস সেভ হয়েছে।");
   return c.redirect("/super/settings", 303);
 });
 

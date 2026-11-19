@@ -375,3 +375,4 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .de-page-head small { display: block; font-weight: 500; color: #94a3b8; font-size: .7rem; }
 .de-page-head:first-child { padding-top: 6px; }
 .cz-pv-auto { display: grid; place-items: center; font-size: 1.4rem; color: #64748b; }
+.sa-pill.ok { background: #dcfce7; color: #166534; } .sa-pill.warn { background: #fef3c7; color: #92400e; } .sa-pill.bad { background: #fee2e2; color: #991b1b; }

@@ -248,3 +248,10 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
   body.admin:has(#builder) .banner.open { white-space: normal; }
   body.admin:has(#builder) .banner.open::after { content: "▴"; }
 }
+/* অনলাইন রিচার্জ */
+.pay-online { background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.pay-online-head { margin: 0 0 10px; }
+.pay-online-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.pay-online-row .field { flex: 1 1 160px; margin: 0; }
+.pay-online-row .btn { white-space: nowrap; }
+.pay-or { font-size: .88rem; margin: 4px 0 8px; }

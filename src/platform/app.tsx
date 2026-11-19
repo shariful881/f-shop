@@ -8,6 +8,7 @@ import {
 import { badShopName, checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
 import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
 import { num, platformSettings } from "./billing";
+import { settlePayment, uddoktaConfig } from "./uddoktapay";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
 import { helpBySlug, HELP } from "./help";
 import { okCover, publishedPosts, postBySlug } from "./blog";
@@ -64,6 +65,26 @@ const crumbs = (c: PCtx, items: [string, string][]) => ({
   "@context": "https://schema.org", "@type": "BreadcrumbList",
   itemListElement: [["হোম", "/"] as [string, string], ...items].map(([name, path], i) => ({ "@type": "ListItem", position: i + 1, name, item: canon(c, path) })),
 });
+
+/** UddoktaPay webhook — API key মিলিয়ে, তারপর verify API দিয়ে নিজে যাচাই (body-র কথা বিশ্বাস নয়) */
+platformApp.post("/api/uddoktapay/ipn", async (c) => {
+  const cfg = uddoktaConfig(await platformSettings(c.env.PLATFORM_DB, true));
+  if (!cfg) return c.json({ ok: false }, 404);
+  const key = c.req.header("rt-uddoktapay-api-key") || "";
+  if (!timingSafeEq(key, cfg.key)) return c.json({ ok: false }, 401);
+  let body: { invoice_id?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ ok: false }, 400); }
+  const r = await settlePayment(c.env.PLATFORM_DB, String(body.invoice_id ?? ""));
+  if (r.status === "completed") clearShopCache();
+  return c.json({ ok: r.ok, status: r.status });
+});
+
+function timingSafeEq(a: string, b: string) {
+  if (a.length !== b.length || !a) return false;
+  let x = 0;
+  for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return x === 0;
+}
 
 platformApp.get("/health", async (c) => {
   const row = await c.env.PLATFORM_DB.prepare("SELECT COUNT(*) AS n FROM shops").first<{ n: number }>();
@@ -421,7 +442,7 @@ platformApp.route("/super", superApp);
 
 export const unknownHostPage = () =>
   new Response(
-    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=53"></head>
+    `<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>দোকান পাওয়া যায়নি</title><link rel="stylesheet" href="/css/app.css?v=54"></head>
 <body><main class="wrap narrow empty"><h1>এই ঠিকানায় কোনো দোকান নেই</h1><p class="muted">ঠিকানাটি আবার দেখুন।</p></main></body></html>`,
     { status: 404, headers: { "content-type": "text/html; charset=utf-8" } },
   );

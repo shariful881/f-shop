@@ -985,6 +985,53 @@ export const GoogleSettings = ({ s }: { s: Record<string, string> }) => (
   </form>
 );
 
+/** অনলাইন রিচার্জ (UddoktaPay) — key কখনো পেজে দেখানো হয় না */
+export const PaymentSettings = ({ s, domain }: { s: Record<string, string>; domain: string }) => {
+  const hasKey = !!(s.uddokta_key || "").trim();
+  return (
+    <form method="post" action="/super/settings/payment" style="margin-top:16px">
+      <Card title="অনলাইন রিচার্জ (UddoktaPay)">
+        <div class="sa-form">
+          <p class="sa-muted"><small>চালু থাকলে দোকানদার বিলিং পেজে টাকা লিখে bKash/Nagad/Rocket-এ পে করবেন — যাচাই হলে নিজে থেকে ব্যালেন্সে যোগ হবে, আপনাকে অনুমোদন দিতে হবে না। হাতে TrxID দেওয়ার ব্যবস্থাও থাকবে।</small></p>
+          <label class="sa-check"><input type="checkbox" name="uddokta_on" value="1" checked={s.uddokta_on === "1"} /> অনলাইন রিচার্জ চালু</label>
+          <label>UddoktaPay প্যানেলের লিংক</label>
+          <input type="url" name="uddokta_url" value={s.uddokta_url || ""} placeholder="https://pay.আপনার-ডোমেইন.com" autocomplete="off" />
+          <small class="sa-muted">UddoktaPay প্যানেলের ঠিকানা (শেষে /api ছাড়া)। পরীক্ষার জন্য: https://sandbox.uddoktapay.com</small>
+          <label>API Key {hasKey && <small class="sa-muted">(দেওয়া আছে — বদলাতে নতুনটা লিখুন)</small>}</label>
+          <input type="password" name="uddokta_key" value="" placeholder={hasKey ? "••••••••" : ""} autocomplete="new-password" />
+          <small class="sa-muted">UddoktaPay প্যানেল → Brand Settings / API থেকে।</small>
+          <label>Webhook (IPN) লিংক — তথ্যের জন্য</label>
+          <input type="text" readonly value={`https://${domain}/api/uddoktapay/ipn`} onclick="this.select()" />
+          <small class="sa-muted">প্রতিটা পেমেন্টের সাথে এই লিংক নিজে থেকে পাঠানো হয়; আলাদা কিছু বসাতে হবে না।</small>
+          <button class="sa-btn">সেভ করুন</button>
+        </div>
+      </Card>
+    </form>
+  );
+};
+
+export type OnlinePayRow = { id: number; shop_id: string; shop_name: string; slug: string; amount: number; status: string; method: string | null; sender: string | null; trx_id: string | null; invoice_id: string | null; created_at: string };
+const PAY_STATUS: Record<string, [string, string]> = { completed: ["যোগ হয়েছে", "ok"], pending: ["যাচাই হচ্ছে", "warn"], created: ["পেজ খোলা হয়েছে", ""], failed: ["হয়নি / বাতিল", "bad"] };
+export const OnlinePayments = ({ rows }: { rows: OnlinePayRow[] }) => (
+  <Card title="অনলাইন রিচার্জ (UddoktaPay) — নিজে থেকে যোগ হয়">
+    {rows.length === 0 ? <Empty text="এখনো কোনো অনলাইন পেমেন্ট নেই" /> : (
+      <div class="sa-table-wrap"><table class="sa-table">
+        <thead><tr><th>সময়</th><th>দোকান</th><th class="sa-r">টাকা</th><th>মাধ্যম</th><th>TrxID</th><th>অবস্থা</th></tr></thead>
+        <tbody>{rows.map((r) => (
+          <tr>
+            <td>{dhakaTime(r.created_at)}</td>
+            <td><a href={`/super/shops/${r.shop_id}`}>{r.shop_name}</a></td>
+            <td class="sa-r">{taka(r.amount)}</td>
+            <td>{r.method ?? "—"}{r.sender ? <small class="sa-muted"> · {r.sender}</small> : null}</td>
+            <td><code>{r.trx_id ?? "—"}</code></td>
+            <td><span class={`sa-pill ${PAY_STATUS[r.status]?.[1] ?? ""}`}>{PAY_STATUS[r.status]?.[0] ?? r.status}</span></td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    )}
+  </Card>
+);
+
 export const SecuritySettings = ({ s, emailBinding }: { s: Record<string, string>; emailBinding: boolean }) => {
   const set = (k: string) => !!(s[k] || "").trim();
   return (
