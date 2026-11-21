@@ -1608,6 +1608,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
   }
   if (has("max_qty")) v.max_qty = String(Math.min(50, Math.max(1, toInt(b.max_qty, 5))));
   if (has("invoice_size")) v.invoice_size = b.invoice_size === "sticker" ? "sticker" : "a4";
+  if (has("sticker_size")) v.sticker_size = b.sticker_size === "3x4" ? "3x4" : "3x3";
   if (has("checkout_email")) v.checkout_email = ["off", "optional", "required"].includes(String(b.checkout_email)) ? String(b.checkout_email) : "off";
   if (has("default_area")) v.default_area = ["inside", "outside", "none"].includes(String(b.default_area)) ? String(b.default_area) : "inside";
   if (has("order_prefix")) { const x = str(b.order_prefix, 6).toUpperCase(); v.order_prefix = /^[A-Z0-9-]{1,6}$/.test(x) ? x : "FS-"; }

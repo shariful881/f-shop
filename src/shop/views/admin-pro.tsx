@@ -487,9 +487,12 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
           <input type="text" name="order_prefix" value={s.order_prefix || "FS-"} maxlength={6} pattern="[A-Za-z0-9-]{1,6}" />
         </F>
       </Section>
-      <Section title="ইনভয়েস আর স্টিকার" desc="অর্ডারের পেজ বা তালিকা থেকে প্রিন্ট করা যায়। স্টিকার ৩×৪ ইঞ্চি — কুরিয়ারের প্যাকেটে লাগানোর জন্য।">
+      <Section title="ইনভয়েস আর স্টিকার" desc="অর্ডারের পেজ বা তালিকা থেকে প্রিন্ট করা যায়। স্টিকার কুরিয়ারের প্যাকেটে লাগানোর জন্য — থার্মাল লেবেল প্রিন্টারের রোলের মাপ অনুযায়ী বাছুন।">
         <F label="প্রিন্টের সাধারণ মাপ">
-          <select name="invoice_size">{Object.entries({ a4: "A4 ইনভয়েস", sticker: "৩×৪ ইঞ্চি স্টিকার" }).map(([k, l]) => <option value={k} selected={(s.invoice_size || "a4") === k}>{l}</option>)}</select>
+          <select name="invoice_size">{Object.entries({ a4: "A4 ইনভয়েস", sticker: "স্টিকার" }).map(([k, l]) => <option value={k} selected={(s.invoice_size || "a4") === k}>{l}</option>)}</select>
+        </F>
+        <F label="স্টিকারের মাপ" hint="প্রিন্টের সময় স্কেল ১০০% (Actual size) রাখুন।">
+          <select name="sticker_size">{Object.entries({ "3x3": "৩×৩ ইঞ্চি (৭৫×৭৫ মিমি)", "3x4": "৩×৪ ইঞ্চি (৭৫×১০০ মিমি)" }).map(([k, l]) => <option value={k} selected={(s.sticker_size === "3x4" ? "3x4" : "3x3") === k}>{l}</option>)}</select>
         </F>
         <F label="ইনভয়েসের নিচের লেখা" hint="যেমন: পণ্য হাতে পেয়ে দেখে নিন। ৭ দিনের মধ্যে বদলানো যাবে।" wide>
           <textarea name="invoice_note" rows={2} maxlength={300}>{s.invoice_note ?? ""}</textarea>

@@ -74,7 +74,7 @@ describe("ইনভয়েস আর স্টিকার", () => {
     expect(one).toContain("<svg");
     const many = await (await a.get(`/admin/orders/invoices?ids=${ids[0].id}&ids=${ids[1].id}&size=sticker`)).text();
     expect(many.match(/class="iv-page iv-sticker"/g)?.length).toBe(2);
-    expect(many).toContain("size:3in 4in");
+    expect(many).toContain("size:3in 3in");
   });
 
   it("কাস্টমার শুধু নিজের নম্বর মিললে ইনভয়েস দেখে", async () => {

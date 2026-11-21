@@ -1,5 +1,5 @@
 /**
- * ইনভয়েস (A4) আর কুরিয়ার স্টিকার (৩×৪ ইঞ্চি) — প্রিন্টের জন্য আলাদা পেজ।
+ * ইনভয়েস (A4) আর কুরিয়ার স্টিকার (৩×৩ বা ৩×৪ ইঞ্চি) — প্রিন্টের জন্য আলাদা পেজ।
  * একসাথে অনেক অর্ডার দিলে প্রতিটা আলাদা পাতায়।
  */
 import { ASSET_VERSION } from "./layout";
@@ -79,23 +79,30 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
 const Sticker = ({ d, s }: { d: InvoiceData; s: Settings }) => {
   const o = d.order;
   const cr = courierOf(o);
+  const cod = codAmount(o);
+  const qty = d.items.reduce((x, i) => x + (i.qty || 1), 0);
   return (
     <section class="iv-page iv-sticker">
-      <div class="st-top"><b>{s.site_name}</b>{s.contact_phone && <span>📞 {bn(s.contact_phone)}</span>}</div>
+      <div class="st-top"><b>{s.site_name}</b>{s.contact_phone && <span>{bn(s.contact_phone)}</span>}</div>
       {cr && <div class="st-courier"><span>{cr.name}</span><b>{cr.id}</b>{cr.track && <small>ট্র্যাকিং: {cr.track}</small>}</div>}
       <div class="st-to">
         <small>প্রাপক</small>
         <b class="st-name">{o.name}</b>
-        <b>📞 {bn(o.phone)}</b>
+        <b class="st-phone">{bn(o.phone)}</b>
         <p>{o.address}</p>
       </div>
-      <div class="st-items">{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""}${(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}`).join(", ")}</div>
-      <div class="st-cod"><span>ক্যাশ অন ডেলিভারি</span><b>{taka(codAmount(o))}</b></div>
+      <div class="st-items"><span>{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} × ${bn(i.qty || 1)}`).join(" · ")}</span><em>মোট {bn(qty)}টি</em></div>
+      {cod > 0
+        ? <div class="st-cod"><span>ক্যাশ অন ডেলিভারি</span><b>{taka(cod)}</b></div>
+        : <div class="st-cod st-paid"><span>টাকা পরিশোধিত</span><b>{taka(0)} আদায়</b></div>}
       {s.invoice_barcode !== "0" && <Barcode text={cr?.id ?? o.order_no} />}
-      <div class="st-no">{cr ? `${cr.name} ${cr.id} · ` : ""}{o.order_no} · {AREA_LABEL[o.area]}</div>
+      <div class="st-no"><span>{cr ? `${cr.name} ${cr.id}` : AREA_LABEL[o.area]}</span><span>{o.order_no}</span></div>
     </section>
   );
 };
+
+/** স্টিকারের মাপ: ৩×৩ (নতুন, ডিফল্ট) বা ৩×৪ ইঞ্চি */
+export const stickerSize = (s: Settings): "3x3" | "3x4" => (s.sticker_size === "3x4" ? "3x4" : "3x3");
 
 export const InvoicePage = ({ list, s, size, autoPrint }: { list: InvoiceData[]; s: Settings; size: "a4" | "sticker"; autoPrint?: boolean }) => (
   <html lang="bn">
@@ -105,12 +112,12 @@ export const InvoicePage = ({ list, s, size, autoPrint }: { list: InvoiceData[];
       <meta name="robots" content="noindex" />
       <title>{list.length === 1 ? `ইনভয়েস ${list[0]!.order.order_no}` : `${bn(list.length)}টা ইনভয়েস`}</title>
       <link rel="stylesheet" href={`/css/invoice.css?v=${ASSET_VERSION}`} />
-      <style>{size === "sticker" ? "@page{size:3in 4in;margin:0}" : "@page{size:A4;margin:12mm}"}</style>
+      <style>{size === "sticker" ? `@page{size:3in ${stickerSize(s) === "3x4" ? "4in" : "3in"};margin:0}` : "@page{size:A4;margin:12mm}"}</style>
     </head>
-    <body class={`iv iv-${size}-body`} data-autoprint={autoPrint ? "1" : undefined}>
+    <body class={`iv iv-${size}-body${size === "sticker" ? ` st-${stickerSize(s)}` : ""}`} data-autoprint={autoPrint ? "1" : undefined}>
       <div class="iv-toolbar">
         <button type="button" data-print>🖨️ প্রিন্ট করুন</button>
-        <span>{bn(list.length)}টা {size === "sticker" ? "স্টিকার (৩×৪ ইঞ্চি)" : "ইনভয়েস (A4)"}</span>
+        <span>{bn(list.length)}টা {size === "sticker" ? `স্টিকার (${stickerSize(s) === "3x4" ? "৩×৪" : "৩×৩"} ইঞ্চি)` : "ইনভয়েস (A4)"}</span>
       </div>
       {list.map((d) => (size === "sticker" ? <Sticker d={d} s={s} /> : <A4 d={d} s={s} />))}
       <script src={`/js/invoice.js?v=${ASSET_VERSION}`} defer></script>
