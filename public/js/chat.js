@@ -36,20 +36,40 @@
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "SellxBD লাইভ চ্যাট");
   panel.innerHTML =
-    '<header class="vx-head"><div class="vx-avatar" aria-hidden="true">S</div><div class="vx-head-text"><b>SellxBD টিম</b><small class="vx-status"><i class="vx-dot"></i><span>লোড হচ্ছে…</span></small></div>' +
+    '<header class="vx-head"><div class="vx-avatar" aria-hidden="true"><img src="/favicon.svg" alt="" width="30" height="30"><i class="vx-avatar-dot"></i></div><div class="vx-head-text"><b>SellxBD টিম</b><small class="vx-status"><i class="vx-dot"></i><span>লোড হচ্ছে…</span></small></div>' +
     '<button type="button" class="vx-close" aria-label="বন্ধ করুন">✕</button></header>' +
     '<div class="vx-body"></div>' +
     '<form class="vx-start" hidden novalidate>' +
     '<p class="vx-intro">আসসালামু আলাইকুম! দোকান খোলা, দাম বা যেকোনো প্রশ্ন — লিখুন, আমরা উত্তর দেব।</p>' +
     '<label>আপনার নাম<input name="name" maxlength="60" autocomplete="name" required></label>' +
     '<label>মোবাইল নম্বর <small>(চলে গেলেও যেন উত্তর দিতে পারি)</small><input name="phone" type="tel" inputmode="tel" maxlength="14" autocomplete="tel" placeholder="017XXXXXXXX" required></label>' +
-    '<label>আপনার প্রশ্ন<textarea name="body" rows="3" maxlength="1000" required placeholder="কী জানতে চান?"></textarea></label>' +
+    '<label>আপনার প্রশ্ন<textarea name="body" rows="2" maxlength="1000" required placeholder="কী জানতে চান?"></textarea></label>' +
     '<input name="website" class="vx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">' +
     '<p class="vx-err" hidden></p>' +
     '<button class="vx-btn" type="submit">মেসেজ পাঠান</button></form>' +
     '<form class="vx-send" hidden><textarea name="body" rows="1" maxlength="1000" placeholder="মেসেজ লিখুন…" aria-label="মেসেজ"></textarea>' +
     '<button type="submit" class="vx-send-btn" aria-label="পাঠান"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></form>' +
     '<p class="vx-foot"></p>';
+
+  var greet = el("div", "vx-greet");
+  greet.hidden = true;
+  greet.innerHTML = '<button type="button" class="vx-greet-x" aria-label="বন্ধ করুন">✕</button><img src="/favicon.svg" alt="" width="34" height="34"><div><b>SellxBD টিম</b><p>আসসালামু আলাইকুম! দোকান খোলা বা দাম নিয়ে কিছু জানতে চান? এখানে লিখুন 👋</p></div>';
+
+  /* ছোট "টুং" শব্দ — ব্রাউজার আগে কোনো ক্লিক/ট্যাপ না পেলে শব্দ আটকে দেয়, তখন চুপচাপ খোলে */
+  var actx;
+  function ding() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      if (actx.state !== "running") return;
+      [880, 1320].forEach(function (f, i) {
+        var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.14;
+        o.type = "sine"; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+        o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + 0.4);
+      });
+    } catch (e) {}
+  }
 
   var body = panel.querySelector(".vx-body");
   var startF = panel.querySelector(".vx-start");
@@ -121,19 +141,48 @@
   function schedule() { stop(); timer = setInterval(function () { if (!document.hidden) poll(); }, open ? 4000 : 60000); }
   function stop() { if (timer) clearInterval(timer); timer = null; }
 
-  function show() {
-    open = true; panel.hidden = false; fab.classList.add("is-open");
+  function show(auto) {
+    open = true; panel.hidden = false; fab.classList.add("is-open"); greet.hidden = true;
     unread = 0; setBadge();
     var p = state ? Promise.resolve() : load();
     p.then(function () {
+      if (auto) { if (state && state.chat) toEnd(); return; } // নিজে খুললে কিবোর্ড/ফোকাস টানে না
       if (state && state.chat) { poll(); toEnd(); sendF.querySelector("textarea").focus(); }
       else if (state) startF.querySelector("input[name=name]").focus();
     }).catch(function () { statusT.textContent = "লোড হয়নি — ইন্টারনেট দেখে আবার খুলুন"; });
     schedule();
   }
-  function hide() { open = false; panel.hidden = true; fab.classList.remove("is-open"); schedule(); fab.focus(); }
+  function hide() { open = false; panel.hidden = true; fab.classList.remove("is-open"); schedule(); fab.focus(); dismiss(); }
 
-  fab.addEventListener("click", function () { open ? hide() : show(); });
+  /* ---------- ৫ সেকেন্ড পরে নিজে থেকে খোলা ---------- */
+  var DISMISS = "sx_vc_dismiss", AUTO = "sx_vc_auto";
+  function store(kind) { try { return kind === "s" ? window.sessionStorage : window.localStorage; } catch (e) { return null; } }
+  function dismiss() { var l = store("l"); if (l) try { l.setItem(DISMISS, String(Date.now())); } catch (e) {} }
+  function autoAllowed() {
+    if (open || hasChat) return false;
+    var l = store("l"), ss = store("s");
+    var d = l && +l.getItem(DISMISS);
+    if (d && Date.now() - d < 24 * 3600e3) return false; // বন্ধ করলে ২৪ ঘণ্টা আর নিজে খুলবে না
+    if (ss && ss.getItem(AUTO)) return false;              // একবার খোলার পর এই ভিজিটে আর না
+    var a = document.activeElement;
+    if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return false; // ফর্ম পূরণ করছে — বিরক্ত না করা
+    return true;
+  }
+  function autoOpen() {
+    if (!autoAllowed()) return;
+    var ss = store("s"); if (ss) try { ss.setItem(AUTO, "1"); } catch (e) {}
+    ding();
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      // মোবাইলে পুরো স্ক্রিন ঢেকে দিলে পেজ পড়া যায় না (Google-ও এটা পছন্দ করে না) — তাই বাটনের পাশে ছোট বার্তা
+      greet.hidden = false; fab.classList.add("has-greet");
+    } else show(true);
+  }
+  greet.addEventListener("click", function (e) {
+    if (e.target.closest(".vx-greet-x")) { greet.hidden = true; fab.classList.remove("has-greet"); dismiss(); return; }
+    show();
+  });
+
+  fab.addEventListener("click", function () { open ? hide() : show(); fab.classList.remove("has-greet"); });
   panel.querySelector(".vx-close").addEventListener("click", hide);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && open) hide(); });
 
@@ -176,7 +225,10 @@
 
   function mount() {
     document.body.appendChild(panel);
+    document.body.appendChild(greet);
     document.body.appendChild(fab);
+    // ৫ সেকেন্ড পরে নিজে থেকে (আগে চ্যাট থাকলে, বন্ধ করে থাকলে বা এই ভিজিটে একবার খুলে থাকলে নয়)
+    setTimeout(autoOpen, 5000);
     // আগে কথা হয়ে থাকলে (sx_vc_on কুকি) তবেই সার্ভারে খোঁজ — নতুন ভিজিটরের জন্য পেজ খুললে কোনো অনুরোধ যায় না
     if (/(?:^|; )sx_vc_on=1/.test(document.cookie)) {
       hasChat = true;
