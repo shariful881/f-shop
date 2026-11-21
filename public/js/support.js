@@ -335,6 +335,9 @@
       if (nav) { nav.hidden = !r.open; nav.textContent = bn(r.open); }
       if (lastId && r.last > lastId) { ding(); toast("নতুন কথোপকথন", "ইনবক্সে দেখুন", BASE); titleFlash("🛟 নতুন সাপোর্ট"); if (pageKind === "inbox") softReload(); }
       lastId = r.last;
+      // ভিজিটর চ্যাট (WebSocket না থাকলেও ধরা পড়ে)
+      if (lastV && r.vlast > lastV) { ding(); toast("💬 সাইটের ভিজিটর মেসেজ দিয়েছে", "দেখুন", "/super/visitors"); if (pageKind === "visitors") softReload(); if (vLog) vPoll(); }
+      lastV = r.vlast || 0;
     }).catch(function () {});
   }
   function softReload() {
@@ -362,6 +365,47 @@
         else { clearTimeout(reloadT); reloadT = setTimeout(softReload, 1500); }
       }
     }
+  });
+  /* ---------- সাইটের ভিজিটর চ্যাট (/super/visitors) ---------- */
+  var VBASE = "/super/visitors";
+  var vPage = $('[data-sx-agent-page="visitor"]');
+  var vId = vPage ? +vPage.dataset.visitorId : 0;
+  var vLog = $("#sx-vthread");
+  var lastV = 0;
+  function vPoll() {
+    if (!vLog) return;
+    json(VBASE + "/" + vId + "/messages?after=" + (vLog.dataset.last || 0)).then(function (r) {
+      var end = nearEnd(vLog), got = false;
+      (r.messages || []).forEach(function (m) { if (append(vLog, m)) got = true; });
+      if (got && end) scrollEnd(vLog);
+    }).catch(function () {});
+  }
+  if (vLog) {
+    scrollEnd(vLog);
+    setInterval(function () { if (!document.hidden && !wsOk) vPoll(); }, 5000);
+    var vf = $("[data-vx-reply]");
+    var vta = vf && vf.querySelector("textarea");
+    if (vf) {
+      vta.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); vf.requestSubmit ? vf.requestSubmit() : vf.submit(); } });
+      vf.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var text = vta.value.trim(); if (!text) return;
+        var btn = vf.querySelector("button"); btn.disabled = true;
+        var fd = new FormData(); fd.append("body", text);
+        json(vf.action, { method: "POST", body: fd }).then(function (r) {
+          vta.value = ""; append(vLog, r.message); scrollEnd(vLog);
+        }).catch(function (x) { toast("পাঠানো যায়নি", x.message); }).then(function () { btn.disabled = false; vta.focus(); });
+      });
+    }
+  }
+  on(function (d) {
+    if (d.type !== "visitor") return;
+    if (d.message && d.message.id > lastV) lastV = d.message.id; // pulse যেন একই মেসেজে আবার না বাজায়
+    if (vId && d.chatId === vId) { vPoll(); if (document.hidden) { ding(); titleFlash("💬 ভিজিটরের মেসেজ"); } return; }
+    ding(); titleFlash(d.isNew ? "🟢 সাইটে নতুন ভিজিটর" : "💬 ভিজিটরের মেসেজ");
+    toast((d.isNew ? "🟢 সাইটে নতুন চ্যাট — " : "💬 ভিজিটর — ") + (d.name || ""), d.message && d.message.body ? d.message.body.slice(0, 100) : "", VBASE + "/" + d.chatId);
+    pulse();
+    if (pageKind === "visitors") { clearTimeout(reloadT); reloadT = setTimeout(softReload, 1200); }
   });
   pulse();
   setInterval(function () { if (!wsOk && !document.hidden) pulse(); }, 30000);

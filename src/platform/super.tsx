@@ -17,6 +17,7 @@ import type { NicheImage } from "../shop/shop-do";
 import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } from "./billing";
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
+import { registerSuperVisitors } from "./visitor-chat";
 import { platformUsage } from "./usage";
 import { PHONE_PENDING_SQL, SUSPICIOUS_SQL } from "./verify";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
@@ -66,7 +67,7 @@ function flash(c: PCtx, type: "ok" | "error", text: string) {
 
 async function page(c: PCtx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200, actions?: unknown) {
   const pending = await c.env.PLATFORM_DB.prepare(
-    "SELECT (SELECT COUNT(*) FROM topups WHERE status = 'pending') n, (SELECT COUNT(*) FROM support_tickets WHERE status = 'open') s",
+    "SELECT (SELECT COUNT(*) FROM topups WHERE status = 'pending') n, (SELECT COUNT(*) FROM support_tickets WHERE status = 'open') + (SELECT COUNT(*) FROM visitor_chats WHERE status = 'open' AND last_sender = 'visitor') s",
   ).first<{ n: number; s: number }>();
   return c.html(
     "<!DOCTYPE html>" +
@@ -1072,3 +1073,4 @@ superApp.post("/settings", async (c) => {
 
 /* ---------- সাপোর্ট (টিকেট + লাইভ চ্যাট) ---------- */
 registerSuperSupport(superApp, { page, flash, allowed, forbidden, audit });
+registerSuperVisitors(superApp, { page, allowed, forbidden, audit });

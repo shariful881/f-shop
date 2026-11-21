@@ -79,6 +79,7 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
       <link rel="stylesheet" href={`/css/admin.css?v=${ASSET_VERSION}`} />
       <link rel="stylesheet" href={`/css/platform.css?v=${ASSET_VERSION}`} />
       {p.head}
+      {!p.admin && <script src={`/js/chat.js?v=${ASSET_VERSION}`} defer></script>}
       {(seo.jsonLd ?? []).map(ld)}
     </head>
     <body class={p.admin ? "admin" : "platform"}>
