@@ -66,6 +66,15 @@ export async function recordOutcome(platformDb: D1Database, s: Settings, shopId:
   }
 }
 
+/** বাতিল/ফেক থেকে ফেরালে সব দোকানের রেকর্ড থেকে এই অর্ডারের দাগ মোছা */
+export async function clearOutcome(platformDb: D1Database, shopId: string, orderNo: string) {
+  try {
+    await platformDb.prepare("DELETE FROM phone_outcomes WHERE shop_id = ? AND order_no = ? AND outcome IN ('cancelled', 'fake')").bind(shopId, orderNo).run();
+  } catch (e) {
+    console.error("fraud record clear error", e);
+  }
+}
+
 /** অনেক নম্বরের অন্য দোকানের হিসাব একবারে (এই দোকান বাদ) */
 export async function sharedRecords(platformDb: D1Database, s: Settings, shopId: string, phones: string[]): Promise<Record<string, Shared>> {
   const out: Record<string, Shared> = {};

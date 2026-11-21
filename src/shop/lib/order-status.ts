@@ -1,16 +1,11 @@
 import type { Order, OrderStatus } from "./orders";
 
 /**
- * স্ট্যাটাস বদলের নিয়ম:
- * নতুন → কনফার্ম/বাতিল/ফেক; কনফার্ম → শিপড/বাতিল; শিপড → বাতিল; বাতিল ও ফেক থেকে আর বদলানো যাবে না
+ * স্ট্যাটাস বদলের নিয়ম: যেকোনো স্ট্যাটাস থেকে অন্য যেকোনোটায় যাওয়া যায় (ভুল হলে ফেরানো যায়)।
+ * পার্শ্বফল (স্টক, ব্লক, বিলিং, Purchase) রুটে সামলানো হয় আর সবগুলো একবারই হয়।
  */
-export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  new: ["confirmed", "cancelled", "fake"],
-  confirmed: ["shipped", "cancelled"],
-  shipped: ["cancelled"],
-  cancelled: [],
-  fake: [],
-};
+const ALL: OrderStatus[] = ["new", "confirmed", "shipped", "cancelled", "fake"];
+export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = Object.fromEntries(ALL.map((s) => [s, ALL.filter((t) => t !== s)])) as Record<OrderStatus, OrderStatus[]>;
 
 export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
   return TRANSITIONS[from]?.includes(to) ?? false;
@@ -39,6 +34,12 @@ export async function changeStatus(db: D1Database, orderId: number, to: OrderSta
     .bind(to, to, orderId, order.status)
     .run();
   if (!upd.meta.changes) return { ok: false, message: "অর্ডারটি এর মধ্যে বদলে গেছে, পেজ রিফ্রেশ করুন" };
+
+  // বাতিল/ফেক থেকে ফেরালে এই অর্ডারের জন্য যে ব্লক হয়েছিল সেটা তুলে নেওয়া (অন্য অর্ডারের ব্লক থাকে)
+  const wasBad = order.status === "cancelled" || order.status === "fake";
+  if (wasBad && to !== "cancelled" && to !== "fake") {
+    await db.prepare("DELETE FROM blacklist_entries WHERE order_id = ?").bind(order.id).run();
+  }
 
   if (to === "cancelled" || to === "fake") {
     const stmts = [

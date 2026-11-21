@@ -100,19 +100,26 @@ describe("স্ট্যাটাস বদলের নিয়ম", () => {
     ["cancelled", "new"],
     ["fake", "confirmed"],
     ["fake", "cancelled"],
-  ])("%s → %s বদলানো যায় না", async (from, to) => {
+  ])("%s → %s বদলানো যায় (যেকোনো স্ট্যাটাস থেকে যেকোনোটায়)", async (from, to) => {
     const a = await adminBrowser();
     const o = await orderAs(new Browser());
     await DB.prepare("UPDATE orders SET status=? WHERE id=?").bind(from, o.id).run();
     await setStatus(a, o.id, to);
-    expect(await status(o.id)).toBe(from);
+    expect(await status(o.id)).toBe(to);
+  });
+
+  it("একই স্ট্যাটাসে আবার বদলানো যায় না", async () => {
+    const a = await adminBrowser();
+    const o = await orderAs(new Browser());
+    await setStatus(a, o.id, "new");
+    expect(await status(o.id)).toBe("new");
   });
 
   it("বাতিল/ফেক বাটনে নিশ্চিত হওয়ার প্রশ্ন আছে", async () => {
     const a = await adminBrowser();
     const o = await orderAs(new Browser());
     const html = await (await a.get(`/admin/orders/${o.id}`)).text();
-    expect(html).toContain("নম্বর ও ডিভাইস স্থায়ীভাবে ব্লক হবে, নিশ্চিত?");
+    expect(html).toContain("এই অর্ডারের নম্বর ও ডিভাইস ব্লক হবে, নিশ্চিত?");
   });
 });
 

@@ -39,7 +39,7 @@ import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMe
 import { MediaPage } from "../views/media";
 import { DesignEditorPage } from "../views/design";
 import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, orderCourierReport, parseOrderReport, platformCourierKeys, type PlatformCourierKeys, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
-import { outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type CourierSummary, type Risk } from "../lib/fraud";
+import { clearOutcome, outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type CourierSummary, type Risk } from "../lib/fraud";
 import { CourierCard, FraudCheckPage, FraudDialog, FraudReport, type ReportData, type ReportOrder } from "../views/fraud-report";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { customSmsUrlError, notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
@@ -720,17 +720,24 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
 
 /** স্ট্যাটাস বদল + তার পরের কাজ (বিলিং, Purchase, SMS) — একটা আর একসাথে অনেক অর্ডার দুটোতেই */
 async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: boolean; message: string; purchaseFail?: string }> {
-  // স্টক: কনফার্মের আগে যথেষ্ট আছে কিনা
-  if (to === "confirmed") {
+  const before = await c.env.DB.prepare("SELECT status, stock_applied FROM orders WHERE id = ?").bind(id).first<{ status: OrderStatus; stock_applied: number }>();
+  const live = to === "confirmed" || to === "shipped"; // কনফার্ম বা শিপড = বিক্রি হয়েছে ধরা
+  // স্টক: এখনো কাটা না হলে যথেষ্ট আছে কিনা
+  if (live && before && !before.stock_applied) {
     const short = await checkOrderStock(c.env.DB, id);
     if (short) return { ok: false, message: short };
   }
   const res = await changeStatus(c.env.DB, id, to);
   if (!res.ok) return { ok: false, message: res.message };
-  if (to === "confirmed") { await snapshotCost(c.env.DB, id); await applyOrderStock(c.env.DB, id); }
-  if (to === "cancelled") await restoreOrderStock(c.env.DB, id, "cancel");
-  if (to === "confirmed") {
-    // বিলিং: ট্রায়ালে ফ্রি অর্ডার কমে, চালু দোকানে প্রতি কনফার্ম অর্ডারে চার্জ (একবারই)
+  const wasBad = before?.status === "cancelled" || before?.status === "fake";
+  // স্টক: বিক্রি হলে কাটা, ফেরালে (নতুন/বাতিল/ফেক) ফেরত — দুটোই একবারই হয়
+  if (live) { await snapshotCost(c.env.DB, id); await applyOrderStock(c.env.DB, id); }
+  else await restoreOrderStock(c.env.DB, id, "cancel");
+  // বাতিল/ফেক থেকে ফেরালে সব দোকানের রেকর্ড থেকে দাগ মোছা
+  if (wasBad && to !== "cancelled" && to !== "fake") await later(c, clearOutcome(c.env.PLATFORM_DB, c.env.SHOP_ID, res.order.order_no));
+  let purchase: { ok: boolean; message: string } | null = null;
+  if (live) {
+    // বিলিং: ট্রায়ালে ফ্রি অর্ডার কমে, চালু দোকানে প্রতি কনফার্ম অর্ডারে চার্জ (অর্ডার নম্বর ধরে একবারই — ফিরিয়ে আবার কনফার্মে দুবার কাটে না)
     try {
       await chargeConfirmedOrder(c.env.PLATFORM_DB, c.env.SHOP_ID, res.order.order_no);
       clearShopCache(); // একই Worker-এ পরের রিকোয়েস্টে নতুন ব্যালেন্স (অন্য জায়গায় সর্বোচ্চ ৩০ সেকেন্ড দেরি)
@@ -738,21 +745,23 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
     } catch (e) {
       console.error("billing error", e);
     }
-    // কনফার্ম হলে শুধু সার্ভার থেকে (CAPI) Purchase যায়
-    const p = await sendPurchase(c.env.DB, id, c.var.settings);
-    smsLater(c, id, "confirmed");
-    return p.ok
+    // শুধু সার্ভার থেকে (CAPI) Purchase — আগে গিয়ে থাকলে আবার যায় না
+    purchase = await sendPurchase(c.env.DB, id, c.var.settings);
+  }
+  if (to === "confirmed") {
+    if (before?.status === "new") smsLater(c, id, "confirmed"); // ক্রেতাকে একবারই
+    return purchase!.ok
       ? { ok: true, message: "অর্ডার কনফার্ম হয়েছে, Facebook-এ Purchase গেছে।" }
-      : { ok: true, message: `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${p.message}`, purchaseFail: p.message };
+      : { ok: true, message: `অর্ডার কনফার্ম হয়েছে, কিন্তু Purchase যায়নি: ${purchase!.message}`, purchaseFail: purchase!.message };
   }
   if (to === "cancelled" || to === "fake") {
     // সব দোকানের রেকর্ডে: কুরিয়ারে যাওয়ার পর বাতিল = ফেরত
     const outcome = to === "fake" ? "fake" : res.order.consignment_id ? "returned" : "cancelled";
     await later(c, recordOutcome(c.env.PLATFORM_DB, c.var.settings, c.env.SHOP_ID, res.order.order_no, res.order.phone, outcome));
-    return { ok: true, message: "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।" };
+    return { ok: true, message: "স্ট্যাটাস বদলেছে। নম্বর ও ডিভাইস ব্লক করা হয়েছে।" + (res.order.consignment_id ? " কুরিয়ারে বুক হয়ে থাকলে কুরিয়ারের প্যানেল থেকেও বাতিল করুন।" : "") };
   }
-  if (to === "shipped") smsLater(c, id, "shipped");
-  return { ok: true, message: "স্ট্যাটাস বদলেছে।" };
+  if (to === "shipped" && (before?.status === "new" || before?.status === "confirmed")) smsLater(c, id, "shipped");
+  return { ok: true, message: wasBad ? "স্ট্যাটাস বদলেছে। এই অর্ডারের জন্য নম্বর/ডিভাইসের ব্লক তুলে নেওয়া হয়েছে।" : "স্ট্যাটাস বদলেছে।" };
 }
 
 admin.post("/orders/:id{[0-9]+}/status", async (c) => {
@@ -770,7 +779,7 @@ admin.post("/orders/bulk-status", async (c) => {
   const to = str(body.to, 20) as OrderStatus;
   const back = str(body.back, 300);
   const backUrl = back.startsWith("/admin/orders") ? back : "/admin/orders";
-  if (!["confirmed", "cancelled", "fake", "shipped"].includes(to)) {
+  if (!["new", "confirmed", "cancelled", "fake", "shipped"].includes(to)) {
     flash(c, "error", "ভুল স্ট্যাটাস।");
     return c.redirect(backUrl, 303);
   }
@@ -791,7 +800,7 @@ admin.post("/orders/bulk-status", async (c) => {
     if (r.ok) done++;
     if (!r.ok || r.purchaseFail) fails.push(r.message);
   }
-  const label = { confirmed: "কনফার্ম", cancelled: "বাতিল", fake: "ফেক", shipped: "শিপড" }[to as "confirmed"];
+  const label = { new: "নতুন", confirmed: "কনফার্ম", cancelled: "বাতিল", fake: "ফেক", shipped: "শিপড" }[to as "confirmed"];
   flash(c, fails.length ? "error" : "ok",
     `${bn(done)}টা অর্ডার ${label} হয়েছে।` + (fails.length ? ` ${bn(fails.length)}টায় সমস্যা: ${[...new Set(fails)].slice(0, 2).join(" · ")}` : ""));
   return c.redirect(backUrl, 303);

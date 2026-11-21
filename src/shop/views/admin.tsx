@@ -169,14 +169,15 @@ export const OrdersPage = (p: {
   };
   const back = qs({ page: p.page });
   // কোন স্ট্যাটাস থেকে কোথায় একসাথে নেওয়া যায়
-  const bulkTo: { to: OrderStatus; label: string; cls: string; ask?: string }[] =
-    p.q || p.payPending ? [] :
-    p.status === "new" ? [
-      { to: "confirmed", label: "কনফার্ম", cls: "btn-primary", ask: "বাছাই করা অর্ডার কনফার্ম করবেন? (একবারে সর্বোচ্চ ১০টা)" },
-      { to: "cancelled", label: "বাতিল", cls: "btn-outline", ask: "বাছাই করা অর্ডার বাতিল করবেন?" },
-      { to: "fake", label: "ফেক", cls: "btn-danger", ask: "বাছাই করা অর্ডার ফেক করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
-    ] :
-    p.status === "confirmed" ? [{ to: "shipped", label: "শিপড", cls: "btn-outline", ask: "বাছাই করা অর্ডার শিপড করবেন?" }] : [];
+  // যেকোনো ট্যাব থেকে অন্য যেকোনো স্ট্যাটাসে (ভুল হলে ফেরানো যায়)
+  const BULK_ALL: { to: OrderStatus; label: string; cls: string; ask?: string }[] = [
+    { to: "new", label: "নতুনে ফেরান", cls: "btn-outline", ask: "বাছাই করা অর্ডার আবার নতুন তালিকায় নেবেন? স্টক ফেরত যাবে।" },
+    { to: "confirmed", label: "কনফার্ম", cls: "btn-primary", ask: "বাছাই করা অর্ডার কনফার্ম করবেন? (একবারে সর্বোচ্চ ১০টা)" },
+    { to: "shipped", label: "শিপড", cls: "btn-outline", ask: "বাছাই করা অর্ডার শিপড করবেন?" },
+    { to: "cancelled", label: "বাতিল", cls: "btn-outline", ask: "বাছাই করা অর্ডার বাতিল করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
+    { to: "fake", label: "ফেক", cls: "btn-danger", ask: "বাছাই করা অর্ডার ফেক করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
+  ];
+  const bulkTo = p.q || p.payPending ? [] : BULK_ALL.filter((b) => b.to !== p.status);
   return (
   <>
     {(p.payCount ?? 0) > 0 && (
@@ -267,7 +268,7 @@ export const OrdersPage = (p: {
 
 /* ---------- অর্ডার ডিটেইল ---------- */
 const ACTION_LABEL: Record<OrderStatus, string> = {
-  new: "নতুন",
+  new: "↩ নতুনে ফেরান",
   confirmed: "✓ কনফার্ম করুন",
   shipped: "শিপড করুন",
   cancelled: "বাতিল করুন",
@@ -402,7 +403,10 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
       <div class="actions">
         {TRANSITIONS[o.status].map((to) => (
           <form method="post" action={`/admin/orders/${o.id}/status`} class="inline"
-            data-confirm={to === "cancelled" || to === "fake" ? "এই অর্ডারের নম্বর ও ডিভাইস স্থায়ীভাবে ব্লক হবে, নিশ্চিত?" : to === "confirmed" && o.pay_trx && o.pay_status !== "verified" ? "অগ্রিম পেমেন্ট এখনো মেলানো হয়নি। তবুও কনফার্ম করবেন?" : undefined}>
+            data-confirm={to === "cancelled" || to === "fake" ? `এই অর্ডারের নম্বর ও ডিভাইস ব্লক হবে${o.consignment_id ? "। কুরিয়ারে বুক হয়ে থাকলে কুরিয়ারের প্যানেল থেকেও বাতিল করতে হবে" : ""}, নিশ্চিত?`
+              : o.status === "cancelled" || o.status === "fake" ? "স্ট্যাটাস বদলাবেন? এই অর্ডারের জন্য নম্বর/ডিভাইসের ব্লক তুলে নেওয়া হবে।"
+              : to === "new" ? "অর্ডারটা আবার নতুন তালিকায় নেবেন? স্টক ফেরত যাবে।"
+              : to === "confirmed" && o.pay_trx && o.pay_status !== "verified" ? "অগ্রিম পেমেন্ট এখনো মেলানো হয়নি। তবুও কনফার্ম করবেন?" : undefined}>
             <input type="hidden" name="status" value={to} />
             <button class={`btn ${to === "confirmed" ? "btn-primary" : to === "cancelled" || to === "fake" ? "btn-danger" : "btn-outline"}`}>{ACTION_LABEL[to]}</button>
           </form>
