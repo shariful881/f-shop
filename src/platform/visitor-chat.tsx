@@ -119,10 +119,11 @@ export function registerVisitorChat(app: Hono<PEnv>) {
     const name = str(b.name, 60);
     const body = str(b.body, MAX_BODY);
     const rawPhone = str(b.phone, 20);
-    const phone = rawPhone ? normalizePhone(rawPhone) : null;
+    const phone = rawPhone ? normalizePhone(rawPhone) : null; // নম্বর বাধ্যতামূলক — চলে গেলেও উত্তর দেওয়া যায়
     if (!name) return c.json({ error: "আপনার নাম লিখুন" }, 400);
-    if (rawPhone && !phone) return c.json({ error: "মোবাইল নম্বর ঠিক নেই (যেমন 017XXXXXXXX)" }, 400);
-    if (!body) return c.json({ error: "মেসেজ লিখুন" }, 400);
+    if (!rawPhone) return c.json({ error: "মোবাইল নম্বর লিখুন" }, 400);
+    if (!phone) return c.json({ error: "মোবাইল নম্বর ঠিক নেই (যেমন 017XXXXXXXX)" }, 400);
+    if (!body) return c.json({ error: "আপনার প্রশ্ন লিখুন" }, 400);
     if (!(await platformRateLimit(c.env, `vchat:start:${clientIp(c)}`, 5, 3600))) return c.json({ error: "অনেকবার চেষ্টা হয়েছে — একটু পরে আবার চেষ্টা করুন, অথবা WhatsApp-এ লিখুন।" }, 429);
 
     // আগে চ্যাট থাকলে সেটাতেই চলবে
@@ -269,7 +270,7 @@ const VisitorInbox = (p: { rows: (VisitorChat & { agent_name: string | null })[]
             <a href={`/super/visitors/${v.id}`} class={`sx-row${v.team_unread ? " unread" : ""}`} data-visitor={v.id}>
               <span class="sx-ch" title="ভিজিটর"><Icon name="globe" size="sm" /></span>
               <div class="sx-row-main">
-                <div class="sx-row-title"><b>{v.name}</b> <span class="sx-muted">{v.phone ? `· ${v.phone}` : "· নম্বর দেননি"} · {v.page || "/"}</span></div>
+                <div class="sx-row-title"><b>{v.name}</b> <span class="sx-muted">{v.phone ? `· ${v.phone}` : ""} · {v.page || "/"}</span></div>
                 <div class="sx-row-prev">{v.last_sender === "team" ? "↩ আপনি: " : ""}{v.last_preview}</div>
               </div>
               <div class="sx-row-side">
@@ -319,7 +320,7 @@ const VisitorThread = (p: { v: VisitorChat; msgs: VMsg[]; shop: { id: string; na
         <div class="sa-card">
           <dl class="sx-dl">
             <dt>নাম</dt><dd>{v.name}</dd>
-            <dt>মোবাইল</dt><dd>{v.phone ? <><a href={`tel:${v.phone}`}>{v.phone}</a> · <a href={wa} target="_blank" rel="noopener">WhatsApp</a></> : "দেননি"}</dd>
+            <dt>মোবাইল</dt><dd>{v.phone ? <><a href={`tel:${v.phone}`}>{v.phone}</a> · <a href={wa} target="_blank" rel="noopener">WhatsApp</a></> : "—"}</dd>
             <dt>কোন পেজ থেকে</dt><dd>{v.page || "/"}</dd>
             {p.shop && <><dt>দোকান</dt><dd><a href={`/super/shops/${p.shop.id}`}>{p.shop.name}</a> (এই নম্বরে আগে খোলা)</dd></>}
           </dl>

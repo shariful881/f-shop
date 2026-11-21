@@ -87,7 +87,7 @@ describe("ভিজিটর চ্যাট", () => {
 
   it("অন্য ভিজিটরের চ্যাট দেখা যায় না; কুকি ছাড়া পাঠানো যায় না", async () => {
     const a = new Browser(freshIp());
-    await post(a, "/chat/start", { name: "ক", body: "গোপন কথা" });
+    await post(a, "/chat/start", { name: "ক", phone: "01812345678", body: "গোপন কথা" });
     const b = new Browser(freshIp());
     const st = await (await get(b, "/chat/state")).json() as any;
     expect(st.chat).toBeNull();
@@ -97,18 +97,21 @@ describe("ভিজিটর চ্যাট", () => {
 
   it("যাচাই: নাম/মেসেজ লাগে, ভুল নম্বর, বটের ফাঁদ, অন্য সাইট থেকে আটকায়", async () => {
     const v = new Browser(freshIp());
-    expect((await post(v, "/chat/start", { name: "", body: "x" })).status).toBe(400);
-    expect((await post(v, "/chat/start", { name: "ক", body: "" })).status).toBe(400);
-    expect((await post(v, "/chat/start", { name: "ক", phone: "12345", body: "x" })).status).toBe(400);
-    expect((await post(v, "/chat/start", { name: "ক", body: "x", website: "spam.com" })).status).toBe(400);
-    expect((await post(v, "/chat/start", { name: "ক", body: "x" }, { Origin: "https://evil.example" })).status).toBe(403);
+    const ok = { name: "ক", phone: "01812345678", body: "x" };
+    const err = async (b: unknown) => { const r = await post(v, "/chat/start", b); return [r.status, ((await r.json()) as any).error]; };
+    expect(await err({ ...ok, name: "" })).toEqual([400, "আপনার নাম লিখুন"]);
+    expect(await err({ ...ok, phone: "" })).toEqual([400, "মোবাইল নম্বর লিখুন"]);
+    expect((await err({ ...ok, phone: "12345" }))[0]).toBe(400);
+    expect(await err({ ...ok, body: "" })).toEqual([400, "আপনার প্রশ্ন লিখুন"]);
+    expect((await post(v, "/chat/start", { ...ok, website: "spam.com" })).status).toBe(400);
+    expect((await post(v, "/chat/start", ok, { Origin: "https://evil.example" })).status).toBe(403);
     expect((await pdb().prepare("SELECT COUNT(*) n FROM visitor_chats").first<any>())!.n).toBe(0);
   });
 
   it("একই জায়গা থেকে ঘণ্টায় ৫টার বেশি নতুন চ্যাট নয়", async () => {
     const ip = freshIp();
     let last = 0;
-    for (let i = 0; i < 6; i++) last = (await post(new Browser(ip), "/chat/start", { name: "ক", body: `m${i}` })).status;
+    for (let i = 0; i < 6; i++) last = (await post(new Browser(ip), "/chat/start", { name: "ক", phone: "01812345678", body: `m${i}` })).status;
     expect(last).toBe(429);
   });
 
@@ -117,6 +120,6 @@ describe("ভিজিটর চ্যাট", () => {
     clearSettingsCache();
     const v = new Browser(freshIp());
     expect(await (await get(v, "/chat/state")).json()).toEqual({ enabled: false });
-    expect((await post(v, "/chat/start", { name: "ক", body: "x" })).status).toBe(403);
+    expect((await post(v, "/chat/start", { name: "ক", phone: "01812345678", body: "x" })).status).toBe(403);
   });
 });

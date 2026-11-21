@@ -42,8 +42,8 @@
     '<form class="vx-start" hidden novalidate>' +
     '<p class="vx-intro">আসসালামু আলাইকুম! দোকান খোলা, দাম বা যেকোনো প্রশ্ন — লিখুন, আমরা উত্তর দেব।</p>' +
     '<label>আপনার নাম<input name="name" maxlength="60" autocomplete="name" required></label>' +
-    '<label>মোবাইল নম্বর <small>(ঐচ্ছিক — চলে গেলেও যেন উত্তর দিতে পারি)</small><input name="phone" inputmode="tel" maxlength="14" autocomplete="tel" placeholder="017XXXXXXXX"></label>' +
-    '<label>মেসেজ<textarea name="body" rows="3" maxlength="1000" required placeholder="কী জানতে চান?"></textarea></label>' +
+    '<label>মোবাইল নম্বর <small>(চলে গেলেও যেন উত্তর দিতে পারি)</small><input name="phone" type="tel" inputmode="tel" maxlength="14" autocomplete="tel" placeholder="017XXXXXXXX" required></label>' +
+    '<label>আপনার প্রশ্ন<textarea name="body" rows="3" maxlength="1000" required placeholder="কী জানতে চান?"></textarea></label>' +
     '<input name="website" class="vx-hp" tabindex="-1" autocomplete="off" aria-hidden="true">' +
     '<p class="vx-err" hidden></p>' +
     '<button class="vx-btn" type="submit">মেসেজ পাঠান</button></form>' +
@@ -142,11 +142,15 @@
     if (sending) return;
     var f = startF.elements;
     err.hidden = true;
-    if (!f.name.value.trim()) { err.textContent = "আপনার নাম লিখুন"; err.hidden = false; f.name.focus(); return; }
-    if (!f.body.value.trim()) { err.textContent = "মেসেজ লিখুন"; err.hidden = false; f.body.focus(); return; }
+    function bad(msg, field) { err.textContent = msg; err.hidden = false; field.focus(); }
+    var ph = f.phone.value.replace(/[\s\-]/g, "").replace(/^\+?88/, "").replace(/[০-৯]/g, function (d) { return BN.indexOf(d); });
+    if (!f.name.value.trim()) return bad("আপনার নাম লিখুন", f.name);
+    if (!ph) return bad("মোবাইল নম্বর লিখুন", f.phone);
+    if (!/^01[3-9]\d{8}$/.test(ph)) return bad("মোবাইল নম্বর ঠিক নেই (যেমন 017XXXXXXXX)", f.phone);
+    if (!f.body.value.trim()) return bad("আপনার প্রশ্ন লিখুন", f.body);
     sending = true;
     var btn = startF.querySelector("button"); btn.disabled = true; btn.textContent = "পাঠানো হচ্ছে…";
-    api("/chat/start", { name: f.name.value, phone: f.phone.value, body: f.body.value, website: f.website.value, page: location.pathname })
+    api("/chat/start", { name: f.name.value, phone: ph, body: f.body.value, website: f.website.value, page: location.pathname })
       .then(function () { startF.reset(); return load(); })
       .then(function () { schedule(); sendF.querySelector("textarea").focus(); })
       .catch(function (x) { err.textContent = x.message; err.hidden = false; })
