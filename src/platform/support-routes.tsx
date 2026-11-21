@@ -10,6 +10,7 @@ import {
   agentsOnline, CATEGORIES, emit, hoursText, hub, messages, PRIORITY, publicMsg, STATUS, STATUS_TEAM, systemMessage, teamMessage, telegram,
   type Ticket,
 } from "./support";
+import { visitorOpenCount } from "./visitor-chat";
 import { CannedPage, InboxPage, SupportSettingsPage, SuperTicketPage, type Canned, type InboxRow, type Metrics, type ShopCtx, type TeamMember } from "./support-views";
 
 type Helpers = {
@@ -85,7 +86,7 @@ export function registerSuperSupport(app: Hono<PEnv>, h: Helpers) {
     const cc = (counts!.results[0] ?? {}) as { waiting: number | null; chat: number | null; ticket: number | null };
     const tabCounts: Record<string, number> = { open: metrics.open, mine: metrics.mine, unassigned: metrics.unassigned, waiting: cc.waiting ?? 0 };
     return h.page(c, "সাপোর্ট", "support",
-      <InboxPage rows={rows!.results as InboxRow[]} m={metrics} view={view} q={q} channel={channel} counts={tabCounts} chCounts={{ chat: cc.chat ?? 0, ticket: cc.ticket ?? 0 }} />, 200,
+      <InboxPage rows={rows!.results as InboxRow[]} m={metrics} view={view} q={q} channel={channel} counts={tabCounts} chCounts={{ chat: cc.chat ?? 0, ticket: cc.ticket ?? 0 }} visitors={await visitorOpenCount(db(c))} />, 200,
       <>
         <a href="/super/support/canned" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="zap" size="sm" /> তৈরি উত্তর</a>
         {h.allowed(c, "support.settings") && <a href="/super/support/settings" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="settings" size="sm" /> সেটিংস</a>}
@@ -96,9 +97,11 @@ export function registerSuperSupport(app: Hono<PEnv>, h: Helpers) {
   app.get("/support/pulse", async (c) => {
     const no = guard(c); if (no) return c.json({}, 403);
     const r = await db(c).prepare(
-      "SELECT SUM(status IN ('open','pending')) open, SUM(team_unread > 0) unread, MAX(id) last FROM support_tickets",
-    ).first<{ open: number | null; unread: number | null; last: number | null }>();
-    return c.json({ open: r?.open ?? 0, unread: r?.unread ?? 0, last: r?.last ?? 0 });
+      `SELECT SUM(status IN ('open','pending')) open, SUM(team_unread > 0) unread, MAX(id) last,
+        (SELECT COUNT(*) FROM visitor_chats WHERE status = 'open' AND last_sender = 'visitor') vopen,
+        (SELECT MAX(id) FROM visitor_messages WHERE sender = 'visitor') vlast FROM support_tickets`,
+    ).first<{ open: number | null; unread: number | null; last: number | null; vopen: number | null; vlast: number | null }>();
+    return c.json({ open: (r?.open ?? 0) + (r?.vopen ?? 0), unread: r?.unread ?? 0, last: r?.last ?? 0, vopen: r?.vopen ?? 0, vlast: r?.vlast ?? 0 });
   });
 
   app.get("/support/ws", async (c) => {
@@ -158,6 +161,7 @@ export function registerSuperSupport(app: Hono<PEnv>, h: Helpers) {
       ["support_hours_start", time(b.support_hours_start, "00:00")],
       ["support_hours_end", time(b.support_hours_end, "00:00")],
       ["telegram_chat_id", b.telegram_clear ? "" : str(b.telegram_chat_id, 40).replace(/[^\d-]/g, "")],
+      ["visitor_chat", b.visitor_chat === "1" ? "1" : "0"],
     ];
     const token = str(b.telegram_bot_token, 120);
     if (b.telegram_clear) values.push(["telegram_bot_token", ""]);

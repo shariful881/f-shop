@@ -6,6 +6,7 @@ import {
   createSuperSession, destroySuperSession, platformPeekRateLimit, platformRateLimit, shopUrl, slugTaken, superFromCookie, SUPER_COOKIE, validateSlug,
 } from "./lib";
 import { badShopName, checkTurnstile, riskFlags, sendEmailLink, turnstileKeys, verifyNeeds } from "./verify";
+import { registerVisitorChat } from "./visitor-chat";
 import { HomePage, PLATFORM_NAME, PLayout, SignupPage, SuperLoginPage, SuperSetupPage, type PSeo } from "./views";
 import { num, platformSettings } from "./billing";
 import { AboutPage, ContactPage, PlatformNotFoundPage, HelpArticlePage, HelpIndexPage, BlogIndexPage, BlogPostPage, PricingPage, PrivacyPage, PublicNav, RefundPage, SiteFooter, TermsPage, type Fees } from "./pages";
@@ -415,6 +416,9 @@ platformApp.post("/super/setup", async (c) => {
   ]);
   return c.redirect("/super/login", 303);
 });
+
+/* সাইটের ভিজিটর লাইভ চ্যাট (/chat/*) */
+registerVisitorChat(platformApp);
 
 /* লগইনের পরের সব সুপার অ্যাডমিন পেজ */
 platformApp.route("/super", superApp);

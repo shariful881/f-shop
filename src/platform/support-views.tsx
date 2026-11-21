@@ -31,7 +31,7 @@ export function dur(min: number | null): string {
   return `${bn(Math.round(h / 24))} দিন`;
 }
 
-export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: string; channel: string; counts: Record<string, number>; chCounts: { chat: number; ticket: number } }) => {
+export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: string; channel: string; counts: Record<string, number>; chCounts: { chat: number; ticket: number }; visitors?: number }) => {
   const qs = (o: Record<string, string>) => {
     const u = new URLSearchParams({ view: p.view, ...(p.q ? { q: p.q } : {}), ...(p.channel ? { channel: p.channel } : {}), ...o });
     for (const [k, v] of [...u]) if (!v) u.delete(k);
@@ -52,6 +52,7 @@ export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: st
         <a href={qs({ channel: "" })} class={!p.channel ? "active" : ""}>সব কথোপকথন</a>
         <a href={qs({ channel: "chat" })} class={p.channel === "chat" ? "active" : ""}><Icon name="message-circle" size="sm" /> লাইভ চ্যাট{p.chCounts.chat > 0 && <span class="sa-badge">{bn(p.chCounts.chat)}</span>}</a>
         <a href={qs({ channel: "ticket" })} class={p.channel === "ticket" ? "active" : ""}><Icon name="ticket" size="sm" /> সাপোর্ট টিকেট{p.chCounts.ticket > 0 && <span class="sa-badge">{bn(p.chCounts.ticket)}</span>}</a>
+        <a href="/super/visitors"><Icon name="globe" size="sm" /> সাইটের ভিজিটর{(p.visitors ?? 0) > 0 && <span class="sa-badge">{bn(p.visitors!)}</span>}</a>
       </nav>
 
       <div class="sa-card">
@@ -255,6 +256,8 @@ export const SupportSettingsPage = (p: { s: Record<string, string> }) => {
         <label class="field">শুরু<input type="time" name="support_hours_start" value={p.s.support_hours_start || "00:00"} required /></label>
         <label class="field">শেষ<input type="time" name="support_hours_end" value={p.s.support_hours_end || "00:00"} required /></label>
       </div>
+      <h3>sellxbd.com-এ ভিজিটর চ্যাট</h3>
+      <label class="sx-check"><input type="checkbox" name="visitor_chat" value="1" checked={p.s.visitor_chat !== "0"} /> সাইটের সব পাবলিক পেজের কোণে চ্যাট বাটন দেখান — যে কেউ (দোকান না খুলেও) মেসেজ দিতে পারবে। মেসেজ আসে <a href="/super/visitors">সাপোর্ট → সাইটের ভিজিটর</a>-এ।</label>
       <h3>Telegram নোটিফিকেশন</h3>
       <p class="sx-muted">
         নতুন টিকেট/চ্যাট এলে (আর টিমের কেউ অনলাইনে না থাকলে নতুন মেসেজ) Telegram-এ খবর যাবে।
