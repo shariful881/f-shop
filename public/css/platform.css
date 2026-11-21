@@ -429,3 +429,64 @@ body.platform .brand-name { font-size: 1.32rem; }
 .p-faq summary { cursor: pointer; font-weight: 700; color: #0f172a; }
 .p-faq details p { margin: 8px 0 0; color: #475569; }
 .p-muted-note { margin: 16px 0 0; text-align: center; color: #64748b; font-size: .92rem; }
+
+/* ---------- ভিজিটর লাইভ চ্যাট (public/js/chat.js) ---------- */
+.vx-fab { position: fixed; right: 18px; bottom: 18px; z-index: 60; display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer;
+  background: var(--brand, #0f766e); color: #fff; padding: 13px 18px 13px 15px; border-radius: 999px; font: inherit; font-weight: 700; font-size: .98rem;
+  box-shadow: 0 10px 28px rgba(15,118,110,.38); transition: transform .15s ease, background .15s ease; }
+.vx-fab:hover { background: var(--brand-dark, #0b3b37); transform: translateY(-2px); }
+.vx-fab:focus-visible { outline: 3px solid #ea580c; outline-offset: 3px; }
+.vx-fab.is-open .vx-fab-text { display: none; }
+.vx-fab.is-open { padding: 13px; }
+.vx-badge { position: absolute; top: -6px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #ea580c; color: #fff;
+  font-size: .8rem; font-weight: 800; display: grid; place-items: center; border: 2px solid #fff; line-height: 1; }
+.vx-panel { position: fixed; right: 18px; bottom: 86px; z-index: 61; width: 370px; max-width: calc(100vw - 24px); height: min(560px, calc(100vh - 120px));
+  display: flex; flex-direction: column; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.25); overflow: hidden; border: 1px solid #e5e7eb; }
+.vx-panel[hidden] { display: none; }
+.vx-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 16px; background: linear-gradient(135deg, #0f766e, #0b3b37); color: #fff; }
+.vx-avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #0f766e; font-weight: 800; display: grid; place-items: center; flex: none; }
+.vx-head-text { flex: 1; min-width: 0; }
+.vx-head-text b { display: block; font-size: 1rem; }
+.vx-status { display: flex; align-items: center; gap: 6px; color: #ccfbf1; font-size: .78rem; line-height: 1.3; }
+.vx-dot { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; flex: none; }
+.vx-dot.on { background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.25); }
+.vx-close { background: rgba(255,255,255,.15); border: 0; color: #fff; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1rem; flex: none; }
+.vx-close:hover { background: rgba(255,255,255,.28); }
+.vx-body { flex: 1; overflow-y: auto; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; gap: 8px; }
+.vx-body[hidden] { display: none; }
+.vx-msg { max-width: 82%; display: flex; flex-direction: column; }
+.vx-msg.mine { align-self: flex-end; align-items: flex-end; }
+.vx-msg.theirs { align-self: flex-start; }
+.vx-bubble { padding: 9px 13px; border-radius: 16px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; font-size: .95rem; }
+.vx-msg.mine .vx-bubble { background: #0f766e; color: #fff; border-bottom-right-radius: 4px; }
+.vx-msg.theirs .vx-bubble { background: #fff; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }
+.vx-meta { font-size: .72rem; color: #6b7280; margin: 3px 4px 0; }
+.vx-sys { align-self: center; text-align: center; font-size: .8rem; color: #475569; background: #e2e8f0; padding: 6px 12px; border-radius: 10px; max-width: 92%; }
+.vx-sys-err { background: #fee2e2; color: #991b1b; }
+.vx-start { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.vx-start[hidden], .vx-send[hidden] { display: none; }
+.vx-intro { margin: 0 0 4px; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 12px; padding: 10px 12px; font-size: .92rem; color: #134e4a; }
+.vx-start label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .9rem; color: #1f2937; }
+.vx-start label small { font-weight: 400; color: #6b7280; }
+.vx-start input, .vx-start textarea, .vx-send textarea { font: inherit; font-size: 16px; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px; width: 100%; box-sizing: border-box; background: #fff; }
+.vx-start input:focus, .vx-start textarea:focus, .vx-send textarea:focus { outline: 2px solid #0f766e; border-color: #0f766e; }
+.vx-hp { position: absolute !important; left: -9999px !important; width: 1px !important; height: 1px !important; }
+.vx-err { margin: 0; color: #b91c1c; font-size: .88rem; }
+.vx-err[hidden] { display: none; }
+.vx-btn { background: #ea580c; color: #fff; border: 0; border-radius: 12px; padding: 13px; font: inherit; font-weight: 700; font-size: 1rem; cursor: pointer; }
+.vx-btn:disabled { opacity: .7; }
+.vx-send { display: flex; align-items: flex-end; gap: 8px; padding: 10px; border-top: 1px solid #e5e7eb; background: #fff; }
+.vx-send textarea { resize: none; max-height: 120px; padding: 10px 12px; }
+.vx-send-btn { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: #0f766e; color: #fff; cursor: pointer; display: grid; place-items: center; }
+.vx-foot { margin: 0; padding: 8px 14px 10px; font-size: .78rem; color: #6b7280; text-align: center; background: #fff; }
+.vx-foot:empty { display: none; }
+.vx-foot a { color: #0f766e; font-weight: 700; }
+@media (max-width: 639px) {
+  .vx-fab { right: 12px; bottom: 12px; padding: 13px; }
+  .vx-fab-text { display: none; }
+  /* হোমপেজের নিচের "দোকান খুলুন" বার দেখা গেলে বাটন তার উপরে */
+  body:has(.hp-sticky.show) .vx-fab { bottom: 90px; }
+  .vx-panel { right: 0; left: 0; bottom: 0; top: 0; width: auto; max-width: none; height: 100%; height: 100dvh; border-radius: 0; border: 0; }
+  .vx-fab.is-open { display: none; }
+}
+@media print { .vx-fab, .vx-panel { display: none !important; } }
