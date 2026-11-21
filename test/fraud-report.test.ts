@@ -108,7 +108,8 @@ describe("কুরিয়ার রিপোর্ট", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(calls.find((c) => c.url.includes("/fraud_check/score/"))!.auth).toBe("SF-K");
     const list = await (await admin.get("/admin/orders?status=new")).text();
-    expect(list).toContain("ডেলিভারি সফল ৮৮% (Steadfast)");
+    expect(list).toContain("৮৮<small>%</small>");
+    expect(list).toContain("Steadfast-এর হিসাব");
     expect(list).toContain("১টা ফ্রড রিপোর্ট");
     expect(JSON.parse((await DB.prepare("SELECT courier_report FROM orders WHERE id = ?").bind(o.id).first<{ courier_report: string }>())!.courier_report).source).toBe("Steadfast (medium)");
   });

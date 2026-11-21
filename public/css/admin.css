@@ -283,21 +283,45 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
 .rt-area p { margin: .3em 0; }
 .rt-area a { color: #2563eb; text-decoration: underline; }
 /* ===== কুরিয়ার রিপোর্ট কার্ড (অর্ডার তালিকা) ===== */
-.cr-card { display: grid; gap: 5px; width: 100%; max-width: 250px; margin-top: 8px; padding: 8px 10px; text-align: left; font: inherit; cursor: pointer;
-  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; color: inherit; transition: border-color .15s, box-shadow .15s; }
-.cr-card:hover { border-color: #5eead4; box-shadow: 0 4px 12px rgba(15, 118, 110, .1); }
-.cr-head { display: flex; align-items: center; gap: 5px; font-size: .68rem; font-weight: 700; letter-spacing: .04em; color: #64748b; text-transform: uppercase; }
-.cr-flag { margin-left: auto; background: #fee2e2; color: #991b1b; border-radius: 99px; padding: 1px 7px; font-size: .66rem; letter-spacing: 0; text-transform: none; }
-.cr-bar { display: flex; height: 7px; border-radius: 99px; overflow: hidden; background: #e2e8f0; }
+.cr-card { --t: #64748b; --t-bg: #f1f5f9; display: flex; align-items: center; gap: 10px; width: 100%; max-width: 290px; padding: 8px 10px 8px 8px; text-align: left; font: inherit; cursor: pointer;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; color: inherit; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.cr-card:hover { border-color: var(--t); box-shadow: 0 6px 16px -6px rgba(15, 23, 42, .18); }
+.cr-card:active { transform: scale(.99); }
+.cr-pct { flex: none; width: 52px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--t-bg); color: var(--t); font-weight: 800; font-size: 1.15rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.cr-pct small { font-size: .62em; font-weight: 700; margin-left: 1px; }
+.cr-body { flex: 1; min-width: 0; display: grid; gap: 5px; }
+.cr-head { display: flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 600; color: #64748b; white-space: nowrap; }
+.cr-grade { background: var(--t-bg); color: var(--t); border-radius: 99px; padding: 1px 8px; font-weight: 700; font-size: .72rem; }
+.cr-flag { margin-left: auto; background: #fee2e2; color: #b91c1c; border-radius: 99px; padding: 1px 7px; font-size: .68rem; font-weight: 700; }
+.cr-bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: #e2e8f0; }
 .cr-bar i { display: block; height: 100%; }
-.cr-ok { background: linear-gradient(90deg, #059669, #10b981); }
-.cr-bad { background: #f87171; }
-.cr-text { font-size: .8rem; color: #334155; }
+.cr-bar .cr-ok { background: #10b981; }
+.cr-bar .cr-bad { background: #f87171; }
+.cr-text { font-size: .8rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr-go { flex: none; color: #94a3b8; font-size: 1.3rem; line-height: 1; margin-left: -2px; }
+.cr-card:hover .cr-go { color: var(--t); }
+.cr-t-ok { --t: #047857; --t-bg: #d1fae5; }
+.cr-t-good { --t: #0f766e; --t-bg: #ccfbf1; }
+.cr-t-warn { --t: #b45309; --t-bg: #fef3c7; border-color: #fde68a; }
+.cr-t-bad { --t: #b91c1c; --t-bg: #fee2e2; border-color: #fecaca; background: #fffafa; }
+.cr-t-new { --t: #475569; --t-bg: #f1f5f9; }
+.cr-wait .cr-pct { color: #94a3b8; }
 .cr-wait .cr-bar { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: cr-shine 1.2s linear infinite; }
 .cr-wait .cr-text { color: #94a3b8; }
-.cr-bad .cr-text, .cr-card.cr-bad { border-color: #fecaca; }
-.cr-card.cr-bad { background: #fff7f7; }
-.cr-card.cr-warn { background: #fffbeb; border-color: #fde68a; }
+/* কাস্টমারের ঘর */
+.oc { display: grid; gap: 8px; min-width: 230px; }
+.oc-who { display: flex; align-items: center; gap: 10px; }
+.oc-av { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #ccfbf1, #e0f2fe); color: #0f766e; font-weight: 800; font-size: .95rem; }
+.oc-id { display: grid; gap: 1px; min-width: 0; }
+.oc-name { font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.oc-ph { display: flex; align-items: center; gap: 6px; font-size: .88rem; }
+.oc-ph a:first-child { display: inline-flex; align-items: center; gap: 4px; color: #0f766e; font-variant-numeric: tabular-nums; text-decoration: none; }
+.oc-ph a:first-child svg { width: 13px; height: 13px; opacity: .7; }
+.oc-wa { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #dcfce7; color: #16a34a; }
+.oc-wa svg { width: 13px; height: 13px; }
+.oc-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.oc-tags:empty { display: none; }
+.oc-tags .badge { margin: 0; }
 @keyframes cr-shine { to { background-position: -200% 0; } }
 
 /* ===== পুরো ফ্রড রিপোর্ট ===== */
@@ -341,4 +365,42 @@ code { font-size: .85em; background: #f1f5f9; padding: 1px 4px; border-radius: 4
   .fr-table th { font-size: .7rem; }
   .fr-courier { gap: 5px; }
   .fr-courier img, .fr-logo-x { width: 18px; height: 18px; }
+}
+
+/* অর্ডার তালিকা — প্রতিটা অর্ডার আলাদা বক্সে (পিসি: টেবিলের সারি কার্ড, মোবাইল: স্তূপ করা কার্ড) */
+body.admin .table-wrap.orders-wrap { background: transparent; border: 0; box-shadow: none; border-radius: 0; overflow-x: auto; padding: 2px 4px 4px; }
+body.admin .orders-wrap table.orders-table { border-collapse: separate; border-spacing: 0 10px; margin-top: -10px; }
+body.admin .orders-wrap .orders-table th { background: transparent; border: 0; padding: 4px 12px 0; }
+body.admin .orders-wrap .orders-table td { background: #fff; border-top: 1px solid #e5eaf0; border-bottom: 1px solid #e5eaf0; padding: 14px 12px; vertical-align: top; transition: background .15s, border-color .15s; }
+body.admin .orders-wrap .orders-table td:first-child { border-left: 1px solid #e5eaf0; border-radius: 14px 0 0 14px; padding-left: 16px; }
+body.admin .orders-wrap .orders-table td:last-child { border-right: 1px solid #e5eaf0; border-radius: 0 14px 14px 0; padding-right: 16px; }
+body.admin .orders-wrap .orders-table tr td { box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+body.admin .orders-wrap .orders-table tbody tr:hover td { background: #fbfefd; border-color: #99f6e4; }
+body.admin .orders-wrap .orders-table tr:has(input[name="ids"]:checked) td { background: #f0fdfa; border-color: #5eead4; }
+body.admin .orders-wrap .orders-table tr:last-child td { border-bottom: 1px solid #e5eaf0; }
+body.admin .orders-wrap .ot-chk input { margin-top: 3px; }
+body.admin .orders-wrap .ot-total { font-weight: 700; }
+body.admin .orders-wrap .ot-total small { font-weight: 400; }
+
+/* মোবাইলে প্রতিটা অর্ডার একটা কার্ড */
+@media (max-width: 640px) {
+  body.admin .table-wrap.orders-wrap { padding: 0; overflow: visible; }
+  body.admin .table-wrap table.orders-table { min-width: 0; width: 100%; margin: 0; }
+  body.admin .table-wrap .orders-table thead { display: none; }
+  body.admin .table-wrap .orders-table, body.admin .table-wrap .orders-table tbody { display: block; width: 100%; }
+  body.admin .table-wrap .orders-table tbody { display: grid; gap: 12px; }
+  body.admin .table-wrap .orders-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "no total" "no time" "cust cust" "status status"; gap: 4px 10px; padding: 14px; background: #fff; border: 1px solid #e5eaf0; border-radius: 16px; box-shadow: 0 2px 8px -4px rgba(15, 23, 42, .12); }
+  body.admin .table-wrap .orders-table.has-chk tr { grid-template-columns: 26px minmax(0, 1fr) auto; grid-template-areas: "chk no total" "chk no time" "cust cust cust" "status status status"; }
+  body.admin .table-wrap .orders-table tr:has(input[name="ids"]:checked) { background: #f0fdfa; border-color: #5eead4; }
+  body.admin .table-wrap .orders-table tr td, body.admin .orders-wrap .orders-table tr td:first-child, body.admin .orders-wrap .orders-table tr td:last-child, body.admin .orders-wrap .orders-table tr:last-child td { display: block; min-width: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none !important; white-space: normal; }
+  body.admin .table-wrap .orders-table .ot-chk { grid-area: chk; padding-top: 2px; }
+  body.admin .table-wrap .orders-table .ot-no { grid-area: no; }
+  body.admin .table-wrap .orders-table .ot-total { grid-area: total; text-align: right; }
+  body.admin .table-wrap .orders-table .ot-total br, body.admin .table-wrap .orders-table .ot-total small { display: none; }
+  body.admin .table-wrap .orders-table .ot-time { grid-area: time; text-align: right; color: #64748b; }
+  body.admin .table-wrap .orders-table tr td.oc-cell, body.admin .orders-wrap .orders-table tr:last-child td.oc-cell { grid-area: cust; margin-top: 10px; padding-top: 12px; border-top: 1px dashed #e5eaf0; }
+  body.admin .table-wrap .orders-table .ot-status { grid-area: status; margin-top: 6px; font-size: .88rem; }
+  body.admin .orders-table .oc { min-width: 0; }
+  body.admin .orders-table .cr-card { max-width: none; }
+  body.admin .orders-table .oc-name { max-width: none; }
 }

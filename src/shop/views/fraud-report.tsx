@@ -31,29 +31,39 @@ const Bar = ({ ok, bad }: { ok: number; bad: number }) => {
   );
 };
 
-/** অর্ডার তালিকার ছোট কার্ড — চাপলে পুরো রিপোর্ট খোলে */
+const SHORT: Record<string, string> = { "নতুন ক্রেতা": "নতুন", "চমৎকার ক্রেতা": "চমৎকার", "ভালো ক্রেতা": "ভালো", "সাবধান": "সাবধান", "ঝুঁকিপূর্ণ": "ঝুঁকি" };
+
+/** অর্ডার তালিকার ছোট কার্ড — বাঁয়ে বড় শতাংশ, ডানে বার আর হিসাব; চাপলে পুরো রিপোর্ট খোলে */
 export const CourierCard = ({ phone, orderId, sum, ready, error }: { phone: string; orderId?: number; sum?: CourierSummary | null; ready: boolean; error?: string }) => {
   if (!sum) {
     if (!ready) return null;
     return (
       <button type="button" class="cr-card cr-wait" data-cr-open={phone} data-cr-order={orderId} data-cr-auto={error || !orderId ? undefined : String(orderId)} title="পুরো রিপোর্ট দেখুন">
-        <span class="cr-head"><Icon name="truck" size="sm" /> কুরিয়ার রিপোর্ট</span>
-        <Bar ok={0} bad={0} />
-        <span class="cr-text">{error ? "খোঁজা যায়নি — চেপে আবার দেখুন" : "খুঁজছি…"}</span>
+        <span class="cr-pct"><Icon name="truck" size="sm" /></span>
+        <span class="cr-body">
+          <span class="cr-head">কুরিয়ার রিপোর্ট</span>
+          <Bar ok={0} bad={0} />
+          <span class="cr-text">{error ? "খোঁজা যায়নি — চেপে আবার দেখুন" : "খুঁজছি…"}</span>
+        </span>
       </button>
     );
   }
-  const text = sum.total === 0 || sum.ratio == null
+  const empty = sum.total === 0 || sum.ratio == null;
+  const text = empty
     ? "কুরিয়ারে কোনো পার্সেল নেই"
     : sum.approx
-      ? `ডেলিভারি সফল ${bn(sum.ratio)}% (Steadfast)`
+      ? "Steadfast-এর হিসাব"
       : `${bn(sum.total)}টার মধ্যে ${bn(sum.success)}টা ডেলিভারি`;
   const g = grade(sum.ratio, sum.total);
   return (
-    <button type="button" class={`cr-card cr-${g.tone}`} data-cr-open={phone} data-cr-order={orderId} title="পুরো রিপোর্ট দেখুন">
-      <span class="cr-head"><Icon name="truck" size="sm" /> কুরিয়ার রিপোর্ট{(sum.reports ?? 0) > 0 && <span class="cr-flag">{bn(sum.reports!)}টা ফ্রড রিপোর্ট</span>}</span>
-      <Bar ok={sum.success} bad={sum.cancelled} />
-      <span class="cr-text">{text}</span>
+    <button type="button" class={`cr-card cr-t-${g.tone}`} data-cr-open={phone} data-cr-order={orderId} title="পুরো রিপোর্ট দেখুন">
+      <span class="cr-pct">{empty ? <Icon name="truck" size="sm" /> : <>{bn(sum.ratio!)}<small>%</small></>}</span>
+      <span class="cr-body">
+        <span class="cr-head"><span class="cr-grade">{SHORT[g.label] ?? g.label}</span>কুরিয়ার রিপোর্ট{(sum.reports ?? 0) > 0 && <span class="cr-flag" title={`${bn(sum.reports!)}টা ফ্রড রিপোর্ট`}>⚠ {bn(sum.reports!)} ফ্রড</span>}</span>
+        {sum.approx && !empty ? <Bar ok={sum.ratio!} bad={100 - sum.ratio!} /> : <Bar ok={sum.success} bad={sum.cancelled} />}
+        <span class="cr-text">{text}</span>
+      </span>
+      <span class="cr-go" aria-hidden="true">›</span>
     </button>
   );
 };

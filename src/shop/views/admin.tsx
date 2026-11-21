@@ -131,7 +131,7 @@ const RANGE_LABEL = { all: "সব সময়", today: "আজ", "7": "৭ দ
 const HistoryBadge = ({ h }: { h?: { good: number; bad: number } }) => {
   if (!h || h.good + h.bad === 0) return <span class="badge">নতুন কাস্টমার</span>;
   const tone = h.bad === 0 ? "ok" : h.good >= h.bad * 2 ? "warn" : "bad";
-  return <span class={`badge badge-${tone}`} title="আগের অর্ডার: ডেলিভারি / বাতিল-ফেক">✓{bn(h.good)} · ✕{bn(h.bad)}</span>;
+  return <span class={`badge badge-${tone}`} title="এই দোকানে আগের অর্ডার: ডেলিভারি / বাতিল-ফেক">দোকানে ✓{bn(h.good)} ✕{bn(h.bad)}</span>;
 };
 
 /** তিন জায়গা মিলিয়ে ক্রেতার রায় (তালিকায় ছোট চিহ্ন) */
@@ -233,23 +233,30 @@ export const OrdersPage = (p: {
           <button class="btn btn-sm btn-outline" formaction="/admin/orders/invoices?size=sticker" formmethod="get" formtarget="_blank" name="size" value="sticker"><Icon name="tag" size="sm" /> স্টিকার</button>
         </div>
       )}
-      <div class="table-wrap">
-        <table class="table">
+      <div class="table-wrap orders-wrap">
+        <table class={`table orders-table${bulk ? " has-chk" : ""}`}>
           <thead><tr>{bulk && <th></th>}<th>অর্ডার</th><th>কাস্টমার</th><th>মোট</th><th>স্ট্যাটাস</th><th>সময়</th></tr></thead>
           <tbody>
             {p.orders.map((o) => (
               <tr>
-                {bulk && <td><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
-                <td><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
-                <td>{o.name}<br /><a href={`tel:${o.phone}`}>{o.phone}</a> <a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="wa-mini" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a><br /><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a> <RiskBadge r={p.risk?.[o.phone]} />
-                  {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}</td>
-                <td>{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
-                <td><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
+                {bulk && <td class="ot-chk"><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
+                <td class="ot-no"><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
+                <td class="oc-cell"><div class="oc">
+                  <div class="oc-who">
+                    <span class="oc-av" aria-hidden="true">{(o.name || "?").trim().charAt(0).toUpperCase()}</span>
+                    <span class="oc-id"><b class="oc-name">{o.name}</b>
+                      <span class="oc-ph"><a href={`tel:${o.phone}`}><Icon name="phone" size="sm" /> {o.phone}</a><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span></span>
+                  </div>
+                  <div class="oc-tags"><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a><RiskBadge r={p.risk?.[o.phone]} /></div>
+                  {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}
+                </div></td>
+                <td class="ot-total">{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
+                <td class="ot-status"><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
                   {o.outcome && <><br /><span class={`pill ${o.outcome === "delivered" ? "pill-ok" : "pill-bad"}`}>{o.outcome === "delivered" ? "ডেলিভারি হয়েছে" : "ফেরত এসেছে"}</span></>}
                   {o.pay_trx && <><br /><span class={`pill ${o.pay_status === "verified" ? "pill-ok" : o.pay_status === "rejected" ? "pill-bad" : "pill-warn"}`}>অগ্রিম {taka(o.advance_amount ?? 0)} · {PAY_STATUS[o.pay_status ?? "pending"]}</span></>}
                 </td>
-                <td><small>{dhakaTime(o.created_at)}</small></td>
+                <td class="ot-time"><small>{dhakaTime(o.created_at)}</small></td>
               </tr>
             ))}
           </tbody>
