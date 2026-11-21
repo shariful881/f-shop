@@ -9,10 +9,16 @@ import type { Settings } from "../lib/settings";
 import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
 import { barcodeSvg } from "../lib/barcode";
 import { codAmount, PAY_NAME, type PayKey } from "../lib/payment";
+import { COURIER_NAME, type CourierKey } from "../lib/courier";
 
 export type InvoiceData = { order: Order; items: (OrderItem & { image?: string | null })[] };
 
 const Barcode = ({ text }: { text: string }) => <div class="iv-bar" dangerouslySetInnerHTML={{ __html: barcodeSvg(text) }} />;
+
+/** কুরিয়ারে বুক হলে কুরিয়ারের নাম আর কনসাইনমেন্ট আইডি (ট্র্যাকিং কোড আলাদা হলে সেটাও) */
+const courierOf = (o: Order) => o.consignment_id
+  ? { name: COURIER_NAME[o.courier as CourierKey] ?? o.courier ?? "কুরিয়ার", id: o.consignment_id, track: o.tracking_code && o.tracking_code !== o.consignment_id ? o.tracking_code : null }
+  : null;
 
 const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
   const o = d.order;
@@ -29,7 +35,8 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
           <h2>ইনভয়েস</h2>
           <p>অর্ডার: <b>{o.order_no}</b></p>
           <p>তারিখ: {dhakaTime(o.created_at)}</p>
-          {s.invoice_barcode !== "0" && <Barcode text={o.order_no} />}
+          {courierOf(o) && <p class="iv-courier">{courierOf(o)!.name} আইডি: <b>{courierOf(o)!.id}</b>{courierOf(o)!.track && <><br />ট্র্যাকিং: <b>{courierOf(o)!.track}</b></>}</p>}
+          {s.invoice_barcode !== "0" && <Barcode text={courierOf(o)?.id ?? o.order_no} />}
         </div>
       </header>
       <div class="iv-to">
@@ -71,9 +78,11 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
 
 const Sticker = ({ d, s }: { d: InvoiceData; s: Settings }) => {
   const o = d.order;
+  const cr = courierOf(o);
   return (
     <section class="iv-page iv-sticker">
       <div class="st-top"><b>{s.site_name}</b>{s.contact_phone && <span>📞 {bn(s.contact_phone)}</span>}</div>
+      {cr && <div class="st-courier"><span>{cr.name}</span><b>{cr.id}</b>{cr.track && <small>ট্র্যাকিং: {cr.track}</small>}</div>}
       <div class="st-to">
         <small>প্রাপক</small>
         <b class="st-name">{o.name}</b>
@@ -82,8 +91,8 @@ const Sticker = ({ d, s }: { d: InvoiceData; s: Settings }) => {
       </div>
       <div class="st-items">{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""}${(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}`).join(", ")}</div>
       <div class="st-cod"><span>ক্যাশ অন ডেলিভারি</span><b>{taka(codAmount(o))}</b></div>
-      {s.invoice_barcode !== "0" && <Barcode text={o.order_no} />}
-      <div class="st-no">{o.order_no} · {AREA_LABEL[o.area]}</div>
+      {s.invoice_barcode !== "0" && <Barcode text={cr?.id ?? o.order_no} />}
+      <div class="st-no">{cr ? `${cr.name} ${cr.id} · ` : ""}{o.order_no} · {AREA_LABEL[o.area]}</div>
     </section>
   );
 };
