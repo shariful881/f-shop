@@ -137,5 +137,13 @@
 "আপনার অর্ডার {x} কুরিয়ারে পাঠানো হয়েছে (ট্র্যাকিং: {x})। ডেলিভারিম্যান ফোন করবে, পণ্য দেখে {x} দেবেন।": "Your order {x} has been sent with the courier (tracking: {x}). The delivery man will call; check the product and pay {x}.",
 "আশা করি {x} হাতে পেয়েছেন। কেমন লাগল এক মিনিটে জানাবেন? আপনার মতামত অন্য ক্রেতাদের সাহায্য করবে:": "Hope you received {x}. Could you take a minute to tell us how you liked it? Your opinion helps other buyers:",
 "আসসালামু আলাইকুম, আপনি {x}-এ {x} অর্ডার করতে চেয়েছিলেন। অর্ডারটা কি কনফার্ম করে দেব?": "Hello, you wanted to order {x2} from {x1}. Shall we confirm the order?",
-"{n} টাকা": "{n} Tk"
+"{n} টাকা": "{n} Tk",
+"দোকানে ✓{x} ✕{x}": "At shop ✓{x} ✕{x}",
+"এই দোকানে আগের অর্ডার: ডেলিভারি / বাতিল-ফেক": "Previous orders at this shop: delivered / cancelled-fake",
+"চমৎকার": "Excellent",
+"ভালো": "Good",
+"Steadfast-এর হিসাব": "Steadfast's record",
+"⚠ {x} ফ্রড": "⚠ {x} fraud",
+"টা ফ্রড রিপোর্ট": " fraud reports",
+"নতুন পাসওয়ার্ড দিন": "Set new password"
 }
