@@ -1,5 +1,6 @@
 import { COURIER_NAME, type CourierKey } from "../lib/courier";
-import { SMS_PLACEHOLDERS, SMS_PROVIDERS } from "../lib/sms";
+import { SMS_PLACEHOLDERS, SMS_PLACEHOLDERS_EN, SMS_PROVIDERS } from "../lib/sms";
+import { getLang } from "../i18n";
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, orderExtras, STATUS_LABEL } from "../lib/orders";
@@ -1523,7 +1524,7 @@ export const SmsPage = ({ s, logs, sent30, failed30 }: { s: Settings; logs: SmsL
         </div>
 
         <h2>কখন SMS যাবে</h2>
-        <p class="muted small">টেমপ্লেটে লিখতে পারেন: {SMS_PLACEHOLDERS.join(" ")}। বাংলা SMS-এ ৭০ অক্ষরে এক SMS ধরা হয়, তাই ছোট রাখলে খরচ কম।</p>
+        <p class="muted small">টেমপ্লেটে লিখতে পারেন: {(getLang() === "en" ? SMS_PLACEHOLDERS_EN : SMS_PLACEHOLDERS).join(" ")}। বাংলা SMS-এ ৭০ অক্ষরে এক SMS ধরা হয়, তাই ছোট রাখলে খরচ কম।</p>
         <label class="field inline-check"><input type="checkbox" name="sms_on_confirm" value="1" checked={s.sms_on_confirm === "1"} /> অর্ডার কনফার্ম হলে</label>
         <label class="field"><textarea name="sms_tpl_confirmed" rows={3} maxlength={600}>{s.sms_tpl_confirmed ?? ""}</textarea></label>
         <label class="field inline-check"><input type="checkbox" name="sms_on_shipped" value="1" checked={s.sms_on_shipped === "1"} /> কুরিয়ারে পাঠানো/শিপড হলে (ট্র্যাকিংসহ)</label>

@@ -2,6 +2,7 @@
  * SMS — দোকানদার নিজের SMS গেটওয়ের API দেন।
  * তৈরি করা: BulkSMSBD, SMS.net.bd (Alpha SMS); না মিললে নিজের URL টেমপ্লেট ({number}, {message})।
  */
+import { siteLang, t } from "../i18n";
 import type { Settings } from "./settings";
 import type { Order } from "./orders";
 import { COURIER_NAME, type CourierKey } from "./courier";
@@ -15,6 +16,8 @@ export type SmsProvider = keyof typeof SMS_PROVIDERS;
 export type SmsEvent = "confirmed" | "shipped";
 
 export const SMS_PLACEHOLDERS = ["{নাম}", "{অর্ডার}", "{টাকা}", "{দোকান}", "{কুরিয়ার}", "{ট্র্যাকিং}"];
+/** ইংরেজি প্যানেলে দেখানো টোকেন — দুই রকমই কাজ করে */
+export const SMS_PLACEHOLDERS_EN = ["{name}", "{order}", "{total}", "{shop}", "{courier}", "{tracking}"];
 
 export function smsReady(s: Settings): boolean {
   if (s.sms_enabled !== "1") return false;
@@ -28,14 +31,10 @@ export function smsReady(s: Settings): boolean {
 
 /** টেমপ্লেটে তথ্য বসানো */
 export function renderTemplate(tpl: string, s: Settings, o: Pick<Order, "name" | "order_no" | "total" | "courier" | "tracking_code" | "consignment_id">): string {
-  const map: Record<string, string> = {
-    "{নাম}": o.name,
-    "{অর্ডার}": o.order_no,
-    "{টাকা}": String(o.total),
-    "{দোকান}": s.site_name || "",
-    "{কুরিয়ার}": COURIER_NAME[o.courier as CourierKey] ?? o.courier ?? "কুরিয়ার",
-    "{ট্র্যাকিং}": o.tracking_code || o.consignment_id || "",
-  };
+  const vals = [o.name, o.order_no, String(o.total), s.site_name || "", COURIER_NAME[o.courier as CourierKey] ?? o.courier ?? t("কুরিয়ার", siteLang(s)), o.tracking_code || o.consignment_id || ""];
+  const map: Record<string, string> = {};
+  SMS_PLACEHOLDERS.forEach((k, i) => { map[k] = vals[i]!; });
+  SMS_PLACEHOLDERS_EN.forEach((k, i) => { map[k] = vals[i]!; });
   return tpl.replace(/\{[^{}]{1,20}\}/g, (m) => map[m] ?? m).trim().slice(0, 600);
 }
 
@@ -157,7 +156,7 @@ export async function resendSms(db: D1Database, s: Settings, logId: number) {
 
 /** সেটিংস পেজ থেকে টেস্ট SMS */
 export async function testSms(db: D1Database, s: Settings, phone: string) {
-  const text = `${s.site_name || "SellxBD"}: টেস্ট SMS — গেটওয়ে ঠিকঠাক কাজ করছে।`;
+  const text = `${s.site_name || "SellxBD"}${t(": টেস্ট SMS — গেটওয়ে ঠিকঠাক কাজ করছে।", siteLang(s))}`;
   const r = await sendSms(s, phone, text);
   await db.prepare("INSERT INTO sms_logs (order_id, event, phone, message, status, response) VALUES (NULL, 'test', ?, ?, ?, ?)").bind(phone, text, r.ok ? "sent" : "failed", r.response).run();
   return r;

@@ -1,3 +1,4 @@
+import { siteLang } from "../i18n";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
@@ -593,7 +594,7 @@ admin.get("/incomplete", async (c) => {
   const [rows, counts] = await Promise.all([listIncomplete(c.env.DB, status), incompleteCounts(c.env.DB)]);
   const risk = status === "open" || status === "called" ? await riskMap(c, [...new Set(rows.map((r) => r.phone))]) : {};
   return render(c, "অসম্পূর্ণ অর্ডার", "incomplete",
-    <IncompletePage rows={rows} status={status} counts={counts} shopName={c.var.settings.site_name || "আমাদের দোকান"} risk={risk} capture={c.var.settings.incomplete_capture !== "0"} />);
+    <IncompletePage rows={rows} status={status} counts={counts} shopName={c.var.settings.site_name || "আমাদের দোকান"} risk={risk} capture={c.var.settings.incomplete_capture !== "0"} lang={siteLang(c.var.settings)} />);
 });
 
 admin.post("/incomplete/:id{[0-9]+}/status", async (c) => {
@@ -1591,6 +1592,8 @@ async function saveSettingsForm(c: Ctx, section: string) {
   if (has("ga4_id")) { const x = str(b.ga4_id, 20).toUpperCase(); v.ga4_id = GA4_RE.test(x) ? x : ""; }
   if (has("gtm_id")) { const x = str(b.gtm_id, 20).toUpperCase(); v.gtm_id = GTM_RE.test(x) ? x : ""; }
   if (has("tiktok_pixel_id")) { const x = str(b.tiktok_pixel_id, 30).toUpperCase(); v.tiktok_pixel_id = TIKTOK_RE.test(x) ? x : ""; }
+  // ভাষা: দোকানের ওয়েবসাইট আর অ্যাডমিন প্যানেল আলাদা (ডিফল্ট বাংলা)
+  for (const k of ["site_lang", "admin_lang"]) if (has(k)) v[k] = b[k] === "en" ? "en" : "bn";
   if (has("theme")) v.theme = typeof b.theme === "string" && b.theme in THEMES ? b.theme : (c.var.settings.theme || "classic");
   if (has("brand_color")) v.brand_color = safeColor(str(b.brand_color, 7), c.var.settings.brand_color || "#0f766e");
   if (has("accent_color")) v.accent_color = safeColor(str(b.accent_color, 7), c.var.settings.accent_color || "#ea580c");

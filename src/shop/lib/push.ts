@@ -1,3 +1,5 @@
+import { adminLang, t } from "../i18n";
+import { loadSettings } from "./settings";
 /**
  * ধাপ ৮: নতুন অর্ডারে ফোনে নোটিফিকেশন (Web Push) — কোনো বাইরের সার্ভিস ছাড়া, খরচ ৳০।
  * VAPID চাবি একবার তৈরি হয়ে মূল ডাটাবেসে থাকে; বার্তা RFC 8291 (aes128gcm) দিয়ে এনক্রিপ্ট হয়।
@@ -92,7 +94,9 @@ export async function pushToShop(db: D1Database, platformDb: D1Database, msg: Pu
   const { results } = await db.prepare("SELECT id, endpoint, p256dh, auth FROM push_subs ORDER BY id DESC LIMIT 20").all<PushSub>();
   if (!results.length) return 0;
   const v = await vapidKeys(platformDb);
-  const body = JSON.stringify(msg);
+  // দোকানদারের ফোনে — অ্যাডমিন প্যানেলের ভাষায়
+  const lang = adminLang(await loadSettings(db));
+  const body = JSON.stringify(lang === "en" ? { ...msg, title: t(msg.title, lang), body: msg.body ? t(msg.body, lang) : msg.body } : msg);
   let sent = 0;
   await Promise.all(results.map(async (s) => {
     try {

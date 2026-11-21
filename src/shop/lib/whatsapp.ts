@@ -4,6 +4,7 @@
 import type { Order, OrderItem } from "./orders";
 import type { Settings } from "./settings";
 import { codAmount } from "./payment";
+import { siteLang, tLines } from "../i18n";
 
 export type WaMsg = { key: string; label: string; text: string };
 
@@ -34,5 +35,7 @@ export function waMessages(o: Order, items: Pick<OrderItem, "product_name" | "va
   if ((o.status === "confirmed" || o.status === "shipped") && o.outcome !== "returned" && s.reviews_enabled !== "0") {
     out.push({ key: "review", label: "রিভিউ চাইতে", text: `${hi}\nআশা করি ${list} হাতে পেয়েছেন। কেমন লাগল এক মিনিটে জানাবেন? আপনার মতামত অন্য ক্রেতাদের সাহায্য করবে:\n${review}` });
   }
-  return out;
+  // কাস্টমারের কাছে যায় — ওয়েবসাইটের ভাষায়, প্রতিটা লাইন আলাদা করে
+  const lang = siteLang(s);
+  return lang === "en" ? out.map((m) => ({ ...m, text: tLines(m.text, lang) })) : out;
 }

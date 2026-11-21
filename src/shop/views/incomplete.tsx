@@ -8,15 +8,18 @@ import type { Risk } from "../lib/fraud";
 import type { Product } from "../lib/products";
 import { AREA_LABEL } from "../lib/orders";
 import { Icon } from "./icons";
+import { t, type Lang } from "../i18n";
 import { EmptyState, PageHead } from "./ui";
 import { RiskBadge } from "./admin";
 
 type RiskRow = Risk & { shared?: number; courier?: number | null };
 
-const waText = (r: IncompleteRow, shop: string) =>
+// কাস্টমারের কাছে যায় — ওয়েবসাইটের ভাষায়
+const waText = (r: IncompleteRow, shop: string, lang: Lang) => t(waTextBn(r, shop), lang);
+const waTextBn = (r: IncompleteRow, shop: string) =>
   `আসসালামু আলাইকুম${r.name ? ` ${r.name}` : ""}, আপনি ${shop}-এ ${r.product_names || "পণ্য"} অর্ডার করতে চেয়েছিলেন। অর্ডারটা কি কনফার্ম করে দেব?`;
 
-export const IncompletePage = (p: { rows: IncompleteRow[]; status: IncompleteTab; counts: Record<string, number>; shopName: string; risk: Record<string, RiskRow>; capture: boolean }) => (
+export const IncompletePage = (p: { rows: IncompleteRow[]; status: IncompleteTab; counts: Record<string, number>; shopName: string; risk: Record<string, RiskRow>; capture: boolean; lang?: Lang }) => (
   <>
     <PageHead
       title="অসম্পূর্ণ অর্ডার"
@@ -51,7 +54,7 @@ export const IncompletePage = (p: { rows: IncompleteRow[]; status: IncompleteTab
                   ) : (
                     <>
                       <a href={`tel:${r.phone}`} class="btn btn-outline btn-sm"><Icon name="phone" size="sm" /> কল</a>
-                      <a href={whatsappLink(r.phone, waText(r, p.shopName))} target="_blank" rel="noopener" class="btn btn-outline btn-sm"><Icon name="message-circle" size="sm" /> WhatsApp</a>
+                      <a href={whatsappLink(r.phone, waText(r, p.shopName, p.lang ?? "bn"))} target="_blank" rel="noopener" class="btn btn-outline btn-sm"><Icon name="message-circle" size="sm" /> WhatsApp</a>
                       <a href={`/admin/incomplete/${r.id}`} class="btn btn-primary btn-sm"><Icon name="check" size="sm" /> অর্ডার বানান</a>
                       {r.status === "open" && (
                         <form method="post" action={`/admin/incomplete/${r.id}/status`} class="inline"><input type="hidden" name="status" value="called" /><button class="btn-link">কল করেছি</button></form>

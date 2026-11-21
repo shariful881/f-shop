@@ -4,6 +4,7 @@ import { mb } from "./lib/media";
 import { flash } from "./routes/admin";
 import { logError } from "../platform/errors";
 import { Hono } from "hono";
+import { i18n, clientScript } from "./i18n";
 import type { AppEnv } from "./env";
 import type { ShopState } from "../platform/billing";
 import { withSettings, sameOriginPost, securityHeaders } from "./middleware/base";
@@ -57,7 +58,14 @@ shopApp.get("/img/*", async (c) => {
   });
 });
 
-shopApp.use("*", securityHeaders, withSettings, sameOriginPost, device);
+/** ভাষার অভিধান (ব্রাউজারে JavaScript-এর লেখা অনুবাদের জন্য) — ইংরেজি মোডের পেজ থেকে লোড হয় */
+for (const [path, scope] of [["/i18n/en.js", "admin"], ["/i18n/en-site.js", "site"]] as const) {
+  shopApp.get(path, () => new Response(clientScript(scope), {
+    headers: { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "public, max-age=31536000, immutable" },
+  }));
+}
+
+shopApp.use("*", securityHeaders, withSettings, i18n, sameOriginPost, device);
 
 /**
  * নিরাপত্তা (security/step-4): GTM দিয়ে দোকানের পেজে যেকোনো JavaScript চালানো যায় —

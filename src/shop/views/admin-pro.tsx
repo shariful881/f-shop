@@ -1,6 +1,7 @@
 /**
  * দোকানের অ্যাডমিন — প্রফেশনাল লেআউট (সাইডবার), ড্যাশবোর্ড আর সেটিংস কেন্দ্র।
  */
+import { LANGS } from "../i18n";
 import type { Child } from "hono/jsx";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
@@ -375,6 +376,14 @@ export const SettingsGeneralPage = ({ s }: { s: Settings }) => (
         <F label="ইমেইল"><input type="email" name="store_email" value={s.store_email ?? ""} maxlength={120} /></F>
         <F label="Facebook পেজের লিংক"><input type="url" name="facebook_page" value={s.facebook_page ?? ""} maxlength={200} placeholder="https://facebook.com/yourpage" /></F>
         <F label="ঠিকানা" wide><textarea name="store_address" rows={2} maxlength={300}>{s.store_address ?? ""}</textarea></F>
+      </Section>
+      <Section title="ভাষা / Language" desc="বাটন, মেনু, মেসেজ কোন ভাষায় দেখাবে। পণ্যের নাম, বিবরণ আর আপনার নিজের লেখা যেভাবে লিখবেন সেভাবেই থাকবে।">
+        <F label="দোকানের ওয়েবসাইট" hint="কাস্টমার যা দেখেন — কাস্টমারের SMS আর ইনভয়েসও এই ভাষায়">
+          <select name="site_lang">{(["bn", "en"] as const).map((l) => <option value={l} selected={(s.site_lang || "bn") === l} translate="no">{LANGS[l]}</option>)}</select>
+        </F>
+        <F label="অ্যাডমিন প্যানেল" hint="আপনি আর আপনার স্টাফরা যা দেখেন">
+          <select name="admin_lang">{(["bn", "en"] as const).map((l) => <option value={l} selected={(s.admin_lang || "bn") === l} translate="no">{LANGS[l]}</option>)}</select>
+        </F>
       </Section>
     </SettingsForm>
   </>
