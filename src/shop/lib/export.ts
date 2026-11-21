@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 /**
  * দোকানদারের নিজের ডাটা ডাউনলোড (Excel-এ খোলে এমন CSV) — ব্যাকআপ আর হিসাবের জন্য।
  * UTF-8 BOM থাকে, তাই Excel-এ বাংলা ঠিকমতো দেখায়। সূত্র দিয়ে শুরু হওয়া ঘর (=, +, -, @) নিরাপদ করা হয়।
@@ -10,7 +12,8 @@ const cell = (v: unknown): string => {
 };
 
 export function toCsv(header: string[], rows: unknown[][]): string {
-  return "﻿" + [header, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
+  // কলামের নাম অ্যাডমিন প্যানেলের ভাষায়
+  return "﻿" + [header.map((h) => t(h)), ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 
 const STATUS_BN: Record<string, string> = { new: "নতুন", confirmed: "কনফার্ম", shipped: "শিপড", cancelled: "বাতিল", fake: "ফেক" };
@@ -25,7 +28,7 @@ export async function ordersCsv(db: D1Database): Promise<string> {
   ).bind(MAX_ROWS).all<Record<string, unknown>>();
   return toCsv(
     ["অর্ডার নং", "সময় (UTC)", "অবস্থা", "নাম", "মোবাইল", "ঠিকানা", "এলাকা", "পণ্যের দাম", "ডেলিভারি", "ছাড়", "মোট", "কুপন", "কুরিয়ার", "ট্র্যাকিং", "নোট", "পণ্য"],
-    results.map((r) => [r.order_no, r.created_at, STATUS_BN[String(r.status)] ?? r.status, r.name, r.phone, r.address, r.area === "inside" ? "ঢাকার ভিতরে" : "ঢাকার বাইরে",
+    results.map((r) => [r.order_no, r.created_at, t(STATUS_BN[String(r.status)] ?? String(r.status)), r.name, r.phone, r.address, t(r.area === "inside" ? "ঢাকার ভিতরে" : "ঢাকার বাইরে"),
       r.subtotal, r.delivery_charge, r.discount, r.total, r.coupon_code, r.courier, r.tracking_code, r.note, r.items]),
   );
 }
@@ -37,7 +40,7 @@ export async function productsCsv(db: D1Database): Promise<string> {
   ).bind(MAX_ROWS).all<Record<string, unknown>>();
   return toCsv(
     ["আইডি", "নাম", "লিংক (slug)", "ক্যাটাগরি", "দাম", "কাটা দাম", "ক্রয়মূল্য", "স্টক", "চালু", "হোমে", "ছোট বর্ণনা", "ছবি", "তৈরি (UTC)"],
-    results.map((r) => [r.id, r.name, r.slug, r.category, r.price, r.compare_price, r.cost_price, r.track_stock ? r.stock : "গোনা হয় না", r.is_active ? "হ্যাঁ" : "না", r.show_on_home ? "হ্যাঁ" : "না", r.short_desc, r.image ? `/img/${r.image}` : "", r.created_at]),
+    results.map((r) => [r.id, r.name, r.slug, r.category, r.price, r.compare_price, r.cost_price, r.track_stock ? r.stock : t("গোনা হয় না"), r.is_active ? t("হ্যাঁ") : t("না"), r.show_on_home ? t("হ্যাঁ") : t("না"), r.short_desc, r.image ? `/img/${r.image}` : "", r.created_at]),
   );
 }
 

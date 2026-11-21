@@ -1,0 +1,5 @@
+{
+ "আসসালামু আলাইকুম{x}, আপনি {x}-এ {x} অর্ডার করতে চেয়েছিলেন। অর্ডারটা কি কনফার্ম করে দেব?": "Hello{x1}, you wanted to order {x3} from {x2}. Shall we confirm the order?",
+ "দুঃখিত, \"{x}\" মাত্র {x}টা আছে — পরিমাণ কমিয়ে দিন।": "Sorry, only {x2} of \"{x1}\" left — reduce the quantity.",
+ "প্রতিটা প্ল্যানে কয়েকজন স্টাফ ধরা আছে (ছোট দোকান {n} জন, বাড়ন্ত {n} জন, বড় ব্র্যান্ড {n} জন)। এর বেশি হলে প্রতিজনের জন্য মাসে {x}": "Each plan includes some staff (Small shop {n}, Growing {n}, Big brand {n}). Beyond that, the monthly cost per person is {x}"
+}

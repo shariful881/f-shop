@@ -1,7 +1,10 @@
+import { getLang } from "../i18n";
 const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
 
 /** ইংরেজি অঙ্ক → বাংলা অঙ্ক */
 export function bn(v: string | number): string {
+  // ইংরেজি মোডে অঙ্ক ইংরেজিতেই
+  if (getLang() === "en") return String(v);
   return String(v).replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)]!);
 }
 

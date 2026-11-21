@@ -1,3 +1,4 @@
+import { getLang } from "../shop/i18n";
 /**
  * সাইনআপের পাহারা — বট আর প্রতারক আটকানো।
  *
@@ -164,9 +165,18 @@ export async function sendEmailLink(env: WorkerEnv, shopId: string, base: string
     await env.EMAIL.send({
       to: shop.owner_email,
       from: { email: emailFrom(env, s), name: "SellxBD" },
-      subject: `${name} — ইমেইল যাচাই করুন`,
-      text: `আসসালামু আলাইকুম,\n\nআপনার দোকান "${name}" চালু করতে নিচের লিংকে চাপুন (২ দিন কাজ করবে):\n${url}\n\nআপনি দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন।\n\n— SellxBD`,
-      html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>আসসালামু আলাইকুম,</p><p>আপনার দোকান <b>${name}</b> চালু করতে নিচের বাটনে চাপুন (২ দিন কাজ করবে):</p><p><a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">ইমেইল যাচাই করুন</a></p><p style="color:#64748b;font-size:13px">বাটন কাজ না করলে এই লিংক খুলুন:<br>${url}</p><p style="color:#64748b;font-size:13px">আপনি দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন।</p><p>— SellxBD</p></div>`,
+      // দোকানের অ্যাডমিন থেকে আবার পাঠালে প্যানেলের ভাষায়
+      ...(getLang() === "en"
+        ? {
+            subject: `${name} — verify your email`,
+            text: `Hello,\n\nTo activate your shop "${name}", open the link below (works for 2 days):\n${url}\n\nIf you didn't open a shop, ignore this email.\n\n— SellxBD`,
+            html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>Hello,</p><p>To activate your shop <b>${name}</b>, press the button below (works for 2 days):</p><p><a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Verify email</a></p><p style="color:#64748b;font-size:13px">If the button doesn't work, open this link:<br>${url}</p><p style="color:#64748b;font-size:13px">If you didn't open a shop, ignore this email.</p><p>— SellxBD</p></div>`,
+          }
+        : {
+          subject: `${name} — ইমেইল যাচাই করুন`,
+          text: `আসসালামু আলাইকুম,\n\nআপনার দোকান "${name}" চালু করতে নিচের লিংকে চাপুন (২ দিন কাজ করবে):\n${url}\n\nআপনি দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন।\n\n— SellxBD`,
+          html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>আসসালামু আলাইকুম,</p><p>আপনার দোকান <b>${name}</b> চালু করতে নিচের বাটনে চাপুন (২ দিন কাজ করবে):</p><p><a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">ইমেইল যাচাই করুন</a></p><p style="color:#64748b;font-size:13px">বাটন কাজ না করলে এই লিংক খুলুন:<br>${url}</p><p style="color:#64748b;font-size:13px">আপনি দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন।</p><p>— SellxBD</p></div>`,
+          }),
     });
     return { ok: true, message: `যাচাইয়ের লিংক ${shop.owner_email}-এ পাঠানো হয়েছে। ইনবক্স (না পেলে স্প্যাম) দেখুন।` };
   } catch (e) {
@@ -201,7 +211,7 @@ export async function sendPhoneOtp(env: WorkerEnv, shopId: string): Promise<Send
   const code = otp();
   await env.PLATFORM_DB.prepare("INSERT INTO verify_codes (shop_id, kind, code_hash, target, expires_at) VALUES (?, 'phone', ?, ?, datetime('now', '+10 minutes'))")
     .bind(shopId, await sha(`${shopId}:${code}`), shop.owner_phone).run();
-  const r = await sendSms(sms, shop.owner_phone, `SellxBD যাচাই কোড: ${code} (১০ মিনিট)। কাউকে বলবেন না।`);
+  const r = await sendSms(sms, shop.owner_phone, getLang() === "en" ? `SellxBD verification code: ${code} (10 minutes). Do not share it.` : `SellxBD যাচাই কোড: ${code} (১০ মিনিট)। কাউকে বলবেন না।`);
   if (!r.ok) {
     console.error("verify sms", r.response);
     return { ok: false, message: "SMS পাঠানো যায়নি — কিছুক্ষণ পরে আবার চেষ্টা করুন" };
