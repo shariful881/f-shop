@@ -248,11 +248,13 @@ export const OrderForm = (p: {
 };
 
 /* ---------- ল্যান্ডিং পেজ ---------- */
-export const LandingPage = (props: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string; cfg?: Cfg; related?: Product[]; reviews?: unknown }) => (
+/* ল্যান্ডিং পেজ শুধু একটা পণ্যের অর্ডারের জন্য — নিচে "আরও দেখুন", কল/WhatsApp/শেয়ার বাটন দেখায় না (মোঃ),
+   যাতে ক্রেতা অন্য পণ্যে চলে না যায়। রিভিউ শুধু থিম সেটিংসে চালু করলে আর অন্তত একটা রিভিউ থাকলে। */
+export const LandingPage = (props: { p: Product; variants?: Variant[]; settings: Settings; form?: FormState; closed?: string; cfg?: Cfg; reviews?: unknown }) => (
   <>
     <LandingBody {...props} />
     {props.reviews ? <div class="wrap narrow">{props.reviews}</div> : null}
-    {props.cfg && <ProductExtras p={props.p} s={props.settings} cfg={props.cfg} related={props.related ?? []} />}
+    {props.cfg?.pd_zoom === "1" && <span data-zoom-on hidden />}
   </>
 );
 

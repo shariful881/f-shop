@@ -152,6 +152,22 @@ export const BuiltLanding = (p: { p: Product; landing: Landing; variants: Varian
             <a href="#order" class="btn btn-primary btn-block btn-lg">{d.button_text}</a>
           </section>
         );
+      case "contact": {
+        // নম্বর দোকানের তথ্য থেকে; যেটার নম্বর নেই সেই বাটন আসে না
+        const phone = (p.settings.contact_phone || "").replace(/[^\d+]/g, "");
+        const waNum = (p.settings.whatsapp || "").replace(/\D/g, "").replace(/^88/, "");
+        const btns = [
+          d.call && phone && <a href={`tel:${phone}`} class="pd-btn pd-call">📞 {d.call_text}</a>,
+          d.wa && waNum && <a href={`https://wa.me/88${waNum}?text=${encodeURIComponent(`${prod.name} সম্পর্কে জানতে চাই`)}`} target="_blank" rel="noopener" class="pd-btn pd-wa">💬 {d.wa_text}</a>,
+        ].filter(Boolean);
+        if (!btns.length) return p.editor ? <section class="lp-contact"><p class="muted center">কল / WhatsApp বাটন দেখাতে সেটিংস › দোকানের তথ্যে ফোন বা WhatsApp নম্বর দিন।</p></section> : null;
+        return (
+          <section class="lp-contact">
+            {d.headline && <h2>{d.headline}</h2>}
+            <div class="pd-btns">{btns}</div>
+          </section>
+        );
+      }
       case "benefits":
         return d.items?.length ? (
           <section class="lp-box lp-benefits">
