@@ -31,9 +31,10 @@ import { normalizeCode } from "../lib/coupons";
 import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
 import { cfError, type DnsRecord } from "../../platform/cf";
-import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings } from "../../platform/billing";
-import { extraStaff, isCycle, isPlan, onOldPrices, planForShop, plansForShop } from "../../platform/plans";
+import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings, type BillingShop, type PlatformSettings } from "../../platform/billing";
+import { cheapestFor, extraStaff, isCycle, isPlan, onOldPrices, overageCharge, planForShop, plansForShop, TRIAL_PLAN, type PlanKey } from "../../platform/plans";
 import { PlanPanel } from "../views/billing-plans";
+import { UsageOverview, type BillRow, type UsageDay, type UsageView } from "../views/billing-usage";
 import { clearShopCache } from "../../platform/resolve";
 import { CustomersPage, CUSTOMERS_PER_PAGE, type CustomerRow } from "../views/customers";
 import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMedia, type MediaFolder } from "../lib/media";
@@ -1676,6 +1677,71 @@ async function usageAlert(c: Ctx) {
 }
 
 /* ---------- বিলিং ---------- */
+/** বিলিং পেজের ব্যবহার-হিসাব: মেয়াদ, এই মাসের অর্ডার (দিন ধরে), বিলের ইতিহাস */
+async function loadUsage(pdb: D1Database, shop: BillingShop, fees: Record<string, string>): Promise<UsageView> {
+  const trial = shop.status === "trial";
+  const plans = plansForShop(fees as PlatformSettings, shop.created_at);
+  const planKey = (trial ? TRIAL_PLAN : isPlan(shop.plan) ? shop.plan : "free") as PlanKey;
+  const plan = plans[planKey];
+  const dt = (utc: string) => new Date(utc.replace(" ", "T") + "Z");
+  const sql = (d: Date) => d.toISOString().slice(0, 19).replace("T", " ");
+  // এই মাসের হিসাবের শুরু: ট্রায়ালে দোকান খোলার দিন, নইলে usage_reset_at থেকে এক মাস আগে
+  let periodStart: string | null = trial ? shop.created_at : null;
+  if (!trial && shop.usage_reset_at) { const d = dt(shop.usage_reset_at); d.setUTCMonth(d.getUTCMonth() - 1); periodStart = sql(d); }
+  const rows = periodStart
+    ? (await pdb.prepare("SELECT ref, created_at FROM ledger WHERE shop_id = ? AND type IN ('plan_order', 'trial_order') AND created_at >= ? ORDER BY id LIMIT 5000")
+      .bind(shop.id, periodStart).all<{ ref: string; created_at: string }>()).results
+    : [];
+  const used = trial ? rows.length : shop.period_orders;
+  const limit = trial ? rows.length + Math.max(0, shop.trial_orders_left) : plan.orders;
+  // দিন ধরে (ঢাকার দিন), বাড়তি চার্জ জমতে জমতে কোন দিনে কত
+  const byDay = new Map<string, UsageDay>();
+  let n = 0;
+  for (const r of rows) {
+    const day = new Date(dt(r.created_at).getTime() + 6 * 3600e3).toISOString().slice(0, 10);
+    const before = trial ? 0 : overageCharge(plan, n);
+    n++;
+    const after = trial ? 0 : overageCharge(plan, n);
+    const d = byDay.get(day) ?? { day, first: r.ref, last: r.ref, count: 0, fee: 0 };
+    d.last = r.ref; d.count++; d.fee += after - before;
+    byDay.set(day, d);
+  }
+  const days = [...byDay.values()].reverse().slice(0, 62);
+
+  // বিলের ইতিহাস: প্যাকেজের বিল / বদল / সীমার বেশি — প্রতিটার পরের বিল পর্যন্ত কত অর্ডার
+  const led = (await pdb.prepare(
+    "SELECT type, amount, note, created_at FROM ledger WHERE shop_id = ? AND applied = 1 AND (type IN ('monthly', 'overage') OR (type = 'plan_change' AND amount < 0)) ORDER BY id DESC LIMIT 24",
+  ).bind(shop.id).all<{ type: string; amount: number; note: string | null; created_at: string }>()).results;
+  const starts = led.filter((l) => l.type !== "overage");
+  const counts = starts.length
+    ? await pdb.batch(starts.map((l, i) => {
+      const end = i === 0 ? "9999-12-31" : starts[i - 1]!.created_at;
+      return pdb.prepare("SELECT COUNT(*) n FROM ledger WHERE shop_id = ? AND type = 'plan_order' AND created_at >= ? AND created_at < ?").bind(shop.id, l.created_at, end);
+    }))
+    : [];
+  const bills: BillRow[] = led.map((l) => {
+    const i = starts.indexOf(l);
+    return {
+      kind: l.type as BillRow["kind"], start: l.created_at, end: i > 0 ? starts[i - 1]!.created_at : null, note: l.note ?? "", amount: l.amount,
+      orders: i >= 0 ? ((counts[i]!.results[0] as { n: number }).n) : null, current: i === 0 && !trial,
+    };
+  });
+  // ট্রায়াল (চলমান বা শেষ হওয়া) সবার নিচে
+  const tr = await pdb.prepare("SELECT COUNT(*) n, MIN(created_at) a FROM ledger WHERE shop_id = ? AND type = 'trial_order'").bind(shop.id).first<{ n: number; a: string | null }>();
+  if (trial || (tr && tr.n > 0)) {
+    bills.push({ kind: "trial", start: shop.created_at, end: trial ? shop.trial_ends_at : starts.at(-1)?.created_at ?? null, note: "", amount: 0, orders: tr?.n ?? 0, current: trial });
+  }
+
+  const best = trial ? null : cheapestFor(plans, used);
+  const saving = best && best.plan.key !== plan.key ? plan.price + overageCharge(plan, used) - best.cost : 0;
+  return {
+    trial, plan, cycleMonths: shop.cycle_months || 1,
+    renewsAt: trial ? shop.trial_ends_at : plan.key === "free" ? shop.usage_reset_at : shop.next_bill_at,
+    periodStart, periodEnd: trial ? shop.trial_ends_at : shop.usage_reset_at,
+    used, limit, days, bills, saving: saving > 0 && best ? { name: best.plan.name, amount: saving } : null,
+  };
+}
+
 async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; values: Record<string, string> }) {
   const pdb = c.env.PLATFORM_DB;
   const shopId = c.env.SHOP_ID;
@@ -1685,9 +1751,10 @@ async function renderBilling(c: Ctx, form?: { errors: Record<string, string>; va
     pdb.prepare("SELECT id, amount, method, sender, trx_id, status, created_at FROM topups WHERE shop_id = ? ORDER BY id DESC LIMIT 20").bind(shopId),
   ]);
   const plan = shop ? <PlanPanel plans={plansForShop(fees, shop.created_at)} oldPrices={onOldPrices(fees, shop.created_at)} oldUntil={fees.old_prices_until} shop={shop} trial={c.var.shopState.status === "trial"} staffFee={toInt(fees.staff_fee, 49)} settings={fees} /> : null;
+  const usage = shop ? <UsageOverview u={await loadUsage(pdb, shop, fees)} /> : null;
   return render(c, "বিলিং ও প্ল্যান", "billing",
     <BillingPage state={c.var.shopState} fees={fees} ledger={ledger!.results as LedgerRow[]} topups={topups!.results as TopupRow[]}
-      plan={plan} errors={form?.errors} values={form?.values} />,
+      usage={usage} plan={plan} errors={form?.errors} values={form?.values} />,
     form ? 422 : 200);
 }
 

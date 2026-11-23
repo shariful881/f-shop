@@ -2,7 +2,7 @@
  * বিলিং পেজের উপরের অংশ: এখনকার প্ল্যান, এই মাসে কত অর্ডার হলো, প্ল্যান বদলানো।
  */
 import type { BillingShop } from "../../platform/billing";
-import { storageLabel, cheapestFor, CYCLES, cyclePrice, overageCharge, PLAN_KEYS, type Plan, type PlanKey } from "../../platform/plans";
+import { storageLabel, CYCLES, cyclePrice, PLAN_KEYS, type Plan, type PlanKey } from "../../platform/plans";
 import { bn, dhakaTime, taka } from "../lib/format";
 import { Icon } from "./icons";
 
@@ -11,11 +11,6 @@ const extraLabel = (p: Plan) => (p.key === "free" ? `${taka(p.extra)}/অর্�
 
 export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; oldPrices?: boolean; oldUntil?: string; shop: BillingShop; trial: boolean; staffFee: number; settings: Record<string, string> }) => {
   const cur = p.plans[(PLAN_KEYS as string[]).includes(p.shop.plan) ? (p.shop.plan as PlanKey) : "free"];
-  const used = p.shop.period_orders;
-  const pct = Math.min(100, Math.round((used / Math.max(1, cur.orders)) * 100));
-  const over = overageCharge(cur, used);
-  const best = cheapestFor(p.plans, used);
-  const saving = cur.price + over - best.cost;
   const nextPlan = p.shop.plan_next && (PLAN_KEYS as string[]).includes(p.shop.plan_next) ? p.plans[p.shop.plan_next as PlanKey] : null;
   return (
     <section class="panel plan-panel">
@@ -28,14 +23,6 @@ export const PlanPanel = (p: { plans: Record<PlanKey, Plan>; oldPrices?: boolean
           {nextPlan && <p class="plan-note"><Icon name="info" size="sm" /> পরের বিলের দিন থেকে "{nextPlan.name}" {(p.shop.cycle_next ?? 1) > 1 ? `${bn(p.shop.cycle_next!)} মাসের প্যাক` : "মাসিক"} চালু হবে। মত বদলালে এখনকার প্ল্যান আবার বাছুন।</p>}
         </div>
       </div>
-      {!p.trial && (
-        <div class="plan-usage">
-          <div class="plan-usage-row"><span>এই মাসে কনফার্ম অর্ডার</span><b>{bn(used)} / {bn(cur.orders)}</b></div>
-          <div class={`media-meter${pct >= 90 ? " warn" : ""}`}><i style={`width:${pct}%`}></i></div>
-          {over > 0 && <p class="muted">সীমার বেশি {bn(used - cur.orders)}টা অর্ডার — মাস শেষে বাড়তি {taka(over)} কাটবে।</p>}
-          {saving > 0 && best.plan.key !== cur.key && <p class="plan-tip"><Icon name="trending-up" size="sm" /> এই মাসে যত অর্ডার, তাতে "{best.plan.name}" প্ল্যানে {taka(saving)} বাঁচত।</p>}
-        </div>
-      )}
       <form method="post" action="/admin/billing/plan" class="plan-form" data-confirm="প্ল্যান বদলাবেন? বড় প্ল্যান বা লম্বা মেয়াদে গেলে এখনই চালু হবে — আগের প্ল্যানের না-ব্যবহৃত টাকা বাদ যাবে, বেশি থাকলে ব্যালেন্সে ফেরত যাবে। ছোট প্ল্যান বা ছোট মেয়াদ চালু হবে পরের বিলের দিন।">
         <div class="plan-cards">
           {PLAN_KEYS.map((k) => {

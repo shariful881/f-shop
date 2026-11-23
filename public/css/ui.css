@@ -709,3 +709,39 @@ body.admin .verify-grid + p { margin-bottom: 80px; }
 body.admin .tab-count { display: inline-flex; align-items: center; justify-content: center; height: 22px; min-width: 24px; padding: 0 7px;
   font-size: .9rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; vertical-align: middle; }
 body.admin .tab { align-items: center; gap: 6px; }
+
+/* ---------- বিলিং: প্যাকেজের ব্যবহার (views/billing-usage.tsx) ---------- */
+body.admin .us-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 var(--sp-4); }
+body.admin .us-stat { border-radius: 16px; padding: 16px 18px; border: 1px solid; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+body.admin .us-stat-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: var(--fs-sm); font-weight: 600; }
+body.admin .us-stat-head i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+body.admin .us-stat b { font-size: 1.6rem; line-height: 1.2; font-weight: 800; overflow-wrap: anywhere; }
+body.admin .us-stat small { font-size: .8rem; }
+body.admin .us-blue { background: linear-gradient(135deg, #eff6ff, #fff); border-color: #dbeafe; color: #1e3a8a; }
+body.admin .us-blue .us-stat-head i { background: #dbeafe; }
+body.admin .us-blue small, body.admin .us-blue .us-stat-head { color: #2563eb; }
+body.admin .us-green { background: linear-gradient(135deg, #ecfdf5, #fff); border-color: #d1fae5; color: #064e3b; }
+body.admin .us-green .us-stat-head i { background: #d1fae5; }
+body.admin .us-green small, body.admin .us-green .us-stat-head { color: #047857; }
+body.admin .us-mint { background: linear-gradient(135deg, #f0fdf4, #fff); border-color: #dcfce7; color: #14532d; }
+body.admin .us-mint .us-stat-head i { background: #dcfce7; }
+body.admin .us-mint small, body.admin .us-mint .us-stat-head { color: #15803d; }
+body.admin .us-purple { background: linear-gradient(135deg, #f5f3ff, #fff); border-color: #ede9fe; color: #3b0764; }
+body.admin .us-purple .us-stat-head i { background: #ede9fe; }
+body.admin .us-purple small, body.admin .us-purple .us-stat-head { color: #7c3aed; }
+body.admin .us-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+body.admin .us-title h2 { margin: 0; }
+body.admin .us-title > i { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: #d1fae5; color: #047857; }
+body.admin .us-title > i.us-purple { background: #ede9fe; color: #7c3aed; border: 0; }
+body.admin .us-title small { margin-left: auto; }
+body.admin .us-usedline { margin: 4px 0 8px; }
+body.admin .us-meter { height: 10px; }
+body.admin .us-meter i { background: #22c55e; }
+body.admin .us-meter.over i { background: var(--c-danger, #dc2626); }
+body.admin .us-hint { margin: 8px 0 12px; font-size: var(--fs-sm); }
+body.admin .us-days code, body.admin .us-bills code { font-size: .8rem; }
+@media (max-width: 900px) { body.admin .us-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+@media (max-width: 420px) { body.admin .us-stat { padding: 12px; } body.admin .us-stat b { font-size: 1.3rem; } }
+body.admin .us-amber { background: linear-gradient(135deg, #fff7ed, #fff); border-color: #fed7aa; color: #7c2d12; }
+body.admin .us-amber .us-stat-head i { background: #ffedd5; }
+body.admin .us-amber small, body.admin .us-amber .us-stat-head { color: #c2410c; }

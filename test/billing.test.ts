@@ -237,10 +237,41 @@ describe("বিলিং পেজ", () => {
     const a = await adminBrowser();
     const html = await (await a.get("/admin/billing")).text();
     expect(html).toContain("ছোট দোকান");
-    expect(html).toContain("১২০ / ১৫০");
+    expect(html).toContain("<b>১২০</b>টা অর্ডার ব্যবহার হয়েছে, সীমা <b>১৫০</b>টা");
+    expect(html).toContain("বাকি ৩০টা");
     expect(html).toContain("বাড়ন্ত");
     expect(html).not.toContain("অন্য দোকানের রিচার্জ");
     expect(html).not.toContain("৭৭৭");
+  });
+
+  it("প্যাকেজের ব্যবহার: মেয়াদ, সীমা, সীমার বেশি অর্ডারের চার্জ, দিন ধরে অর্ডার, বিলের ইতিহাস", async () => {
+    await setShop({ status: "active", plan: "small", period_orders: 152, balance: 0, cycle_months: 1, next_bill_at: "2099-01-10 00:00:00" });
+    // এই মাসের দুটো কনফার্ম অর্ডার আর একটা আগের মাসের বিল
+    await pdb().prepare("INSERT INTO ledger (shop_id, type, amount, ref, note, applied, created_at) VALUES (?, 'monthly', -449, 'month:x', 'ছোট দোকান মাসিক ৳৪৪৯', 1, datetime('now', '-3 days'))").bind(DEMO_SHOP_ID).run();
+    for (const no of ["1001", "1002"]) {
+      await pdb().prepare("INSERT INTO ledger (shop_id, type, amount, ref, note, applied) VALUES (?, 'plan_order', 0, ?, 'অর্ডার', 1)").bind(DEMO_SHOP_ID, no).run();
+    }
+    const html = await (await (await adminBrowser()).get("/admin/billing")).text();
+    expect(html).toContain("মেয়াদ শেষ / নবায়ন");
+    expect(html).toContain("১০ জানুয়ারি ২০৯৯");
+    expect(html).toContain("সীমার বেশি অর্ডার");
+    expect(html).toContain("বাড়তি ৳১০ (মাস শেষে কাটবে)"); // ২টা বেশি × ৳৫
+    expect(html).toContain("#1001</code> → <code>#1002");
+    expect(html).toContain("বিলের ইতিহাস");
+    expect(html).toContain("প্যাকেজের বিল");
+    expect(html).toContain("চলমান");
+  });
+
+  it("ট্রায়ালে: ট্রায়াল শেষের তারিখ আর বাকি ফ্রি অর্ডার দেখায়", async () => {
+    await setShop({ status: "trial", trial_ends_at: "2099-02-01 00:00:00", trial_orders_left: 398 });
+    for (const no of ["7", "8"]) {
+      await pdb().prepare("INSERT INTO ledger (shop_id, type, amount, ref, note, applied, created_at) VALUES (?, 'trial_order', 0, ?, 'ট্রায়ালের ফ্রি অর্ডার', 1, datetime('now'))").bind(DEMO_SHOP_ID, no).run();
+    }
+    const html = await (await (await adminBrowser()).get("/admin/billing")).text();
+    expect(html).toContain("ফ্রি ট্রায়াল শেষ");
+    expect(html).toContain("১ ফেব্রুয়ারি ২০৯৯");
+    expect(html).toContain("৪০০টার মধ্যে · বাকি ৩৯৮টা");
+    expect(html).toContain("ট্রায়ালে বাড়তি চার্জ নেই");
   });
 
   it("বড় প্ল্যানে গেলে এখনই চালু, আগের প্ল্যানের বাকি দিনের টাকা বাদ যায়", async () => {

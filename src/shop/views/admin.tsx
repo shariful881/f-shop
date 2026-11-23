@@ -800,13 +800,14 @@ const PayRow = ({ label, value, strong }: { label: string; value: string; strong
   </div>
 );
 
-export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; errors?: Record<string, string>; values?: Record<string, string> }) => {
+export const BillingPage = (p: { state: ShopState; fees: Record<string, string>; ledger: LedgerRow[]; topups: TopupRow[]; plan: Child; usage?: Child; errors?: Record<string, string>; values?: Record<string, string> }) => {
   const e = p.errors ?? {};
   const v = p.values ?? {};
   const bank = !!(p.fees.dbbl_account_no || "").trim();
   return (
     <>
       <h1>বিলিং ও প্ল্যান</h1>
+      {p.usage}
       {p.plan}
       <div class="panels">
         <section class="panel">
