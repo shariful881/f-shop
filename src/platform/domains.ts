@@ -13,7 +13,7 @@ export type DomainRow = {
 };
 
 /** নেমসার্ভার না বসালে এত দিন পরে ডোমেইন নিজে সরে যায় (Cloudflare-এ pending zone জমে নতুন ডোমেইন যোগ আটকে না দেয়) */
-export const PENDING_DAYS = 7;
+export const PENDING_DAYS = 4;
 
 /** ইনপুট থেকে মূল ডোমেইন (dokan.com) বের করা, ভুল হলে বার্তা */
 export function normalizeDomain(input: string, platformDomain: string): { domain?: string; error?: string } {

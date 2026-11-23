@@ -287,27 +287,27 @@ describe("প্ল্যাটফর্মের নিজের zone-এর �
   });
 });
 
-describe("নেমসার্ভার না বসালে ৭ দিনে ডোমেইন নিজে সরে যায়", () => {
+describe("নেমসার্ভার না বসালে ৪ দিনে ডোমেইন নিজে সরে যায়", () => {
   const age = (days: number) => env.PLATFORM_DB.prepare(`UPDATE domains SET created_at = datetime('now', '-${days} days') WHERE zone_id IS NOT NULL`).run();
   const notes: { shop: string; title: string }[] = [];
   const notify = async (shop: string, m: { title: string }) => { notes.push({ shop, title: m.title }); };
   beforeEach(() => { notes.length = 0; });
 
-  it("পেজে বাকি দিন দেখায়; ৬ দিনে একবার সতর্ক; ৭ দিনে zone মুছে দোকান থেকে সরায়", async () => {
+  it("পেজে বাকি দিন দেখায়; ৩ দিনে একবার সতর্ক; ৪ দিনে zone মুছে দোকান থেকে সরায়", async () => {
     const a = await adminBrowser();
     await a.post("/admin/domain", { domain: "late.com" });
     const html = await (await a.get("/admin/domain")).text();
-    expect(html).toContain("৭ দিন");
+    expect(html).toContain("৪ দিন");
     expect(html).toContain("বাকি");
 
-    await age(6.2);
+    await age(3.2);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect(notes).toEqual([{ shop: DEMO_SHOP_ID, title: "ডোমেইন কাল সরে যাবে" }]);
     expect((await domainRows()).length).toBe(2);
     expect(cf.zones.has("zone1")).toBe(true);
 
-    await age(7.1);
+    await age(4.1);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect(cf.zones.has("zone1")).toBe(false);
     expect((await domainRows()).length).toBe(0);
@@ -320,7 +320,7 @@ describe("নেমসার্ভার না বসালে ৭ দিনে
   it("শেষ মুহূর্তে নেমসার্ভার বসে গেলে সরায় না, চালু করে", async () => {
     const a = await adminBrowser();
     await a.post("/admin/domain", { domain: "justintime.com" });
-    await age(8);
+    await age(5);
     cf.zones.get("zone1")!.status = "active";
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect(cf.zones.has("zone1")).toBe(true);
