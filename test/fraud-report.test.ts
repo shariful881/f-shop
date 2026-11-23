@@ -120,7 +120,9 @@ describe("কুরিয়ার রিপোর্ট", () => {
     await new Browser().order({ phone: PHONE });
     const o = (await lastOrder())!;
     const html = await (await admin.get(`/admin/fraud-report?phone=${PHONE}`)).text();
-    for (const t of ["Steadfast", "Pathao", "RedX", "১৯", "১৮", "৯৫%", "চমৎকার ক্রেতা", o.order_no, "সূত্র: BD Courier"]) expect(html).toContain(t);
+    for (const t of ["Steadfast", "Pathao", "RedX", "১৯", "১৮", "৯৫%", o.order_no, "সূত্র: BD Courier"]) expect(html).toContain(t);
+    // উপরের সারাংশ বক্স আপাতত নেই
+    expect(html).not.toContain("সফলতার হার ·");
     expect(html).toContain('src="https://api.bdcourier.com/c-logo/pathao.png"');
     expect(html).not.toContain("javascript:");
     // আবার খোঁজা (POST) বাইরের কল করে
@@ -146,8 +148,8 @@ describe("কুরিয়ার রিপোর্ট", () => {
     expect(empty).toContain('href="/admin/fraud-check"');
     expect(await (await admin.get("/admin/fraud-check?phone=123")).text()).toContain("সঠিক মোবাইল নম্বর দিন");
     const r = await (await admin.get("/admin/fraud-check?phone=+8801712345678")).text();
-    expect(r).toContain("২২");
     expect(r).toContain("কুরিয়ার অনুযায়ী");
+    expect(r).not.toContain("fr-main");
   });
 
   it("সুপার অ্যাডমিন বন্ধ রাখলে প্ল্যাটফর্মের চাবি ব্যবহার হয় না", async () => {
