@@ -9,8 +9,11 @@ const TWO_PART_SUFFIXES = new Set([
 
 export type DomainRow = {
   hostname: string; shop_id: string; status: string; zone_id: string | null; nameservers: string | null;
-  root: string | null; checked_at: string | null; error: string | null; created_at: string;
+  root: string | null; checked_at: string | null; error: string | null; created_at: string; warned_at?: string | null;
 };
+
+/** নেমসার্ভার না বসালে এত দিন পরে ডোমেইন নিজে সরে যায় (Cloudflare-এ pending zone জমে নতুন ডোমেইন যোগ আটকে না দেয়) */
+export const PENDING_DAYS = 7;
 
 /** ইনপুট থেকে মূল ডোমেইন (dokan.com) বের করা, ভুল হলে বার্তা */
 export function normalizeDomain(input: string, platformDomain: string): { domain?: string; error?: string } {
@@ -111,15 +114,60 @@ export async function removeDomain(db: D1Database, cf: Cloudflare, shopId: strin
   clearShopCache();
 }
 
-/** প্রতি ৩০ মিনিটে: অপেক্ষায় থাকা ডোমেইন যাচাই */
-export async function checkPendingDomains(db: D1Database, cf: Cloudflare) {
+type Notify = (shopId: string, msg: { title: string; body: string; url: string; tag?: string }) => Promise<unknown>;
+
+/** প্রতি ৩০ মিনিটে: অপেক্ষায় থাকা ডোমেইন যাচাই, ৭ দিন পেরোলে সরানো */
+export async function checkPendingDomains(db: D1Database, cf: Cloudflare, notify?: Notify) {
   if (!cf.configured) return 0;
   const { results } = await db.prepare(
-    "SELECT DISTINCT shop_id FROM domains WHERE status = 'pending' AND zone_id IS NOT NULL AND created_at > datetime('now', '-30 days') LIMIT 50",
+    `SELECT DISTINCT shop_id FROM domains WHERE status = 'pending' AND zone_id IS NOT NULL AND created_at > datetime('now', '-${PENDING_DAYS} days') LIMIT 50`,
   ).all<{ shop_id: string }>();
   let activated = 0;
   for (const r of results) if ((await checkDomain(db, cf, r.shop_id)).status === "active") activated++;
+  await expirePendingDomains(db, cf, notify);
   return activated;
+}
+
+/**
+ * ৭ দিনের মধ্যে নেমসার্ভার না বসালে: Cloudflare-এর zone মুছে দোকান থেকে ডোমেইন সরানো।
+ * শেষ ১ দিন বাকি থাকতে একবার ফোনে সতর্কবার্তা। সরানোর আগে শেষবার যাচাই — ঠিক তখন বসে গেলে থেকে যায়।
+ */
+export async function expirePendingDomains(db: D1Database, cf: Cloudflare, notify?: Notify) {
+  if (!cf.configured) return { warned: 0, removed: 0 };
+  let warned = 0, removed = 0;
+
+  const warn = await db.prepare(
+    `SELECT DISTINCT shop_id, root FROM domains WHERE status = 'pending' AND zone_id IS NOT NULL AND warned_at IS NULL
+       AND created_at <= datetime('now', '-${PENDING_DAYS - 1} days') AND created_at > datetime('now', '-${PENDING_DAYS} days') LIMIT 50`,
+  ).all<{ shop_id: string; root: string }>();
+  for (const w of warn.results) {
+    await db.prepare("UPDATE domains SET warned_at = datetime('now') WHERE shop_id = ? AND status = 'pending'").bind(w.shop_id).run();
+    await notify?.(w.shop_id, { title: "ডোমেইন কাল সরে যাবে", body: `${w.root}-এর নেমসার্ভার এখনো বসানো হয়নি। আজকের মধ্যে বসান, নইলে ডোমেইনটা দোকান থেকে সরে যাবে (পরে আবার যোগ করা যাবে)।`, url: "/admin/domain", tag: "domain-expire" }).catch(() => {});
+    warned++;
+  }
+
+  const old = await db.prepare(
+    `SELECT DISTINCT shop_id, zone_id, root FROM domains WHERE status = 'pending' AND zone_id IS NOT NULL
+       AND created_at <= datetime('now', '-${PENDING_DAYS} days') LIMIT 20`,
+  ).all<{ shop_id: string; zone_id: string; root: string }>();
+  for (const o of old.results) {
+    if ((await checkDomain(db, cf, o.shop_id)).status === "active") continue;
+    // Cloudflare-এ zone আগেই না থাকলে (নিজে মুছে ফেলেছে) শুধু আমাদের তালিকা থেকে সরাই
+    const z = await cf.getZone(o.zone_id);
+    const gone = !z.ok && [1001, 7003].includes(z.errors[0]?.code ?? 0);
+    if (!gone) {
+      const d = await cf.deleteZone(o.zone_id);
+      if (!d.ok) {
+        await db.prepare("UPDATE domains SET error = ? WHERE zone_id = ?").bind(`নিজে সরানো যায়নি: ${cfError(d)}`, o.zone_id).run();
+        continue;
+      }
+    }
+    await db.prepare("DELETE FROM domains WHERE zone_id = ?").bind(o.zone_id).run();
+    await notify?.(o.shop_id, { title: "ডোমেইন সরানো হয়েছে", body: `${PENDING_DAYS} দিনে ${o.root}-এর নেমসার্ভার বসানো হয়নি, তাই ডোমেইনটা সরানো হয়েছে। দোকান ফ্রি ঠিকানায় চলছে — চাইলে আবার যোগ করুন।`, url: "/admin/domain", tag: "domain-expire" }).catch(() => {});
+    removed++;
+  }
+  if (removed) clearShopCache();
+  return { warned, removed };
 }
 
 /* ---------- DNS রেকর্ড (দোকানদারের ইমেইল ইত্যাদি) ---------- */

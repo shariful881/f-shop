@@ -957,7 +957,14 @@ export const StaffPage = (p: { users: StaffRow[]; me: number; fee: number; trial
 };
 
 /* ---------- ডোমেইন ---------- */
-export type DomainView = { hostname: string; status: string; nameservers: string | null; root: string | null; checked_at: string | null; error: string | null };
+export type DomainView = { hostname: string; status: string; nameservers: string | null; root: string | null; checked_at: string | null; error: string | null; created_at?: string };
+
+/** নেমসার্ভার বসানোর জন্য বাকি দিন (৭ দিনের সীমা — platform/domains.ts PENDING_DAYS) */
+function daysLeft(created?: string): number | null {
+  if (!created) return null;
+  const end = new Date(created.replace(" ", "T") + "Z").getTime() + 7 * 86400e3;
+  return Math.max(0, Math.ceil((end - Date.now()) / 86400e3));
+}
 
 export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configured: boolean; value?: string; error?: string }) => {
   const root = p.domains[0]?.root;
@@ -982,7 +989,7 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
             <button class="btn btn-primary">যোগ করুন</button>
           </form>
           {p.error && <div class="alert alert-error">{p.error}</div>}
-          <p class="muted">যোগ করার পর আমরা দুটো নেমসার্ভার দেব। সেগুলো আপনার ডোমেইন কোম্পানির প্যানেলে বসালেই দোকান আপনার ডোমেইনে চালু হবে।</p>
+          <p class="muted">যোগ করার পর আমরা দুটো নেমসার্ভার দেব। সেগুলো আপনার ডোমেইন কোম্পানির প্যানেলে বসালেই দোকান আপনার ডোমেইনে চালু হবে। ৭ দিনের মধ্যে না বসালে ডোমেইনটা নিজে সরে যায়।</p>
         </section>
       ) : (
         <section class="panel">
@@ -991,6 +998,14 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
             <p>আপনার দোকান চালু আছে: <a href={`https://${root}`} target="_blank">https://{root}</a> এবং <a href={`https://www.${root}`} target="_blank">www.{root}</a></p>
           ) : (
             <>
+              {(() => {
+                const left = daysLeft(p.domains[0]?.created_at);
+                return left == null ? null : (
+                  <div class={`alert ${left <= 1 ? "alert-error" : "alert-warn"}`}>
+                    <Icon name="hourglass" size="sm" /><span>{left > 0 ? <>নেমসার্ভার বসানোর জন্য আর <strong>{bn(left)} দিন</strong> বাকি।</> : <>সময় শেষ — আজই নেমসার্ভার বসান।</>} ৭ দিনের মধ্যে না বসালে ডোমেইনটা দোকান থেকে নিজে সরে যাবে (পরে আবার যোগ করা যাবে)।</span>
+                  </div>
+                );
+              })()}
               <p><strong>ধাপ ১:</strong> আপনার ডোমেইন কোম্পানির প্যানেলে (যেখান থেকে ডোমেইন কিনেছেন) লগইন করুন।</p>
               <p><strong>ধাপ ২:</strong> Nameserver অংশে আগের সব নেমসার্ভার মুছে এই দুটো বসান:</p>
               <div class="ns-box">{ns.map((n) => <code class="ns">{n}</code>)}</div>

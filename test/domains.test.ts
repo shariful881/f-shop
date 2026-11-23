@@ -286,3 +286,61 @@ describe("প্ল্যাটফর্মের নিজের zone-এর �
     expect(cf.zones.has("zshop")).toBe(false);
   });
 });
+
+describe("নেমসার্ভার না বসালে ৭ দিনে ডোমেইন নিজে সরে যায়", () => {
+  const age = (days: number) => env.PLATFORM_DB.prepare(`UPDATE domains SET created_at = datetime('now', '-${days} days') WHERE zone_id IS NOT NULL`).run();
+  const notes: { shop: string; title: string }[] = [];
+  const notify = async (shop: string, m: { title: string }) => { notes.push({ shop, title: m.title }); };
+  beforeEach(() => { notes.length = 0; });
+
+  it("পেজে বাকি দিন দেখায়; ৬ দিনে একবার সতর্ক; ৭ দিনে zone মুছে দোকান থেকে সরায়", async () => {
+    const a = await adminBrowser();
+    await a.post("/admin/domain", { domain: "late.com" });
+    const html = await (await a.get("/admin/domain")).text();
+    expect(html).toContain("৭ দিন");
+    expect(html).toContain("বাকি");
+
+    await age(6.2);
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    expect(notes).toEqual([{ shop: DEMO_SHOP_ID, title: "ডোমেইন কাল সরে যাবে" }]);
+    expect((await domainRows()).length).toBe(2);
+    expect(cf.zones.has("zone1")).toBe(true);
+
+    await age(7.1);
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    expect(cf.zones.has("zone1")).toBe(false);
+    expect((await domainRows()).length).toBe(0);
+    expect(notes.at(-1)).toEqual({ shop: DEMO_SHOP_ID, title: "ডোমেইন সরানো হয়েছে" });
+    // আবার যোগ করা যায়
+    await a.post("/admin/domain", { domain: "late.com" });
+    expect((await domainRows()).length).toBe(2);
+  });
+
+  it("শেষ মুহূর্তে নেমসার্ভার বসে গেলে সরায় না, চালু করে", async () => {
+    const a = await adminBrowser();
+    await a.post("/admin/domain", { domain: "justintime.com" });
+    await age(8);
+    cf.zones.get("zone1")!.status = "active";
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    expect(cf.zones.has("zone1")).toBe(true);
+    expect((await domainRows()).every((d: any) => d.status === "active")).toBe(true);
+  });
+
+  it("Cloudflare-এ zone আগেই না থাকলে শুধু তালিকা থেকে সরায়; চালু ডোমেইনে হাত দেয় না", async () => {
+    const a = await adminBrowser();
+    await a.post("/admin/domain", { domain: "vanished.com" });
+    cf.zones.delete("zone1");
+    await age(9);
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    expect((await domainRows()).length).toBe(0);
+
+    await a.post("/admin/domain", { domain: "live.com" });
+    cf.zones.get("zone2")!.status = "active";
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    await age(30);
+    await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
+    expect(cf.zones.has("zone2")).toBe(true);
+    expect((await domainRows()).length).toBe(2);
+  });
+});

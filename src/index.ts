@@ -92,7 +92,8 @@ export default {
     if (event.cron === "17 0 * * *") {
       ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)).then(() => markCron(env, "cron_daily_at")));
     } else {
-      ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env)).then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
+      ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), (id, msg) => env.SHOP.getByName(id).pushNotice(msg))
+        .then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));
       ctx.waitUntil(refreshShopStorage(env).then((n) => console.log("storage checked", n)).catch((e) => console.error("storage refresh", e)));
       ctx.waitUntil(r2Cron(env).catch((e) => console.error("r2 cron", e)));
       ctx.waitUntil(runShopCleanup(env).then((r) => console.log("shop cleanup", r)).catch((e) => console.error("shop cleanup", e)));
