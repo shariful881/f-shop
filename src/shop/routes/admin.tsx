@@ -329,7 +329,7 @@ admin.get("/", async (c) => {
     top: top!.results as ShopDash["top"],
     products: { total: pr.total ?? 0, active: pr.active ?? 0 },
     setup,
-    storeUrl: publicOrigin(c),
+    storeUrl: await storeOrigin(c),
     pushKey: (await vapidKeys(c.env.PLATFORM_DB)).publicKey,
     lowStock: (await inventoryRows(c.env.DB, "low")).concat(await inventoryRows(c.env.DB, "out")).filter((r) => r.is_active).slice(0, 6)
       .map((r) => ({ product_id: r.product_id, name: r.name + (r.label ? ` (${r.label})` : ""), stock: r.stock })),
@@ -1848,6 +1848,19 @@ admin.post("/staff/:id{[0-9]+}/delete", async (c) => {
 function freeShopUrl(c: Ctx) {
   return `https://${c.env.SHOP_SLUG}.${c.env.PLATFORM_DOMAIN}`;
 }
+
+/** দোকানের আসল ঠিকানা: নিজের ডোমেইন চালু থাকলে সেটা, নইলে ফ্রি ঠিকানা (slug.sellxbd.com) */
+async function storeOrigin(c: Ctx): Promise<string> {
+  const d = await c.env.PLATFORM_DB.prepare("SELECT root FROM domains WHERE shop_id = ? AND status = 'active' AND zone_id IS NOT NULL AND hostname = root LIMIT 1")
+    .bind(c.env.SHOP_ID).first<{ root: string }>().catch(() => null);
+  return d?.root ? `https://${d.root}` : freeShopUrl(c);
+}
+
+/** "দোকান দেখুন" বাটন (নতুন ট্যাবে খোলে) */
+admin.get("/view-shop", async (c) => {
+  c.header("Cache-Control", "no-store");
+  return c.redirect(`${await storeOrigin(c)}/`, 302);
+});
 
 async function renderDomain(c: Ctx, form?: { value: string; error: string }) {
   const rows = await shopDomains(c.env.PLATFORM_DB, c.env.SHOP_ID);

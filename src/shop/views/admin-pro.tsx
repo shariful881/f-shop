@@ -127,7 +127,7 @@ export const ShopShell = (p: {
                   <Icon name="life-buoy" size="sm" /> <span class="sa-hide-sm">কীভাবে?</span>
                 </a>
               )}
-              <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="store" size="sm" /> দোকান দেখুন <Icon name="external-link" size="sm" /></a>
+              <a href="/admin/view-shop" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm"><Icon name="store" size="sm" /> দোকান দেখুন <Icon name="external-link" size="sm" /></a>
             </div>
           </header>
           <main class="sa-content admin-main">{p.children}</main>
@@ -259,7 +259,7 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
             {canAccess(role, "products") && <a href="/admin/products/new" class="sa-btn sa-btn-ghost"><Icon name="plus" size="sm" /> নতুন পণ্য</a>}
             {canAccess(role, "coupons") && <a href="/admin/coupons" class="sa-btn sa-btn-ghost"><Icon name="ticket" size="sm" /> কুপন</a>}
             {canAccess(role, "settings") && <a href="/admin/settings/tracking" class="sa-btn sa-btn-ghost"><Icon name="trending-up" size="sm" /> পিক্সেল</a>}
-            <a href="/" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost"><Icon name="store" size="sm" /> দোকান</a>
+            <a href="/admin/view-shop" target="_blank" rel="noopener" class="sa-btn sa-btn-ghost"><Icon name="store" size="sm" /> দোকান</a>
           </div>
           <div class="mini-stats">
             <div><small>পণ্য ({n0(d.products.active)}টা চালু)</small><b>{n0(d.products.total)}টা</b></div>

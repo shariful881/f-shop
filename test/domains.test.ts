@@ -344,3 +344,23 @@ describe("নেমসার্ভার না বসালে ৪ দিনে
     expect((await domainRows()).length).toBe(2);
   });
 });
+
+describe("অ্যাডমিনের \"দোকান দেখুন\" বাটন", () => {
+  it("নতুন ট্যাবে খোলে; ডোমেইন না থাকলে ফ্রি ঠিকানা, pending হলেও ফ্রি ঠিকানা, চালু হলে নিজের ডোমেইন", async () => {
+    const a = await adminBrowser();
+    const html = await (await a.get("/admin")).text();
+    expect(html).toContain('href="/admin/view-shop" target="_blank"');
+
+    const go = async () => (await a.fetch("/admin/view-shop", { redirect: "manual" } as RequestInit)).headers.get("location");
+    expect(await go()).toMatch(/^https:\/\/[a-z0-9-]+\.ourdomain\.com\/$/);
+
+    await a.post("/admin/domain", { domain: "mystore.com" });
+    expect(await go()).toMatch(/\.ourdomain\.com\/$/);
+
+    cf.zones.get("zone1")!.status = "active";
+    await a.post("/admin/domain/check", {});
+    expect(await go()).toBe("https://mystore.com/");
+    // ড্যাশবোর্ডের দোকানের লিংকেও নিজের ডোমেইন
+    expect(await (await a.get("/admin")).text()).toContain("https://mystore.com");
+  });
+});
