@@ -57,10 +57,11 @@ describe("প্ল্যান অনুযায়ী সুবিধা", ()
     expect(await pdb().prepare("SELECT 1 FROM domains WHERE hostname = 'myshop.com'").first()).toBeNull();
   });
 
-  it("সব দোকানের ফুটারে \"SellxBD দিয়ে তৈরি\"", async () => {
+  it("সব দোকানের ফুটারে \"Powered by SellxBD\"", async () => {
     const html = await (await new Browser().get("/")).text();
-    expect(html).toContain("SellxBD দিয়ে তৈরি");
     expect(html).toContain("https://sellxbd.com/?ref=shop-footer");
+    expect(html).toContain("Powered by");
+    expect(html).toContain('class="mb-badge"');
   });
 
   it("দাম পেজে ৪টা প্ল্যান, হিসাবের ক্যালকুলেটর", async () => {

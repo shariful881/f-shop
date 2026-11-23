@@ -26,7 +26,8 @@ describe("ল্যান্ডিং পেজ — দোকানের হে
     expect(hidden).not.toMatch(/<header class="(site-header|px-header)/);
     expect(hidden).not.toMatch(/<footer class="(site-footer|px-footer)/);
     expect(hidden).toContain("lp-mini-foot");
-    expect(hidden).toContain("SellxBD দিয়ে তৈরি");
+    expect(hidden).toContain("Powered by");
+    expect(hidden).toContain("সর্বস্বত্ব সংরক্ষিত");
 
     // শুধু হেডার লুকানো → পুরো ফুটার থাকে
     await a.post("/admin/products/1/landing", { landing_json: JSON.stringify({ style: { header: "hide" }, sections }) });

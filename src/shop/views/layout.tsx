@@ -2,10 +2,10 @@ import type { Child } from "hono/jsx";
 import type { Settings } from "../lib/settings";
 import { bn, imageUrl } from "../lib/format";
 import { GA4_RE, GTM_RE, themeCss, themeOf, TIKTOK_RE } from "../lib/settings";
-import { StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
+import { MadeBy, StoreFloating, StoreFooter, StoreHeader, type NavCat } from "./pro";
 import { cfgCss, cfgFontsHref, themeConfig } from "../lib/theme-config";
 
-export const ASSET_VERSION = "71";
+export const ASSET_VERSION = "72";
 
 export type LayoutProps = {
   title: string;
@@ -90,8 +90,8 @@ export const Layout = (p: LayoutProps) => {
       <main>{p.children}</main>
       {p.hideFooter ? (
         <footer class="lp-mini-foot">
-          <div>© {s.site_name || ""}</div>
-          <div class="made-by"><a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener">SellxBD দিয়ে তৈরি</a></div>
+          <div class="lp-mini-copy">© {new Date().getFullYear()} {s.site_name || ""}। সর্বস্বত্ব সংরক্ষিত।</div>
+          <MadeBy />
         </footer>
       ) : <StoreFooter s={s} cfg={cfg} nav={p.nav ?? []} pages={p.pages ?? []} />}
       <StoreFloating s={s} cfg={cfg} cartCount={p.cartCount ?? 0} bare={p.bare} />

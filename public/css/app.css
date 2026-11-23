@@ -615,10 +615,17 @@ dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } }
 @media (max-width: 760px) { .toast { bottom: 76px; } }
 
-/* সব দোকানের ফুটারে ছোট করে "SellxBD দিয়ে তৈরি" */
-.made-by { text-align: center; font-size: .78rem; padding: 6px 0 10px; opacity: .7; }
-.made-by a { color: inherit; text-decoration: none; }
-.made-by a:hover { text-decoration: underline; }
+/* সব দোকানের ফুটারে "Powered by [SellxBD]" (views/pro.tsx MadeBy) */
+.made-by { display: flex; justify-content: center; align-items: center; gap: 7px; font-size: .8rem; padding: 10px 0 12px; color: inherit; }
+.made-by > span { opacity: .75; }
+.mb-badge { position: relative; display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 7px; background: linear-gradient(135deg, #0f766e, #0b3b37); color: #fff !important; font-weight: 800; letter-spacing: .2px; text-decoration: none !important; box-shadow: 0 2px 10px rgba(15, 118, 110, .35); transition: transform .15s, box-shadow .15s; }
+.mb-badge b { color: #fb923c; font-weight: 900; }
+.mb-badge:hover, .mb-badge:focus-visible { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15, 118, 110, .45); }
+.mb-tip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 6px); white-space: nowrap; background: linear-gradient(135deg, #0f766e, #ea580c); color: #fff; padding: 9px 14px; border-radius: 12px; font-size: .8rem; font-weight: 700; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .18s, transform .18s; box-shadow: 0 10px 28px rgba(15, 23, 42, .25); z-index: 5; }
+.mb-tip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -7px; border: 7px solid transparent; border-top-color: #b45309; }
+.mb-badge:hover .mb-tip, .mb-badge:focus-visible .mb-tip { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+@media (max-width: 480px) { .mb-tip { white-space: normal; width: 220px; text-align: center; } }
+@media (prefers-reduced-motion: reduce) { .mb-badge, .mb-tip { transition: none; } }
 
 /* ধাপ ৬: অগ্রিম পেমেন্ট */
 .advance-box { border: 2px solid var(--brand); border-radius: 12px; padding: 12px 14px; margin: 12px 0; background: #f0fdfa; }
@@ -673,7 +680,17 @@ dialog.cfm .btn:focus-visible { outline: 3px solid rgba(15, 118, 110, .45); outl
 .rv-slider .review { flex: 0 0 82%; max-width: 340px; scroll-snap-align: start; }
 @media (min-width: 700px) { .rv-slider .review { flex-basis: 320px; } }
 /* ল্যান্ডিং পেজে ফুটার লুকালে শুধু ছোট কপিরাইট */
-.lp-mini-foot { text-align: center; font-size: .82rem; color: #64748b; padding: 18px 12px 84px; border-top: 1px solid #e5e7eb; margin-top: 24px; }
+.lp-mini-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; font-size: .82rem; color: #cbd5e1; background: #0b1220; padding: 12px max(16px, calc((100% - 1100px) / 2)); margin-top: 16px; }
+.lp-mini-foot .made-by { padding: 0; }
+/* ল্যান্ডিংয়ে নিচের ফাঁকা জায়গা কমানো — main-এর ৯০px শুধু মোবাইলের নিচের অর্ডার বার ঢাকতে লাগত;
+   এখন সেই জায়গা ফুটারের একদম নিচে (Powered by-এর পরে) রাখা হয়, যাতে বারের নিচে কিছু ঢাকা না পড়ে */
+main:has(> .landing) { padding-bottom: 20px; }
+main:has(+ .lp-mini-foot) { padding-bottom: 0; }
+@media (max-width: 767px) {
+  .lp-mini-foot { flex-direction: column; justify-content: center; text-align: center; padding-top: 14px; padding-bottom: 14px; }
+  body:has(.sticky-order) .made-by:last-child { padding-bottom: 78px; }
+  body:has(.sticky-order) .lp-mini-foot .made-by:last-child { padding-bottom: 64px; }
+}
 
 /* ===== ছোট সংখ্যার ব্যাজ (সাইডবার, মোবাইলের নিচের মেনু, সাপোর্ট, কার্ট, সুপার অ্যাডমিনের ফিল্টার) =====
    বাংলা অঙ্ক (বিশেষ করে ০) ছোট আর হালকা লেখায় ভেঙে/কেটে দেখাত — একটু বড়, মোটা, ব্যাজের ঠিক মাঝখানে।
