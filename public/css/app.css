@@ -562,6 +562,9 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .lp-guarantee p { margin: 0; color: var(--muted); }
 .lp-cta { text-align: center; margin: 18px 0; padding: 18px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 8%, #fff); }
 .lp-cta h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.lp-contact { margin: 16px 0; text-align: center; }
+.lp-contact h2 { margin: 0 0 10px; font-size: 1.2rem; }
+.lp-contact .pd-btns { margin: 0; }
 .lp-sec.lp-has-fg .lp-guarantee p, .lp-sec.lp-has-fg .lp-compare td:last-child { color: var(--lp-fg); }
 .lp-sec.lp-has-btn .lp-steps li::before, .lp-sec.lp-has-btn .lp-g-ico { background: var(--lp-btn); color: var(--lp-btn-fg, #fff); }
 
