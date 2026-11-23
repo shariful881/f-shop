@@ -1205,7 +1205,8 @@ async function saveProduct(c: Ctx, id: number | null) {
     meta_description: str(body.meta_description, 300) || null,
     is_active: body.is_active ? 1 : 0,
     show_on_home: body.show_on_home ? 1 : 0,
-    sort_order: toInt(body.sort_order),
+    // ক্রম ফর্মে আর নেই (মোঃ: দরকার নেই) — আগেরটা থাকে, নতুন পণ্যে ০
+    sort_order: "sort_order" in body ? toInt(body.sort_order) : existing?.sort_order ?? 0,
     options_json: null as string | null,
     track_stock: body.track_stock ? 1 : 0,
     low_stock: Math.max(0, Math.min(100000, toInt(body.low_stock, 5))),

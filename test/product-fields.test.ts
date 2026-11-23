@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Browser, DB, adminBrowser, resetDb } from "./helpers";
+import { sanitizeHtml } from "../src/shop/lib/sanitize";
 
 beforeEach(resetDb);
 
@@ -74,5 +75,24 @@ describe("নতুন পণ্যের বাড়তি তথ্য", () =
     const cart = await (await b.get("/cart")).text();
     expect(cart).not.toContain(`value="1" name="product_id"`);
     expect((await b.order()).status).not.toBe(303);
+  });
+});
+
+describe("বিস্তারিতের এডিটর আর ক্রম", () => {
+  it("ফর্মে এডিটর আছে, ক্রমের ঘর নেই; এডিটে আগের ক্রম থাকে", async () => {
+    const a = await adminBrowser();
+    const html = await (await a.get("/admin/products/1/edit")).text();
+    expect(html).toContain("data-rich-editor");
+    expect(html).toContain("/js/editor.js");
+    expect(html).not.toContain('name="sort_order"');
+    await DB.prepare("UPDATE products SET sort_order = 7 WHERE id = 1").run();
+    const p = await DB.prepare("SELECT name, slug, price FROM products WHERE id = 1").first<{ name: string; slug: string; price: number }>();
+    expect((await a.fetch("/admin/products/1", { method: "POST", body: form({ name: p!.name, slug: p!.slug, price: String(p!.price) }) })).status).toBe(303);
+    expect((await DB.prepare("SELECT sort_order FROM products WHERE id = 1").first<{ sort_order: number }>())!.sort_order).toBe(7);
+  });
+
+  it("এডিটরের ফরম্যাট নিরাপদে থাকে: শিরোনাম, কোড, উদ্ধৃতি, মাঝে বসানো; বাজে style বাদ", () => {
+    const out = sanitizeHtml('<h1 style="text-align: center; color:red">বড়</h1><pre><code>x</code></pre><blockquote>উক্তি</blockquote><p style="background:url(x)">ক</p><strike>কাটা</strike><p onclick="x()">খ</p>');
+    expect(out).toBe('<h1 style="text-align:center">বড়</h1><pre><code>x</code></pre><blockquote>উক্তি</blockquote><p>ক</p><strike>কাটা</strike><p>খ</p>');
   });
 });

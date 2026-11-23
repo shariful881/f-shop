@@ -627,7 +627,8 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
           </section>
           <section class="sa-card pf-card">
             <h2>বিস্তারিত</h2>
-            <label class="field"><span>বিস্তারিত কনটেন্ট (HTML)</span><textarea name="details_html" rows={10} class="mono">{v.details_html ?? ""}</textarea></label>
+            <div class="field"><span>বিস্তারিত (লেখা, ছবি, টেবিল)</span><textarea name="details_html" rows={10} class="mono" data-rich-editor placeholder="পণ্যের বিস্তারিত, মাপ, উপাদান, ব্যবহারের নিয়ম…">{v.details_html ?? ""}</textarea><small>Word-এর মতো লিখুন — উপরের বোতামে শিরোনাম, লিস্ট, ছবি, লিংক। "HTML" চাপলে কোড দেখা যায়।</small></div>
+            <script src={`/js/editor.js?v=${ASSET_VERSION}`} defer></script>
             <label class="field"><span>YouTube ভিডিও লিংক (ঐচ্ছিক)</span><input type="url" name="youtube_url" value={v.youtube_url ?? ""} placeholder="https://youtu.be/..." />{e.youtube_url && <small class="error">{e.youtube_url}</small>}</label>
           </section>
           <section class="sa-card pf-card">
@@ -700,7 +701,6 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
             <label class="field"><span>ব্র্যান্ড</span><input type="text" name="brand" value={v.brand ?? ""} maxlength={80} list="pf-brands" placeholder="যেমন: কাঠবন (ঐচ্ছিক)" />
               {p.brands && p.brands.length > 0 && <datalist id="pf-brands">{p.brands.map((b) => <option value={b} />)}</datalist>}
               <small>পণ্যের পেজে আর ক্যাটালগ ফিডে দেখাবে; ফাঁকা থাকলে দোকানের নাম।</small></label>
-            <label class="field"><span>ক্রম</span><input type="number" name="sort_order" value={String(v.sort_order ?? 0)} /><small>ছোট সংখ্যা আগে দেখাবে।</small></label>
           </section>
         </aside>
         <div class="set-save pf-save"><a href="/admin/products" class="btn">বাতিল</a><button class="btn btn-primary">সেভ করুন</button></div>

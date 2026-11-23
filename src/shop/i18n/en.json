@@ -3715,5 +3715,8 @@
  "সংখ্যা না গুনেও সাময়িক বিক্রি বন্ধ রাখতে \"স্টক নেই\" দিন — পণ্য দোকানে দেখাবে, কিন্তু অর্ডার নেবে না।": "To pause sales without counting stock, choose \"Out of stock\" — the product still shows in the shop but won't take orders.",
  "ব্র্যান্ড": "Brand",
  "যেমন: কাঠবন (ঐচ্ছিক)": "e.g. KathBon (optional)",
- "পণ্যের পেজে আর ক্যাটালগ ফিডে দেখাবে; ফাঁকা থাকলে দোকানের নাম।": "Shown on the product page and in the catalog feed; empty means the shop name."
+ "পণ্যের পেজে আর ক্যাটালগ ফিডে দেখাবে; ফাঁকা থাকলে দোকানের নাম।": "Shown on the product page and in the catalog feed; empty means the shop name.",
+ "বিস্তারিত (লেখা, ছবি, টেবিল)": "Details (text, images, tables)",
+ "পণ্যের বিস্তারিত, মাপ, উপাদান, ব্যবহারের নিয়ম…": "Product details, sizes, materials, how to use…",
+ "Word-এর মতো লিখুন — উপরের বোতামে শিরোনাম, লিস্ট, ছবি, লিংক। \"HTML\" চাপলে কোড দেখা যায়।": "Write like in Word — use the buttons above for headings, lists, images and links. Press \"HTML\" to see the code."
 }

@@ -3,9 +3,9 @@
  * script, style, iframe, onClick ইত্যাদি সরিয়ে দেয়; শুধু সাধারণ লেখার ট্যাগ রাখে।
  */
 const ALLOWED: Record<string, string[]> = {
-  p: [], br: [], hr: [], strong: [], b: [], em: [], i: [], u: [], s: [], small: [], mark: [],
-  h2: [], h3: [], h4: [], ul: [], ol: [], li: [], blockquote: [], div: [], span: [],
-  table: [], thead: [], tbody: [], tr: [], th: [], td: [],
+  p: ["style"], br: [], hr: [], strong: [], b: [], em: [], i: [], u: [], s: [], strike: [], small: [], mark: [], code: [], pre: [],
+  h1: ["style"], h2: ["style"], h3: ["style"], h4: ["style"], ul: [], ol: [], li: ["style"], blockquote: ["style"], div: ["style"], span: [],
+  table: [], thead: [], tbody: [], tr: [], th: ["style"], td: ["style"],
   a: ["href", "title", "target"],
   img: ["src", "alt", "width", "height"],
 };
@@ -53,6 +53,12 @@ export function sanitizeHtml(input: string | null | undefined): string {
           val = u;
         }
         if (name === "target") val = "_blank";
+        // style থেকে শুধু লেখার দিক (বাঁয়ে/মাঝে/ডানে) রাখা হয়
+        if (name === "style") {
+          const al = /(?:^|;)\s*text-align\s*:\s*(left|center|right|justify)\s*(?:;|$)/i.exec(val);
+          if (!al) continue;
+          val = `text-align:${al[1]!.toLowerCase()}`;
+        }
         attrs.push(`${name}="${esc(val)}"`);
       }
       if (tag === "a" && attrs.some((x) => x.startsWith("target="))) attrs.push('rel="noopener noreferrer"');
