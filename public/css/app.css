@@ -621,10 +621,21 @@ dialog.cfm::backdrop { background: rgba(15, 23, 42, .45); }
 .mb-badge { position: relative; display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 7px; background: linear-gradient(135deg, #0f766e, #0b3b37); color: #fff !important; font-weight: 800; letter-spacing: .2px; text-decoration: none !important; box-shadow: 0 2px 10px rgba(15, 118, 110, .35); transition: transform .15s, box-shadow .15s; }
 .mb-badge b { color: #fb923c; font-weight: 900; }
 .mb-badge:hover, .mb-badge:focus-visible { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15, 118, 110, .45); }
-.mb-tip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 6px); white-space: nowrap; background: linear-gradient(135deg, #0f766e, #ea580c); color: #fff; padding: 9px 14px; border-radius: 12px; font-size: .8rem; font-weight: 700; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .18s, transform .18s; box-shadow: 0 10px 28px rgba(15, 23, 42, .25); z-index: 5; }
+.mb-tip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 6px); white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(135deg, #0f766e, #ea580c); color: #fff; padding: 9px 14px; border-radius: 12px; font-size: .8rem; font-weight: 700; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .18s, transform .18s; box-shadow: 0 10px 28px rgba(15, 23, 42, .25); z-index: 5; }
 .mb-tip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -7px; border: 7px solid transparent; border-top-color: #b45309; }
-.mb-badge:hover .mb-tip, .mb-badge:focus-visible .mb-tip { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
-@media (max-width: 480px) { .mb-tip { white-space: normal; width: 220px; text-align: center; } }
+/* মাউস রাখলে, অথবা পেজের নিচে এলে নিজে থেকে (app.js .is-shown) — বার্তায় চাপলেও sellxbd.com খোলে */
+.mb-badge:hover .mb-tip, .mb-badge:focus-visible .mb-tip, .mb-badge.is-shown .mb-tip { opacity: 1; visibility: visible; transform: translate(-50%, 0); pointer-events: auto; cursor: pointer; }
+.mb-badge.is-shown .mb-tip { animation: mb-bob 2.4s ease-in-out 1s infinite; }
+@keyframes mb-bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+.mb-ic { flex: none; background: rgba(255, 255, 255, .2); border-radius: 6px; padding: 3px; box-sizing: content-box; }
+/* ছোট ফুটারে ব্যাজ ডান কোণে — বার্তা ডানদিক মিলিয়ে, যাতে পর্দার বাইরে না যায় */
+@media (min-width: 768px) {
+  .lp-mini-foot .mb-tip { left: auto; right: -6px; transform: translateY(6px); }
+  .lp-mini-foot .mb-badge:hover .mb-tip, .lp-mini-foot .mb-badge.is-shown .mb-tip { transform: none; }
+  .lp-mini-foot .mb-badge.is-shown .mb-tip { animation-name: mb-bob-r; }
+  .lp-mini-foot .mb-tip::after { left: auto; right: 22px; margin-left: 0; }
+}
+@keyframes mb-bob-r { 0%, 100% { transform: none; } 50% { transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .mb-badge, .mb-tip { transition: none; } }
 
 /* ধাপ ৬: অগ্রিম পেমেন্ট */

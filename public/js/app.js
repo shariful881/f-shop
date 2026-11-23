@@ -467,3 +467,13 @@ document.addEventListener("click", function (e) {
   }
   tick(); setInterval(tick, 1000);
 })();
+
+/* ফুটারের "Powered by SellxBD" — পেজের নিচে এলে বার্তা নিজে ভেসে ওঠে (views/pro.tsx MadeBy) */
+(function () {
+  var badges = document.querySelectorAll(".mb-badge");
+  if (!badges.length || !("IntersectionObserver" in window)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { e.target.classList.toggle("is-shown", e.isIntersecting); });
+  }, { threshold: 0.9 });
+  badges.forEach(function (b) { io.observe(b); });
+})();

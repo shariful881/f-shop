@@ -225,7 +225,10 @@ export const MadeBy = () => (
     <span>Powered by</span>
     <a href="https://sellxbd.com/?ref=shop-footer" target="_blank" rel="noopener" class="mb-badge" aria-label="SellxBD — নিজের অনলাইন দোকান খুলুন">
       <span>Sell<b>x</b>BD</span>
-      <span class="mb-tip" role="tooltip">🏆 বাংলাদেশের দোকানদারদের জন্য ই-কমার্স অটোমেশন</span>
+      <span class="mb-tip" role="tooltip">
+        <svg class="mb-ic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
+        বাংলাদেশের সেরা ই-কমার্স অটোমেশন
+      </span>
     </a>
   </div>
 );
