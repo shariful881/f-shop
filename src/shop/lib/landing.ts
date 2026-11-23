@@ -6,7 +6,7 @@ import { sanitizeHtml } from "./sanitize";
 import { youtubeId } from "./format";
 import type { Product } from "./products";
 
-export const SECTION_TYPES = ["hero", "heading", "gallery", "image", "image_text", "video", "text", "benefits", "before_after", "steps", "comparison", "reviews", "guarantee", "faq", "countdown", "cta", "trust", "order_form"] as const;
+export const SECTION_TYPES = ["hero", "heading", "gallery", "image", "image_text", "video", "text", "benefits", "before_after", "steps", "comparison", "reviews", "guarantee", "faq", "countdown", "cta", "contact", "trust", "order_form"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 export const SECTION_LABEL: Record<SectionType, string> = {
@@ -20,6 +20,7 @@ export const SECTION_LABEL: Record<SectionType, string> = {
   comparison: "তুলনা (আমাদের বনাম অন্যরা)",
   guarantee: "গ্যারান্টি",
   cta: "মাঝে অর্ডারের বাটন",
+  contact: "কল / WhatsApp বাটন",
   video: "ভিডিও",
   text: "লেখা / বিস্তারিত",
   benefits: "সুবিধার তালিকা",
@@ -55,6 +56,7 @@ export const SECTION_GROUPS: { label: string; items: { value: string; label: str
   ] },
   { label: "🛒 অর্ডারে উৎসাহ", items: [
     { value: "cta", label: "মাঝে অর্ডারের বাটন" },
+    { value: "contact", label: "কল / WhatsApp বাটন" },
     { value: "countdown", label: "কাউন্টডাউন টাইমার" },
     { value: "steps", label: "কীভাবে অর্ডার করবেন (ধাপ)" },
   ] },
@@ -97,6 +99,8 @@ export type Section = {
     side?: "left" | "right"; mobile_first?: "image" | "text";
     /** গ্যালারি: স্লাইড না গ্রিড, কলাম, ছবির আকার, প্রতি ছবির নিচের লেখা */
     layout?: "slide" | "grid"; cols?: 1 | 2 | 3; ratio?: "square" | "original" | "portrait"; captions?: string[];
+    /** কল / WhatsApp: কোন বাটন দেখাবে আর তার লেখা (নম্বর আসে দোকানের তথ্য থেকে) */
+    call?: boolean; wa?: boolean; call_text?: string; wa_text?: string;
   };
 };
 export const HEADING_SIZES = { sm: "ছোট", md: "মাঝারি", lg: "বড়", xl: "খুব বড়" } as const;
@@ -253,6 +257,13 @@ export function normalizeLanding(input: unknown): Landing {
       case "guarantee":
         data.title = s(d.title, 160) || "১০০% সন্তুষ্টির গ্যারান্টি";
         data.subheadline = s(d.subheadline, 600);
+        break;
+      case "contact":
+        data.headline = s(d.headline, 200);
+        data.call = d.call !== false;
+        data.wa = d.wa !== false;
+        data.call_text = s(d.call_text, 60) || "কল করে অর্ডার করুন";
+        data.wa_text = s(d.wa_text, 60) || "WhatsApp-এ জিজ্ঞাসা করুন";
         break;
       case "cta":
         data.headline = s(d.headline, 200);
