@@ -745,3 +745,9 @@ body.admin .us-days code, body.admin .us-bills code { font-size: .8rem; }
 body.admin .us-amber { background: linear-gradient(135deg, #fff7ed, #fff); border-color: #fed7aa; color: #7c2d12; }
 body.admin .us-amber .us-stat-head i { background: #ffedd5; }
 body.admin .us-amber small, body.admin .us-amber .us-stat-head { color: #c2410c; }
+
+/* পণ্যের গ্যালারি (একাধিক ছবি) */
+.pf-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.pf-gal-item { border: 1px dashed var(--c-line, #d8dee4); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; }
+.pf-gal-item[hidden] { display: none; }
+.pf-gal-no { font-size: .78rem; color: var(--c-muted, #64748b); font-weight: 600; }

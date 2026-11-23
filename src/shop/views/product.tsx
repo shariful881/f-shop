@@ -4,7 +4,7 @@
  * ডেলিভারি তথ্য, বিশ্বাসের ব্যাজ, বিস্তারিত, ভিডিও, শেয়ার, সম্পর্কিত পণ্য, মোবাইলে নিচে আটকে থাকা বাটন।
  * ল্যান্ডিং পেজ (/p/:slug) আলাদা — অ্যাডের জন্য সরাসরি অর্ডার ফর্ম।
  */
-import type { Product, Variant } from "../lib/products";
+import { parseFeatures, type Product, type Variant } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import { deliveryCharge, freeDeliveryMin } from "../lib/settings";
 import type { Cfg } from "../lib/theme-config";
@@ -25,6 +25,7 @@ export const ProductPage = (p: { p: Product; images: string[]; variants: Variant
   const maxPrice = active.length ? Math.max(...active.map((v) => v.price ?? prod.price)) : prod.price;
   const imgs = p.images.length ? p.images : [prod.image ?? ""];
   const trust = [1, 2, 3, 4].map((n) => cfg[`trust_${n}`]).filter(Boolean);
+  const features = parseFeatures(prod.features);
 
   const variantPicker = hasVar && (cfg.pd_variant_style === "select" ? (
     <label class="field">
@@ -77,6 +78,13 @@ export const ProductPage = (p: { p: Product; images: string[]; variants: Variant
           </div>
           {cfg.free_tag === "1" && freeMin > 0 && prod.price >= freeMin && <p class="pp-free">🚚 এই পণ্যে ডেলিভারি ফ্রি</p>}
           {prod.short_desc && <p class="pp-short">{prod.short_desc}</p>}
+          {features.length > 0 && <ul class="pp-features">{features.map((f) => <li>{f}</li>)}</ul>}
+          {(prod.brand || prod.sku) && (
+            <p class="pp-meta">
+              {prod.brand && <span>ব্র্যান্ড: <b>{prod.brand}</b></span>}
+              {prod.sku && <span>কোড: <b>{prod.sku}</b></span>}
+            </p>
+          )}
 
           {p.closed ? <div class="alert alert-error">{p.closed}</div> : (
             <form method="post" action="/cart/add" class="pp-form" data-pp-form>

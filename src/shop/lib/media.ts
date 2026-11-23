@@ -52,7 +52,7 @@ export type MediaItem = {
 async function usageMap(db: D1Database): Promise<(key: string) => string[]> {
   const [settings, products, templates, pages] = await Promise.all([
     db.prepare("SELECT key, value FROM settings").all<{ key: string; value: string }>(),
-    db.prepare("SELECT name, image, landing_json, details_html FROM products").all<{ name: string; image: string | null; landing_json: string | null; details_html: string | null }>(),
+    db.prepare("SELECT name, image, gallery_json, landing_json, details_html FROM products").all<{ name: string; image: string | null; gallery_json: string | null; landing_json: string | null; details_html: string | null }>(),
     db.prepare("SELECT name, json FROM my_templates").all<{ name: string; json: string }>(),
     db.prepare("SELECT title, content FROM pages").all<{ title: string; content: string }>(),
   ]);
@@ -67,6 +67,7 @@ async function usageMap(db: D1Database): Promise<(key: string) => string[]> {
   }
   for (const p of products.results) {
     if (p.image) places.push({ label: `পণ্য: ${p.name}`, text: p.image });
+    if (p.gallery_json) places.push({ label: `পণ্যের গ্যালারি: ${p.name}`, text: p.gallery_json });
     if (p.landing_json) places.push({ label: `ল্যান্ডিং: ${p.name}`, text: p.landing_json });
     if (p.details_html) places.push({ label: `পণ্যের বিবরণ: ${p.name}`, text: p.details_html });
   }

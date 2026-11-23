@@ -259,6 +259,15 @@ document.addEventListener("click", function (e) {
     cb.addEventListener("change", function () { box.hidden = !cb.checked; });
   });
 
+  /* পণ্যের গ্যালারি: "+ আরও ছবি" চাপলে পরের লুকানো ঘর দেখায় */
+  document.querySelectorAll("[data-pf-gal-more]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var hidden = document.querySelectorAll("[data-pf-gal-slot][hidden]");
+      for (var i = 0; i < Math.min(3, hidden.length); i++) hidden[i].hidden = false;
+      if (hidden.length <= 3) btn.hidden = true;
+    });
+  });
+
   /* AI দিয়ে লেখা: চাপার পর বাটন বন্ধ (২০–৩০ সেকেন্ড লাগে) */
   document.querySelectorAll("[data-ai-form]").forEach(function (f) {
     f.addEventListener("submit", function () {

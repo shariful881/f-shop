@@ -4,7 +4,7 @@
  */
 import { sanitizeHtml } from "./sanitize";
 import { youtubeId } from "./format";
-import type { Product } from "./products";
+import { parseFeatures, parseGallery, type Product } from "./products";
 
 export const SECTION_TYPES = ["hero", "heading", "gallery", "image", "image_text", "video", "text", "benefits", "before_after", "steps", "comparison", "reviews", "guarantee", "faq", "countdown", "cta", "contact", "trust", "order_form"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
@@ -311,10 +311,10 @@ export function defaultLanding(p: Product): Landing {
   return normalizeLanding({
     sections: [
       sec("hero", { headline: p.headline || p.name, subheadline: p.short_desc || "", show_price: true, button_text: "এখনই অর্ডার করুন" }),
-      sec("gallery", { images: p.image ? [p.image] : [] }),
+      sec("gallery", { images: [p.image, ...parseGallery(p.gallery_json)].filter((k, i, a): k is string => !!k && a.indexOf(k) === i) }),
       sec("countdown", { title: "অফার শেষ হতে বাকি", mode: "evergreen", minutes: 120 }, false),
       sec("video", { youtube_url: p.youtube_url || "" }, !!p.youtube_url),
-      sec("benefits", { title: "কেন আমাদের পণ্য নেবেন?", items: ["১০০% অরিজিনাল পণ্য", "পণ্য হাতে পেয়ে টাকা দিন", "সারাদেশে হোম ডেলিভারি"] }),
+      sec("benefits", { title: "কেন আমাদের পণ্য নেবেন?", items: parseFeatures(p.features).length ? parseFeatures(p.features).slice(0, 8) : ["১০০% অরিজিনাল পণ্য", "পণ্য হাতে পেয়ে টাকা দিন", "সারাদেশে হোম ডেলিভারি"] }),
       sec("text", { html: p.details_html || "" }, !!p.details_html),
       sec("reviews", { title: "কাস্টমারদের মতামত", reviews: [] }, false),
       sec("faq", { title: "সাধারণ প্রশ্ন", faqs: [{ q: "ডেলিভারি কত দিনে পাব?", a: "ঢাকার ভিতরে ১-২ দিন, বাইরে ২-৪ দিন।" }] }),

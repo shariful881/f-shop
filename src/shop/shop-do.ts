@@ -35,6 +35,7 @@ import { newOrderCount, recentActivity, type LiveEvent } from "./lib/live";
 import { sessionUser } from "./lib/auth";
 import { ADMIN_COOKIES } from "./lib/session-cookie";
 import m0028 from "../../migrations/shop/0028_activity.sql";
+import m0029 from "../../migrations/shop/0029_product_extra.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
 import { mediaUsage } from "./lib/media";
@@ -71,6 +72,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0026_password_resets", m0026],
   ["0027_order_courier_report", m0027],
   ["0028_activity", m0028],
+  ["0029_product_extra", m0029],
 ];
 
 export type SetupInput = {

@@ -9,7 +9,8 @@ import type { Product, Variant } from "./products";
 export type StockReason = "order" | "cancel" | "return" | "manual";
 
 export const tracked = (p: Pick<Product, "track_stock">) => p.track_stock === 1;
-export const soldOut = (p: Pick<Product, "track_stock" | "stock">) => p.track_stock === 1 && (p.stock ?? 0) <= 0;
+export const soldOut = (p: Pick<Product, "track_stock" | "stock"> & { stock_status?: string | null }) =>
+  p.stock_status === "out" || (p.track_stock === 1 && (p.stock ?? 0) <= 0);
 export const SOLD_OUT_MSG = "দুঃখিত, এই পণ্যটি এখন স্টকে নেই।";
 
 /** দোকানে দেখানোর জন্য: স্টক শেষ হওয়া ভ্যারিয়েন্ট বাছাই করা যাবে না */

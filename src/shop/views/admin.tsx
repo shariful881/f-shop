@@ -4,7 +4,7 @@ import { getLang } from "../i18n";
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, orderExtras, STATUS_LABEL } from "../lib/orders";
-import { parseOptions, type Category, type Product, type Variant } from "../lib/products";
+import { GALLERY_MAX, parseGallery, parseOptions, type Category, type Product, type Variant } from "../lib/products";
 import { THEMES, type Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
@@ -584,8 +584,12 @@ export const ProductsPage = ({ products, categories }: { products: Product[]; ca
   </>
 );
 
-export const ProductFormPage = (p: { product?: Partial<Product>; categories: Category[]; errors?: Record<string, string>; variants?: Variant[] }) => {
+export const ProductFormPage = (p: { product?: Partial<Product>; categories: Category[]; errors?: Record<string, string>; variants?: Variant[]; brands?: string[] }) => {
   const v = p.product ?? {};
+  const gallery = parseGallery(v.gallery_json);
+  // খালি ঘর: আগে ৩টা দেখায়, বাকিগুলো "+ আরও ছবি" চাপলে
+  const slots = Array.from({ length: GALLERY_MAX }, (_, i) => gallery[i] ?? null);
+  const shown = Math.min(GALLERY_MAX, Math.max(3, gallery.length + 1));
   const opts = parseOptions(v.options_json);
   const e = p.errors ?? {};
   const isEdit = !!v.id;
@@ -606,8 +610,28 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
           <section class="sa-card pf-card">
             <h2>মূল তথ্য</h2>
             <label class="field"><span>পণ্যের নাম *</span><input type="text" name="name" value={v.name ?? ""} required placeholder="যেমন: কাঠের ওয়াল শেলফ" />{e.name && <small class="error">{e.name}</small>}</label>
+            <div class="form-grid">
+              <label class="field"><span>SKU (পণ্যের কোড)</span><input type="text" name="sku" value={v.sku ?? ""} maxlength={60} placeholder="যেমন: KB-SHELF-01" autocomplete="off" />{e.sku ? <small class="error">{e.sku}</small> : <small>নিজের হিসাবের কোড — ইনভয়েস আর খোঁজায় কাজে লাগে।</small>}</label>
+              <label class="field"><span>বারকোড</span><input type="text" name="barcode" value={v.barcode ?? ""} maxlength={60} placeholder="প্যাকেটের বারকোড (ঐচ্ছিক)" autocomplete="off" inputmode="numeric" /></label>
+            </div>
             <label class="field"><span>ল্যান্ডিং পেজের শিরোনাম</span><input type="text" name="headline" value={v.headline ?? ""} placeholder="ফাঁকা রাখলে পণ্যের নাম" /></label>
             <label class="field"><span>ছোট বর্ণনা</span><textarea name="short_desc" rows={3}>{v.short_desc ?? ""}</textarea><small>কার্ড আর শেয়ারে দেখায় — ১–২ লাইন।</small></label>
+            <label class="field"><span>মূল বৈশিষ্ট্য</span><textarea name="features" rows={4} maxlength={2000} placeholder={"প্রতি লাইনে একটা, যেমন:\nখাঁটি সেগুন কাঠ\n৬ মাসের ওয়ারেন্টি\nসহজে দেয়ালে লাগানো যায়"}>{v.features ?? ""}</textarea><small>পণ্যের পেজে দামের নিচে ✓ চিহ্ন দিয়ে দেখাবে।</small></label>
+          </section>
+          <section class="sa-card pf-card">
+            <h2>আরও ছবি (গ্যালারি) <small class="muted">ঐচ্ছিক · {bn(GALLERY_MAX)}টা পর্যন্ত</small></h2>
+            <p class="muted small">মূল ছবির পরে পণ্যের পেজে পাশাপাশি দেখাবে — সামনে, পেছনে, মাপ, ব্যবহার করার ছবি দিন। ক্রেতা ছোট ছবিতে চাপলে বড় হয়ে দেখবে।</p>
+            <div class="pf-gallery" data-pf-gallery>
+              {slots.map((key, i) => (
+                <div class="pf-gal-item" data-pf-gal-slot hidden={i >= shown}>
+                  <span class="pf-gal-no">ছবি {bn(i + 2)}</span>
+                  <input type="hidden" name={`g${i}_cur`} value={key ?? ""} />
+                  <MediaField fileName={`g${i}_file`} pickName={`g${i}_pick`} removeName={key ? `g${i}_remove` : undefined} current={key} folder="product" ratio="1:1" size="sm" />
+                </div>
+              ))}
+            </div>
+            {shown < GALLERY_MAX && <button type="button" class="btn btn-sm btn-outline" data-pf-gal-more><Icon name="plus" size="sm" /> আরও ছবি</button>}
+            {e.gallery && <small class="error">{e.gallery}</small>}
           </section>
           <section class="sa-card pf-card">
             <h2>বিস্তারিত</h2>
@@ -665,6 +689,13 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
               <label class="field"><span>কম হলে সতর্ক করবে</span><input type="number" name="low_stock" min="0" value={String(v.low_stock ?? 5)} /><small>এর সমান বা কম হলে ড্যাশবোর্ডে আর ইনভেন্টরিতে "কম আছে" দেখাবে।</small></label>
             </div>
             <small class="hint">স্টক গুনলে অর্ডার কনফার্মে কমে, বাতিলে ফেরে; শেষ হলে দোকানে "স্টক নেই" দেখায়।</small>
+            <label class="field"><span>স্টকের অবস্থা</span>
+              <select name="stock_status">
+                <option value="in" selected={v.stock_status !== "out"}>স্টকে আছে</option>
+                <option value="out" selected={v.stock_status === "out"}>স্টক নেই (অর্ডার বন্ধ)</option>
+              </select>
+              <small>সংখ্যা না গুনেও সাময়িক বিক্রি বন্ধ রাখতে "স্টক নেই" দিন — পণ্য দোকানে দেখাবে, কিন্তু অর্ডার নেবে না।</small>
+            </label>
           </section>
           <section class="sa-card pf-card">
             <h2>সাজানো</h2>
@@ -674,6 +705,9 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
                 {p.categories.map((c) => <option value={String(c.id)} selected={v.category_id === c.id}>{c.name}</option>)}
               </select>
             </label>
+            <label class="field"><span>ব্র্যান্ড</span><input type="text" name="brand" value={v.brand ?? ""} maxlength={80} list="pf-brands" placeholder="যেমন: কাঠবন (ঐচ্ছিক)" />
+              {p.brands && p.brands.length > 0 && <datalist id="pf-brands">{p.brands.map((b) => <option value={b} />)}</datalist>}
+              <small>পণ্যের পেজে আর ক্যাটালগ ফিডে দেখাবে; ফাঁকা থাকলে দোকানের নাম।</small></label>
             <label class="field"><span>ক্রম</span><input type="number" name="sort_order" value={String(v.sort_order ?? 0)} /><small>ছোট সংখ্যা আগে দেখাবে।</small></label>
           </section>
         </aside>
