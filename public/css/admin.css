@@ -404,3 +404,38 @@ body.admin .orders-wrap .ot-total small { font-weight: 400; }
   body.admin .orders-table .cr-card { max-width: none; }
   body.admin .orders-table .oc-name { max-width: none; }
 }
+
+/* ---------- লাইভ নোটিফিকেশন: বেল, পপআপ, হাইলাইট ---------- */
+.lv-bell { position: relative; }
+.lv-bell-btn { position: relative; }
+.lv-count { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: #ef4444; color: #fff; font-size: 11px; line-height: 18px; text-align: center; font-weight: 700; }
+.lv-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 24px)); background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 18px 40px rgba(15, 23, 42, .18); z-index: 60; overflow: hidden; }
+.lv-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
+.lv-head .sa-link { background: none; border: 0; cursor: pointer; font: inherit; font-size: .85rem; color: var(--brand, #0f766e); }
+.lv-list { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
+.lv-list li a { display: block; padding: 10px 14px; color: #0f172a; text-decoration: none; border-bottom: 1px solid #f8fafc; }
+.lv-list li a:hover { background: #f8fafc; }
+.lv-list li a > span { display: block; font-size: .92rem; line-height: 1.4; }
+.lv-list li a small { color: #94a3b8; font-size: .78rem; }
+.lv-list li.lv-unread a { background: #f0fdfa; }
+.lv-list li.lv-unread a > span { font-weight: 600; }
+.lv-empty { padding: 18px 14px; color: #94a3b8; text-align: center; font-size: .9rem; }
+.lv-foot { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 14px; border-top: 1px solid #f1f5f9; background: #f8fafc; font-size: .85rem; color: #475569; }
+.lv-foot select { font: inherit; font-size: .85rem; padding: 2px 6px; border-radius: 6px; border: 1px solid #cbd5e1; margin-left: 4px; }
+.lv-foot label { display: inline-flex; align-items: center; gap: 5px; }
+.lv-sound { border-color: #f59e0b !important; color: #b45309 !important; }
+
+/* উপরে ডান কোণে (নিচের সাপোর্ট বাটন আর মোবাইল মেনুর সাথে ধাক্কা না লাগে) */
+.lv-toasts { position: fixed; right: 16px; top: 72px; z-index: 90; display: flex; flex-direction: column; gap: 10px; width: min(380px, calc(100vw - 24px)); pointer-events: none; }
+@media (max-width: 860px) { .lv-toasts { right: 12px; top: 62px; } }
+.lv-toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; background: #0f172a; color: #fff; padding: 12px 12px 12px 16px; border-radius: 14px; box-shadow: 0 14px 34px rgba(15, 23, 42, .3); animation: lv-in .28s ease-out; font-size: .93rem; line-height: 1.4; }
+.lv-toast-new { background: #0f766e; }
+.lv-t-text { flex: 1; min-width: 0; }
+.lv-t-go { flex: none; background: #fff; color: #0f766e; font-weight: 700; padding: 6px 12px; border-radius: 9px; text-decoration: none; font-size: .88rem; }
+.lv-toast:not(.lv-toast-new) .lv-t-go { color: #0f172a; }
+.lv-t-x { flex: none; background: none; border: 0; color: rgba(255, 255, 255, .7); font-size: 15px; cursor: pointer; padding: 4px; }
+.lv-out { opacity: 0; transform: translateY(-8px); transition: .35s; }
+@keyframes lv-in { from { opacity: 0; transform: translateY(-14px) scale(.98); } to { opacity: 1; transform: none; } }
+.lv-flash { animation: lv-flash 6s ease-out; }
+@keyframes lv-flash { 0%, 30% { background: #fef9c3; box-shadow: 0 0 0 2px #facc15; } 100% { background: inherit; box-shadow: none; } }
+.lv-banner { display: block; width: 100%; margin: 0 0 14px; padding: 11px 14px; border: 0; border-radius: 12px; background: #fef3c7; color: #92400e; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }

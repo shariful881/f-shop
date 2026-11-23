@@ -31,6 +31,10 @@ import m0024 from "../../migrations/shop/0024_images_r2.sql";
 import m0025 from "../../migrations/shop/0025_orders_created_idx.sql";
 import m0026 from "../../migrations/shop/0026_password_resets.sql";
 import m0027 from "../../migrations/shop/0027_order_courier_report.sql";
+import { newOrderCount, recentActivity, type LiveEvent } from "./lib/live";
+import { sessionUser } from "./lib/auth";
+import { ADMIN_COOKIES } from "./lib/session-cookie";
+import m0028 from "../../migrations/shop/0028_activity.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
 import { mediaUsage } from "./lib/media";
@@ -66,6 +70,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0025_orders_created_idx", m0025],
   ["0026_password_resets", m0026],
   ["0027_order_courier_report", m0027],
+  ["0028_activity", m0028],
 ];
 
 export type SetupInput = {
@@ -107,6 +112,8 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   constructor(ctx: DurableObjectState, env: WorkerEnv) {
     super(ctx, env);
     this.db = new SqlDatabase(ctx.storage);
+    // ping-এর উত্তর DO না জাগিয়েই (hibernation থাকে)
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     ctx.blockConcurrencyWhile(async () => {
       this.migrate();
       this.shopId = (await ctx.storage.get<string>("shop_id")) ?? null;
@@ -445,12 +452,61 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     await this.db.batch(statements.map((s) => this.db.prepare(s)));
   }
 
+  /* ---------- লাইভ নোটিফিকেশন (WebSocket, hibernation — অর্ডার না এলে খরচ নেই) ---------- */
+
+  private async liveConnect(request: Request): Promise<Response> {
+    if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("websocket only", { status: 426 });
+    // অন্য সাইট থেকে কেউ লগইন-কুকি দিয়ে যুক্ত হতে পারবে না
+    const origin = request.headers.get("origin");
+    if (origin && new URL(origin).host !== new URL(request.url).host) return new Response("forbidden", { status: 403 });
+    const cookies = Object.fromEntries((request.headers.get("cookie") || "").split(/;\s*/).filter(Boolean).map((p) => {
+      const i = p.indexOf("=");
+      return [p.slice(0, i), decodeURIComponent(p.slice(i + 1))];
+    }));
+    const db = this.db.asD1();
+    const user = await sessionUser(db, cookies[ADMIN_COOKIES.host] || cookies[ADMIN_COOKIES.legacy]);
+    if (!user) return new Response("login required", { status: 401 });
+    const pair = new WebSocketPair();
+    const [client, server] = [pair[0], pair[1]];
+    this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({ uid: user.id });
+    const last = await db.prepare("SELECT MAX(id) AS id FROM activity").first<{ id: number | null }>();
+    server.send(JSON.stringify({ t: "hello", new_count: await newOrderCount(db), last_id: last?.id ?? 0 }));
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
+    let m: { t?: string; since?: number };
+    try { m = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw)); } catch { return; }
+    if (m.t === "since") {
+      // ইন্টারনেট ফিরলে বা বেল খুললে: বাদ পড়া/শেষ ঘটনাগুলো
+      const uid = (ws.deserializeAttachment() as { uid?: number } | null)?.uid;
+      const list = await recentActivity(this.db.asD1(), Math.max(0, Number(m.since) || 0), 30);
+      ws.send(JSON.stringify({ t: "events", list: list.map((e) => ({ ...e, mine: e.by_id != null && e.by_id === uid })), new_count: await newOrderCount(this.db.asD1()) }));
+    }
+  }
+
+  async webSocketClose(ws: WebSocket, code: number) {
+    try { ws.close(code === 1005 || code === 1006 ? 1000 : code); } catch { /* আগেই বন্ধ */ }
+  }
+
+  liveBroadcast(ev: LiveEvent) {
+    for (const ws of this.ctx.getWebSockets()) {
+      const uid = (ws.deserializeAttachment() as { uid?: number } | null)?.uid;
+      try { ws.send(JSON.stringify({ t: "ev", ev: { ...ev, mine: ev.by_id != null && ev.by_id === uid } })); } catch { /* বন্ধ সংযোগ */ }
+    }
+  }
+
   async fetch(request: Request): Promise<Response> {
     const shopId = request.headers.get("x-fshop-id");
     if (!shopId) return new Response("missing shop", { status: 400 });
     await this.ensureInit(shopId, request.headers.get("x-fshop-seed") === "1");
 
+    // লাইভ নোটিফিকেশনের সংযোগ (অ্যাডমিন প্যানেল) — Hono-র বাইরে, সরাসরি এখানে
+    if (new URL(request.url).pathname === "/admin/live") return this.liveConnect(request);
+
     const env = {
+      LIVE: { emit: (ev: LiveEvent) => this.liveBroadcast(ev) },
       DB: this.db.asD1(),
       IMAGES: quotaStore(this.images(shopId), this.db, request.headers.get("x-fshop-state")),
       PLATFORM_DB: this.env.PLATFORM_DB,

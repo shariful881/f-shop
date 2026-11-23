@@ -1,4 +1,5 @@
 import { siteLang } from "../i18n";
+import { liveOrder, recentActivity } from "../lib/live";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
@@ -570,6 +571,7 @@ admin.post("/orders/new", async (c) => {
     fbp: null, fbc: null, sourceUrl: `manual:${source}`, prefix: orderPrefix(s),
   }, lines);
   await markConverted(db, v.phone, order.id);
+  await liveOrder(c.env, order.id, "order_new", c.var.admin);
 
   if (values.confirm) {
     const r = await applyStatus(c, order.id, "confirmed");
@@ -645,6 +647,7 @@ admin.post("/incomplete/:id{[0-9]+}/convert", async (c) => {
     fbp: null, fbc: null, sourceUrl: row.source_url || "", prefix: orderPrefix(c.var.settings),
   }, view.lines);
   await markConverted(db, row.phone, order.id);
+  later(c, liveOrder(c.env, order.id, "order_new", c.var.admin));
   // অন্য কারণে লাইনটা বন্ধ থাকলে (যেমন "বাদ") এটাকেও অর্ডারের সাথে জোড়া
   await db.prepare("UPDATE incomplete_orders SET status = 'converted', order_id = ?, updated_at = datetime('now') WHERE id = ?").bind(order.id, row.id).run();
   flash(c, "ok", `অর্ডার ${order.order_no} তৈরি হয়েছে — "নতুন" তালিকায় আছে।`);
@@ -731,6 +734,7 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
   }
   const res = await changeStatus(c.env.DB, id, to);
   if (!res.ok) return { ok: false, message: res.message };
+  later(c, liveOrder(c.env, id, "status", c.var.admin));
   const wasBad = before?.status === "cancelled" || before?.status === "fake";
   // স্টক: বিক্রি হলে কাটা, ফেরালে (নতুন/বাতিল/ফেক) ফেরত — দুটোই একবারই হয়
   if (live) { await snapshotCost(c.env.DB, id); await applyOrderStock(c.env.DB, id); }
@@ -886,6 +890,7 @@ async function bookOrder(c: Ctx, id: number, courier: CourierKey, opt: Partial<S
   ).bind(r.consignmentId, r.trackingCode || r.consignmentId, r.status || "", r.raw.slice(0, 4000), id).run();
   const moved = await changeStatus(db, id, "shipped");
   if (moved.ok) smsLater(c, id, "shipped");
+  later(c, liveOrder(c.env, id, "courier", c.var.admin));
   return { ok: true, message: `${o.order_no}: ${r.message} (${r.trackingCode || r.consignmentId})` };
 }
 

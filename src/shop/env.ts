@@ -7,6 +7,8 @@ export type Bindings = {
   IMAGES: import("./lib/images").ImageStore;
   PLATFORM_DB: D1Database;
   SUPPORT: DurableObjectNamespace<import("../support-hub").SupportHub>;
+  /** খোলা অ্যাডমিন প্যানেলে লাইভ খবর পাঠানো (দোকানের Durable Object থেকে; টেস্ট/বাইরে না-ও থাকতে পারে) */
+  LIVE?: import("./lib/live").LiveHub;
   SHOP_ID: string;
   SHOP_SLUG: string;
   PLATFORM_DOMAIN: string;

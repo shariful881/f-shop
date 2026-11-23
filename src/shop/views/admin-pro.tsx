@@ -101,7 +101,7 @@ export const ShopShell = (p: {
                 {n.group && (i === 0 || arr[i - 1]!.group !== n.group) && <div class="sa-nav-group">{n.group}</div>}
                 <a href={n.href} class={p.active === n.key ? "active" : ""}>
                   <Icon name={n.icon} />{n.label}
-                  {n.key === "orders" && (p.newOrders ?? 0) > 0 && <span class="sa-badge">{bn(p.newOrders!)}</span>}
+                  {n.key === "orders" && <span class="sa-badge" data-live-new hidden={!(p.newOrders ?? 0)}>{bn(p.newOrders ?? 0)}</span>}
                   {n.key === "support" && <span class="sa-badge" data-sx-nav-badge hidden></span>}
                 </a>
               </>
@@ -122,6 +122,19 @@ export const ShopShell = (p: {
             <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু"><Icon name="menu" size="lg" /></label>
             <h1>{p.title}</h1>
             <div class="sa-top-actions">
+              {/* লাইভ: শব্দ চালু + 🔔 নোটিফিকেশন বেল (live.js) */}
+              <button type="button" class="sa-btn sa-btn-ghost sa-btn-sm lv-sound" data-live-sound hidden title="নতুন অর্ডারে শব্দ — একবার চাপলেই চালু"><Icon name="bell" size="sm" /> <span class="sa-hide-sm">সাউন্ড চালু</span></button>
+              <div class="lv-bell" data-live-bell>
+                <button type="button" class="sa-btn sa-btn-ghost sa-btn-sm lv-bell-btn" aria-label="নোটিফিকেশন" aria-expanded="false" title="নোটিফিকেশন"><Icon name="bell" size="sm" /><b class="lv-count" hidden></b></button>
+                <div class="lv-panel" hidden>
+                  <div class="lv-head"><b>নোটিফিকেশন</b><button type="button" class="sa-link lv-read">সব দেখা হয়েছে</button></div>
+                  <ul class="lv-list"><li class="lv-empty">এখনো কিছু নেই</li></ul>
+                  <div class="lv-foot">
+                    <label>শব্দ <select class="lv-tone"><option value="ting">টুং</option><option value="cash">ক্যাশ</option><option value="off">বন্ধ</option></select></label>
+                    <label><input type="checkbox" class="lv-pop-status" checked /> কনফার্ম/বাতিলের পপআপ</label>
+                  </div>
+                </div>
+              </div>
               {p.active && HELP_FOR[p.active] && (
                 <a href={`${HELP_BASE}/${HELP_FOR[p.active!]}`} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm" title="এই পেজ কীভাবে ব্যবহার করবেন">
                   <Icon name="life-buoy" size="sm" /> <span class="sa-hide-sm">কীভাবে?</span>
@@ -134,14 +147,16 @@ export const ShopShell = (p: {
         </div>
         <nav class="sa-tabbar" aria-label="দ্রুত মেনু">
           <a href="/admin" class={p.active === "dashboard" ? "on" : ""}><Icon name="layout-dashboard" /><span>হোম</span></a>
-          <a href="/admin/orders" class={p.active === "orders" ? "on" : ""}><Icon name="receipt" /><span>অর্ডার</span>{(p.newOrders ?? 0) > 0 && <b class="sa-tab-badge">{bn(p.newOrders!)}</b>}</a>
+          <a href="/admin/orders" class={p.active === "orders" ? "on" : ""}><Icon name="receipt" /><span>অর্ডার</span><b class="sa-tab-badge" data-live-new hidden={!(p.newOrders ?? 0)}>{bn(p.newOrders ?? 0)}</b></a>
           {canAccess(p.role, "products")
             ? <a href="/admin/products" class={p.active === "products" ? "on" : ""}><Icon name="package" /><span>পণ্য</span></a>
             : <a href="/admin/customers" class={p.active === "customers" ? "on" : ""}><Icon name="users" /><span>কাস্টমার</span></a>}
           <label for="sa-nav-toggle"><Icon name="menu" /><span>আরও</span></label>
         </nav>
         <ChatWidget shopName={s.site_name || ""} />
+        <div class="lv-toasts" data-live-toasts aria-live="polite"></div>
         <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
+        <script src={`/js/live.js?v=${ASSET_VERSION}`} defer></script>
         <script src={`/js/media.js?v=${ASSET_VERSION}`} defer></script>
         <script src={`/js/support.js?v=${ASSET_VERSION}`} defer></script>
       </body>
@@ -236,7 +251,7 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
         </section>
       )}
 
-      <div class="sa-kpis">
+      <div class="sa-kpis" data-live-dash="kpis">
         <Kpi label="আজকের অর্ডার" value={n0(d.today.orders)} sub={d.yesterday.orders ? `গতকাল ${n0(d.yesterday.orders)}টা (${vsY >= 0 ? "▲" : "▼"} ${pct(Math.abs(vsY))})` : `গতকাল ${n0(d.yesterday.orders)}টা`} tone={vsY >= 0 ? "up" : "down"} href="/admin/orders?status=new" />
         <Kpi label="কনফার্মের অপেক্ষায়" value={n0(d.pending)} sub={d.pending ? "কল করে কনফার্ম করুন →" : "সব অর্ডার দেখা হয়েছে ✓"} tone={d.pending ? "warn" : "up"} href="/admin/orders?status=new" />
         <Kpi label="বিক্রি (৩০ দিন)" value={taka(d.d30.sales)} sub={`গড় অর্ডার ${taka(d.d30.aov)}`} href={canAccess(role, "reports") ? "/admin/reports" : undefined} />
@@ -269,7 +284,7 @@ export const ShopDashboardPage = ({ d, role }: { d: ShopDash; role: Role }) => {
       </div>
 
       <div class="sa-grid-2-1">
-        <section class="sa-card">
+        <section class="sa-card" data-live-dash="recent">
           <div class="sa-card-head"><h2>সাম্প্রতিক অর্ডার</h2><a href="/admin/orders" class="sa-link">সব অর্ডার →</a></div>
           {d.recent.length === 0 ? <p class="sa-empty">এখনো কোনো অর্ডার আসেনি। দোকানের লিংক শেয়ার করুন!</p> : (
             <div class="sa-table-wrap"><table class="sa-table">

@@ -181,7 +181,8 @@ export const OrdersPage = (p: {
   ];
   const bulkTo = p.q || p.payPending ? [] : BULK_ALL.filter((b) => b.to !== p.status);
   return (
-  <>
+  // লাইভ: নতুন অর্ডার/স্ট্যাটাস বদল এলে live.js এই অংশটা নতুন করে আনে (পেজ রিফ্রেশ ছাড়া)
+  <div data-live-orders={!p.q && p.page === 1 ? "1" : "0"}>
     {(p.payCount ?? 0) > 0 && (
       <a href={p.payPending ? "/admin/orders" : "/admin/orders?pay=pending"} class={`pay-alert ${p.payPending ? "on" : ""}`}>
         <Icon name="wallet" size="sm" /> অগ্রিম পেমেন্ট যাচাই বাকি: <b>{bn(p.payCount!)}টা</b> {p.payPending ? "· সব অর্ডার দেখুন" : "· দেখুন →"}
@@ -271,7 +272,7 @@ export const OrdersPage = (p: {
       {p.hasMore && <a class="btn btn-outline" href={qs({ page: p.page + 1 })}>পরের →</a>}
     </div>
     <FraudDialog />
-  </>
+  </div>
   );
 };
 

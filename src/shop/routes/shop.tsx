@@ -1,3 +1,4 @@
+import { liveOrder } from "../lib/live";
 import { Hono } from "hono";
 import { dateBn } from "../../platform/blog";
 import { platformSettings } from "../../platform/billing";
@@ -609,6 +610,9 @@ shop.post("/order", async (c) => {
       tag: order.order_no,
     }).catch(() => 0);
     try { c.executionCtx.waitUntil(pushJob); } catch { await pushJob; }
+    // খোলা অ্যাডমিন প্যানেলে সাথে সাথে পপআপ + শব্দ
+    const liveJob = liveOrder(c.env, order.id, "order_new");
+    try { c.executionCtx.waitUntil(liveJob); } catch { await liveJob; }
     if (source === "cart") clearCart(c);
     setCookie(c, "lo", order.order_no, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 });
     return c.redirect("/thanks", 303);
