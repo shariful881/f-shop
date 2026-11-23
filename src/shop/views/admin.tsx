@@ -4,7 +4,7 @@ import { getLang } from "../i18n";
 import type { Child } from "hono/jsx";
 import type { Order, OrderItem, OrderStatus } from "../lib/orders";
 import { AREA_LABEL, orderExtras, STATUS_LABEL } from "../lib/orders";
-import { GALLERY_MAX, parseGallery, parseOptions, type Category, type Product, type Variant } from "../lib/products";
+import { GALLERY_MAX, categoryLabel, categoryTree, parseGallery, parseOptions, type Category, type Product, type Variant } from "../lib/products";
 import { THEMES, type Settings } from "../lib/settings";
 import { TRANSITIONS } from "../lib/order-status";
 import { dhakaTime, imageUrl, taka } from "../lib/format";
@@ -555,7 +555,7 @@ export const ProductsPage = ({ products, categories }: { products: Product[]; ca
               <td>{p.track_stock === 1
                 ? (p.stock ?? 0) <= 0 ? <span class="pill pill-bad">শেষ</span> : <span class={(p.stock ?? 0) <= (p.low_stock ?? 5) ? "pill pill-warn" : ""}>{bn(p.stock ?? 0)}টা</span>
                 : <small class="muted">গোনা হয় না</small>}</td>
-              <td>{categories.find((c) => c.id === p.category_id)?.name ?? "—"}</td>
+              <td>{(() => { const k = categories.find((c) => c.id === p.category_id); return k ? categoryLabel(categories, k) : "—"; })()}</td>
               <td>
                 {p.is_active ? <span class="pill pill-ok">চালু</span> : <span class="pill pill-bad">বন্ধ</span>}
                 {p.show_on_home ? <span class="pill">হোমে</span> : null}
@@ -695,7 +695,7 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
             <label class="field"><span>ক্যাটাগরি</span>
               <select name="category_id">
                 <option value="">— নেই —</option>
-                {p.categories.map((c) => <option value={String(c.id)} selected={v.category_id === c.id}>{c.name}</option>)}
+                {categoryTree(p.categories).map((c) => <option value={String(c.id)} selected={v.category_id === c.id}>{c.depth ? `\u00a0\u00a0\u00a0↳ ${c.name}` : c.name}</option>)}
               </select>
             </label>
             <label class="field"><span>ব্র্যান্ড</span><input type="text" name="brand" value={v.brand ?? ""} maxlength={80} list="pf-brands" placeholder="যেমন: কাঠবন (ঐচ্ছিক)" />
@@ -733,42 +733,96 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
 };
 
 /* ---------- ক্যাটাগরি ---------- */
-export const CategoriesPage = ({ categories, counts }: { categories: Category[]; counts: Record<number, number> }) => (
+export type CatRow = Category & { depth: number; count: number; total: number };
+export const CategoriesPage = ({ rows }: { rows: CatRow[] }) => {
+  const tops = rows.filter((r) => r.depth === 0).length;
+  const subs = rows.length - tops;
+  return (
   <>
-    <h1>ক্যাটাগরি</h1>
-    <form method="post" action="/admin/categories" class="row-form">
-      <input type="text" name="name" placeholder="নতুন ক্যাটাগরির নাম" required />
-      <input type="number" name="sort_order" placeholder="ক্রম" value="0" class="w-sm" />
-      <button class="btn btn-primary">যোগ করুন</button>
-    </form>
-    <p class="muted">হোম পেজে ক্রম অনুযায়ী (ছোট সংখ্যা আগে) সেকশন দেখাবে।</p>
-    <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>নাম</th><th>ক্রম</th><th>পণ্য</th><th></th></tr></thead>
-        <tbody>
-          {categories.map((c) => (
-            <tr>
-              <td colspan={2}>
-                <form method="post" action={`/admin/categories/${c.id}`} class="row-form" id={`cat-${c.id}`}>
-                  <input type="text" name="name" value={c.name} required />
-                  <input type="number" name="sort_order" value={String(c.sort_order)} class="w-sm" />
-                  <button class="btn btn-outline btn-sm">সেভ</button>
-                </form>
-              </td>
-              <td>{counts[c.id] ?? 0}</td>
-              <td>
-                <form method="post" action={`/admin/categories/${c.id}/delete`} class="inline"
-                  data-confirm="ক্যাটাগরিটি মুছবেন? এর পণ্যগুলো ক্যাটাগরি ছাড়া থাকবে (মুছবে না)।">
-                  <button class="btn-link danger">মুছুন</button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div class="detail-head">
+      <div>
+        <h1>ক্যাটাগরি</h1>
+        <p class="muted small" style="margin:2px 0 0">{bn(tops)}টা ক্যাটাগরি{subs ? `, ${bn(subs)}টা সাব-ক্যাটাগরি` : ""} · সাব-ক্যাটাগরির পণ্য উপরের ক্যাটাগরিতেও দেখায়</p>
+      </div>
+      <a href="/admin/categories/new" class="btn btn-primary"><Icon name="plus" size="sm" /> নতুন ক্যাটাগরি</a>
     </div>
+    {rows.length === 0 ? (
+      <div class="sa-card"><EmptyState icon="folder" title="এখনো কোনো ক্যাটাগরি নেই" text="পণ্য ভাগ করে সাজাতে ক্যাটাগরি বানান — যেমন পোশাক › শাড়ি, পাঞ্জাবি।" action={<a href="/admin/categories/new" class="btn btn-primary">প্রথম ক্যাটাগরি বানান</a>} /></div>
+    ) : (
+      <div class="sa-card cat-card">
+        <div class="table-wrap">
+          <table class="table cat-table">
+            <thead><tr><th>ক্যাটাগরি</th><th class="num">ক্রম</th><th class="num">পণ্য</th><th class="cat-act"></th></tr></thead>
+            <tbody>
+              {rows.map((c) => (
+                <tr class={c.depth ? "cat-sub" : "cat-top"}>
+                  <td>
+                    <a href={`/admin/categories/${c.id}/edit`} class="cat-name">
+                      {c.depth ? <span class="cat-branch" aria-hidden="true">↳</span> : null}
+                      <span class="cat-thumb">{c.image ? <img src={imageUrl(c.image)} alt="" loading="lazy" /> : <Icon name="folder" size="sm" />}</span>
+                      <span><b>{c.name}</b>{c.title && c.title !== c.name ? <small class="muted">{c.title}</small> : null}{c.depth ? null : rows.some((x) => x.parent_id === c.id) ? <small class="muted">{bn(rows.filter((x) => x.parent_id === c.id).length)}টা সাব-ক্যাটাগরি</small> : null}</span>
+                    </a>
+                  </td>
+                  <td class="num">{bn(c.sort_order)}</td>
+                  <td class="num">{c.depth || c.total === c.count ? bn(c.count) : <>{bn(c.total)} <small class="muted">(নিজে {bn(c.count)})</small></>}</td>
+                  <td class="cat-act">
+                    <a href={`/c/${c.id}`} target="_blank" rel="noopener" class="btn btn-sm" title="দোকানে দেখুন"><Icon name="eye" size="sm" /></a>
+                    {!c.depth && <a href={`/admin/categories/new?parent=${c.id}`} class="btn btn-sm" title="সাব-ক্যাটাগরি যোগ করুন"><Icon name="plus" size="sm" /> সাব</a>}
+                    <a href={`/admin/categories/${c.id}/edit`} class="btn btn-sm btn-outline">এডিট</a>
+                    <form method="post" action={`/admin/categories/${c.id}/delete`} class="inline"
+                      data-confirm={c.depth ? "সাব-ক্যাটাগরিটি মুছবেন? এর পণ্যগুলো ক্যাটাগরি ছাড়া থাকবে (মুছবে না)।" : "ক্যাটাগরিটি মুছবেন? এর পণ্যগুলো ক্যাটাগরি ছাড়া থাকবে আর সাব-ক্যাটাগরিগুলো উপরের ক্যাটাগরি হয়ে যাবে (কিছু মুছবে না)।"}>
+                      <button class="btn btn-sm btn-ghost danger" title="মুছুন"><Icon name="trash-2" size="sm" /></button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
   </>
-);
+  );
+};
+
+export const CategoryFormPage = ({ cat, parents, errors }: { cat: Partial<Category> & { hasChildren?: boolean }; parents: Category[]; errors?: Record<string, string> }) => {
+  const isEdit = !!cat.id;
+  const e = errors ?? {};
+  return (
+  <>
+    <p><a href="/admin/categories" class="btn-link"><Icon name="arrow-left" size="sm" /> ক্যাটাগরি তালিকা</a></p>
+    <div class="detail-head">
+      <h1>{isEdit ? cat.name || "ক্যাটাগরি এডিট" : "নতুন ক্যাটাগরি"}</h1>
+      {isEdit && <a href={`/c/${cat.id}`} target="_blank" rel="noopener" class="btn btn-sm"><Icon name="eye" size="sm" /> দোকানে দেখুন</a>}
+    </div>
+    <form method="post" action={isEdit ? `/admin/categories/${cat.id}` : "/admin/categories"} enctype="multipart/form-data" class="sa-card cat-form">
+      <input type="hidden" name="full" value="1" />
+      <div class="form-grid">
+        <label class="field"><span>উপরের ক্যাটাগরি</span>
+          <select name="parent_id" disabled={cat.hasChildren}>
+            <option value="">— নেই (মূল ক্যাটাগরি) —</option>
+            {parents.map((pc) => <option value={String(pc.id)} selected={cat.parent_id === pc.id}>{pc.name}</option>)}
+          </select>
+          <small>{cat.hasChildren ? "এর নিচে সাব-ক্যাটাগরি আছে, তাই এটা মূল ক্যাটাগরিই থাকবে।" : "বাছলে এটা ওই ক্যাটাগরির সাব-ক্যাটাগরি হবে — যেমন পোশাক › শাড়ি।"}</small>
+          {e.parent_id && <small class="error">{e.parent_id}</small>}
+        </label>
+        <label class="field"><span>ক্রম</span><input type="number" name="sort_order" value={String(cat.sort_order ?? 0)} /><small>ছোট সংখ্যা আগে দেখাবে।</small></label>
+      </div>
+      <label class="field"><span>ক্যাটাগরির নাম *</span><input type="text" name="name" value={cat.name ?? ""} required maxlength={100} placeholder="যেমন: শাড়ি" />{e.name ? <small class="error">{e.name}</small> : <small>মেনু, ফিল্টার আর পণ্যের ফর্মে এই নাম দেখায়।</small>}</label>
+      <label class="field"><span>পেজের শিরোনাম</span><input type="text" name="title" value={cat.title ?? ""} maxlength={150} placeholder="যেমন: হাতে বোনা টাঙ্গাইল শাড়ি — ফ্রি ডেলিভারি" /><small>ক্যাটাগরির পেজের উপরে বড় করে আর Google-এ দেখায়; ফাঁকা থাকলে নাম।</small></label>
+      <div class="field"><span>ছবি</span>
+        <MediaField fileName="image_file" pickName="image_pick" removeName="image_remove" current={cat.image} folder="product" ratio="1:1" />
+        <small>হোমের ক্যাটাগরি টাইল আর ক্যাটাগরির পেজে দেখায়; না দিলে প্রথম পণ্যের ছবি।</small>
+      </div>
+      <div class="field"><span>ক্যাটাগরির বিবরণ</span>
+        <textarea name="description" rows={8} data-rich-editor placeholder="এই ক্যাটাগরির পণ্য নিয়ে কিছু কথা — পণ্যের তালিকার নিচে দেখাবে, Google-এও কাজে লাগে।">{cat.description ?? ""}</textarea>
+      </div>
+      <script src={`/js/editor.js?v=${ASSET_VERSION}`} defer></script>
+      <div class="set-save"><a href="/admin/categories" class="btn">বাতিল</a><button class="btn btn-primary">সেভ করুন</button></div>
+    </form>
+  </>
+  );
+};
 
 /* ---------- ব্ল্যাকলিস্ট ---------- */
 export type BlacklistRow = { id: number; type: "phone" | "device"; value: string; reason: string; order_id: number | null; order_no: string | null; created_at: string };

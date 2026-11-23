@@ -128,19 +128,42 @@ export async function cartLines(db: D1Database, entries: CartEntry[]): Promise<P
   return lines;
 }
 
-export type Category = { id: number; name: string; sort_order: number };
+export type Category = { id: number; name: string; sort_order: number; parent_id?: number | null; title?: string | null; image?: string | null; description?: string | null };
+
+/** গাছের ক্রমে সাজানো: উপরের ক্যাটাগরি, তার নিচে তার সাব-ক্যাটাগরি (depth 1) */
+export function categoryTree<T extends Category>(cats: T[]): (T & { depth: number })[] {
+  const ids = new Set(cats.map((c) => c.id));
+  const top = cats.filter((c) => !c.parent_id || !ids.has(c.parent_id));
+  const out: (T & { depth: number })[] = [];
+  for (const t of top) {
+    out.push({ ...t, depth: 0 });
+    for (const ch of cats.filter((c) => c.parent_id === t.id)) out.push({ ...ch, depth: 1 });
+  }
+  return out;
+}
+
+/** একটা ক্যাটাগরি আর তার সাব-ক্যাটাগরির আইডি */
+export const withChildren = (cats: Category[], id: number) => [id, ...cats.filter((c) => c.parent_id === id).map((c) => c.id)];
+
+/** "উপরের › নিচের" নাম */
+export function categoryLabel(cats: Category[], c: Category): string {
+  const parent = c.parent_id ? cats.find((x) => x.id === c.parent_id) : null;
+  return parent ? `${parent.name} › ${c.name}` : c.name;
+}
 
 export type HomeSection = { category: Category; products: Product[] };
 
 /** হোম পেজের সেকশন: ক্যাটাগরির ক্রম অনুযায়ী, শুধু চালু আর হোমে দেখানো পণ্য */
 export async function homeSections(db: D1Database): Promise<HomeSection[]> {
   const [cats, prods] = await db.batch([
-    db.prepare("SELECT id, name, sort_order FROM categories ORDER BY sort_order, id"),
+    db.prepare("SELECT id, name, sort_order, parent_id, image FROM categories ORDER BY sort_order, id"),
     db.prepare("SELECT p.*, (SELECT COUNT(*) FROM product_variants v WHERE v.product_id = p.id AND v.active = 1) AS variant_count FROM products p WHERE p.is_active = 1 AND p.show_on_home = 1 ORDER BY p.sort_order, p.id"),
   ]);
   const products = prods!.results as Product[];
-  return (cats!.results as Category[])
-    .map((category) => ({ category, products: products.filter((p) => p.category_id === category.id) }))
+  const all = cats!.results as Category[];
+  // হোমে শুধু উপরের ক্যাটাগরি; সাব-ক্যাটাগরির পণ্য তার উপরেরটায় দেখায়
+  return categoryTree(all).filter((c) => c.depth === 0)
+    .map(({ depth: _d, ...category }) => { const ids = withChildren(all, category.id); return { category, products: products.filter((p) => p.category_id != null && ids.includes(p.category_id)) }; })
     .filter((s) => s.products.length > 0);
 }
 

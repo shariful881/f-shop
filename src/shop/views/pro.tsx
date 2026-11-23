@@ -477,7 +477,7 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
           <div class={`px-cats cs-${st}`}>
             {sections.map((x) => (
               <a href={`/c/${x.category.id}`} class="px-cat">
-                <span class="px-cat-img"><img src={imageUrl(x.products[0]?.image ?? null)} alt="" loading="lazy" width="240" height="240" /></span>
+                <span class="px-cat-img"><img src={imageUrl(x.category.image || x.products[0]?.image || null)} alt="" loading="lazy" width="240" height="240" /></span>
                 <span class="px-cat-name">{x.category.name}{(st === "cards" || st === "tiles") && <small>{bn(x.products.length)}টা পণ্য →</small>}</span>
               </a>
             ))}
@@ -585,7 +585,10 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
 export const SORTS: Record<string, string> = { "": "ডিফল্ট", new: "নতুন আগে", price_asc: "দাম: কম থেকে বেশি", price_desc: "দাম: বেশি থেকে কম", name: "নাম অনুযায়ী" };
 
 export type ListParams = { per: number; min: number; max: number; pageNo: number };
-export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "", total, lp }: { title: string; products: Product[]; q?: string; nav: NavCat[]; activeId?: number; cfg: Cfg; sort?: string; total?: number; lp?: ListParams }) => {
+export type ListCat = { id: number; name: string; image?: string | null };
+export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "", total, lp, parent, subcats, subActive, image, description }: { title: string; products: Product[]; q?: string; nav: NavCat[]; activeId?: number; cfg: Cfg; sort?: string; total?: number; lp?: ListParams;
+  /** ক্যাটাগরি পেজ: উপরের ক্যাটাগরি (সাব-ক্যাটাগরিতে থাকলে), সাব-ক্যাটাগরিগুলো, ছবি আর বিবরণ (নিরাপদ HTML) */
+  parent?: ListCat | null; subcats?: ListCat[]; subActive?: number; image?: string | null; description?: string }) => {
   const count = total ?? products.length;
   const pages = lp ? Math.max(1, Math.ceil(count / lp.per)) : 1;
   const qs = (pg: number) => {
@@ -600,10 +603,11 @@ export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "",
   };
   return (
   <div class="wrap px-listing">
-    {on(cfg, "breadcrumbs") && <nav class="px-crumbs"><a href="/">হোম</a> › <span>{title}</span></nav>}
+    {on(cfg, "breadcrumbs") && <nav class="px-crumbs"><a href="/">হোম</a> › {parent && <><a href={`/c/${parent.id}`}>{parent.name}</a> › </>}<span>{title}</span></nav>}
+    {image && <div class="px-cat-banner"><img src={imageUrl(image)} alt={title} loading="lazy" /></div>}
     <div class="px-list-head">
       <h1 class="page-title">{title} <small class="muted">({bn(count)}টা পণ্য)</small></h1>
-      {(on(cfg, "list_sort") || on(cfg, "list_filter")) && (count > 1 || lp?.min || lp?.max) && (
+      {(on(cfg, "list_sort") || on(cfg, "list_filter")) && (count > 1 || !!lp?.min || !!lp?.max) && (
         <form method="get" class="px-sort">
           {q !== undefined && <input type="hidden" name="q" value={q} />}
           {on(cfg, "list_filter") && (
@@ -628,7 +632,18 @@ export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "",
         <button type="submit" aria-label="খুঁজুন"><Icon name="search" size={20} /></button>
       </form>
     )}
-    {nav.length > 1 && (
+    {subcats && subcats.length > 0 && (
+      <div class="px-subcats" aria-label="সাব-ক্যাটাগরি">
+        <a href={`/c/${parent?.id ?? activeId}`} class={!subActive ? "px-subcat on" : "px-subcat"}><span class="px-subcat-name">সব</span></a>
+        {subcats.map((sc) => (
+          <a href={`/c/${sc.id}`} class={sc.id === subActive ? "px-subcat on" : "px-subcat"}>
+            {sc.image && <img src={imageUrl(sc.image)} alt="" loading="lazy" width="40" height="40" />}
+            <span class="px-subcat-name">{sc.name}</span>
+          </a>
+        ))}
+      </div>
+    )}
+    {!subcats?.length && nav.length > 1 && (
       <div class="px-chips">
         {nav.map((c) => <a href={`/c/${c.id}`} class={c.id === activeId ? "px-chip on" : "px-chip"}>{c.name}</a>)}
       </div>
@@ -638,6 +653,7 @@ export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "",
     ) : (
       <div class="grid px-grid">{products.map((p) => <ProductCard p={p} cfg={cfg} />)}</div>
     )}
+    {description && <div class="details px-cat-desc" dangerouslySetInnerHTML={{ __html: description }} />}
     {lp && pages > 1 && (
       <nav class="px-pager" aria-label="পাতা">
         {lp.pageNo > 1 && <a href={qs(lp.pageNo - 1)}>← আগের</a>}

@@ -4,14 +4,14 @@ import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { priceEditable } from "../views/admin";
-import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
+import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, CategoryFormPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { adminToken, requireAdmin } from "../middleware/admin-auth";
 import { ADMIN_COOKIES, clearSession, writeSession } from "../lib/session-cookie";
 import { createSession, destroyOtherSessions, destroySession, hashPassword, needsRehash, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
 import { InvoicePage, type InvoiceData } from "../views/invoice";
-import { GALLERY_MAX, parseFeatures, parseGallery, productVariants, syncVariants, type Category, type Product } from "../lib/products";
+import { GALLERY_MAX, categoryTree, parseFeatures, parseGallery, productVariants, withChildren, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
@@ -1117,7 +1117,7 @@ admin.post("/sms/test", async (c) => {
 
 /* ---------- পণ্য ---------- */
 async function allCategories(db: D1Database) {
-  return (await db.prepare("SELECT id, name, sort_order FROM categories ORDER BY sort_order, id").all<Category>()).results;
+  return (await db.prepare("SELECT id, name, sort_order, parent_id, title, image, description FROM categories ORDER BY sort_order, id").all<Category>()).results;
 }
 
 admin.get("/products", async (c) => {
@@ -1395,33 +1395,82 @@ admin.post("/inventory/track", async (c) => {
 admin.get("/categories", async (c) => {
   const { results } = await c.env.DB.prepare("SELECT category_id, COUNT(*) n FROM products GROUP BY category_id").all<{ category_id: number; n: number }>();
   const counts = Object.fromEntries(results.map((r) => [r.category_id, r.n]));
-  return render(c, "ক্যাটাগরি", "categories", <CategoriesPage categories={await allCategories(c.env.DB)} counts={counts} />);
+  const cats = await allCategories(c.env.DB);
+  const rows = categoryTree(cats).map((k) => ({
+    ...k, count: counts[k.id] ?? 0,
+    total: withChildren(cats, k.id).reduce((n, id) => n + (counts[id] ?? 0), 0),
+  }));
+  return render(c, "ক্যাটাগরি", "categories", <CategoriesPage rows={rows} />);
 });
 
-admin.post("/categories", async (c) => {
-  const body = await c.req.parseBody();
-  const name = str(body.name, 100);
-  if (name) {
-    await c.env.DB.prepare("INSERT INTO categories (name, sort_order) VALUES (?, ?)").bind(name, toInt(body.sort_order)).run();
-    flash(c, "ok", "ক্যাটাগরি যোগ হয়েছে।");
-  }
-  return c.redirect("/admin/categories", 303);
+/** উপরের ক্যাটাগরি হতে পারে: মূল ক্যাটাগরিগুলো (নিজে বাদে) — সাব-ক্যাটাগরি এক ধাপ পর্যন্ত */
+const parentChoices = (cats: Category[], selfId?: number) => cats.filter((k) => !k.parent_id && k.id !== selfId);
+
+admin.get("/categories/new", async (c) => {
+  const cats = await allCategories(c.env.DB);
+  const parent = toInt(c.req.query("parent")) || null;
+  return render(c, "নতুন ক্যাটাগরি", "categories", <CategoryFormPage cat={{ parent_id: parentChoices(cats).some((k) => k.id === parent) ? parent : null }} parents={parentChoices(cats)} />);
 });
 
-admin.post("/categories/:id{[0-9]+}", async (c) => {
-  const body = await c.req.parseBody();
-  const name = str(body.name, 100);
-  if (name) {
-    await c.env.DB.prepare("UPDATE categories SET name = ?, sort_order = ? WHERE id = ?").bind(name, toInt(body.sort_order), toInt(c.req.param("id"))).run();
-    flash(c, "ok", "ক্যাটাগরি সেভ হয়েছে।");
-  }
-  return c.redirect("/admin/categories", 303);
+admin.get("/categories/:id{[0-9]+}/edit", async (c) => {
+  const cats = await allCategories(c.env.DB);
+  const cat = cats.find((k) => k.id === toInt(c.req.param("id")));
+  if (!cat) return c.redirect("/admin/categories", 303);
+  return render(c, "ক্যাটাগরি এডিট", "categories", <CategoryFormPage cat={{ ...cat, hasChildren: cats.some((k) => k.parent_id === cat.id) }} parents={parentChoices(cats, cat.id)} />);
 });
+
+/** নতুন/এডিট — পুরো ফর্ম (full=1) হলে সব ঘর, নইলে শুধু যা এসেছে (পুরনো ছোট ফর্ম) */
+async function saveCategory(c: Ctx, id: number | null) {
+  const db = c.env.DB;
+  const body = await c.req.parseBody();
+  const cats = await allCategories(db);
+  const existing = id ? cats.find((k) => k.id === id) : null;
+  if (id && !existing) return c.redirect("/admin/categories", 303);
+  const full = body.full === "1";
+  const has = (k: string) => full || k in body;
+  const hasChildren = !!id && cats.some((k) => k.parent_id === id);
+  const v = {
+    name: has("name") ? str(body.name, 100) : existing?.name ?? "",
+    sort_order: has("sort_order") ? toInt(body.sort_order) : existing?.sort_order ?? 0,
+    parent_id: has("parent_id") && !hasChildren ? toInt(body.parent_id) || null : existing?.parent_id ?? null,
+    title: has("title") ? str(body.title, 150) || null : existing?.title ?? null,
+    description: has("description") ? (typeof body.description === "string" ? body.description : "").slice(0, 50_000).trim() || null : existing?.description ?? null,
+    image: existing?.image ?? null,
+  };
+  const errors: Record<string, string> = {};
+  if (!v.name) errors.name = "নাম লিখুন";
+  if (v.parent_id && !parentChoices(cats, id ?? undefined).some((k) => k.id === v.parent_id)) errors.parent_id = "এই ক্যাটাগরির নিচে রাখা যায় না";
+  const f = body.image_file;
+  if (f instanceof File && f.size > 0 && (!IMAGE_TYPES[f.type] || f.size > MAX_IMAGE)) errors.image = "ছবি JPG, PNG বা WebP আর ৩ MB-এর কম হতে হবে";
+  if (Object.keys(errors).length) {
+    if (!full) { flash(c, "error", Object.values(errors)[0]!); return c.redirect("/admin/categories", 303); }
+    return render(c, "ক্যাটাগরি", "categories", <CategoryFormPage cat={{ ...existing, ...v, id: id ?? undefined, hasChildren }} parents={parentChoices(cats, id ?? undefined)} errors={errors} />, 422);
+  }
+  if (body.image_remove) v.image = null;
+  if (f instanceof File && f.size > 0) {
+    v.image = `p/${crypto.randomUUID()}.${IMAGE_TYPES[f.type]}`;
+    await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, v.image), await f.arrayBuffer(), { httpMetadata: { contentType: f.type } });
+    await recordMedia(db, v.image, { name: f.name });
+  } else {
+    const pick = str(body.image_pick, 200);
+    if (pick && pick !== v.image && (await mediaExists(db, pick))) v.image = pick;
+  }
+  const cols = [v.name, v.sort_order, v.parent_id, v.title, v.image, v.description];
+  if (id) await db.prepare("UPDATE categories SET name = ?, sort_order = ?, parent_id = ?, title = ?, image = ?, description = ? WHERE id = ?").bind(...cols, id).run();
+  else await db.prepare("INSERT INTO categories (name, sort_order, parent_id, title, image, description) VALUES (?, ?, ?, ?, ?, ?)").bind(...cols).run();
+  if (existing?.image && existing.image !== v.image) await cleanupIfUnused(c, [existing.image]);
+  flash(c, "ok", id ? "ক্যাটাগরি সেভ হয়েছে।" : v.parent_id ? "সাব-ক্যাটাগরি যোগ হয়েছে।" : "ক্যাটাগরি যোগ হয়েছে।");
+  return c.redirect("/admin/categories", 303);
+}
+
+admin.post("/categories", (c) => saveCategory(c, null));
+admin.post("/categories/:id{[0-9]+}", (c) => saveCategory(c, toInt(c.req.param("id"))));
 
 admin.post("/categories/:id{[0-9]+}/delete", async (c) => {
   const id = toInt(c.req.param("id"));
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE products SET category_id = NULL WHERE category_id = ?").bind(id),
+    c.env.DB.prepare("UPDATE categories SET parent_id = NULL WHERE parent_id = ?").bind(id), // সাব-ক্যাটাগরি মূল হয়ে যায়
     c.env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(id),
   ]);
   flash(c, "ok", "ক্যাটাগরি মোছা হয়েছে।");

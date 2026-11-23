@@ -34,7 +34,7 @@ const plain = (html: string | null | undefined) =>
 export async function feedItems(db: D1Database, s: Settings, origin: string): Promise<{ items: FeedItem[]; skipped: number }> {
   const { results } = await db
     .prepare(
-      `SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id
+      `SELECT p.*, CASE WHEN u.name IS NOT NULL THEN u.name || ' > ' || c.name ELSE c.name END AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN categories u ON u.id = c.parent_id
        WHERE p.is_active = 1 ORDER BY p.sort_order, p.id LIMIT 5000`,
     )
     .all<Product & { category_name: string | null }>();

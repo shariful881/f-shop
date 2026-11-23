@@ -50,11 +50,12 @@ export type MediaItem = {
 
 /** দোকানের যেসব জায়গায় ছবির key থাকতে পারে — সব লেখা একসাথে, তারপর key খোঁজা */
 async function usageMap(db: D1Database): Promise<(key: string) => string[]> {
-  const [settings, products, templates, pages] = await Promise.all([
+  const [settings, products, templates, pages, cats] = await Promise.all([
     db.prepare("SELECT key, value FROM settings").all<{ key: string; value: string }>(),
     db.prepare("SELECT name, image, gallery_json, landing_json, details_html FROM products").all<{ name: string; image: string | null; gallery_json: string | null; landing_json: string | null; details_html: string | null }>(),
     db.prepare("SELECT name, json FROM my_templates").all<{ name: string; json: string }>(),
     db.prepare("SELECT title, content FROM pages").all<{ title: string; content: string }>(),
+    db.prepare("SELECT name, image, description FROM categories").all<{ name: string; image: string | null; description: string | null }>(),
   ]);
   const SETTING_LABEL: Record<string, string> = {
     logo: "দোকানের লোগো", favicon: "ফেভিকন", seo_image: "শেয়ার ইমেজ",
@@ -70,6 +71,10 @@ async function usageMap(db: D1Database): Promise<(key: string) => string[]> {
     if (p.gallery_json) places.push({ label: `পণ্যের গ্যালারি: ${p.name}`, text: p.gallery_json });
     if (p.landing_json) places.push({ label: `ল্যান্ডিং: ${p.name}`, text: p.landing_json });
     if (p.details_html) places.push({ label: `পণ্যের বিবরণ: ${p.name}`, text: p.details_html });
+  }
+  for (const k of cats.results) {
+    if (k.image) places.push({ label: `ক্যাটাগরি: ${k.name}`, text: k.image });
+    if (k.description) places.push({ label: `ক্যাটাগরির বিবরণ: ${k.name}`, text: k.description });
   }
   for (const t of templates.results) places.push({ label: `নিজের টেমপ্লেট: ${t.name}`, text: t.json });
   for (const p of pages.results) places.push({ label: `পেজ: ${p.title}`, text: p.content });

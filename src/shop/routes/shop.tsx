@@ -14,7 +14,7 @@ import { sanitizeHtml } from "../lib/sanitize";
 import { adminToken } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
-import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, parseGallery, linesSubtotal, productVariants, type Product } from "../lib/products";
+import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, parseGallery, withChildren, type Category, linesSubtotal, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, maxQty, readCart, readCartEntries, removeFromCart, setCartQty, upsertCart } from "../lib/cart";
 import { ProductPage } from "../views/product";
 import { landingChrome, parseLanding } from "../lib/landing";
@@ -66,7 +66,9 @@ shop.use("*", async (c, next) => {
 
 async function navCategories(db: D1Database) {
   const { results } = await db.prepare(
-    "SELECT c.id, c.name FROM categories c WHERE EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.id AND p.is_active = 1) ORDER BY c.sort_order, c.id LIMIT 30",
+    // মেনুতে শুধু উপরের ক্যাটাগরি — নিজের বা সাব-ক্যাটাগরির চালু পণ্য থাকলে
+    `SELECT c.id, c.name FROM categories c WHERE c.parent_id IS NULL AND EXISTS (SELECT 1 FROM products p WHERE p.is_active = 1
+       AND (p.category_id = c.id OR p.category_id IN (SELECT x.id FROM categories x WHERE x.parent_id = c.id))) ORDER BY c.sort_order, c.id LIMIT 30`,
   ).all<{ id: number; name: string }>();
   return results;
 }
@@ -152,7 +154,7 @@ async function renderProduct(c: Ctx, p: Product, error?: string) {
     cfg.pd_related === "1" && p.category_id
       ? c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? AND p.id != ? ORDER BY p.sort_order, p.id LIMIT ?`).bind(p.category_id, p.id, parseInt(cfg.pd_related_count || "4", 10)).all<Product>()
       : Promise.resolve({ results: [] as Product[] }),
-    p.category_id ? c.env.DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(p.category_id).first<{ id: number; name: string }>() : Promise.resolve(null),
+    p.category_id ? c.env.DB.prepare("SELECT c.id, c.name, u.id AS parent_id, u.name AS parent_name FROM categories c LEFT JOIN categories u ON u.id = c.parent_id WHERE c.id = ?").bind(p.category_id).first<{ id: number; name: string; parent_id: number | null; parent_name: string | null }>() : Promise.resolve(null),
   ]);
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
@@ -189,20 +191,36 @@ function listParams(c: Ctx) {
 }
 
 shop.get("/c/:id{[0-9]+}", async (c) => {
-  const cat = await c.env.DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(toInt(c.req.param("id"))).first<{ id: number; name: string }>();
+  const all = (await c.env.DB.prepare("SELECT id, name, sort_order, parent_id, title, image, description FROM categories ORDER BY sort_order, id").all<Category>()).results;
+  const cat = all.find((x) => x.id === toInt(c.req.param("id")));
   if (!cat) return notFound(c);
+  const parent = cat.parent_id ? all.find((x) => x.id === cat.parent_id) ?? null : null;
+  // উপরের ক্যাটাগরিতে তার সাব-ক্যাটাগরির পণ্যও দেখায়
+  const ids = parent ? [cat.id] : withChildren(all, cat.id);
+  const ph = ids.map(() => "?").join(",");
   const sort = sortKey(c.req.query("sort"));
   const lp = listParams(c);
-  const [rows, cnt] = await c.env.DB.batch([
-    c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ?${lp.where} ORDER BY ${ORDER_SQL[sort]} LIMIT ? OFFSET ?`).bind(cat.id, lp.per, lp.offset),
-    c.env.DB.prepare(`SELECT COUNT(*) n FROM products p WHERE p.is_active = 1 AND p.category_id = ?${lp.where}`).bind(cat.id),
+  const [rows, cnt, used] = await c.env.DB.batch([
+    c.env.DB.prepare(`${LISTING_SQL} AND p.category_id IN (${ph})${lp.where} ORDER BY ${ORDER_SQL[sort]} LIMIT ? OFFSET ?`).bind(...ids, lp.per, lp.offset),
+    c.env.DB.prepare(`SELECT COUNT(*) n FROM products p WHERE p.is_active = 1 AND p.category_id IN (${ph})${lp.where}`).bind(...ids),
+    c.env.DB.prepare("SELECT DISTINCT category_id id FROM products WHERE is_active = 1 AND category_id IS NOT NULL"),
   ]);
   const results = rows!.results as Product[];
   const total = (cnt!.results[0] as { n: number }).n;
+  const withProducts = new Set((used!.results as { id: number }[]).map((r) => r.id));
+  const top = parent ?? cat;
+  // পণ্য আছে এমন সাব-ক্যাটাগরিগুলো (সাব-ক্যাটাগরির পেজে তার ভাইবোনেরা)
+  const subcats = all.filter((x) => x.parent_id === top.id && withProducts.has(x.id)).map((x) => ({ id: x.id, name: x.name, image: x.image }));
   const s = c.var.settings;
+  const heading = cat.title || cat.name;
+  const desc = cat.description ? sanitizeHtml(cat.description) : "";
   return page(c,
-    <Layout title={`${cat.name} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}>
-      <ListingPage title={cat.name} products={results} nav={c.var.navCats ?? []} activeId={cat.id} cfg={themeConfig(s)} sort={sort} total={total} lp={lp} />
+    <Layout title={`${heading} — ${s.site_name || ""}`} settings={s} cartCount={readCart(c).length} head={pixel(c)} nav={c.var.navCats} pages={c.var.navPages}
+      description={(cat.description ? desc.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160) : "") || undefined}
+      ogImage={cat.image ? new URL(imageUrl(cat.image), publicUrl(c)).toString() : undefined}>
+      <ListingPage title={heading} products={results} nav={c.var.navCats ?? []} activeId={top.id} cfg={themeConfig(s)} sort={sort} total={total} lp={lp}
+        parent={parent ? { id: parent.id, name: parent.name } : null} subcats={subcats} subActive={parent ? cat.id : undefined}
+        image={cat.image} description={desc} />
     </Layout>,
   );
 });

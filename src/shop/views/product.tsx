@@ -12,7 +12,7 @@ import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
 import { sanitizeHtml } from "../lib/sanitize";
 import { ProductCard } from "./shop";
 
-export const ProductPage = (p: { p: Product; images: string[]; variants: Variant[]; s: Settings; cfg: Cfg; related: Product[]; category?: { id: number; name: string } | null; error?: string; closed?: string; reviews?: unknown }) => {
+export const ProductPage = (p: { p: Product; images: string[]; variants: Variant[]; s: Settings; cfg: Cfg; related: Product[]; category?: { id: number; name: string; parent_id?: number | null; parent_name?: string | null } | null; error?: string; closed?: string; reviews?: unknown }) => {
   const { p: prod, s, cfg } = p;
   const off = discountPercent(prod.price, prod.compare_price);
   const yt = youtubeId(prod.youtube_url);
@@ -52,7 +52,7 @@ export const ProductPage = (p: { p: Product; images: string[]; variants: Variant
   return (
     <div class="wrap pp">
       {cfg.breadcrumbs === "1" && (
-        <nav class="px-crumbs"><a href="/">হোম</a> › {p.category && <><a href={`/c/${p.category.id}`}>{p.category.name}</a> › </>}<span>{prod.name}</span></nav>
+        <nav class="px-crumbs"><a href="/">হোম</a> › {p.category?.parent_id && <><a href={`/c/${p.category.parent_id}`}>{p.category.parent_name}</a> › </>}{p.category && <><a href={`/c/${p.category.id}`}>{p.category.name}</a> › </>}<span>{prod.name}</span></nav>
       )}
       <div class="pp-main">
         <div class="pp-gallery" data-pp-gallery>

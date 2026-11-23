@@ -299,6 +299,14 @@ main { min-height: 60vh; padding-bottom: 90px; }
 .px-crumbs { font-size: .85rem; color: var(--muted); margin-top: 14px; }
 .px-crumbs a { color: var(--muted); text-decoration: none; }
 .px-search-page { max-width: 520px; margin: 0 0 14px; background: #fff; }
+.px-subcats { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; margin-bottom: 14px; scrollbar-width: none; }
+.px-subcat { display: flex; align-items: center; gap: 8px; white-space: nowrap; padding: 6px 14px 6px 6px; border-radius: 999px; background: #fff; border: 1.5px solid #e2e8f0; color: #334155; text-decoration: none; font-weight: 600; font-size: .88rem; min-height: 40px; }
+.px-subcat:not(:has(img)) { padding-left: 14px; }
+.px-subcat img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+.px-subcat.on { border-color: var(--primary, #0f766e); background: var(--primary, #0f766e); color: #fff; }
+.px-cat-banner { margin: 0 0 14px; border-radius: var(--radius, 12px); overflow: hidden; max-height: 240px; }
+.px-cat-banner img { width: 100%; height: 100%; max-height: 240px; object-fit: cover; display: block; }
+.px-cat-desc { margin-top: 22px; }
 .px-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px; scrollbar-width: none; }
 .px-chip { white-space: nowrap; padding: 6px 14px; border-radius: 999px; background: #fff; border: 1.5px solid #e2e8f0; color: #334155; text-decoration: none; font-weight: 600; font-size: .88rem; }
 .px-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }

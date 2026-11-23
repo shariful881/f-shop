@@ -774,3 +774,21 @@ body.admin .us-amber small, body.admin .us-amber .us-stat-head { color: #c2410c;
 .re-area hr { border: 0; border-top: 1px solid #e2e8f0; margin: 1em 0; }
 .re-area table { border-collapse: collapse; } .re-area th, .re-area td { border: 1px solid #e2e8f0; padding: 4px 8px; }
 .re .re-src { border: 0; border-radius: 0; min-height: 220px; width: 100%; padding: 12px 14px; box-shadow: none; }
+
+/* ক্যাটাগরির তালিকা আর ফর্ম */
+.cat-card { padding: 0 !important; overflow: hidden; }
+.cat-table { margin: 0; }
+.cat-table td, .cat-table th { vertical-align: middle; }
+.cat-table .num { text-align: right; white-space: nowrap; width: 1%; }
+.cat-name { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.cat-name b { display: block; font-weight: 600; } .cat-name small { display: block; font-size: .78rem; }
+.cat-name:hover b { color: var(--c-primary, #0f766e); }
+.cat-thumb { width: 40px; height: 40px; border-radius: 10px; background: #f1f5f9; display: grid; place-items: center; overflow: hidden; flex: none; color: #94a3b8; }
+.cat-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cat-sub .cat-name { padding-left: 14px; } .cat-sub .cat-thumb { width: 32px; height: 32px; border-radius: 8px; }
+.cat-branch { color: #94a3b8; font-size: 1rem; }
+.cat-sub td { background: #fbfcfd; }
+.cat-act { text-align: right; white-space: nowrap; width: 1%; }
+.cat-act .btn, .cat-act form { margin-left: 4px; display: inline-flex; vertical-align: middle; }
+.cat-form { display: grid; gap: 16px; max-width: 760px; }
+@media (max-width: 640px) { .cat-act .btn-outline { display: none; } .cat-table .num:nth-child(2) { display: none; } }
