@@ -152,7 +152,7 @@ describe("দোকানের নিয়ন্ত্রণ", () => {
     expect(list).toContain(`/super/shops/${DEMO_SHOP_ID}/impersonate`);
     const detail = await (await get(o, `/super/shops/${DEMO_SHOP_ID}`)).text();
     expect(detail).toContain("দোকানের ভিতরে এখন");
-    expect(detail).toContain("FS-100001");
+    expect(detail).toContain("ORD-1001");
     const f = await member("fin@t.com", "finance");
     expect(await (await get(f, "/super/shops")).text()).not.toContain("/impersonate");
   });

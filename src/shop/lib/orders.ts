@@ -67,8 +67,13 @@ export function orderExtras(o: Pick<Order, "extra_json">): [string, string][] {
   }
 }
 
-/** দোকানের অর্ডার নম্বরের শুরুর অক্ষর (যেমন FS-, KB-, DD) */
-export const orderPrefix = (s: Record<string, string | undefined>) => (/^[A-Z0-9-]{1,6}$/.test(s.order_prefix || "") ? s.order_prefix! : "FS-");
+/** সব দোকানের ডিফল্ট অর্ডার নম্বরের শুরু (আগে ছিল FS- — পুরনো কাজের নাম F-Shop থেকে) */
+export const DEFAULT_ORDER_PREFIX = "ORD-";
+/** দোকানের অর্ডার নম্বরের শুরুর অক্ষর (দোকানদার চাইলে নিজেরটা, যেমন KB-) — পুরনো ডিফল্ট FS- হলে ORD- */
+export const orderPrefix = (s: Record<string, string | undefined>) => {
+  const p = s.order_prefix || "";
+  return /^[A-Z0-9-]{1,6}$/.test(p) && p !== "FS-" ? p : DEFAULT_ORDER_PREFIX;
+};
 
 export type OrderItem = {
   id: number;
@@ -108,7 +113,8 @@ export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: 
 
 /**
  * অর্ডার আর আইটেম একসাথে (একটা batch = একটা transaction) সেভ করে।
- * অর্ডার নম্বর: FS-100001, FS-100002 …
+ * অর্ডার নম্বর: ORD-1001, ORD-1002 … (ছোট থেকে শুরু, ধাপে ধাপে বাড়ে)।
+ * যে দোকানে এই শুরুর অক্ষরে আগের নিয়মের ৬ অঙ্কের নম্বর আছে (যেমন KB-100250), সেখানে সেভাবেই চলতে থাকে।
  */
 export async function createOrder(db: D1Database, o: NewOrder, products: Product[]): Promise<{ id: number; order_no: string }> {
   const subtotal = products.reduce((s, p) => s + p.price * (p.qty ?? 1), 0);
@@ -136,7 +142,10 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
     ...(o.couponId && discount ? [db.prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?").bind(o.couponId)] : []),
     ...(o.advance ? [db.prepare("UPDATE orders SET advance_amount = ?, pay_method = ?, pay_trx = ?, pay_sender = ?, pay_status = 'pending' WHERE order_no = ?")
       .bind(Math.min(o.advance.amount, total), o.advance.method, o.advance.trx, o.advance.sender, tmp)] : []),
-    db.prepare("UPDATE orders SET order_no = ? || (100000 + id) WHERE order_no = ? RETURNING id, order_no").bind(o.prefix || "FS-", tmp),
+    db.prepare(
+      `UPDATE orders SET order_no = ? || (id + CASE WHEN EXISTS (SELECT 1 FROM orders o2 WHERE o2.order_no = ? || (100000 + o2.id)) THEN 100000 ELSE 1000 END)
+       WHERE order_no = ? RETURNING id, order_no`,
+    ).bind(o.prefix || DEFAULT_ORDER_PREFIX, o.prefix || DEFAULT_ORDER_PREFIX, tmp),
   ];
   const results = await db.batch<{ id: number; order_no: string }>(stmts);
   const row = results[results.length - 1]!.results[0]!;

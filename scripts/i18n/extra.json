@@ -187,5 +187,18 @@
 "নেমসার্ভার বসানোর জন্য আর": "Time left to set the nameservers:",
 "বাকি।": "left.",
 "{x} দিন": "{x} days",
-"সময় শেষ — আজই নেমসার্ভার বসান।": "Time's up — set the nameservers today."
+"সময় শেষ — আজই নেমসার্ভার বসান।": "Time's up — set the nameservers today.",
+"লাইভ নোটিফিকেশন": "Live notifications",
+"প্যানেল খোলা থাকলে নতুন অর্ডার এলেই পপআপ আর শব্দ, অর্ডার লিস্ট নিজে নতুন হয়। পুরো দোকানের জন্য — কোনো স্টাফ চাইলে নিজের ফোনে 🔔 বেল থেকে শুধু শব্দ বন্ধ রাখতে পারে।": "While the panel is open, a new order brings a pop-up and a sound, and the order list updates itself. For the whole shop — any staff member can still mute the sound on their own phone from the 🔔 bell.",
+"লাইভ নোটিফিকেশন চালু (বন্ধ করলে বেল, পপআপ, শব্দ কিছুই থাকবে না)": "Live notifications on (when off there's no bell, pop-up or sound)",
+"নতুন অর্ডারে পপআপ": "Pop-up for new orders",
+"কেউ কনফার্ম/বাতিল/কুরিয়ারে পাঠালে পপআপ": "Pop-up when someone confirms/cancels/sends to courier",
+"অর্ডার লিস্ট আর ড্যাশবোর্ড নিজে থেকে নতুন হবে": "Order list and dashboard update by themselves",
+"নতুন অর্ডারের শব্দ": "New order sound",
+"ব্রাউজারের নিয়মে প্যানেল খোলার পর একবার কোথাও চাপ দিলে তবেই শব্দ বাজে": "Browsers only play sound after you tap somewhere on the panel once",
+"টুং (নরম)": "Ting (soft)",
+"ক্যাশ মেশিন": "Cash register",
+"শব্দ বন্ধ": "Sound off",
+"ইংরেজি বড় অক্ষর/সংখ্যা/হাইফেন, {n}টা পর্যন্ত। সাধারণত ORD- — অর্ডার নম্বর হয় ORD-{n}, ORD-{n} …। চাইলে নিজের দোকানের অক্ষর দিন (যেমন KB-)। আগের অর্ডারের নম্বর বদলাবে না।": "Uppercase English letters/numbers/hyphen, up to {n}. Usually ORD- — order numbers become ORD-{n}, ORD-{n} …. You can use your shop's own letters (e.g. KB-). Old order numbers won't change.",
+"যেমন ORD-{n}": "e.g. ORD-{n}"
 }

@@ -679,7 +679,7 @@ export const TrackPage = ({ s, order, error, values }: { s: Settings; order: { o
     <div class="wrap narrow px-track">
       <h1 class="page-title">অর্ডার ট্র্যাক করুন</h1>
       <form method="get" action="/track" class="px-track-form">
-        <label class="field"><span>অর্ডার নম্বর</span><input type="text" name="order" value={values.order} placeholder="যেমন FS-1001" required maxlength={30} /></label>
+        <label class="field"><span>অর্ডার নম্বর</span><input type="text" name="order" value={values.order} placeholder="যেমন ORD-1001" required maxlength={30} /></label>
         <label class="field"><span>যে মোবাইল নম্বরে অর্ডার করেছেন</span><input type="tel" name="phone" value={values.phone} placeholder="01XXXXXXXXX" required inputmode="tel" /></label>
         <button class="btn btn-primary btn-block">খুঁজুন</button>
       </form>

@@ -104,11 +104,11 @@ describe("ব্রাউজার + সার্ভার ইভেন্ট, �
     await b.get("/");
     await b.order();
     await vi.waitFor(() => expect(named("Lead")).toHaveLength(1));
-    expect(named("Lead")[0].event_id).toBe("lead_FS-100001");
+    expect(named("Lead")[0].event_id).toBe("lead_ORD-1001");
     expect(named("Lead")[0].custom_data.value).toBe(1250 + 70);
 
     const thanks = await (await b.get("/thanks")).text();
-    expect(thanks).toContain('"name":"Lead","id":"lead_FS-100001"');
+    expect(thanks).toContain('"name":"Lead","id":"lead_ORD-1001"');
     await settle();
     expect(named("Lead")).toHaveLength(1); // ধন্যবাদ পেজ থেকে সার্ভার Lead আবার যায় না
     expect(named("Purchase")).toHaveLength(0);
@@ -147,7 +147,7 @@ describe("Purchase ইভেন্ট", () => {
     const purchases = named("Purchase");
     expect(purchases).toHaveLength(1);
     const p = purchases[0];
-    expect(p.event_id).toBe("purchase_FS-100001");
+    expect(p.event_id).toBe("purchase_ORD-1001");
     expect(p.action_source).toBe("website");
     expect(p.custom_data).toEqual({
       currency: "BDT",
@@ -156,7 +156,7 @@ describe("Purchase ইভেন্ট", () => {
       content_ids: ["1"],
       contents: [{ id: "1", quantity: 1, item_price: 1250 }],
       num_items: 1,
-      order_id: "FS-100001",
+      order_id: "ORD-1001",
     });
     // অর্ডার করার সময়ের কাস্টমারের তথ্য — অ্যাডমিনের ব্রাউজারের নয়
     expect(p.user_data.client_ip_address).toBe("198.51.100.44");

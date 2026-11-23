@@ -75,7 +75,7 @@ describe("কার্ট আর অর্ডার", () => {
     expect(res.headers.get("location")).toBe("/thanks");
 
     const o = await lastOrder();
-    expect(o!.order_no).toBe("FS-100001");
+    expect(o!.order_no).toBe("ORD-1001");
     expect(o!.subtotal).toBe(1250 + 690);
     expect(o!.delivery_charge).toBe(130);
     expect(o!.total).toBe(1250 + 690 + 130);
@@ -86,7 +86,7 @@ describe("কার্ট আর অর্ডার", () => {
     // কার্ট খালি হয়েছে, ধন্যবাদ পেজে অর্ডার নম্বর আর সারাংশ
     expect(b.cookies.get("cart") ?? "").toBe("");
     const thanks = await (await b.get("/thanks")).text();
-    expect(thanks).toContain("FS-100001");
+    expect(thanks).toContain("ORD-1001");
     expect(thanks).toContain("৳২,০৭০");
   });
 

@@ -71,7 +71,7 @@ export const ReviewPage = ({ f }: { f: ReviewFormState }) => {
       {!f.order ? (
         <form method="get" action="/review" class="order-form">
           <p class="muted">শুধু যারা কিনেছেন তারাই রিভিউ দিতে পারেন। অর্ডার নম্বর আর অর্ডারের মোবাইল নম্বর দিন।</p>
-          <label class="field"><span>অর্ডার নম্বর</span><input name="o" value={f.orderNo ?? ""} required placeholder="যেমন FS-100123" autocomplete="off" /></label>
+          <label class="field"><span>অর্ডার নম্বর</span><input name="o" value={f.orderNo ?? ""} required placeholder="যেমন ORD-1023" autocomplete="off" /></label>
           <label class="field"><span>মোবাইল নম্বর</span><input name="p" type="tel" inputmode="tel" value={f.phone ?? ""} required placeholder="01XXXXXXXXX" /></label>
           <button class="btn btn-primary btn-block">পরের ধাপ</button>
         </form>

@@ -18,10 +18,13 @@
   var soundBtn = document.querySelector("[data-live-sound]");
   var toasts = document.querySelector("[data-live-toasts]");
 
-  /* ---------- পছন্দ (এই ব্রাউজারে) ---------- */
-  var tone = store("lv_tone") || "ting";
+  /* ---------- পছন্দ: দোকানের সেটিংস (ডিফল্ট), এই ব্রাউজারে কেউ বদলালে সেটা ---------- */
+  var shopPopNew = bell.getAttribute("data-pop-new") !== "0";
+  var shopRefresh = bell.getAttribute("data-refresh") !== "0";
+  var tone = store("lv_tone") || bell.getAttribute("data-tone") || "ting";
   toneSel.value = tone;
-  popStatus.checked = store("lv_pop_status") !== "0";
+  var ps = store("lv_pop_status");
+  popStatus.checked = ps == null ? bell.getAttribute("data-pop-status") !== "0" : ps !== "0";
   toneSel.addEventListener("change", function () { tone = toneSel.value; store("lv_tone", tone); unlock(); if (tone !== "off") play(); showSoundBtn(); });
   popStatus.addEventListener("change", function () { store("lv_pop_status", popStatus.checked ? "1" : "0"); });
 
@@ -174,6 +177,7 @@
     main.insertBefore(b, main.firstChild);
   }
   function refreshPage() {
+    if (!shopRefresh) return;
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(function () {
       var wrap = document.querySelector('[data-live-orders="1"]');
@@ -217,7 +221,7 @@
     if (e.kind === "order_new") flashIds[e.order_id] = 1;
     refreshPage();
     if (e.mine) return; // নিজের কাজের খবর নিজেকে দেওয়ার দরকার নেই
-    if (e.kind === "order_new") { toast(e); playOnce(e.id); bumpTitle(); }
+    if (e.kind === "order_new") { if (shopPopNew) toast(e); playOnce(e.id); bumpTitle(); }
     else if (popStatus.checked) toast(e);
     if (detailId && String(e.order_id) === detailId) banner("↻ এই অর্ডারটা অন্য কেউ বদলেছে — নতুন করে দেখতে চাপুন", e.by_name);
   }

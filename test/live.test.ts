@@ -89,3 +89,45 @@ describe("লাইভ নোটিফিকেশন", () => {
     expect(d).toContain('data-live-dash="recent"');
   });
 });
+
+describe("দোকানদার লাইভ নোটিফিকেশন চালু/বন্ধ করতে পারে", () => {
+  it("ডিফল্ট চালু; বন্ধ করলে বেল, শব্দের বাটন আর live.js থাকে না; পছন্দগুলো বেলে যায়", async () => {
+    const a = await adminBrowser();
+    const base = { site_name: "আমার দোকান", contact_phone: "01811111111", live_form: "1" };
+    await a.post("/admin/settings", { ...base, live_on: "1", live_pop_new: "1", live_tone: "cash" });
+    let h = await (await a.get("/admin")).text();
+    expect(h).toContain("data-live-bell");
+    expect(h).toContain('data-tone="cash"');
+    expect(h).toContain('data-pop-status="0"');
+    expect(h).toContain('data-refresh="0"');
+    await a.post("/admin/settings", { ...base, live_tone: "weird" });
+    h = await (await a.get("/admin")).text();
+    expect(h).not.toContain("data-live-bell");
+    expect(h).not.toContain("/js/live.js");
+    expect(h).not.toContain("data-live-sound");
+    const s = await DB.prepare("SELECT value FROM settings WHERE key = 'live_tone'").first<{ value: string }>();
+    expect(s!.value).toBe("ting");
+  });
+});
+
+describe("অর্ডার নম্বর: ORD- দিয়ে, ছোট থেকে শুরু", () => {
+  it("নতুন দোকান ORD-1001, ORD-1002; পুরনো ডিফল্ট FS- থাকলেও ORD-", async () => {
+    await new Browser().order();
+    await DB.prepare("INSERT INTO settings (key, value) VALUES ('order_prefix', 'FS-') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+    await new Browser().order({ phone: "01812345678" });
+    const r = await DB.prepare("SELECT order_no FROM orders ORDER BY id").all<{ order_no: string }>();
+    expect(r.results.map((x) => x.order_no)).toEqual(["ORD-1001", "ORD-1002"]);
+    const a = await adminBrowser();
+    expect(await (await a.get("/admin/settings/checkout")).text()).toContain('name="order_prefix" value="ORD-"');
+  });
+
+  it("নিজের অক্ষরে আগের ৬ অঙ্কের নম্বর থাকলে সেভাবেই চলতে থাকে", async () => {
+    await new Browser().order();
+    // পুরনো নিয়মের নম্বর (KB-100000+id)
+    await DB.prepare("UPDATE orders SET order_no = 'KB-' || (100000 + id)").run();
+    await DB.prepare("INSERT INTO settings (key, value) VALUES ('order_prefix', 'KB-') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+    await new Browser().order({ phone: "01812345678" });
+    const r = await DB.prepare("SELECT order_no FROM orders ORDER BY id").all<{ order_no: string }>();
+    expect(r.results.map((x) => x.order_no)).toEqual(["KB-100001", "KB-100002"]);
+  });
+});

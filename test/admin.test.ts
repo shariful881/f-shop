@@ -50,15 +50,15 @@ describe("অর্ডার তালিকা", () => {
     await orderAs(new Browser(), "01812345678");
     const html = await (await a.get("/admin/orders?status=new")).text();
     expect(html).toMatch(/নতুন <span class="tab-count">২<\/span>/);
-    expect(html).toContain("FS-100001");
+    expect(html).toContain("ORD-1001");
 
     const byPhone = await (await a.get("/admin/orders?q=" + encodeURIComponent("+8801812345678"))).text();
-    expect(byPhone).toContain("FS-100002");
-    expect(byPhone).not.toContain("FS-100001");
-    const byNo = await (await a.get("/admin/orders?q=100001")).text();
-    expect(byNo).toContain("FS-100001");
+    expect(byPhone).toContain("ORD-1002");
+    expect(byPhone).not.toContain("ORD-1001");
+    const byNo = await (await a.get("/admin/orders?q=ORD-1001")).text();
+    expect(byNo).toContain("ORD-1001");
     const byName = await (await a.get("/admin/orders?q=" + encodeURIComponent("রহিম"))).text();
-    expect(byName).toContain("FS-100001");
+    expect(byName).toContain("ORD-1001");
   });
 
   it("অর্ডার ডিটেইলে কাস্টমার, পণ্য, ট্র্যাকিং তথ্য আর আগের অর্ডার দেখায়", async () => {

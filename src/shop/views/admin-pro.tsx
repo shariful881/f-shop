@@ -2,6 +2,7 @@
  * দোকানের অ্যাডমিন — প্রফেশনাল লেআউট (সাইডবার), ড্যাশবোর্ড আর সেটিংস কেন্দ্র।
  */
 import { LANGS } from "../i18n";
+import { orderPrefix } from "../lib/orders";
 import type { Child } from "hono/jsx";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
@@ -122,9 +123,10 @@ export const ShopShell = (p: {
             <label for="sa-nav-toggle" class="sa-burger" aria-label="মেনু"><Icon name="menu" size="lg" /></label>
             <h1>{p.title}</h1>
             <div class="sa-top-actions">
-              {/* লাইভ: শব্দ চালু + 🔔 নোটিফিকেশন বেল (live.js) */}
+              {/* লাইভ: শব্দ চালু + 🔔 নোটিফিকেশন বেল (live.js) — দোকানদার সেটিংসে বন্ধ রাখলে নেই */}
+              {s.live_on !== "0" && <>
               <button type="button" class="sa-btn sa-btn-ghost sa-btn-sm lv-sound" data-live-sound hidden title="নতুন অর্ডারে শব্দ — একবার চাপলেই চালু"><Icon name="bell" size="sm" /> <span class="sa-hide-sm">সাউন্ড চালু</span></button>
-              <div class="lv-bell" data-live-bell>
+              <div class="lv-bell" data-live-bell data-tone={s.live_tone || "ting"} data-pop-new={s.live_pop_new === "0" ? "0" : "1"} data-pop-status={s.live_pop_status === "0" ? "0" : "1"} data-refresh={s.live_refresh === "0" ? "0" : "1"}>
                 <button type="button" class="sa-btn sa-btn-ghost sa-btn-sm lv-bell-btn" aria-label="নোটিফিকেশন" aria-expanded="false" title="নোটিফিকেশন"><Icon name="bell" size="sm" /><b class="lv-count" hidden></b></button>
                 <div class="lv-panel" hidden>
                   <div class="lv-head"><b>নোটিফিকেশন</b><button type="button" class="sa-link lv-read">সব দেখা হয়েছে</button></div>
@@ -135,6 +137,7 @@ export const ShopShell = (p: {
                   </div>
                 </div>
               </div>
+              </>}
               {p.active && HELP_FOR[p.active] && (
                 <a href={`${HELP_BASE}/${HELP_FOR[p.active!]}`} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost sa-btn-sm" title="এই পেজ কীভাবে ব্যবহার করবেন">
                   <Icon name="life-buoy" size="sm" /> <span class="sa-hide-sm">কীভাবে?</span>
@@ -156,7 +159,7 @@ export const ShopShell = (p: {
         <ChatWidget shopName={s.site_name || ""} />
         <div class="lv-toasts" data-live-toasts aria-live="polite"></div>
         <script src={`/js/admin.js?v=${ASSET_VERSION}`} defer></script>
-        <script src={`/js/live.js?v=${ASSET_VERSION}`} defer></script>
+        {s.live_on !== "0" && <script src={`/js/live.js?v=${ASSET_VERSION}`} defer></script>}
         <script src={`/js/media.js?v=${ASSET_VERSION}`} defer></script>
         <script src={`/js/support.js?v=${ASSET_VERSION}`} defer></script>
       </body>
@@ -392,6 +395,16 @@ export const SettingsGeneralPage = ({ s }: { s: Settings }) => (
         <F label="Facebook পেজের লিংক"><input type="url" name="facebook_page" value={s.facebook_page ?? ""} maxlength={200} placeholder="https://facebook.com/yourpage" /></F>
         <F label="ঠিকানা" wide><textarea name="store_address" rows={2} maxlength={300}>{s.store_address ?? ""}</textarea></F>
       </Section>
+      <Section title="লাইভ নোটিফিকেশন" desc="প্যানেল খোলা থাকলে নতুন অর্ডার এলেই পপআপ আর শব্দ, অর্ডার লিস্ট নিজে নতুন হয়। পুরো দোকানের জন্য — কোনো স্টাফ চাইলে নিজের ফোনে 🔔 বেল থেকে শুধু শব্দ বন্ধ রাখতে পারে।">
+        <input type="hidden" name="live_form" value="1" />
+        <F label="" wide><label class="check"><input type="checkbox" name="live_on" checked={s.live_on !== "0"} /> লাইভ নোটিফিকেশন চালু (বন্ধ করলে বেল, পপআপ, শব্দ কিছুই থাকবে না)</label></F>
+        <F label="" wide><label class="check"><input type="checkbox" name="live_pop_new" checked={s.live_pop_new !== "0"} /> নতুন অর্ডারে পপআপ</label></F>
+        <F label="" wide><label class="check"><input type="checkbox" name="live_pop_status" checked={s.live_pop_status !== "0"} /> কেউ কনফার্ম/বাতিল/কুরিয়ারে পাঠালে পপআপ</label></F>
+        <F label="" wide><label class="check"><input type="checkbox" name="live_refresh" checked={s.live_refresh !== "0"} /> অর্ডার লিস্ট আর ড্যাশবোর্ড নিজে থেকে নতুন হবে</label></F>
+        <F label="নতুন অর্ডারের শব্দ" hint="ব্রাউজারের নিয়মে প্যানেল খোলার পর একবার কোথাও চাপ দিলে তবেই শব্দ বাজে">
+          <select name="live_tone">{Object.entries({ ting: "টুং (নরম)", cash: "ক্যাশ মেশিন", off: "শব্দ বন্ধ" }).map(([k, l]) => <option value={k} selected={(s.live_tone || "ting") === k}>{l}</option>)}</select>
+        </F>
+      </Section>
       <Section title="ভাষা / Language" desc="বাটন, মেনু, মেসেজ কোন ভাষায় দেখাবে। পণ্যের নাম, বিবরণ আর আপনার নিজের লেখা যেভাবে লিখবেন সেভাবেই থাকবে।">
         <F label="দোকানের ওয়েবসাইট" hint="কাস্টমার যা দেখেন — কাস্টমারের SMS আর ইনভয়েসও এই ভাষায়">
           <select name="site_lang">{(["bn", "en"] as const).map((l) => <option value={l} selected={(s.site_lang || "bn") === l} translate="no">{LANGS[l]}</option>)}</select>
@@ -507,8 +520,8 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
         <F label="ডেলিভারি এলাকা আগে থেকে বাছা থাকবে">
           <select name="default_area">{Object.entries({ inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে", none: "কোনোটা না (কাস্টমার নিজে বাছবে)" }).map(([k, l]) => <option value={k} selected={(s.default_area || "inside") === k}>{l}</option>)}</select>
         </F>
-        <F label="অর্ডার নম্বরের শুরুর অক্ষর" hint="ইংরেজি বড় অক্ষর/সংখ্যা/হাইফেন, ৬টা পর্যন্ত। যেমন KB- দিলে অর্ডার নম্বর হবে KB-100025। আগের অর্ডারের নম্বর বদলাবে না।">
-          <input type="text" name="order_prefix" value={s.order_prefix || "FS-"} maxlength={6} pattern="[A-Za-z0-9-]{1,6}" />
+        <F label="অর্ডার নম্বরের শুরুর অক্ষর" hint="ইংরেজি বড় অক্ষর/সংখ্যা/হাইফেন, ৬টা পর্যন্ত। সাধারণত ORD- — অর্ডার নম্বর হয় ORD-1001, ORD-1002 …। চাইলে নিজের দোকানের অক্ষর দিন (যেমন KB-)। আগের অর্ডারের নম্বর বদলাবে না।">
+          <input type="text" name="order_prefix" value={orderPrefix(s)} maxlength={6} pattern="[A-Za-z0-9-]{1,6}" />
         </F>
       </Section>
       <Section title="ইনভয়েস আর স্টিকার" desc="অর্ডারের পেজ বা তালিকা থেকে প্রিন্ট করা যায়। স্টিকার কুরিয়ারের প্যাকেটে লাগানোর জন্য — থার্মাল লেবেল প্রিন্টারের রোলের মাপ অনুযায়ী বাছুন।">
