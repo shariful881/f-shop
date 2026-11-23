@@ -76,25 +76,9 @@ export const FraudReport = ({ d, refresh = true }: { d: ReportData; refresh?: bo
   const c = d.courier;
   const own = d.own;
   const sh = d.shared;
-  // উপরের বড় সংখ্যা: কুরিয়ার + এই দোকান + অন্য দোকান মিলিয়ে
-  const ok = (c?.approx ? 0 : c?.success ?? 0) + (own?.delivered ?? 0) + (sh?.delivered ?? 0);
-  const bad = (c?.approx ? 0 : c?.cancelled ?? 0) + (own?.returned ?? 0) + (own?.fake ?? 0) + (sh?.returned ?? 0) + (sh?.fake ?? 0);
-  const total = ok + bad;
-  const ratio = total ? Math.round((ok / total) * 100) : c?.approx ? c.ratio : null;
-  const g = grade(ratio, total || (c?.approx && c.total ? c.total : 0));
   return (
     <div class="fr" data-fr-phone={d.phone}>
-      <div class="fr-cards">
-        <div class={`fr-main fr-${g.tone}`}>
-          <small>সফলতার হার · {g.label}</small>
-          <b>{ratio == null ? "—" : `${bn(ratio)}%`}</b>
-          <Bar ok={ok || (c?.approx ? c.success : 0)} bad={bad || (c?.approx ? c.cancelled : 0)} />
-        </div>
-        <div class="fr-num"><small>মোট</small><b>{bn(total)}</b></div>
-        <div class="fr-num"><small>ডেলিভারি</small><b class="fr-okc">{bn(ok)}</b></div>
-        <div class="fr-num"><small>ফেরত / ফেক</small><b class="fr-badc">{bn(bad)}</b></div>
-      </div>
-
+      {/* উপরের সারাংশ (সফলতার হার/মোট/ডেলিভারি/ফেরত) আপাতত দেখানো হয় না — নিচে কুরিয়ার আর দোকানের আলাদা হিসাব */}
       <h3 class="fr-h">কুরিয়ার অনুযায়ী</h3>
       {c ? (
         <>
