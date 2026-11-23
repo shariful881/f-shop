@@ -160,7 +160,7 @@ const ALL_GROUPS: { key: string; title: string; desc: string; fields: Field[] }[
     key: "reviews", title: "ক্রেতাদের রিভিউ", desc: "পণ্যের পেজ আর ল্যান্ডিং পেজের রিভিউ অংশ। রিভিউ নেওয়া পুরো চালু/বন্ধ আর অনুমোদন: অ্যাডমিন › রিভিউ।",
     fields: [
       { key: "rv_show", type: "toggle", label: "পণ্যের পেজে রিভিউ অংশ দেখাবে" },
-      { key: "rv_landing", type: "toggle", label: "ল্যান্ডিং পেজেও রিভিউ দেখাবে" },
+      { key: "rv_landing", type: "toggle", label: "ল্যান্ডিং পেজেও রিভিউ দেখাবে", hint: "শুধু অন্তত একটা রিভিউ থাকলে দেখায়" },
       { key: "rv_title", type: "text", label: "শিরোনাম", max: 60 },
       { key: "rv_layout", type: "select", label: "রিভিউ সাজানোর ধরন", options: { list: "একটার নিচে একটা", grid: "২ কলামের কার্ড", slider: "পাশাপাশি স্লাইড (মোবাইলে সোয়াইপ)" } },
       { key: "rv_count", type: "select", label: "কয়টা রিভিউ দেখাবে", options: { "3": "৩টা", "6": "৬টা", "10": "১০টা", "20": "২০টা" }, hint: "ছবিসহ রিভিউ আগে দেখায়" },
@@ -288,7 +288,7 @@ const BASE: Cfg = {
   pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4", pd_related_mobile: "auto", pd_related_desktop: "auto",
   card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
   hero_style: "slider", title_style: "ribbon", marquee: "0", offers_countdown: "0", card_design: "classic",
-  rv_show: "1", rv_landing: "1", rv_title: "ক্রেতাদের রিভিউ", rv_layout: "list", rv_count: "10", rv_summary: "1", rv_verified: "1", rv_photos: "1", rv_reply: "1",
+  rv_show: "1", rv_landing: "0", rv_title: "ক্রেতাদের রিভিউ", rv_layout: "list", rv_count: "10", rv_summary: "1", rv_verified: "1", rv_photos: "1", rv_reply: "1",
   rv_empty: "show", rv_empty_text: "এখনো কোনো রিভিউ নেই।", rv_btn: "1", rv_btn_text: "এই পণ্য কিনেছেন? রিভিউ দিন", rv_card_stars: "1",
   coming_soon: "0", coming_soon_text: "আমাদের দোকান খুব শীঘ্রই আসছে। অর্ডার করতে কল করুন।", breadcrumbs: "1", track_link: "1",
   ...TRUST_DEFAULTS,

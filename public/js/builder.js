@@ -361,6 +361,16 @@
         var cb2 = el("input", { type: "checkbox", checked: d.show_price !== false, onchange: function (e) { d.show_price = e.target.checked; } });
         box.appendChild(el("label", { class: "small-check" }, [cb2, " দাম দেখাবে"]));
         break;
+      case "contact":
+        box.appendChild(field("উপরের লেখা (ঐচ্ছিক)", text(d, "headline", "যেমন: অর্ডার বা কিছু জানতে কল করুন", 200)));
+        var cc = el("input", { type: "checkbox", checked: d.call !== false, onchange: function (e) { d.call = e.target.checked; } });
+        box.appendChild(el("label", { class: "small-check" }, [cc, " কল করার বাটন"]));
+        box.appendChild(field("কল বাটনের লেখা", text(d, "call_text", "কল করে অর্ডার করুন", 60)));
+        var cw2 = el("input", { type: "checkbox", checked: d.wa !== false, onchange: function (e) { d.wa = e.target.checked; } });
+        box.appendChild(el("label", { class: "small-check" }, [cw2, " WhatsApp বাটন"]));
+        box.appendChild(field("WhatsApp বাটনের লেখা", text(d, "wa_text", "WhatsApp-এ জিজ্ঞাসা করুন", 60)));
+        box.appendChild(el("p", { class: "muted", text: "নম্বর আসে সেটিংস › দোকানের তথ্য থেকে।" }));
+        break;
       case "order_form":
         box.appendChild(field("ফর্মের উপরের লেখা", text(d, "title", "অর্ডার করতে নিচের ফর্মটি পূরণ করুন", 200)));
         box.appendChild(el("p", { class: "muted", text: "অর্ডার ফর্ম সবসময় থাকে, শুধু জায়গা বদলানো যায়।" }));
@@ -649,6 +659,7 @@
     var data = {};
     // "ছবির গ্রিড" আসলে গ্রিড মোডের গ্যালারি
     if (type === "gallery_grid") { type = "gallery"; data = { layout: "grid", cols: 2, ratio: "square", images: [], captions: [] }; }
+    if (type === "contact") data = { headline: "", call: true, wa: true, call_text: "কল করে অর্ডার করুন", wa_text: "WhatsApp-এ জিজ্ঞাসা করুন" };
     var sec = { id: Math.random().toString(36).slice(2, 10), type: type, enabled: true, data: data };
     var formIdx = state.sections.findIndex(function (s) { return s.type === "order_form"; });
     state.sections.splice(formIdx < 0 ? state.sections.length : formIdx, 0, sec);

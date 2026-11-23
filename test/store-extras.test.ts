@@ -23,12 +23,20 @@ describe("পণ্যের পেজ", () => {
   it("কল/WhatsApp বাটন, সম্পর্কিত পণ্য, শেয়ার, জুম, ড্রপডাউনে সাইজ", async () => {
     const a = await adminBrowser();
     await customize(a, { pd_call: "1", pd_call_text: "এখনই কল দিন", pd_wa: "1", pd_share: "1", pd_zoom: "1", pd_related: "1", pd_related_title: "আরও পণ্য", pd_related_count: "4", pd_variant_style: "select", pd_sticky: "1", pd_sticky_text: "কিনুন" });
+    const pd = await get("/product/wooden-wall-shelf");
+    expect(pd).toContain("এখনই কল দিন");
+    expect(pd).toContain("wa.me/8801711111111?text=");
+    expect(pd).toContain("data-share-url");
+    expect(pd).toContain("data-zoom-on");
+    expect(pd).toContain("আরও পণ্য");
+    // ল্যান্ডিং পেজ শুধু অর্ডারের জন্য: নিচে কল/WhatsApp/শেয়ার বাটন আর "আরও দেখুন" নেই
     const html = await get("/p/wooden-wall-shelf");
-    expect(html).toContain("এখনই কল দিন");
-    expect(html).toContain("wa.me/8801711111111");
-    expect(html).toContain("data-share-url");
+    expect(html).not.toContain("এখনই কল দিন");
+    expect(html).not.toContain("data-share-url");
+    expect(html).not.toContain("আরও পণ্য");
+    expect(html).not.toContain("pd-extras");
+    expect(html).not.toContain("এখনো কোনো রিভিউ নেই");
     expect(html).toContain("data-zoom-on");
-    expect(html).toContain("আরও পণ্য");
     expect(html).toContain("কিনুন —");
     // ভ্যারিয়েন্ট থাকলে ড্রপডাউন
     const withVar = (await DB.prepare("SELECT p.slug FROM products p JOIN product_variants v ON v.product_id = p.id LIMIT 1").first<any>());
