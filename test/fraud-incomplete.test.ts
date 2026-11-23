@@ -116,7 +116,8 @@ describe("সব দোকানের মিলিত রেকর্ড", () =
     expect(html).toContain("ঝুঁকি বেশি");
     expect(html).toContain("২টা দোকান");
     expect(html).not.toContain("other-1");
-    expect(await (await admin.get("/admin/orders?status=new")).text()).toContain("ঝুঁকি বেশি");
+    // তালিকায় আর আলাদা ঝুঁকির চিপ নেই (কুরিয়ার কার্ডই যথেষ্ট); বিস্তারিত অর্ডারের পেজ/ফ্রড রিপোর্টে
+    expect(await (await admin.get("/admin/orders?status=new")).text()).not.toContain("ঝুঁকি বেশি");
   });
 
   it("শেয়ার বন্ধ করলে লেখেও না, দেখায়ও না", async () => {
@@ -181,7 +182,9 @@ describe("কুরিয়ারের ডেলিভারি রেকর�
     const html = await (await admin.get(`/admin/orders/${o.id}`)).text();
     expect(html).toContain("Steadfast (high)");
     expect(html).toContain("৯২%");
-    expect(await (await admin.get("/admin/orders?status=new")).text()).toContain("কুরিয়ারে ৯২%");
+    const list = await (await admin.get("/admin/orders?status=new")).text();
+    expect(list).toContain("৯২");
+    expect(list).not.toContain("কুরিয়ারে ৯২%");
   });
 
   it("BD Courier কী থাকলে সব কুরিয়ারের মিলিত হিসাব আগে নেয়", async () => {

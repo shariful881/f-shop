@@ -129,13 +129,6 @@ export const PurchaseBadge = ({ o }: { o: Order }) => {
 
 const RANGE_LABEL = { all: "সব সময়", today: "আজ", "7": "৭ দিন", "30": "৩০ দিন" } as const;
 
-/** কাস্টমারের আগের ডেলিভারি/বাতিল থেকে ছোট চিহ্ন */
-const HistoryBadge = ({ h }: { h?: { good: number; bad: number } }) => {
-  if (!h || h.good + h.bad === 0) return <span class="badge">নতুন কাস্টমার</span>;
-  const tone = h.bad === 0 ? "ok" : h.good >= h.bad * 2 ? "warn" : "bad";
-  return <span class={`badge badge-${tone}`} title="এই দোকানে আগের অর্ডার: ডেলিভারি / বাতিল-ফেক">দোকানে ✓{bn(h.good)} ✕{bn(h.bad)}</span>;
-};
-
 /** তিন জায়গা মিলিয়ে ক্রেতার রায় (তালিকায় ছোট চিহ্ন) */
 const RISK_TONE = { new: "", good: "ok", warn: "warn", bad: "bad" } as const;
 export const RiskBadge = ({ r }: { r?: Risk & { shared?: number; courier?: number | null } }) => {
@@ -250,7 +243,6 @@ export const OrdersPage = (p: {
                     <span class="oc-id"><b class="oc-name">{o.name}</b>
                       <span class="oc-ph"><a href={`tel:${o.phone}`}><Icon name="phone" size="sm" /> {o.phone}</a><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span></span>
                   </div>
-                  <div class="oc-tags"><a href={`/admin/orders?q=${o.phone}`} class="hist-link"><HistoryBadge h={p.history?.[o.phone]} /></a><RiskBadge r={p.risk?.[o.phone]} /></div>
                   {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}
                 </div></td>
                 <td class="ot-total">{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>

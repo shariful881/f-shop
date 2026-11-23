@@ -52,7 +52,7 @@ describe("অর্ডার পেজ", () => {
     const today = await (await a.get("/admin/orders?status=new&range=today")).text();
     expect(today).toContain("NEW1");
     expect(today).not.toContain("OLD1");
-    expect(today).toContain("দোকানে ✓১ ✕১");
+    expect(today).not.toContain("দোকানে ✓"); // দোকানের নিজের রেকর্ড শুধু ফ্রড রিপোর্টে
     const all = await (await a.get("/admin/orders?status=new&range=all")).text();
     expect(all).toContain("OLD1");
   });
