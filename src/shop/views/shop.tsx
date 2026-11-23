@@ -18,7 +18,7 @@ export const ProductCard = ({ p, cfg }: { p: Product; cfg?: Cfg }) => {
   // পণ্যের পেজ (বিস্তারিত) নাকি সরাসরি ল্যান্ডিং পেজ
   const href = (cfg?.product_link ?? "product") === "landing" ? `/p/${p.slug}` : `/product/${p.slug}`;
   const cartBtn = (cfg?.card_cart_btn ?? "1") === "1";
-  const out = p.track_stock === 1 && (p.stock ?? 0) <= 0;
+  const out = p.stock_status === "out" || (p.track_stock === 1 && (p.stock ?? 0) <= 0);
   return (
     <div class={`card cd-${cfg?.card_design || "classic"}`}>
       <a href={href} class="card-img">

@@ -11,7 +11,7 @@ import { createSession, destroyOtherSessions, destroySession, hashPassword, need
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
 import { InvoicePage, type InvoiceData } from "../views/invoice";
-import { productVariants, syncVariants, type Category, type Product } from "../lib/products";
+import { GALLERY_MAX, parseFeatures, parseGallery, productVariants, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
@@ -1162,13 +1162,19 @@ admin.post("/products/images", async (c) => {
   return bulkImagesView(c, result);
 });
 
+/** আগে ব্যবহার করা ব্র্যান্ড — ফর্মে বেছে নেওয়ার তালিকা */
+async function knownBrands(db: D1Database): Promise<string[]> {
+  const { results } = await db.prepare("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != '' ORDER BY brand LIMIT 100").all<{ brand: string }>();
+  return results.map((r) => r.brand);
+}
+
 admin.get("/products/new", async (c) =>
-  render(c, "নতুন পণ্য", "products", <ProductFormPage categories={await allCategories(c.env.DB)} />));
+  render(c, "নতুন পণ্য", "products", <ProductFormPage categories={await allCategories(c.env.DB)} brands={await knownBrands(c.env.DB)} />));
 
 admin.get("/products/:id{[0-9]+}/edit", async (c) => {
   const p = await c.env.DB.prepare("SELECT * FROM products WHERE id = ?").bind(toInt(c.req.param("id"))).first<Product>();
   if (!p) return c.redirect("/admin/products", 303);
-  return render(c, "পণ্য এডিট", "products", <ProductFormPage product={p} categories={await allCategories(c.env.DB)} variants={await productVariants(c.env.DB, p.id)} />);
+  return render(c, "পণ্য এডিট", "products", <ProductFormPage product={p} categories={await allCategories(c.env.DB)} variants={await productVariants(c.env.DB, p.id)} brands={await knownBrands(c.env.DB)} />);
 });
 
 function slugify(s: string): string {
@@ -1204,6 +1210,11 @@ async function saveProduct(c: Ctx, id: number | null) {
     track_stock: body.track_stock ? 1 : 0,
     low_stock: Math.max(0, Math.min(100000, toInt(body.low_stock, 5))),
     cost_price: str(body.cost_price, 12) === "" ? null : Math.max(0, toInt(body.cost_price)),
+    sku: str(body.sku, 60) || null,
+    barcode: str(body.barcode, 60) || null,
+    brand: str(body.brand, 80) || null,
+    features: parseFeatures(typeof body.features === "string" ? body.features.slice(0, 2000) : "").join("\n") || null,
+    stock_status: body.stock_status === "out" ? "out" : "in",
   };
   const options = [0, 1]
     .map((i) => ({
@@ -1220,6 +1231,7 @@ async function saveProduct(c: Ctx, id: number | null) {
   if (v.youtube_url && !youtubeId(v.youtube_url)) errors.youtube_url = "সঠিক YouTube লিংক দিন";
   const dup = await db.prepare("SELECT id FROM products WHERE slug = ? AND id != ?").bind(v.slug, id ?? 0).first();
   if (dup) errors.slug = "এই slug আগেই ব্যবহার হয়েছে";
+  if (v.sku && (await db.prepare("SELECT id FROM products WHERE sku = ? AND id != ?").bind(v.sku, id ?? 0).first())) errors.sku = "এই SKU আরেকটা পণ্যে আছে";
 
   const file = body.image;
   let imageKey = existing?.image ?? null;
@@ -1228,11 +1240,35 @@ async function saveProduct(c: Ctx, id: number | null) {
     if (!ext) errors.image = "শুধু JPG, PNG বা WebP ছবি দিন";
     else if (file.size > MAX_IMAGE) errors.image = "ছবি ৩ MB-এর কম হতে হবে";
   }
+  // গ্যালারি: প্রতিটা ঘরে আগের ছবি / সরানো / নতুন ফাইল / লাইব্রেরি থেকে বাছাই
+  const oldGallery = parseGallery(existing?.gallery_json);
+  for (let i = 0; i < GALLERY_MAX; i++) {
+    const f = body[`g${i}_file`];
+    if (f instanceof File && f.size > 0 && (!IMAGE_TYPES[f.type] || f.size > MAX_IMAGE)) errors.gallery = "গ্যালারির ছবি JPG, PNG বা WebP আর ৩ MB-এর কম হতে হবে";
+  }
 
   if (Object.keys(errors).length) {
     return render(c, "পণ্য", "products",
-      <ProductFormPage product={{ ...existing, ...v, image: existing?.image ?? null }} categories={await allCategories(db)} errors={errors} />, 422);
+      <ProductFormPage product={{ ...existing, ...v, image: existing?.image ?? null, gallery_json: existing?.gallery_json ?? null }} categories={await allCategories(db)} errors={errors} brands={await knownBrands(db)} />, 422);
   }
+
+  const gallery: string[] = [];
+  for (let i = 0; i < GALLERY_MAX; i++) {
+    const cur = str(body[`g${i}_cur`], 200);
+    let key: string | null = cur && oldGallery.includes(cur) ? cur : null; // শুধু আগে থেকে থাকা ছবিই "আগের" হিসেবে মানা
+    if (body[`g${i}_remove`]) key = null;
+    const f = body[`g${i}_file`];
+    if (f instanceof File && f.size > 0) {
+      key = `p/${crypto.randomUUID()}.${IMAGE_TYPES[f.type]}`;
+      await c.env.IMAGES.put(imageStorageKey(c.env.SHOP_ID, key), await f.arrayBuffer(), { httpMetadata: { contentType: f.type } });
+      await recordMedia(db, key, { name: f.name });
+    } else {
+      const pick = str(body[`g${i}_pick`], 200);
+      if (pick && pick !== key && (await mediaExists(db, pick))) key = pick;
+    }
+    if (key && !gallery.includes(key)) gallery.push(key);
+  }
+  const galleryJson = gallery.length ? JSON.stringify(gallery) : null;
 
   if (file instanceof File && file.size > 0) {
     imageKey = `p/${crypto.randomUUID()}.${IMAGE_TYPES[file.type]}`;
@@ -1244,18 +1280,22 @@ async function saveProduct(c: Ctx, id: number | null) {
     if (pick && pick !== imageKey && (await mediaExists(db, pick))) imageKey = pick;
   }
   const oldImage = existing?.image && existing.image !== imageKey ? existing.image : null;
+  const droppedGallery = oldGallery.filter((k) => !gallery.includes(k) && k !== imageKey);
 
-  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json, v.meta_title, v.meta_description, v.track_stock, v.low_stock, v.cost_price];
+  const cols = [v.category_id, v.name, v.slug, v.price, v.compare_price, imageKey, v.headline, v.short_desc, v.details_html, v.youtube_url, v.is_active, v.show_on_home, v.sort_order, v.options_json, v.meta_title, v.meta_description, v.track_stock, v.low_stock, v.cost_price,
+    v.sku, v.barcode, v.brand, galleryJson, v.features, v.stock_status];
   let productId = id;
   if (id) {
     await db.prepare(
       `UPDATE products SET category_id=?, name=?, slug=?, price=?, compare_price=?, image=?, headline=?, short_desc=?, details_html=?,
-         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, meta_title=?, meta_description=?, track_stock=?, low_stock=?, cost_price=?, updated_at=datetime('now') WHERE id=?`,
+         youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, meta_title=?, meta_description=?, track_stock=?, low_stock=?, cost_price=?,
+         sku=?, barcode=?, brand=?, gallery_json=?, features=?, stock_status=?, updated_at=datetime('now') WHERE id=?`,
     ).bind(...cols, id).run();
   } else {
     const r = await db.prepare(
-      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json, meta_title, meta_description, track_stock, low_stock, cost_price)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
+      `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json, meta_title, meta_description, track_stock, low_stock, cost_price,
+         sku, barcode, brand, gallery_json, features, stock_status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
     ).bind(...cols).first<{ id: number }>();
     productId = r!.id;
   }
@@ -1263,7 +1303,7 @@ async function saveProduct(c: Ctx, id: number | null) {
   // স্টক: ভ্যারিয়েন্ট না থাকলে পণ্যের নিজের, থাকলে ভ্যারিয়েন্টের যোগফল
   if (options.length) await recomputeProductStock(db, [productId!]);
   else if (v.track_stock && str(body.stock, 10) !== "") await setStock(db, [{ productId: productId!, variantId: null, stock: toInt(body.stock) }], id ? "পণ্যের পেজ থেকে" : "নতুন পণ্য");
-  await cleanupIfUnused(c, [oldImage]);
+  await cleanupIfUnused(c, [oldImage, ...droppedGallery]);
   flash(c, "ok", options.length ? "পণ্য সেভ হয়েছে। নিচে ভ্যারিয়েন্টের দাম/স্টক ঠিক করে নিন।" : "পণ্য সেভ হয়েছে।");
   return c.redirect(options.length ? `/admin/products/${productId}/edit` : "/admin/products", 303);
 }

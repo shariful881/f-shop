@@ -14,7 +14,7 @@ import { sanitizeHtml } from "../lib/sanitize";
 import { adminToken } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
-import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, linesSubtotal, productVariants, type Product } from "../lib/products";
+import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, parseGallery, linesSubtotal, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, maxQty, readCart, readCartEntries, removeFromCart, setCartQty, upsertCart } from "../lib/cart";
 import { ProductPage } from "../views/product";
 import { landingChrome, parseLanding } from "../lib/landing";
@@ -145,8 +145,8 @@ async function renderProduct(c: Ctx, p: Product, error?: string) {
   const s = c.var.settings;
   const cfg = themeConfig(s);
   const variants = variantsForSale(p, await productVariants(c.env.DB, p.id));
-  // ছবি: পণ্যের মূল ছবি + ল্যান্ডিং পেজের গ্যালারির ছবি (থাকলে)
-  const images = [p.image, ...(parseLanding(p.landing_json)?.sections.filter((x) => x.type === "gallery").flatMap((x) => x.data.images ?? []) ?? [])]
+  // ছবি: পণ্যের মূল ছবি + পণ্যের গ্যালারি + ল্যান্ডিং পেজের গ্যালারির ছবি (থাকলে)
+  const images = [p.image, ...parseGallery(p.gallery_json), ...(parseLanding(p.landing_json)?.sections.filter((x) => x.type === "gallery").flatMap((x) => x.data.images ?? []) ?? [])]
     .filter((k, i, a): k is string => !!k && a.indexOf(k) === i).slice(0, 10);
   const [rel, cat] = await Promise.all([
     cfg.pd_related === "1" && p.category_id

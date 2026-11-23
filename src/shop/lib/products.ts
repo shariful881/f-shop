@@ -22,6 +22,13 @@ export type Product = {
   stock?: number;
   low_stock?: number;
   cost_price?: number | null;
+  /** বাড়তি তথ্য (shop 0029) */
+  sku?: string | null;
+  barcode?: string | null;
+  brand?: string | null;
+  gallery_json?: string | null;
+  features?: string | null;
+  stock_status?: string | null;
   rating_avg?: number;
   rating_count?: number;
   /** কার্টের লাইনে: কতটা কেনা যায় (স্টক না গুনলে null) */
@@ -107,6 +114,7 @@ export async function cartLines(db: D1Database, entries: CartEntry[]): Promise<P
     if (!prod) continue;
     const own = variants.filter((x) => x.product_id === prod.id);
     const track = prod.track_stock === 1;
+    if (prod.stock_status === "out") continue; // দোকানদার "স্টক নেই" বসিয়েছেন
     if (!own.length) {
       // স্টক শেষ হলে কেনা যায় না
       if (track && (prod.stock ?? 0) <= 0) continue;
@@ -149,3 +157,19 @@ export async function activeProductsByIds(db: D1Database, ids: number[]): Promis
     .all<Product>();
   return ids.map((id) => results.find((p) => p.id === id)).filter((p): p is Product => !!p);
 }
+
+/** গ্যালারির ছবির key-গুলো (মূল ছবি বাদে), সর্বোচ্চ ৯টা */
+export const GALLERY_MAX = 9;
+export function parseGallery(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v.filter((k): k is string => typeof k === "string" && !!k).slice(0, GALLERY_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** মূল বৈশিষ্ট্য — প্রতি লাইনে একটা */
+export const parseFeatures = (s: string | null | undefined): string[] =>
+  (s || "").split(/\r?\n/).map((x) => x.replace(/^[\s•\-*✓✔]+/, "").trim()).filter(Boolean).slice(0, 20);
