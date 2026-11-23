@@ -81,3 +81,34 @@ describe("ল্যান্ডিং: '+ সেকশন' লিস্ট ভ�
     expect(b).not.toContain('<option value="order_form"');
   });
 });
+
+describe("ল্যান্ডিং: কল / WhatsApp বাটনের সেকশন", () => {
+  it("যাচাই: ডিফল্টে দুটো বাটনই চালু, ফাঁকা লেখায় ডিফল্ট লেখা, বন্ধ করা যায়", () => {
+    const [a, b] = normalizeLanding({ sections: [
+      { type: "contact", data: {} },
+      { type: "contact", data: { headline: "জানতে কল দিন", call: false, wa_text: "মেসেজ দিন" } },
+    ] }).sections;
+    expect(a!.data).toMatchObject({ call: true, wa: true, call_text: "কল করে অর্ডার করুন", wa_text: "WhatsApp-এ জিজ্ঞাসা করুন" });
+    expect(b!.data).toMatchObject({ headline: "জানতে কল দিন", call: false, wa: true, wa_text: "মেসেজ দিন" });
+  });
+
+  it("ল্যান্ডিং পেজের ভেতরে দোকানের নম্বর দিয়ে বাটন আসে; নম্বর না থাকলে সেকশন আসে না", async () => {
+    await DB.prepare("UPDATE settings SET value = '01711111111' WHERE key = 'whatsapp'").run();
+    const a = await adminBrowser();
+    const p = await DB.prepare("SELECT id, slug FROM products WHERE is_active = 1 LIMIT 1").first<{ id: number; slug: string }>();
+    const landing = { sections: [{ type: "contact", data: { headline: "কল-সেকশন-টেস্ট", call_text: "কল-টেস্ট", wa_text: "হোয়াটস-টেস্ট" } }] };
+    const fd = new FormData();
+    fd.append("landing_json", JSON.stringify(landing));
+    const html = await (await a.fetch(`/admin/products/${p!.id}/landing/preview`, { method: "POST", body: fd })).text();
+    for (const x of ["lp-contact", "কল-সেকশন-টেস্ট", "pd-call", "কল-টেস্ট", "wa.me/8801711111111?text=", "হোয়াটস-টেস্ট"]) expect(html).toContain(x);
+
+    await DB.prepare("UPDATE settings SET value = '' WHERE key IN ('whatsapp','contact_phone')").run();
+    await DB.prepare("UPDATE products SET landing_json = ? WHERE id = ?").bind(JSON.stringify(landing), p!.id).run();
+    const live = await (await new (await import("./helpers")).Browser().get(`/p/${p!.slug}`)).text();
+    expect(live).not.toContain("lp-contact");
+    expect(live).not.toContain("কল-সেকশন-টেস্ট");
+
+    const b = await (await a.get(`/admin/products/${p!.id}/landing`)).text();
+    expect(b).toContain('value="contact"');
+  });
+});
