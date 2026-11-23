@@ -122,15 +122,12 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
   const s = c.var.settings;
   const variants = variantsForSale(p, await productVariants(c.env.DB, p.id));
   const cfg = themeConfig(s);
-  const related = cfg.pd_related === "1" && p.category_id
-    ? (await c.env.DB.prepare(`${LISTING_SQL} AND p.category_id = ? AND p.id != ? ORDER BY p.sort_order, p.id LIMIT ?`).bind(p.category_id, p.id, parseInt(cfg.pd_related_count || "4", 10)).all<Product>()).results
-    : [];
   const head = pixel(c, [{ name: "ViewContent", id: newEventId("vc"), params: { ...productData([p]), content_name: p.name } }]);
   return page(c,
     <Layout title={p.meta_title || p.headline || p.name} settings={s} cartCount={readCart(c).length} head={head} nav={c.var.navCats} pages={c.var.navPages} bare {...landingChrome(p.landing_json)}
       description={p.meta_description || p.short_desc || undefined} ogImage={new URL(imageUrl(p.image), publicUrl(c)).toString()}>
-      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg} related={related}
-        reviews={reviewsOn(c) && cfg.rv_landing !== "0" ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id, reviewLimit(cfg))} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} cfg={cfg} /> : undefined} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
+      <LandingPage p={p} variants={variants} settings={s} form={form} cfg={cfg}
+        reviews={reviewsOn(c) && cfg.rv_landing === "1" && (p.rating_count ?? 0) > 0 ? <ReviewsBlock reviews={await productReviews(c.env.DB, p.id, reviewLimit(cfg))} avg={p.rating_avg ?? 0} count={p.rating_count ?? 0} slug={p.slug} cfg={cfg} /> : undefined} closed={!c.var.shopState.accepting ? ordersClosedMessage(s.contact_phone || "") : soldOut(p) ? SOLD_OUT_MSG : undefined} />
     </Layout>,
     status,
   );
