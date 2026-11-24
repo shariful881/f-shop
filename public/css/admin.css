@@ -560,3 +560,50 @@ body.admin .orders-wrap .ot-total small { font-weight: 400; }
 .oc-log s { color: #94a3b8; }
 .oc-new { color: #0f766e; font-weight: 600; }
 @media (max-width: 640px) { .ce-actions .btn { flex: 1; } }
+
+/* কল বোতাম */
+/* ui.css-এর body.admin .btn:not(...) নিয়মের চেয়ে জোরালো */
+body.admin .btn.btn-call, .btn.btn-call { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 14px; font-weight: 700; }
+body.admin .btn.btn-call:hover, .btn.btn-call:hover { background: #15803d !important; }
+.od-phone { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.call-dot { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #16a34a; color: #fff; margin-left: 6px; flex: none; }
+.call-dot:hover { background: #15803d; color: #fff; }
+.call-dot svg { width: 14px; height: 14px; }
+
+/* অর্ডারের নোট ও ফলো-আপ */
+.on-panel h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.on-panel h2 small { font-size: .75rem; font-weight: 500; }
+.on-form { display: grid; gap: 10px; }
+.on-form textarea { font-size: 16px; font-family: inherit; letter-spacing: normal; }
+.on-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.on-quick .chip { padding: 5px 11px; border-radius: 999px; border: 1px solid #cbd5e1; background: #fff; font: inherit; font-size: .82rem; cursor: pointer; }
+.on-quick .chip:hover { border-color: #0f766e; color: #0f766e; }
+.on-remind { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.on-remind-label { display: inline-flex; align-items: center; gap: 4px; font-size: .85rem; font-weight: 700; color: #334155; }
+.on-opt { position: relative; cursor: pointer; }
+.on-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.on-opt span { display: inline-block; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: .8rem; }
+.on-opt input:checked + span { background: #0f766e; border-color: #0f766e; color: #fff; }
+.on-opt input:focus-visible + span { outline: 2px solid #0f766e; outline-offset: 2px; }
+.on-custom { font-size: 15px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.on-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.on-list > li { padding: 10px 12px; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; }
+.on-list > li.is-open { border-color: #fcd34d; background: #fffbeb; }
+.on-list > li.is-due { border-color: #fb923c; background: #fff7ed; }
+.on-body { margin: 0 0 6px; white-space: pre-wrap; }
+.on-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .78rem; color: #64748b; }
+.on-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-weight: 700; }
+.on-tag.due { background: #ffedd5; color: #c2410c; }
+.on-tag.done { background: #dcfce7; color: #166534; }
+.on-tag svg { width: 12px; height: 12px; }
+.on-done { margin: 0 0 0 auto; }
+
+/* অর্ডার তালিকায় নোট */
+.ln { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: .78rem; }
+.ln-due { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-weight: 700; }
+.ln-due.is-due { background: #f97316; color: #fff; }
+.ln-due svg, .ln-text svg { width: 12px; height: 12px; }
+.ln-text { color: #475569; text-decoration: none; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+.ln-text:hover { color: #0f766e; }
+.ln-done { font-size: .78rem; }
+.tab-follow.has .tab-count { background: #f97316; color: #fff; }

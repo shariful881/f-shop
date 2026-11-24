@@ -12,6 +12,7 @@ import { createSession, destroyOtherSessions, destroySession, hashPassword, need
 import { changeStatus } from "../lib/order-status";
 import { AREA_LABEL, getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
 import { logChangeStatement, orderChanges, type ChangeRow } from "../lib/order-changes";
+import { closeFollowupsStatement, endOfTodayUtc, notesForList, orderNotes, remindAt, remindLabel, remindPresets } from "../lib/order-notes";
 import { InvoicePage, type InvoiceData } from "../views/invoice";
 import { GALLERY_MAX, slugChangeStatements, categoryTree, parseFeatures, parseGallery, productVariants, withChildren, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
@@ -452,6 +453,11 @@ admin.get("/orders", async (c) => {
   let binds: unknown[] = [status];
   const payPending = c.req.query("pay") === "pending";
   if (payPending) { where = "o.pay_status = 'pending' AND o.status IN ('new', 'confirmed')"; binds = []; }
+  // ফলো-আপ: আজকের মধ্যে (বা পেরিয়ে যাওয়া) খোলা মনে করানো
+  const eod = endOfTodayUtc();
+  const FOLLOW = "SELECT order_id FROM order_notes WHERE remind_at IS NOT NULL AND done_at IS NULL AND remind_at <= ?";
+  const follow = !payPending && c.req.query("follow") === "1";
+  if (follow) { where = `o.id IN (${FOLLOW})`; binds = [eod]; }
   if (q) {
     const phone = normalizePhone(q);
     where = "(o.phone LIKE ? OR o.name LIKE ? OR o.order_no LIKE ?" + (phone ? " OR o.phone = ?" : "") + ")";
@@ -461,7 +467,8 @@ admin.get("/orders", async (c) => {
   const { results } = await db
     .prepare(
       `SELECT o.*, (SELECT COALESCE(SUM(qty), 0) FROM order_items i WHERE i.order_id = o.id) AS item_count
-       FROM orders o WHERE ${where} AND ${dateCond} ORDER BY o.id DESC LIMIT ? OFFSET ?`,
+       FROM orders o WHERE ${where} AND ${follow ? "1" : dateCond}
+       ORDER BY ${follow ? "(SELECT MIN(remind_at) FROM order_notes n WHERE n.order_id = o.id AND n.done_at IS NULL AND n.remind_at IS NOT NULL)," : ""} o.id DESC LIMIT ? OFFSET ?`,
     )
     .bind(...binds, PER_PAGE + 1, (page - 1) * PER_PAGE)
     .all<Order & { item_count: number }>();
@@ -484,9 +491,11 @@ admin.get("/orders", async (c) => {
   const courierSums: Record<number, CourierSummary> = {};
   for (const o of orders) { const r = parseOrderReport(o.courier_report) ?? phoneCache[o.phone]; if (r) courierSums[o.id] = r; }
   const crReady = courierRecordReady(c.var.settings, await platformCourier(c));
+  const notes = await notesForList(db, orders.map((o) => o.id));
+  const followCount = (await db.prepare(`SELECT COUNT(DISTINCT order_id) n FROM order_notes WHERE remind_at IS NOT NULL AND done_at IS NULL AND remind_at <= ?`).bind(eod).first<{ n: number }>())?.n ?? 0;
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending} courier={courierSums} crReady={crReady}
+    <OrdersPage notes={notes} follow={follow} followCount={followCount} orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending} courier={courierSums} crReady={crReady}
       payCount={(await db.prepare("SELECT COUNT(*) n FROM orders WHERE pay_status = 'pending' AND status IN ('new', 'confirmed')").first<{ n: number }>())?.n ?? 0}
       hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
 });
@@ -747,10 +756,10 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
     cachedCourierRecords(db, [o.phone]),
   ]);
   const record = { own: own[o.phone], shared: shared[o.phone], courier: parseOrderReport(o.courier_report) ?? cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings, await platformCourier(c)) };
-  const changes = await orderChanges(db, o.id);
+  const [changes, notes] = await Promise.all([orderChanges(db, o.id), orderNotes(db, o.id)]);
   const st = c.var.settings;
   return render(c, o.order_no, "orders",
-    <OrderDetailPage changes={changes} editCustomer={c.req.query("edit") === "customer"}
+    <OrderDetailPage changes={changes} notes={notes} presets={remindPresets()} editCustomer={c.req.query("edit") === "customer"}
       rates={{ inside: deliveryCharge(st, "inside"), outside: deliveryCharge(st, "outside"), freeMin: freeDeliveryMin(st) }} order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
       record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} wa={waMessages(o, data.items, c.var.settings, await storeOrigin(c))} />);
 });
@@ -767,6 +776,11 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
   const res = await changeStatus(c.env.DB, id, to);
   if (!res.ok) return { ok: false, message: res.message };
   later(c, liveOrder(c.env, id, "status", c.var.admin));
+  // নতুন ছাড়া অন্য স্ট্যাটাসে গেলে বাকি ফলো-আপ বন্ধ
+  if (to !== "new") {
+    const r = await closeFollowupsStatement(c.env.DB, id).run();
+    if (r.meta.changes) await c.env.REMINDERS?.schedule();
+  }
   const wasBad = before?.status === "cancelled" || before?.status === "fake";
   // স্টক: বিক্রি হলে কাটা, ফেরালে (নতুন/বাতিল/ফেক) ফেরত — দুটোই একবারই হয়
   if (live) { await snapshotCost(c.env.DB, id); await applyOrderStock(c.env.DB, id); }
@@ -922,6 +936,38 @@ admin.post("/orders/:id{[0-9]+}/customer", async (c) => {
   const money = delivery !== o.delivery_charge ? ` ডেলিভারি ${taka(o.delivery_charge)} → ${taka(delivery)}, নতুন মোট ${taka(total)}।` : "";
   flash(c, "ok", `ক্রেতার তথ্য সেভ হয়েছে।${money}`);
   return c.redirect(back, 303);
+});
+
+/** দোকানের নিজের নোট (ক্রেতা দেখে না) — চাইলে মনে করানোর সময়সহ */
+admin.post("/orders/:id{[0-9]+}/notes", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const db = c.env.DB;
+  const back = `/admin/orders/${id}#notes`;
+  if (!(await db.prepare("SELECT id FROM orders WHERE id = ?").bind(id).first())) return c.redirect("/admin/orders", 303);
+  const b = await c.req.parseBody();
+  const body = str(b.body, 500);
+  const choice = String(b.remind ?? "");
+  if (!body) { flash(c, "error", "নোটে কিছু লিখুন।"); return c.redirect(back, 303); }
+  let at: string | null = null;
+  if (choice) {
+    at = remindAt(choice, String(b.remind_custom ?? ""));
+    if (!at) { flash(c, "error", "মনে করানোর সময় ঠিক নয় — সামনের কোনো সময় বাছুন।"); return c.redirect(back, 303); }
+  }
+  const me = c.var.admin;
+  await db.prepare("INSERT INTO order_notes (order_id, body, remind_at, by_name, by_role) VALUES (?, ?, ?, ?, ?)")
+    .bind(id, body, at, me?.name || me?.email || null, me?.role ?? null).run();
+  if (at) await c.env.REMINDERS?.schedule();
+  flash(c, "ok", at ? `নোট সেভ হয়েছে — ${remindLabel(at)}-এ মনে করানো হবে।` : "নোট সেভ হয়েছে।");
+  return c.redirect(back, 303);
+});
+
+/** ফলো-আপ শেষ (✓ হয়ে গেছে) */
+admin.post("/orders/:id{[0-9]+}/notes/:nid{[0-9]+}/done", async (c) => {
+  const id = toInt(c.req.param("id"));
+  await c.env.DB.prepare("UPDATE order_notes SET done_at = datetime('now') WHERE id = ? AND order_id = ? AND done_at IS NULL").bind(toInt(c.req.param("nid")), id).run();
+  await c.env.REMINDERS?.schedule();
+  const toList = String((await c.req.parseBody()).to_list ?? "") === "1";
+  return c.redirect(toList ? "/admin/orders?follow=1" : `/admin/orders/${id}#notes`, 303);
 });
 
 admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {

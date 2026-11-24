@@ -39,8 +39,10 @@ import m0029 from "../../migrations/shop/0029_product_extra.sql";
 import m0030 from "../../migrations/shop/0030_category_extra.sql";
 import m0031 from "../../migrations/shop/0031_slug_redirects.sql";
 import m0032 from "../../migrations/shop/0032_order_changes.sql";
+import m0033 from "../../migrations/shop/0033_order_notes.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
+import { nextReminder } from "./lib/order-notes";
 import { mediaUsage } from "./lib/media";
 import seedDemoSql from "../../scripts/seed-demo.sql";
 import { nicheByKey, nicheStatements } from "./lib/niches";
@@ -79,6 +81,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0030_category_extra", m0030],
   ["0031_slug_redirects", m0031],
   ["0032_order_changes", m0032],
+  ["0033_order_notes", m0033],
 ];
 
 export type SetupInput = {
@@ -104,7 +107,7 @@ export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "
  * এক দোকানের কোড অন্য দোকানের ডাটাবেস দেখতে পারে না।
  */
 /** ব্যাকআপ থেকে ফেরানোর টেবিল — আগে যার উপর অন্যরা নির্ভর করে */
-export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend", "reviews", "incomplete_orders", "order_changes", "slug_redirects"];
+export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend", "reviews", "incomplete_orders", "order_changes", "slug_redirects", "order_notes"];
 
 /** অনুরোধের দোকান-অবস্থা থেকে ছবির জায়গার সীমা (না থাকলে সীমা নেই — যেমন ভেতরের কাজ) */
 function quotaStore(plain: ImageStore, db: SqlDatabase, stateHeader: string | null) {
@@ -373,7 +376,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   /** সুপার অ্যাডমিনের পুরো ব্যাকআপ (JSON) — পাসওয়ার্ড, সেশন আর ছবির বাইট বাদে */
   async exportData(shopId: string) {
     await this.ensureInit(shopId, false);
-    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders", "stock_moves", "ad_spend", "reviews", "order_changes", "slug_redirects"];
+    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders", "stock_moves", "ad_spend", "reviews", "order_changes", "slug_redirects", "order_notes"];
     const out: Record<string, unknown[]> = {};
     for (const t of tables) {
       const r = await this.db.prepare(`SELECT * FROM ${t} LIMIT 50000`).all().catch(() => ({ results: [] }));
@@ -419,6 +422,33 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   async purge(): Promise<void> {
     await this.ctx.storage.deleteAll();
     this.shopId = null;
+  }
+
+  /** সবচেয়ে কাছের ফলো-আপের সময়ে alarm (নেই তো বন্ধ) — নির্দিষ্ট সময়ে পুশ, cron লাগে না */
+  async scheduleReminders(): Promise<void> {
+    const at = await nextReminder(this.db.asD1());
+    if (at === null) { await this.ctx.storage.deleteAlarm(); return; }
+    await this.ctx.storage.setAlarm(Math.max(at, Date.now() + 1000));
+  }
+
+  /** ফলো-আপের সময় হলে দোকানের ফোনে পুশ */
+  async alarm(): Promise<void> {
+    if (!this.shopId) this.shopId = (await this.ctx.storage.get<string>("shop_id")) ?? null;
+    if (!this.shopId) return;
+    const db = this.db.asD1();
+    const { results } = await db.prepare(
+      `SELECT n.id, n.body, n.remind_at, o.id order_id, o.order_no, o.name, o.phone FROM order_notes n JOIN orders o ON o.id = n.order_id
+       WHERE n.remind_at IS NOT NULL AND n.done_at IS NULL AND n.pushed_at IS NULL AND n.remind_at <= datetime('now', '+30 seconds') ORDER BY n.remind_at LIMIT 20`,
+    ).all<{ id: number; body: string; remind_at: string; order_id: number; order_no: string; name: string; phone: string }>();
+    if (results.length) {
+      await db.batch(results.map((r) => db.prepare("UPDATE order_notes SET pushed_at = datetime('now') WHERE id = ?").bind(r.id)));
+      const one = results[0]!;
+      const msg = results.length === 1
+        ? { title: `⏰ ${one.order_no} — ${one.name}কে কল করার সময়`, body: `${one.phone} · ${one.body}`.slice(0, 180), url: `/admin/orders/${one.order_id}`, tag: `followup-${one.order_id}` }
+        : { title: `⏰ ${results.length}টা অর্ডারে ফলো-আপের সময়`, body: results.map((r) => `${r.order_no} ${r.name}`).join(", ").slice(0, 180), url: "/admin/orders?follow=1", tag: "followup" };
+      try { await pushToShop(db, this.env.PLATFORM_DB, msg); } catch { /* পুশ না গেলেও তালিকায় দেখায় */ }
+    }
+    await this.scheduleReminders();
   }
 
   /** দোকানের ফোনে নোটিফিকেশন (মূল সার্ভার থেকে — যেমন মোছার সতর্কবার্তা) */
@@ -515,6 +545,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
 
     const env = {
       LIVE: { emit: (ev: LiveEvent) => this.liveBroadcast(ev) },
+      REMINDERS: { schedule: () => this.scheduleReminders() },
       DB: this.db.asD1(),
       IMAGES: quotaStore(this.images(shopId), this.db, request.headers.get("x-fshop-state")),
       PLATFORM_DB: this.env.PLATFORM_DB,

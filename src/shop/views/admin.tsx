@@ -21,6 +21,8 @@ import type { OrderChange } from "../lib/order-changes";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
 import { CourierCard, FraudDialog } from "./fraud-report";
 import { PhoneHistoryBadge, PhoneHistoryDialog, type PhoneStat } from "./phone-history";
+import { CallButton, ListNote, NotesPanel } from "./order-notes";
+import type { ListNoteInfo, OrderNote } from "../lib/order-notes";
 import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
 import { waLink, type WaMsg } from "../lib/whatsapp";
 import { bn } from "../lib/format";
@@ -141,7 +143,7 @@ export const RiskBadge = ({ r }: { r?: Risk & { shared?: number; courier?: numbe
   return <span class={`badge badge-${RISK_TONE[r.level]}`} title={`ডেলিভারি সফল ${bn(r.ratio ?? 0)}% (${bn(r.records)}টা রেকর্ড)${parts ? " — " + parts : ""}`}>{r.label} {r.ratio != null && `${bn(r.ratio)}%`}</span>;
 };
 
-export const OrdersPage = (p: {
+export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: boolean; followCount?: number;
   orders: (Order & { item_count: number })[];
   counts: Record<string, number>;
   status: OrderStatus;
@@ -162,7 +164,7 @@ export const OrdersPage = (p: {
   const courierBulk = !p.q && !p.payPending && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
   const bulk = p.orders.length > 0;
   const qs = (extra: Record<string, string | number>) => {
-    const u = new URLSearchParams({ status: p.status, range, ...(p.q ? { q: p.q } : {}) });
+    const u = new URLSearchParams(p.follow ? { follow: "1" } : { status: p.status, range, ...(p.q ? { q: p.q } : {}) });
     for (const [k, v] of Object.entries(extra)) u.set(k, String(v));
     return `/admin/orders?${u}`;
   };
@@ -176,7 +178,7 @@ export const OrdersPage = (p: {
     { to: "cancelled", label: "বাতিল", cls: "btn-outline", ask: "বাছাই করা অর্ডার বাতিল করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
     { to: "fake", label: "ফেক", cls: "btn-danger", ask: "বাছাই করা অর্ডার ফেক করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
   ];
-  const bulkTo = p.q || p.payPending ? [] : BULK_ALL.filter((b) => b.to !== p.status);
+  const bulkTo = p.q || p.payPending ? [] : p.follow ? BULK_ALL : BULK_ALL.filter((b) => b.to !== p.status);
   return (
   // লাইভ: নতুন অর্ডার/স্ট্যাটাস বদল এলে live.js এই অংশটা নতুন করে আনে (পেজ রিফ্রেশ ছাড়া)
   <div data-live-orders={!p.q && p.page === 1 ? "1" : "0"}>
@@ -188,10 +190,13 @@ export const OrdersPage = (p: {
     <div class="orders-top">
     <div class="tabs">
       {STATUS_TABS.map((s) => (
-        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && !p.payPending && p.status === s ? "tab active" : "tab"}>
+        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && !p.payPending && !p.follow && p.status === s ? "tab active" : "tab"}>
           {STATUS_LABEL[s]} <span class="tab-count">{bn(p.counts[s] ?? 0)}</span>
         </a>
       ))}
+      <a href="/admin/orders?follow=1" class={`tab tab-follow${p.follow ? " active" : ""}${(p.followCount ?? 0) > 0 ? " has" : ""}`}>
+        <Icon name="clock" size="sm" /> ফলো-আপ <span class="tab-count">{bn(p.followCount ?? 0)}</span>
+      </a>
     </div>
     <a href="/admin/orders/new" class="btn btn-primary orders-new"><Icon name="plus" size="sm" /> নতুন অর্ডার</a>
     </div>
@@ -245,10 +250,11 @@ export const OrdersPage = (p: {
                   <div class="oc-who">
                     <span class="oc-av" aria-hidden="true">{(o.name || "?").trim().charAt(0).toUpperCase()}</span>
                     <span class="oc-id"><b class="oc-name">{o.name}</b>
-                      <span class="oc-ph"><a href={`tel:${o.phone}`}><Icon name="phone" size="sm" /> {o.phone}</a><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span>
+                      <span class="oc-ph"><a href={`tel:${o.phone}`}>{o.phone}</a><CallButton phone={o.phone} compact /><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span>
                       {(p.history?.[o.phone]?.n ?? 0) > 1 && <span class="ph-row"><PhoneHistoryBadge phone={o.phone} orderId={o.id} st={p.history?.[o.phone]} />
                         {o.status === "new" && (p.history?.[o.phone]?.fresh ?? 0) >= 2 && Date.now() - Date.parse(o.created_at.replace(" ", "T") + "Z") < 864e5 && <span class="ph-dup" title="একই নম্বর থেকে ২৪ ঘণ্টায় একাধিক নতুন অর্ডার — ভুলে দুবার দিয়েছে কি না দেখুন">ডুপ্লিকেট?</span>}</span>}</span>
                   </div>
+                  <ListNote orderId={o.id} info={p.notes?.[o.id]} follow={p.follow} />
                   {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}
                 </div></td>
                 <td class="ot-total">{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
@@ -439,7 +445,7 @@ const OrderChangeLog = ({ changes }: { changes: OrderChange[] }) => (
   </details>
 );
 
-export const OrderDetailPage = (p: { changes?: OrderChange[]; editCustomer?: boolean; rates?: { inside: number; outside: number; freeMin: number }; order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord; wa?: WaMsg[] }) => {
+export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: string; label: string }[]; changes?: OrderChange[]; editCustomer?: boolean; rates?: { inside: number; outside: number; freeMin: number }; order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord; wa?: WaMsg[] }) => {
   const o = p.order;
   return (
     <>
@@ -472,17 +478,19 @@ export const OrderDetailPage = (p: { changes?: OrderChange[]; editCustomer?: boo
           {priceEditable(o) && p.rates && <CustomerEditForm o={o} rates={p.rates} open={!!p.editCustomer} />}
           <dl class="kv">
             <dt>নাম</dt><dd>{o.name}</dd>
-            <dt>মোবাইল</dt><dd><a href={`tel:${o.phone}`}>{o.phone}</a> {p.blocked.phone && <span class="pill pill-bad">ব্লক</span>}</dd>
+            <dt>মোবাইল</dt><dd class="od-phone"><a href={`tel:${o.phone}`}>{o.phone}</a> <CallButton phone={o.phone} /> {p.blocked.phone && <span class="pill pill-bad">ব্লক</span>}</dd>
             {(p.wa ?? []).length > 0 && <><dt>WhatsApp</dt><dd class="wa-btns">{p.wa!.map((m, i) => <a href={waLink(o.phone, m.text)} target="_blank" rel="noopener" class={`btn btn-sm ${i === 0 ? "btn-wa" : "btn-outline"}`}><Icon name="message-circle" size="sm" /> {m.label}</a>)}</dd></>}
             <dt>ঠিকানা</dt><dd>{o.address}</dd>
             <dt>এলাকা</dt><dd>{AREA_LABEL[o.area]}</dd>
             {o.email && <><dt>ইমেইল</dt><dd><a href={`mailto:${o.email}`}>{o.email}</a></dd></>}
             {orderExtras(o).map(([k, val]) => <><dt>{k}</dt><dd>{val}</dd></>)}
-            {o.note && <><dt>নোট</dt><dd>{o.note}</dd></>}
+            {o.note && <><dt>ক্রেতার নোট</dt><dd>{o.note}</dd></>}
           </dl>
           {!priceEditable(o) && o.consignment_id && (o.status === "new" || o.status === "confirmed") && <p class="muted small">কুরিয়ারে পাঠানো হয়ে গেছে — ক্রেতার তথ্য বদলাতে কুরিয়ারের প্যানেলে বদলান।</p>}
           {(p.changes ?? []).length > 0 && <OrderChangeLog changes={p.changes!} />}
         </section>
+
+        <NotesPanel orderId={o.id} notes={p.notes ?? []} presets={p.presets ?? []} />
 
         <section class="panel">
           <h2>পণ্য</h2>

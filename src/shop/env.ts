@@ -9,6 +9,8 @@ export type Bindings = {
   SUPPORT: DurableObjectNamespace<import("../support-hub").SupportHub>;
   /** খোলা অ্যাডমিন প্যানেলে লাইভ খবর পাঠানো (দোকানের Durable Object থেকে; টেস্ট/বাইরে না-ও থাকতে পারে) */
   LIVE?: import("./lib/live").LiveHub;
+  /** অর্ডার ফলো-আপের সময়ে ফোনে পুশ — DO alarm আবার ঠিক করা */
+  REMINDERS?: { schedule(): Promise<void> };
   SHOP_ID: string;
   SHOP_SLUG: string;
   PLATFORM_DOMAIN: string;

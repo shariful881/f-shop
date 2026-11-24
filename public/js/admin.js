@@ -561,3 +561,36 @@ document.addEventListener("click", function (e) {
   f.addEventListener("change", calc);
   calc();
 })();
+
+/* অর্ডারের নোট: তৈরি লেখায় এক চাপ (সাথে মনে করানোর সময়), "নিজে সময়" বাছলে তারিখ-সময়ের ঘর */
+(function () {
+  var f = document.querySelector("[data-on-form]");
+  if (!f) return;
+  var body = f.querySelector("[data-on-body]"), custom = f.querySelector("[data-on-custom]");
+  function syncCustom() {
+    var r = f.querySelector("[name=remind]:checked");
+    var on = r && r.value === "custom";
+    custom.hidden = !on; custom.required = !!on;
+    if (on && !custom.value) {
+      // ঢাকার সময়ে ১ ঘণ্টা পরে
+      var d = new Date(Date.now() + 7 * 3600000);
+      custom.value = d.toISOString().slice(0, 16);
+    }
+  }
+  f.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-on-quick]");
+    if (!b) return;
+    var t = b.getAttribute("data-on-quick");
+    body.value = body.value.trim() ? body.value.trim() + " — " + t : t;
+    var k = b.getAttribute("data-on-remind");
+    if (k) {
+      // আজকের সময় পেরিয়ে গেলে (৩টা/৭টা দেখায় না) আগামীকাল সকাল
+      var r = f.querySelector('[name=remind][value="' + k + '"]') || f.querySelector('[name=remind][value="n10"]');
+      if (r) r.checked = true;
+    }
+    syncCustom();
+    body.focus();
+  });
+  f.addEventListener("change", syncCustom);
+  syncCustom();
+})();
