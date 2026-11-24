@@ -3808,5 +3808,9 @@
  "শিরোনাম ও লিংক": "Title & link",
  "লিংকে ইংরেজি অক্ষর, সংখ্যা আর - দিন (যেমন period-panty)": "Use English letters, numbers and - in the link (e.g. period-panty)",
  "এই লিংক অন্য একটা পণ্যে ব্যবহার হচ্ছে — অন্য নাম দিন": "This link is used by another product — choose a different one",
- "সেভ হয়েছে। নতুন লিংক চালু — পুরনো লিংকে এলেও ভিজিটর নতুন পেজে চলে যাবে।": "Saved. The new link is live — visitors on the old link will be sent to the new page."
+ "সেভ হয়েছে। নতুন লিংক চালু — পুরনো লিংকে এলেও ভিজিটর নতুন পেজে চলে যাবে।": "Saved. The new link is live — visitors on the old link will be sent to the new page.",
+ "ডুপ্লিকেট?": "Duplicate?",
+ "এই নম্বরের অর্ডার": "Orders from this number",
+ "এই অর্ডার": "This order",
+ "এই নম্বরের সব অর্ডার তালিকায় দেখুন →": "See all orders from this number →"
 }

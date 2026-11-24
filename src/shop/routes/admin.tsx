@@ -46,6 +46,7 @@ import { MediaPage } from "../views/media";
 import { DesignEditorPage } from "../views/design";
 import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, orderCourierReport, parseOrderReport, platformCourierKeys, type PlatformCourierKeys, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
 import { clearOutcome, outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type CourierSummary, type Risk } from "../lib/fraud";
+import { PhoneHistory, type PhoneHistoryOrder, type PhoneStat } from "../views/phone-history";
 import { CourierCard, FraudCheckPage, FraudDialog, FraudReport, type ReportData, type ReportOrder } from "../views/fraud-report";
 import { CourierPage, SmsPage, type SmsLogRow } from "../views/admin";
 import { customSmsUrlError, notifyOrder, resendSms, SMS_PROVIDERS, testSms, type SmsEvent } from "../lib/sms";
@@ -467,13 +468,14 @@ admin.get("/orders", async (c) => {
 
   // কাস্টমারের আগের রেকর্ড: এই পাতার নম্বরগুলোর ডেলিভারি/বাতিল (একটাই কোয়েরি)
   const phones = [...new Set(orders.map((o) => o.phone))];
-  const history: Record<string, { good: number; bad: number }> = {};
+  const history: Record<string, PhoneStat> = {};
   if (phones.length) {
     const { results: h } = await db.prepare(
-      `SELECT phone, SUM(status IN ('confirmed', 'shipped')) good, SUM(status IN ('cancelled', 'fake')) bad
+      `SELECT phone, COUNT(*) n, SUM(status IN ('confirmed', 'shipped')) good, SUM(status IN ('cancelled', 'fake')) bad,
+              SUM(status = 'new' AND created_at >= datetime('now', '-1 day')) fresh
        FROM orders WHERE phone IN (${phones.map(() => "?").join(",")}) GROUP BY phone`,
-    ).bind(...phones).all<{ phone: string; good: number; bad: number }>();
-    for (const r of h) history[r.phone] = { good: r.good, bad: r.bad };
+    ).bind(...phones).all<{ phone: string } & PhoneStat>();
+    for (const r of h) history[r.phone] = { n: r.n, good: r.good, bad: r.bad, fresh: r.fresh };
   }
   const risk = await riskMap(c, phones);
   // অর্ডারে সেভ করা রিপোর্ট আগে; না থাকলে (পুরনো অর্ডার) নম্বরের ক্যাশ
@@ -511,6 +513,29 @@ function manualView(c: Ctx, options: ManualOption[], values: ManualValues, extra
   return render(c, "নতুন অর্ডার", "orders",
     <ManualOrderPage options={options} values={values} delivery={{ inside: deliveryCharge(s, "inside"), outside: deliveryCharge(s, "outside"), freeMin: freeDeliveryMin(s) }} {...extra} />, status);
 }
+
+/** অর্ডার তালিকার পপআপ: একই নম্বরের সব অর্ডার (পণ্য, তারিখ, স্ট্যাটাস) */
+admin.get("/orders/phone-history", async (c) => {
+  const phone = normalizePhone(c.req.query("phone") || "");
+  if (!phone) return c.html(<p class="fr-alert">সঠিক মোবাইল নম্বর নয়</p>, 400);
+  const db = c.env.DB;
+  const LIMIT = 20;
+  const { results } = await db.prepare(
+    "SELECT id, order_no, status, total, created_at, name, outcome FROM orders WHERE phone = ? ORDER BY id DESC LIMIT ?",
+  ).bind(phone, LIMIT + 1).all<Omit<PhoneHistoryOrder, "items">>();
+  const list = results.slice(0, LIMIT);
+  const total = results.length > LIMIT ? (await db.prepare("SELECT COUNT(*) n FROM orders WHERE phone = ?").bind(phone).first<{ n: number }>())?.n ?? list.length : list.length;
+  const items: Record<number, PhoneHistoryOrder["items"]> = {};
+  if (list.length) {
+    const { results: it } = await db.prepare(
+      `SELECT order_id, product_name, variant_label, qty FROM order_items WHERE order_id IN (${list.map(() => "?").join(",")}) ORDER BY id`,
+    ).bind(...list.map((o) => o.id)).all<{ order_id: number; product_name: string; variant_label: string | null; qty: number }>();
+    for (const i of it) (items[i.order_id] ??= []).push(i);
+  }
+  c.header("cache-control", "no-store");
+  return c.html(<PhoneHistory phone={phone} current={toInt(c.req.query("order"), 0) || undefined} total={total} more={results.length > LIMIT}
+    orders={list.map((o) => ({ ...o, items: items[o.id] ?? [] }))} />);
+});
 
 admin.get("/orders/new", async (c) => {
   const v = emptyManual();

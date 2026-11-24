@@ -19,6 +19,7 @@ import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
 import { CourierCard, FraudDialog } from "./fraud-report";
+import { PhoneHistoryBadge, PhoneHistoryDialog, type PhoneStat } from "./phone-history";
 import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
 import { waLink, type WaMsg } from "../lib/whatsapp";
 import { bn } from "../lib/format";
@@ -147,7 +148,7 @@ export const OrdersPage = (p: {
   page: number;
   hasMore: boolean;
   range?: keyof typeof RANGE_LABEL;
-  history?: Record<string, { good: number; bad: number }>;
+  history?: Record<string, PhoneStat>;
   risk?: Record<string, Risk & { shared?: number; courier?: number | null }>;
   /** কুরিয়ার রিপোর্টের ক্যাশ আর খোঁজা যায় কি না */
   courier?: Record<number, CourierSummary>;
@@ -243,7 +244,9 @@ export const OrdersPage = (p: {
                   <div class="oc-who">
                     <span class="oc-av" aria-hidden="true">{(o.name || "?").trim().charAt(0).toUpperCase()}</span>
                     <span class="oc-id"><b class="oc-name">{o.name}</b>
-                      <span class="oc-ph"><a href={`tel:${o.phone}`}><Icon name="phone" size="sm" /> {o.phone}</a><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span></span>
+                      <span class="oc-ph"><a href={`tel:${o.phone}`}><Icon name="phone" size="sm" /> {o.phone}</a><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span>
+                      {(p.history?.[o.phone]?.n ?? 0) > 1 && <span class="ph-row"><PhoneHistoryBadge phone={o.phone} orderId={o.id} st={p.history?.[o.phone]} />
+                        {o.status === "new" && (p.history?.[o.phone]?.fresh ?? 0) >= 2 && Date.now() - Date.parse(o.created_at.replace(" ", "T") + "Z") < 864e5 && <span class="ph-dup" title="একই নম্বর থেকে ২৪ ঘণ্টায় একাধিক নতুন অর্ডার — ভুলে দুবার দিয়েছে কি না দেখুন">ডুপ্লিকেট?</span>}</span>}</span>
                   </div>
                   {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}
                 </div></td>
@@ -266,6 +269,7 @@ export const OrdersPage = (p: {
       {p.hasMore && <a class="btn btn-outline" href={qs({ page: p.page + 1 })}>পরের →</a>}
     </div>
     <FraudDialog />
+    <PhoneHistoryDialog />
   </div>
   );
 };

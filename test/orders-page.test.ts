@@ -57,3 +57,36 @@ describe("অর্ডার পেজ", () => {
     expect(all).toContain("OLD1");
   });
 });
+
+describe("একই নম্বরের অর্ডার — ব্যাজ আর পপআপ", () => {
+  it("একাধিক অর্ডারে ব্যাজ (রং), নতুন জোড়ায় 'ডুপ্লিকেট?', একটায় কিছু না", async () => {
+    await addOrder("P1", "01711111111", "fake", "2026-01-01 10:00:00");
+    const cur = await addOrder("P2", "01711111111", "new");
+    await addOrder("P3", "01711111111", "new");
+    await addOrder("Q1", "01799999999", "new");
+    const a = await adminBrowser();
+    const html = await (await a.get("/admin/orders?status=new")).text();
+    expect(html).toContain(`data-ph-open="01711111111" data-ph-order="${cur}"`);
+    expect(html).toContain("ph-badge ph-bad");
+    expect(html).toContain("৩টা অর্ডার");
+    expect(html).toContain("ডুপ্লিকেট?");
+    expect(html).not.toContain('data-ph-open="01799999999"');
+    expect(html).toContain('id="ph-dlg"');
+  });
+
+  it("পপআপে পণ্য, সাইজ, তারিখ, স্ট্যাটাস, সারাংশ; এখনকার অর্ডার চিহ্নিত", async () => {
+    const old = await addOrder("P1", "01711111111", "shipped", "2026-01-05 04:00:00");
+    const cur = await addOrder("P2", "01711111111", "new");
+    await addOrder("P3", "01711111111", "cancelled");
+    await DB.prepare("INSERT INTO order_items (order_id, product_name, price, qty, variant_label) VALUES (?, 'পিরিয়ড প্যান্টি', 599, 2, 'L')").bind(old).run();
+    await DB.prepare("INSERT INTO order_items (order_id, product_name, price, qty) VALUES (?, 'ওয়াল শেলফ', 1250, 1)").bind(cur).run();
+    const a = await adminBrowser();
+    const res = await a.get(`/admin/orders/phone-history?phone=01711111111&order=${cur}`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    for (const s of ["P1", "P2", "P3", "পিরিয়ড প্যান্টি", "(L)", "× ২", "ওয়াল শেলফ", "শিপড", "বাতিল", "নতুন", "এই অর্ডার", "is-cur", "/admin/orders?q=01711111111"]) expect(html).toContain(s);
+    expect(html).toMatch(/মোট অর্ডার<\/small><b>৩/);
+    expect(html).toMatch(/মোট কেনা<\/small><b>৳৫৬০/);
+    expect((await a.get("/admin/orders/phone-history?phone=abc")).status).toBe(400);
+  });
+});

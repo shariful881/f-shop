@@ -501,3 +501,31 @@ document.addEventListener("click", function (e) {
   s.addEventListener("blur", function () { var v = slug(s.value); if (v) s.value = v; sync(); });
   sync();
 })();
+
+/* অর্ডার তালিকা: একই নম্বরের সব অর্ডার পপআপে */
+(function () {
+  var dlg = document.getElementById("ph-dlg");
+  if (!dlg) return;
+  var body = dlg.querySelector("[data-ph-body]"), title = dlg.querySelector("[data-ph-title]");
+  document.addEventListener("click", function (e) {
+    var open = e.target.closest && e.target.closest("[data-ph-open]");
+    if (open) {
+      e.preventDefault();
+      var phone = open.getAttribute("data-ph-open"), order = open.getAttribute("data-ph-order");
+      title.textContent = phone;
+      body.innerHTML = '<p class="muted center">লোড হচ্ছে…</p>';
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+      fetch("/admin/orders/phone-history?phone=" + encodeURIComponent(phone) + "&order=" + encodeURIComponent(order || ""), { credentials: "same-origin" })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          body.innerHTML = html;
+          var cur = body.querySelector(".is-cur");
+          if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "nearest" });
+        })
+        .catch(function () { body.innerHTML = '<p class="fr-alert">লোড হয়নি — ইন্টারনেট দেখে আবার চেষ্টা করুন</p>'; });
+      return;
+    }
+    if (e.target.closest && e.target.closest("[data-ph-close]")) dlg.close();
+  });
+  dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
+})();
