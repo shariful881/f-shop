@@ -448,6 +448,7 @@ const CustomerEditForm = ({ o, rates, open }: { o: Order; rates: { inside: numbe
   <form method="post" action={`/admin/orders/${o.id}/customer`} id="cust-edit" class="admin-form cust-edit" hidden={!open} data-cust-edit
     data-subtotal={String(o.subtotal)} data-delivery={String(o.delivery_charge)} data-discount={String(o.discount)} data-total={String(o.total)}
     data-area={o.area} data-in={String(rates.inside)} data-out={String(rates.outside)} data-free={String(rates.freeMin)}>
+    <div class="ce-head"><b>ক্রেতার তথ্য এডিট</b><a href={`/admin/orders/${o.id}`} class="od-x" data-cust-edit-cancel aria-label="বন্ধ"><Icon name="x" /></a></div>
     <label class="field"><span>নাম</span><input type="text" name="name" value={o.name} required maxlength={100} autocomplete="off" /></label>
     <label class="field"><span>মোবাইল নম্বর</span><input type="tel" name="phone" value={o.phone} required maxlength={20} inputmode="tel" autocomplete="off" /></label>
     <label class="field"><span>ঠিকানা</span><textarea name="address" rows={2} required maxlength={300}>{o.address}</textarea></label>
@@ -502,7 +503,11 @@ export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: strin
         <div class="spam-note"><SpamTags o={o} full /></div>
       ) : null}
 
-      <div class="actions">
+      {/* মোবাইল: নিচের বারের "আরও" চাপলে এই তালিকাটা নিচ থেকে ওঠে (জাভাস্ক্রিপ্ট ছাড়া) */}
+      <input type="checkbox" id="od-more" class="od-more-t" hidden />
+      <label for="od-more" class="od-scrim" aria-hidden="true"></label>
+      <div class="actions od-actions">
+        <div class="od-sheet-head"><b>অর্ডারের কাজ</b><label for="od-more" class="od-x" aria-label="বন্ধ"><Icon name="x" /></label></div>
         {TRANSITIONS[o.status].map((to) => (
           <form method="post" action={`/admin/orders/${o.id}/status`} class="inline"
             data-confirm={to === "cancelled" || to === "fake" ? `এই অর্ডারের নম্বর ও ডিভাইস ব্লক হবে${o.consignment_id ? "। কুরিয়ারে বুক হয়ে থাকলে কুরিয়ারের প্যানেল থেকেও বাতিল করতে হবে" : ""}, নিশ্চিত?`
@@ -517,6 +522,23 @@ export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: strin
         <a href={`/admin/orders/${o.id}/invoice`} target="_blank" class="btn btn-outline"><Icon name="printer" size="sm" /> ইনভয়েস</a>
         <a href={`/admin/orders/${o.id}/invoice?size=sticker`} target="_blank" class="btn btn-outline"><Icon name="tag" size="sm" /> স্টিকার</a>
       </div>
+
+      {/* মোবাইলের নিচে আটকে থাকা বার — অ্যাপের মতো: কল, WhatsApp, মূল কাজ, আরও */}
+      <nav class="od-bar" aria-label="অর্ডারের কাজ">
+        <a href={`tel:${o.phone}`} class="od-bar-btn call"><Icon name="phone" /><span>কল</span></a>
+        <a href={waLink(o.phone, p.wa?.[0]?.text ?? "")} target="_blank" rel="noopener" class="od-bar-btn wa"><Icon name="message-circle" /><span>WhatsApp</span></a>
+        {(() => {
+          const main = TRANSITIONS[o.status].find((t) => t === "confirmed") ?? TRANSITIONS[o.status].find((t) => t === "shipped");
+          return main && !o.spam ? (
+            <form method="post" action={`/admin/orders/${o.id}/status`} class="od-bar-main"
+              data-confirm={main === "confirmed" && o.pay_trx && o.pay_status !== "verified" ? "অগ্রিম পেমেন্ট এখনো মেলানো হয়নি। তবুও কনফার্ম করবেন?" : undefined}>
+              <input type="hidden" name="status" value={main} />
+              <button class="od-bar-primary">{ACTION_LABEL[main]}</button>
+            </form>
+          ) : <span class="od-bar-main od-bar-status"><StatusBadge s={o.status} /></span>;
+        })()}
+        <label for="od-more" class="od-bar-btn"><Icon name="more-horizontal" /><span>আরও</span></label>
+      </nav>
 
       <div class="panels">
         <section class="panel">

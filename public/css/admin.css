@@ -619,3 +619,73 @@ body.admin .btn.btn-call:hover, .btn.btn-call:hover { background: #15803d !impor
 .spam-box p { margin: 0 0 8px; }
 .spam-box form { margin-top: 10px; }
 .spam-note { margin: 0 0 12px; }
+
+/* ---- অর্ডারের পাতা: মোবাইলে অ্যাপের মতো ---- */
+/* চওড়া টেবিল/লেখা যেন পুরো পাতাকে স্ক্রিনের বাইরে না ঠেলে */
+.panels > * { min-width: 0; }
+.panel { min-width: 0; overflow-wrap: anywhere; }
+.od-bar, .od-sheet-head, .ce-head, .od-scrim { display: none; }
+@media (max-width: 640px) {
+  .panel .table td, .panel .table th { white-space: normal; }
+  .panel .table { width: 100%; }
+  /* নিচের ট্যাববারের বদলে অর্ডারের কাজের বার */
+  body.admin:has(.od-bar) .sa-tabbar { display: none; }
+  body.admin:has(.od-bar) .sa-content { padding-bottom: 96px; }
+  body.admin:has(.od-bar) .sx-widget:not(.open) { bottom: 84px; }
+  .od-bar { display: grid; grid-template-columns: 56px 64px 1fr 56px; align-items: center; gap: 6px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #e2e8f0; box-shadow: 0 -4px 16px rgba(15, 23, 42, .08); }
+  .od-bar-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .7rem; font-weight: 700; color: #334155; text-decoration: none; cursor: pointer; padding: 4px 0; }
+  .od-bar-btn svg { width: 22px; height: 22px; }
+  .od-bar-btn.call { color: #16a34a; }
+  .od-bar-btn.wa { color: #15803d; }
+  .od-bar-main { margin: 0; display: flex; justify-content: center; }
+  .od-bar-primary { width: 100%; min-height: 46px; border: 0; border-radius: 12px; background: #0f766e; color: #fff; font: inherit; font-weight: 800; font-size: 1rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+  .od-bar-primary svg { width: 18px; height: 18px; }
+  /* উপরের কাজের বোতামগুলো নিচ থেকে ওঠা শিটে */
+  .od-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 81; margin: 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    background: #fff; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(15, 23, 42, .2); display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    transform: translateY(105%); transition: transform .22s ease; }
+  .od-actions .inline, .od-actions form { margin: 0; display: block; }
+  .od-actions .btn { width: 100%; min-height: 46px; justify-content: center; }
+  .od-actions > .muted { grid-column: 1 / -1; }
+  .od-sheet-head { display: flex; grid-column: 1 / -1; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .od-x { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #f1f5f9; color: #334155; cursor: pointer; }
+  .od-more-t:checked ~ .od-actions { transform: none; }
+  .od-more-t:checked ~ .od-scrim { display: block; position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .45); }
+  /* হেডার ছোট */
+  .detail-head h1 { font-size: 1.25rem; }
+  /* কাস্টমার কার্ড: লেবেল উপরে, মান নিচে */
+  .panel .kv { grid-template-columns: 1fr; gap: 0; }
+  .panel .kv dt { font-size: .74rem; margin-top: 10px; }
+  .panel .kv dt:first-child { margin-top: 0; }
+  .panel .kv dd { font-size: 1rem; }
+  .od-phone { gap: 6px; }
+  .od-phone > a:first-child { font-size: 1.1rem; font-weight: 700; }
+  .wa-btns { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .wa-btns .btn { white-space: nowrap; flex: none; }
+  .panel-head-row .btn { min-height: 38px; }
+  /* এডিট ফর্ম: নিচ থেকে ওঠা পুরো শিট, সেভ বোতাম নিচে আটকানো */
+  .cust-edit:not([hidden]) { position: fixed; left: 0; right: 0; bottom: 0; top: 6vh; z-index: 90; margin: 0; border-radius: 18px 18px 0 0; border: 0;
+    background: #fff; overflow-y: auto; padding: 0 16px 0; box-shadow: 0 0 0 100vmax rgba(15, 23, 42, .45); align-content: start; }
+  body.admin:has(.cust-edit:not([hidden])) { overflow: hidden; }
+  .ce-head { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 2; background: #fff; padding: 14px 0 10px; border-bottom: 1px solid #e2e8f0; }
+  .ce-head b { font-size: 1.05rem; }
+  .cust-edit .ce-actions { position: sticky; bottom: 0; background: #fff; padding: 10px 0 calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid #e2e8f0; margin-top: 4px; }
+  .cust-edit .ce-actions .btn { min-height: 48px; font-size: 1rem; }
+  .ce-area span { padding: 14px 8px; }
+  /* নোট: তৈরি লেখা আর সময় পাশে সরানো সারি */
+  .on-quick, .on-remind { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .on-quick::-webkit-scrollbar, .on-remind::-webkit-scrollbar { display: none; }
+  .on-quick .chip, .on-opt span, .on-remind-label { white-space: nowrap; flex: none; }
+  .on-quick .chip { padding: 8px 12px; }
+  .on-opt span { padding: 7px 11px; }
+  .on-form > .btn { width: 100%; min-height: 46px; }
+  .on-custom { width: 100%; flex: none; }
+  .on-remind:has(.on-custom:not([hidden])) { flex-wrap: wrap; }
+  .on-done .btn { min-height: 36px; }
+  body.admin:has(.od-more-t:checked) .sx-widget, body.admin:has(.cust-edit:not([hidden])) .sx-widget { display: none; }
+  .price-edit summary { padding: 8px 0; }
+}
+.on-older { margin-top: 8px; }
+.on-older > summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: #0f766e; padding: 6px 0; }

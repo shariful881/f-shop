@@ -42,9 +42,11 @@ export const NotesPanel = ({ orderId, notes, presets }: { orderId: number; notes
         </div>
         <button class="btn btn-primary btn-sm"><Icon name="check" size="sm" /> নোট সেভ</button>
       </form>
-      {notes.length > 0 && (
-        <ol class="on-list">
-          {notes.map((n) => {
+      {notes.length > 0 && (() => {
+        // খোলা ফলো-আপ আর সর্বশেষ ৩টা সামনে, বাকি ভাঁজে
+        const front = notes.filter((n, i) => i < 3 || (n.remind_at && !n.done_at));
+        const rest = notes.filter((n) => !front.includes(n));
+        const item = (n: OrderNote) => {
             const open = n.remind_at && !n.done_at;
             const due = open && parseUtc(n.remind_at!) <= now;
             return (
@@ -63,9 +65,14 @@ export const NotesPanel = ({ orderId, notes, presets }: { orderId: number; notes
                 </div>
               </li>
             );
-          })}
-        </ol>
-      )}
+        };
+        return (
+          <>
+            <ol class="on-list">{front.map(item)}</ol>
+            {rest.length > 0 && <details class="on-older"><summary>আগের আরও {bn(rest.length)}টা নোট</summary><ol class="on-list">{rest.map(item)}</ol></details>}
+          </>
+        );
+      })()}
     </section>
   );
 };
