@@ -499,10 +499,21 @@ admin.get("/orders", async (c) => {
   for (const o of orders) { const r = parseOrderReport(o.courier_report) ?? phoneCache[o.phone]; if (r) courierSums[o.id] = r; }
   const crReady = courierRecordReady(c.var.settings, await platformCourier(c));
   const notes = await notesForList(db, orders.map((o) => o.id));
+  // কার্ডে পণ্যের নাম (সাইজসহ) — এক কোয়েরি
+  const itemsText: Record<number, string> = {};
+  if (orders.length) {
+    const { results: it } = await db.prepare(
+      `SELECT order_id, product_name, variant_label, qty FROM order_items WHERE order_id IN (${orders.map(() => "?").join(",")}) ORDER BY id`,
+    ).bind(...orders.map((o) => o.id)).all<{ order_id: number; product_name: string; variant_label: string | null; qty: number }>();
+    for (const i of it) {
+      const t = `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""}${i.qty > 1 ? ` ×${i.qty}` : ""}`;
+      itemsText[i.order_id] = itemsText[i.order_id] ? `${itemsText[i.order_id]}, ${t}` : t;
+    }
+  }
   const followCount = (await db.prepare(`SELECT COUNT(DISTINCT order_id) n FROM order_notes WHERE remind_at IS NOT NULL AND done_at IS NULL AND remind_at <= ?`).bind(eod).first<{ n: number }>())?.n ?? 0;
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage notes={notes} follow={follow} followCount={followCount} orders={orders} counts={counts} status={status} spamTab={spamTab && !q && !payPending && !follow} spamWeek={spamTab ? await spamWeek(db) : undefined} spamLevel={spamLevel(c.var.settings)} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending} courier={courierSums} crReady={crReady}
+    <OrdersPage itemsText={itemsText} notes={notes} follow={follow} followCount={followCount} orders={orders} counts={counts} status={status} spamTab={spamTab && !q && !payPending && !follow} spamWeek={spamTab ? await spamWeek(db) : undefined} spamLevel={spamLevel(c.var.settings)} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending} courier={courierSums} crReady={crReady}
       payCount={(await db.prepare("SELECT COUNT(*) n FROM orders WHERE pay_status = 'pending' AND status IN ('new', 'confirmed')").first<{ n: number }>())?.n ?? 0}
       hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
 });

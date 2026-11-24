@@ -689,3 +689,52 @@ body.admin .btn.btn-call:hover, .btn.btn-call:hover { background: #15803d !impor
 }
 .on-older { margin-top: 8px; }
 .on-older > summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: #0f766e; padding: 6px 0; }
+
+/* ---- অর্ডার তালিকা: ঠিকানা, পণ্যের নাম; মোবাইলে অ্যাপের মতো কার্ড ---- */
+.ot-st-m { display: none; }
+.ot-items { display: block; max-width: 220px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-addr { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: .8rem; color: #475569; }
+.oc-addr > svg { flex: none; width: 13px; height: 13px; color: #94a3b8; }
+.oc-addr > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.oc-area { flex: none; font-style: normal; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #e0f2fe; color: #075985; }
+.oc-area.outside { background: #fef3c7; color: #92400e; }
+.oc-av svg { width: 16px; height: 16px; }
+@media (max-width: 640px) {
+  /* উপরের সারি: অর্ডার নং + স্ট্যাটাস | টাকা; নিচে পণ্যের নাম | সময় */
+  body.admin .table-wrap .orders-table .ot-st-m { display: inline-block; margin-left: 4px; vertical-align: 1px; }
+  body.admin .table-wrap .orders-table .ot-st-m .status { font-size: .72rem; padding: 1px 8px; }
+  body.admin .table-wrap .orders-table .ot-status > .status:first-child { display: none; }
+  body.admin .table-wrap .orders-table .ot-status:not(:has(.pill, small, .badge, .purchase)) { display: none; }
+  body.admin .table-wrap .orders-table .ot-no strong { font-size: 1.02rem; }
+  body.admin .table-wrap .orders-table .ot-items { max-width: none; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: 3px; font-size: .84rem; color: #334155; }
+  body.admin .table-wrap .orders-table .ot-total { font-size: 1.12rem; font-weight: 800; color: #0f172a; }
+  body.admin .table-wrap .orders-table .ot-time small { font-size: .74rem; }
+  body.admin .table-wrap .orders-table tr td.oc-cell { margin-top: 8px; padding-top: 10px; }
+  body.admin .orders-table .oc { gap: 10px; }
+  body.admin .orders-table .oc-who { align-items: flex-start; }
+  body.admin .orders-table .oc-av { width: 40px; height: 40px; }
+  body.admin .orders-table .oc-id { flex: 1; gap: 4px; }
+  body.admin .orders-table .oc-name { font-size: 1rem; }
+  /* ঠিকানা দুই লাইন পর্যন্ত */
+  body.admin .orders-table .oc-addr { align-items: flex-start; font-size: .86rem; color: #334155; flex-wrap: wrap; }
+  body.admin .orders-table .oc-addr > svg { margin-top: 3px; }
+  body.admin .orders-table .oc-addr > span { max-width: calc(100% - 20px); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  body.admin .orders-table .oc-area { margin-left: 17px; }
+  /* নম্বর + বড় কল আর WhatsApp বোতাম */
+  body.admin .orders-table .oc-ph { gap: 8px; font-size: 1rem; margin-top: 2px; }
+  body.admin .orders-table .oc-ph a:first-child { font-weight: 700; }
+  body.admin .orders-table .oc-ph .call-dot { width: 38px; height: 38px; margin-left: auto; }
+  body.admin .orders-table .oc-ph .call-dot svg { width: 18px; height: 18px; }
+  body.admin .orders-table .oc-ph .oc-wa { width: 38px; height: 38px; }
+  body.admin .orders-table .oc-ph .oc-wa svg { width: 18px; height: 18px; }
+  /* কুরিয়ার রিপোর্ট ছোট */
+  body.admin .orders-table .cr-card { padding: 6px 8px 6px 6px; gap: 8px; }
+  body.admin .orders-table .cr-pct { width: 42px; height: 40px; font-size: .95rem; border-radius: 10px; }
+  body.admin .orders-table .ln { margin-top: 0; }
+  /* একসাথে কাজের বোতাম এক সারিতে, পাশে সরানো */
+  body.admin #bulk-form .bulk-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: .5rem; }
+  body.admin #bulk-form .bulk-bar::-webkit-scrollbar { display: none; }
+  body.admin #bulk-form .bulk-bar > * { flex: none; white-space: nowrap; }
+  body.admin #bulk-form .bulk-bar .bulk-gap { display: none; }
+  body.admin #bulk-form .bulk-bar .btn { min-height: 36px; }
+}

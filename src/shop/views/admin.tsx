@@ -144,7 +144,7 @@ export const RiskBadge = ({ r }: { r?: Risk & { shared?: number; courier?: numbe
   return <span class={`badge badge-${RISK_TONE[r.level]}`} title={`ডেলিভারি সফল ${bn(r.ratio ?? 0)}% (${bn(r.records)}টা রেকর্ড)${parts ? " — " + parts : ""}`}>{r.label} {r.ratio != null && `${bn(r.ratio)}%`}</span>;
 };
 
-export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: boolean; followCount?: number;
+export const OrdersPage = (p: { itemsText?: Record<number, string>; notes?: Record<number, ListNoteInfo>; follow?: boolean; followCount?: number;
   orders: (Order & { item_count: number })[];
   counts: Record<string, number>;
   status: OrderStatus;
@@ -258,11 +258,13 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
             {p.orders.map((o) => (
               <tr>
                 {bulk && <td class="ot-chk"><input type="checkbox" name="ids" value={String(o.id)} aria-label={o.order_no} /></td>}
-                <td class="ot-no"><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a><br /><small class="muted">{bn(o.item_count)}টা পণ্য</small></td>
+                <td class="ot-no"><a href={`/admin/orders/${o.id}`}><strong>{o.order_no}</strong></a> <span class="ot-st-m">{o.spam ? <span class="status status-spam">{o.spam === 2 ? "যাচাই চলছে" : "স্প্যাম"}</span> : <StatusBadge s={o.status} />}</span><br />
+                  {p.itemsText?.[o.id] ? <small class="ot-items" title={p.itemsText[o.id]}>{p.itemsText[o.id]}</small> : <small class="muted">{bn(o.item_count)}টা পণ্য</small>}</td>
                 <td class="oc-cell"><div class="oc">
                   <div class="oc-who">
-                    <span class="oc-av" aria-hidden="true">{(o.name || "?").trim().charAt(0).toUpperCase()}</span>
-                    <span class="oc-id"><b class="oc-name">{o.name}</b>
+                    <span class="oc-av" aria-hidden="true">{/^[\d\s+০-৯-]*$/.test(o.name || "") ? <Icon name="user" size="sm" /> : (o.name || "?").trim().charAt(0).toUpperCase()}</span>
+                    <span class="oc-id">{/^[\d\s+০-৯-]*$/.test(o.name || "") ? <b class="oc-name muted">নাম দেয়নি</b> : <b class="oc-name">{o.name}</b>}
+                      {o.address && <span class="oc-addr" title={o.address}><Icon name="map-pin" size="sm" /> <span>{o.address}</span> <em class={`oc-area ${o.area}`}>{AREA_LABEL[o.area]}</em></span>}
                       <span class="oc-ph"><a href={`tel:${o.phone}`}>{o.phone}</a><CallButton phone={o.phone} compact /><a href={waLink(o.phone, "")} target="_blank" rel="noopener" class="oc-wa" title="WhatsApp" aria-label="WhatsApp"><Icon name="message-circle" size="sm" /></a></span>
                       {(p.history?.[o.phone]?.n ?? 0) > 1 && <span class="ph-row"><PhoneHistoryBadge phone={o.phone} orderId={o.id} st={p.history?.[o.phone]} />
                         {o.status === "new" && (p.history?.[o.phone]?.fresh ?? 0) >= 2 && Date.now() - Date.parse(o.created_at.replace(" ", "T") + "Z") < 864e5 && <span class="ph-dup" title="একই নম্বর থেকে ২৪ ঘণ্টায় একাধিক নতুন অর্ডার — ভুলে দুবার দিয়েছে কি না দেখুন">ডুপ্লিকেট?</span>}</span>}</span>
@@ -270,7 +272,7 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
                   <ListNote orderId={o.id} info={p.notes?.[o.id]} follow={p.follow} />
                   {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}
                 </div></td>
-                <td class="ot-total">{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
+                <td class="ot-total">{taka(o.total)}</td>
                 <td class="ot-status">{o.spam ? <span class="status status-spam">{o.spam === 2 ? "যাচাই চলছে" : "স্প্যাম"}</span> : <StatusBadge s={o.status} />} <PurchaseBadge o={o} />
                   <SpamTags o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
