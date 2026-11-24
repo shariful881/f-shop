@@ -1,6 +1,7 @@
 /**
  * দোকানের অ্যাডমিন — প্রফেশনাল লেআউট (সাইডবার), ড্যাশবোর্ড আর সেটিংস কেন্দ্র।
  */
+import { SPAM_LEVELS, spamLevel } from "../lib/spam";
 import { shopLink } from "../lib/store-origin";
 import { LANGS } from "../i18n";
 import { orderPrefix } from "../lib/orders";
@@ -506,6 +507,12 @@ export const SettingsCheckoutPage = ({ s }: { s: Settings }) => (
   <>
     <Tabs active="checkout" />
     <SettingsForm section="checkout" action="/admin/settings/checkout">
+      <Section title="স্প্যাম ফিল্টার" desc="সন্দেহজনক অর্ডার (একই ফোন থেকে বারবার, কয়েক সেকেন্ডে ফর্ম পূরণ, আগে ফেক দেওয়া ফোন, কুরিয়ারে খারাপ রেকর্ড) আলাদা &quot;স্প্যাম&quot; তালিকায় যাবে। কাস্টমার সবসময় &quot;অর্ডার সফল&quot; দেখবে। স্প্যামে শব্দ, পপআপ, SMS, Facebook Purchase কিছুই হয় না। আগে কিনেছেন, কুরিয়ারে ভালো রেকর্ড আছে বা অগ্রিম দিয়েছেন — এমন ক্রেতা কখনো স্প্যামে যান না।">
+        <F label="ফিল্টারের মাত্রা" hint="দিনে একবার স্প্যাম তালিকা দেখে আসল অর্ডার থাকলে নতুনে পাঠান" wide>
+          <span id="spam"></span>
+          <select name="spam_level">{Object.entries(SPAM_LEVELS).map(([k, l]) => <option value={k} selected={spamLevel(s) === k}>{l}</option>)}</select>
+        </F>
+      </Section>
       <Section title="অর্ডার ফর্ম" desc="ল্যান্ডিং পেজ আর চেকআউটের অর্ডার ফর্ম">
         <F label="ফর্মের উপরের শিরোনাম" hint="যেমন: অর্ডার করতে নিচের ফর্মটি পূরণ করুন"><input type="text" name="order_form_title" value={s.order_form_title ?? ""} maxlength={100} /></F>
         <F label="সর্বনিম্ন অর্ডার (৳)" hint="এর কম দামের অর্ডার নেওয়া হবে না। ০ = সীমা নেই"><input type="number" min="0" name="min_order" value={s.min_order || "0"} /></F>

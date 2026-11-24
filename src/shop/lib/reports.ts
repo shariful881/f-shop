@@ -45,7 +45,7 @@ const SOLD = "('confirmed', 'shipped')";
 
 export async function buildReport(db: D1Database, r: Range): Promise<Report> {
   const { start, end } = utcBounds(r);
-  const W = "o.created_at >= ? AND o.created_at < ?";
+  const W = "o.spam = 0 AND o.created_at >= ? AND o.created_at < ?";
   const [st, money, daily, top, cps, areas] = await db.batch([
     db.prepare(`SELECT status, COUNT(*) n FROM orders o WHERE ${W} GROUP BY status`).bind(start, end),
     db.prepare(`SELECT

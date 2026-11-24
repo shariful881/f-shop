@@ -40,6 +40,7 @@ import m0030 from "../../migrations/shop/0030_category_extra.sql";
 import m0031 from "../../migrations/shop/0031_slug_redirects.sql";
 import m0032 from "../../migrations/shop/0032_order_changes.sql";
 import m0033 from "../../migrations/shop/0033_order_notes.sql";
+import m0034 from "../../migrations/shop/0034_spam.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
 import { nextReminder } from "./lib/order-notes";
@@ -82,6 +83,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0031_slug_redirects", m0031],
   ["0032_order_changes", m0032],
   ["0033_order_notes", m0033],
+  ["0034_spam", m0034],
 ];
 
 export type SetupInput = {
@@ -354,7 +356,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     const p = await this.db.prepare("SELECT COUNT(*) total, COALESCE(SUM(is_active), 0) active FROM products").first<{ total: number; active: number }>();
     const o = await this.db.prepare(
       `SELECT COUNT(*) total,
-         COALESCE(SUM(status = 'new'), 0) new_orders, COALESCE(SUM(status = 'confirmed'), 0) confirmed, COALESCE(SUM(status = 'shipped'), 0) shipped,
+         COALESCE(SUM(status = 'new' AND spam = 0), 0) new_orders, COALESCE(SUM(status = 'confirmed'), 0) confirmed, COALESCE(SUM(status = 'shipped'), 0) shipped,
          COALESCE(SUM(status IN ('cancelled', 'fake')), 0) cancelled,
          COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total ELSE 0 END), 0) sales,
          COALESCE(SUM(created_at >= datetime('now', '-1 day')), 0) last24h

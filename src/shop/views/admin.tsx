@@ -29,6 +29,7 @@ import { bn } from "../lib/format";
 import { PENDING_DAYS } from "../../platform/domains";
 import { arrangeOffers, type Offer, type RegRow } from "../../platform/domain-sale";
 import { ShopShell } from "./admin-pro";
+import { parseReasons, SPAM_LEVELS, type SpamLevel } from "../lib/spam";
 
 export type Flash = { type: "ok" | "error"; text: string } | null;
 
@@ -159,12 +160,17 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
   couriers?: CourierKey[];
   payPending?: boolean;
   payCount?: number;
+  /** স্প্যাম তালিকা দেখাচ্ছে কি না, গত ৭ দিনের হিসাব, ফিল্টারের মাত্রা */
+  spamTab?: boolean;
+  spamWeek?: { caught: number; released: number };
+  spamLevel?: SpamLevel;
 }) => {
   const range = p.range ?? "all";
+  const tabKey = p.spamTab ? "spam" : p.status;
   const courierBulk = !p.q && !p.payPending && p.status === "confirmed" && (p.couriers ?? []).some((k) => k !== "redx") && p.orders.length > 0;
   const bulk = p.orders.length > 0;
   const qs = (extra: Record<string, string | number>) => {
-    const u = new URLSearchParams(p.follow ? { follow: "1" } : { status: p.status, range, ...(p.q ? { q: p.q } : {}) });
+    const u = new URLSearchParams(p.follow ? { follow: "1" } : { status: tabKey, range, ...(p.q ? { q: p.q } : {}) });
     for (const [k, v] of Object.entries(extra)) u.set(k, String(v));
     return `/admin/orders?${u}`;
   };
@@ -178,7 +184,7 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
     { to: "cancelled", label: "বাতিল", cls: "btn-outline", ask: "বাছাই করা অর্ডার বাতিল করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
     { to: "fake", label: "ফেক", cls: "btn-danger", ask: "বাছাই করা অর্ডার ফেক করবেন? নম্বর ও ডিভাইস ব্লক হবে।" },
   ];
-  const bulkTo = p.q || p.payPending ? [] : p.follow ? BULK_ALL : BULK_ALL.filter((b) => b.to !== p.status);
+  const bulkTo = p.q || p.payPending ? [] : p.follow ? BULK_ALL : p.spamTab ? BULK_ALL.filter((b) => b.to !== "new" && b.to !== "shipped") : BULK_ALL.filter((b) => b.to !== p.status);
   return (
   // লাইভ: নতুন অর্ডার/স্ট্যাটাস বদল এলে live.js এই অংশটা নতুন করে আনে (পেজ রিফ্রেশ ছাড়া)
   <div data-live-orders={!p.q && p.page === 1 ? "1" : "0"}>
@@ -190,13 +196,18 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
     <div class="orders-top">
     <div class="tabs">
       {STATUS_TABS.map((s) => (
-        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && !p.payPending && !p.follow && p.status === s ? "tab active" : "tab"}>
+        <a href={`/admin/orders?status=${s}&range=${range}`} class={!p.q && !p.payPending && !p.follow && !p.spamTab && p.status === s ? "tab active" : "tab"}>
           {STATUS_LABEL[s]} <span class="tab-count">{bn(p.counts[s] ?? 0)}</span>
         </a>
       ))}
       <a href="/admin/orders?follow=1" class={`tab tab-follow${p.follow ? " active" : ""}${(p.followCount ?? 0) > 0 ? " has" : ""}`}>
         <Icon name="clock" size="sm" /> ফলো-আপ <span class="tab-count">{bn(p.followCount ?? 0)}</span>
       </a>
+      {(p.spamLevel !== "off" || (p.counts.spam ?? 0) > 0) && (
+        <a href={`/admin/orders?status=spam&range=${range}`} class={!p.q && !p.payPending && p.spamTab ? "tab active tab-spam" : "tab tab-spam"}>
+          স্প্যাম <span class="tab-count">{bn(p.counts.spam ?? 0)}</span>
+        </a>
+      )}
     </div>
     <a href="/admin/orders/new" class="btn btn-primary orders-new"><Icon name="plus" size="sm" /> নতুন অর্ডার</a>
     </div>
@@ -214,6 +225,7 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
       </nav>
     </div>
     {p.q && <p class="muted">"{p.q}" — সব স্ট্যাটাসে খোঁজা হয়েছে</p>}
+    {p.spamTab && <SpamIntro week={p.spamWeek} level={p.spamLevel ?? "medium"} />}
     {p.orders.length === 0 ? (
       <div class="sa-card"><EmptyState icon="receipt" title="এই তালিকায় কোনো অর্ডার নেই" text={range === "all" ? "নতুন অর্ডার এলে এখানে দেখাবে। দোকান বা ল্যান্ডিং পেজের লিংক ফেসবুকে শেয়ার করুন।" : `${RANGE_LABEL[range]}-এ এই তালিকায় কিছু নেই — উপরে "সব সময়" বেছে দেখুন।`} /></div>
     ) : (
@@ -222,6 +234,7 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
       {bulk && (
         <div class="bulk-bar">
           <label class="inline-check"><input type="checkbox" data-check-all /> সব বাছুন</label>
+          {p.spamTab && <button class="btn btn-sm btn-primary" formaction="/admin/orders/bulk-status" name="to" value="release">নতুনে পাঠান</button>}
           {bulkTo.map((b) => (
             <button class={`btn btn-sm ${b.cls}`} formaction="/admin/orders/bulk-status" name="to" value={b.to} data-confirm={b.ask}>{b.label}</button>
           ))}
@@ -258,7 +271,8 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
                   {(p.crReady || p.courier?.[o.id]) && <CourierCard phone={o.phone} orderId={o.id} sum={p.courier?.[o.id]} ready={!!p.crReady} />}
                 </div></td>
                 <td class="ot-total">{taka(o.total)}<br /><small class="muted">{AREA_LABEL[o.area]}</small></td>
-                <td class="ot-status"><StatusBadge s={o.status} /> <PurchaseBadge o={o} />
+                <td class="ot-status">{o.spam ? <span class="status status-spam">{o.spam === 2 ? "যাচাই চলছে" : "স্প্যাম"}</span> : <StatusBadge s={o.status} />} <PurchaseBadge o={o} />
+                  <SpamTags o={o} />
                   {o.consignment_id && <><br /><small class="muted">{COURIER_NAME[o.courier as CourierKey] ?? o.courier}: {o.tracking_code || o.consignment_id}{o.courier_status ? ` · ${o.courier_status}` : ""}</small></>}
                   {o.outcome && <><br /><span class={`pill ${o.outcome === "delivered" ? "pill-ok" : "pill-bad"}`}>{o.outcome === "delivered" ? "ডেলিভারি হয়েছে" : "ফেরত এসেছে"}</span></>}
                   {o.pay_trx && <><br /><span class={`pill ${o.pay_status === "verified" ? "pill-ok" : o.pay_status === "rejected" ? "pill-bad" : "pill-warn"}`}>অগ্রিম {taka(o.advance_amount ?? 0)} · {PAY_STATUS[o.pay_status ?? "pending"]}</span></>}
@@ -280,6 +294,30 @@ export const OrdersPage = (p: { notes?: Record<number, ListNoteInfo>; follow?: b
   </div>
   );
 };
+
+/** অর্ডারে স্প্যাম যাচাইয়ের লক্ষণ: স্প্যামে থাকলে কেন, নতুনে থাকলে শুধু সতর্কতা (দুর্বল লক্ষণ) */
+export const SpamTags = ({ o, full }: { o: Order; full?: boolean }) => {
+  const sig = parseReasons(o.spam_reasons);
+  const show = sig.filter((x) => (o.spam ? x.w > 0 || full : x.w === 1 || x.w === 0) || (full && x.w === -1));
+  if (!show.length) return null;
+  return (
+    <div class="spam-tags">
+      {show.map((x) => <span class={`pill ${x.w === 2 ? "pill-bad" : x.w === -1 ? "pill-ok" : "pill-warn"}`}>{x.w === -1 ? "✓" : "⚠"} {x.t}</span>)}
+    </div>
+  );
+};
+
+const SpamIntro = ({ week, level }: { week?: { caught: number; released: number }; level: SpamLevel }) => (
+  <div class="spam-intro">
+    <p><b>স্প্যাম তালিকা:</b> সন্দেহজনক অর্ডার এখানে আসে — কাস্টমার "অর্ডার সফল" দেখেছেন, কিন্তু এগুলোতে শব্দ, পপআপ, SMS বা Facebook-এ Purchase কিছুই হয়নি, স্টকও কমেনি।
+      দিনে একবার দেখে নিন — আসল কোনোটা থাকলে বাছাই করে <b>"নতুনে পাঠান"</b>, ফেকগুলো <b>"ফেক"</b> দিন (নম্বর আর ফোন ব্লক হবে)। ৩০ দিন পরে স্প্যাম নিজে থেকে মুছে যায়।</p>
+    <p class="muted">
+      {level === "off" ? "স্প্যাম ফিল্টার এখন বন্ধ।" : `ফিল্টারের মাত্রা: ${SPAM_LEVELS[level].split(" — ")[0]}।`}{" "}
+      {week && week.caught > 0 && <>গত ৭ দিনে স্প্যামে গেছে <b>{bn(week.caught)}টা</b>, আপনি নতুনে ফিরিয়েছেন <b>{bn(week.released)}টা</b>।{week.released * 5 > week.caught ? " ফেরত আনা বেশি — সেটিংসে মাত্রা একটু নরম করে দেখতে পারেন।" : ""}{" "}</>}
+      <a href="/admin/settings/checkout#spam">সেটিংস বদলান →</a>
+    </p>
+  </div>
+);
 
 /* ---------- অর্ডার ডিটেইল ---------- */
 const ACTION_LABEL: Record<OrderStatus, string> = {
@@ -449,11 +487,20 @@ export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: strin
   const o = p.order;
   return (
     <>
-      <p><a href={`/admin/orders?status=${o.status}`}>← অর্ডার তালিকা</a></p>
+      <p><a href={`/admin/orders?status=${o.spam ? "spam" : o.status}`}>← অর্ডার তালিকা</a></p>
       <div class="detail-head">
-        <h1>{o.order_no} <StatusBadge s={o.status} /></h1>
+        <h1>{o.order_no} {o.spam ? <span class="status status-spam">স্প্যাম</span> : <StatusBadge s={o.status} />}</h1>
         <span class="muted">{dhakaTime(o.created_at)}</span>
       </div>
+      {o.spam ? (
+        <div class="spam-box">
+          <p><b>এই অর্ডারটি স্প্যাম তালিকায় আছে।</b> কাস্টমার "অর্ডার সফল" দেখেছেন। আসল মনে হলে নতুনে পাঠান বা সরাসরি কনফার্ম করুন।</p>
+          <SpamTags o={o} full />
+          <form method="post" action={`/admin/orders/${o.id}/release`} class="inline"><button class="btn btn-primary">নতুনে পাঠান</button></form>
+        </div>
+      ) : parseReasons(o.spam_reasons).some((x) => x.w >= 0) ? (
+        <div class="spam-note"><SpamTags o={o} full /></div>
+      ) : null}
 
       <div class="actions">
         {TRANSITIONS[o.status].map((to) => (

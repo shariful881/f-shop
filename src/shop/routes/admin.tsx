@@ -47,6 +47,7 @@ import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMe
 import { MediaPage } from "../views/media";
 import { DesignEditorPage } from "../views/design";
 import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, orderCourierReport, parseOrderReport, platformCourierKeys, type PlatformCourierKeys, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
+import { releaseSpam, spamHousekeeping, spamLevel, spamWeek } from "../lib/spam";
 import { clearOutcome, outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type CourierSummary, type Risk } from "../lib/fraud";
 import { PhoneHistory, type PhoneHistoryOrder, type PhoneStat } from "../views/phone-history";
 import { CourierCard, FraudCheckPage, FraudDialog, FraudReport, type ReportData, type ReportOrder } from "../views/fraud-report";
@@ -117,7 +118,7 @@ async function markShopLogin(c: Ctx) {
 
 async function render(c: Ctx, title: string, active: string, body: unknown, status: 200 | 404 | 422 = 200) {
   const ann = await announcements(c);
-  const pending = c.var.admin ? await c.env.DB.prepare("SELECT COUNT(*) n FROM orders WHERE status = 'new'").first<{ n: number }>() : null;
+  const pending = c.var.admin ? await c.env.DB.prepare("SELECT COUNT(*) n FROM orders WHERE status = 'new' AND spam = 0").first<{ n: number }>() : null;
   return c.html(
     "<!DOCTYPE html>" +
       String(<AdminLayout title={title} settings={c.var.settings} active={active} flash={takeFlash(c)} email={c.var.admin?.email} role={c.var.admin?.role} state={c.var.shopState} announcements={ann} support={getCookie(c, "support_mode") === "1"} newOrders={pending?.n ?? 0}>{body as any}</AdminLayout>),
@@ -293,14 +294,15 @@ admin.get("/", async (c) => {
   const s = c.var.settings;
   // ঢাকার দিন: UTC + ৬ ঘণ্টা
   const todayStart = "datetime(date('now', '+6 hours'), '-6 hours')";
+  await spamHousekeeping(db);
   const [t, y, pend, m, ch, rec, top, prods] = await db.batch([
-    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(CASE WHEN status NOT IN ('fake', 'cancelled') THEN total END), 0) v FROM orders WHERE created_at >= ${todayStart}`),
-    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(CASE WHEN status NOT IN ('fake', 'cancelled') THEN total END), 0) v FROM orders WHERE created_at >= datetime(${todayStart}, '-1 day') AND created_at < ${todayStart}`),
-    db.prepare("SELECT COUNT(*) n FROM orders WHERE status = 'new'"),
+    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(CASE WHEN status NOT IN ('fake', 'cancelled') THEN total END), 0) v FROM orders WHERE spam = 0 AND created_at >= ${todayStart}`),
+    db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(CASE WHEN status NOT IN ('fake', 'cancelled') THEN total END), 0) v FROM orders WHERE spam = 0 AND created_at >= datetime(${todayStart}, '-1 day') AND created_at < ${todayStart}`),
+    db.prepare("SELECT COUNT(*) n FROM orders WHERE status = 'new' AND spam = 0"),
     db.prepare(`SELECT COUNT(*) n, COALESCE(SUM(status IN ('confirmed', 'shipped')), 0) ok, COALESCE(SUM(status IN ('fake', 'cancelled')), 0) bad,
-        COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total END), 0) sales FROM orders WHERE created_at >= datetime('now', '-30 days')`),
-    db.prepare(`SELECT date(created_at, '+6 hours') d, COUNT(*) a, COALESCE(SUM(status IN ('confirmed', 'shipped')), 0) ok FROM orders WHERE created_at >= datetime('now', '-14 days') GROUP BY d`),
-    db.prepare("SELECT id, order_no, name, phone, total, status, created_at FROM orders ORDER BY id DESC LIMIT 8"),
+        COALESCE(SUM(CASE WHEN status IN ('confirmed', 'shipped') THEN total END), 0) sales FROM orders WHERE spam = 0 AND created_at >= datetime('now', '-30 days')`),
+    db.prepare(`SELECT date(created_at, '+6 hours') d, COUNT(*) a, COALESCE(SUM(status IN ('confirmed', 'shipped')), 0) ok FROM orders WHERE spam = 0 AND created_at >= datetime('now', '-14 days') GROUP BY d`),
+    db.prepare("SELECT id, order_no, name, phone, total, status, created_at FROM orders WHERE spam = 0 ORDER BY id DESC LIMIT 8"),
     db.prepare(`SELECT i.product_name, SUM(COALESCE(i.qty, 1)) n, SUM(i.price * COALESCE(i.qty, 1)) amount FROM order_items i JOIN orders o ON o.id = i.order_id
         WHERE o.created_at >= datetime('now', '-30 days') AND o.status IN ('confirmed', 'shipped') GROUP BY i.product_name ORDER BY n DESC LIMIT 6`),
     db.prepare("SELECT COUNT(*) total, COALESCE(SUM(is_active), 0) active FROM products"),
@@ -439,6 +441,8 @@ admin.get("/fraud-check", async (c) => {
 
 admin.get("/orders", async (c) => {
   const db = c.env.DB;
+  await spamHousekeeping(db);
+  const spamTab = c.req.query("status") === "spam";
   const status = (STATUS_TABS as string[]).includes(c.req.query("status") || "") ? (c.req.query("status") as OrderStatus) : "new";
   const q = (c.req.query("q") || "").trim().slice(0, 100);
   const page = Math.max(1, toInt(c.req.query("page"), 1));
@@ -446,11 +450,14 @@ admin.get("/orders", async (c) => {
   const days = ORDER_RANGES[range];
   const dateCond = days ? `date(o.created_at, '+6 hours') >= date('now', '+6 hours', '-${days - 1} days')` : "1";
 
-  const { results: countRows } = await db.prepare(`SELECT status, COUNT(*) n FROM orders o WHERE ${dateCond} GROUP BY status`).all<{ status: string; n: number }>();
+  const { results: countRows } = await db.prepare(
+    `SELECT CASE WHEN o.spam > 0 AND o.status = 'new' THEN 'spam' ELSE o.status END AS status, COUNT(*) n FROM orders o WHERE ${dateCond} GROUP BY 1`,
+  ).all<{ status: string; n: number }>();
   const counts = Object.fromEntries(countRows.map((r) => [r.status, r.n]));
 
-  let where = "o.status = ?";
-  let binds: unknown[] = [status];
+  // স্প্যাম তালিকার অর্ডার স্ট্যাটাসে "নতুন" থাকে, কিন্তু নতুন তালিকায় দেখায় না
+  let where = spamTab ? "o.status = 'new' AND o.spam > 0" : "o.status = ? AND o.spam = 0";
+  let binds: unknown[] = spamTab ? [] : [status];
   const payPending = c.req.query("pay") === "pending";
   if (payPending) { where = "o.pay_status = 'pending' AND o.status IN ('new', 'confirmed')"; binds = []; }
   // ফলো-আপ: আজকের মধ্যে (বা পেরিয়ে যাওয়া) খোলা মনে করানো
@@ -495,7 +502,7 @@ admin.get("/orders", async (c) => {
   const followCount = (await db.prepare(`SELECT COUNT(DISTINCT order_id) n FROM order_notes WHERE remind_at IS NOT NULL AND done_at IS NULL AND remind_at <= ?`).bind(eod).first<{ n: number }>())?.n ?? 0;
 
   return render(c, "অর্ডার", "orders",
-    <OrdersPage notes={notes} follow={follow} followCount={followCount} orders={orders} counts={counts} status={status} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending} courier={courierSums} crReady={crReady}
+    <OrdersPage notes={notes} follow={follow} followCount={followCount} orders={orders} counts={counts} status={status} spamTab={spamTab && !q && !payPending && !follow} spamWeek={spamTab ? await spamWeek(db) : undefined} spamLevel={spamLevel(c.var.settings)} q={q} page={page} range={range} history={history} risk={risk} payPending={payPending} courier={courierSums} crReady={crReady}
       payCount={(await db.prepare("SELECT COUNT(*) n FROM orders WHERE pay_status = 'pending' AND status IN ('new', 'confirmed')").first<{ n: number }>())?.n ?? 0}
       hasMore={results.length > PER_PAGE} couriers={configuredCouriers(c.var.settings)} />);
 });
@@ -816,6 +823,13 @@ async function applyStatus(c: Ctx, id: number, to: OrderStatus): Promise<{ ok: b
   return { ok: true, message: wasBad ? "স্ট্যাটাস বদলেছে। এই অর্ডারের জন্য নম্বর/ডিভাইসের ব্লক তুলে নেওয়া হয়েছে।" : "স্ট্যাটাস বদলেছে।" };
 }
 
+admin.post("/orders/:id{[0-9]+}/release", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const ok = await releaseSpam(c.env.DB, id);
+  flash(c, ok ? "ok" : "error", ok ? "অর্ডারটি নতুন তালিকায় পাঠানো হয়েছে।" : "অর্ডারটি স্প্যাম তালিকায় নেই।");
+  return c.redirect(`/admin/orders/${id}`, 303);
+});
+
 admin.post("/orders/:id{[0-9]+}/status", async (c) => {
   const id = toInt(c.req.param("id"));
   const to = str((await c.req.parseBody()).status, 20) as OrderStatus;
@@ -831,6 +845,15 @@ admin.post("/orders/bulk-status", async (c) => {
   const to = str(body.to, 20) as OrderStatus;
   const back = str(body.back, 300);
   const backUrl = back.startsWith("/admin/orders") ? back : "/admin/orders";
+  // স্প্যাম থেকে নতুন তালিকায় (স্ট্যাটাস আগেই "নতুন")
+  if ((to as string) === "release") {
+    const raw = Array.isArray(body.ids) ? body.ids : body.ids != null ? [body.ids] : [];
+    const ids = [...new Set(raw.map((x) => toInt(String(x))).filter((n) => n > 0))].slice(0, 100);
+    let done = 0;
+    for (const id of ids) if (await releaseSpam(c.env.DB, id)) done++;
+    flash(c, done ? "ok" : "error", done ? `${bn(done)}টা অর্ডার নতুন তালিকায় পাঠানো হয়েছে।` : "কোনো অর্ডার বাছাই করা হয়নি।");
+    return c.redirect(backUrl, 303);
+  }
   if (!["new", "confirmed", "cancelled", "fake", "shipped"].includes(to)) {
     flash(c, "error", "ভুল স্ট্যাটাস।");
     return c.redirect(backUrl, 303);
@@ -1826,6 +1849,7 @@ async function saveSettingsForm(c: Ctx, section: string) {
   if (has("tiktok_pixel_id")) { const x = str(b.tiktok_pixel_id, 30).toUpperCase(); v.tiktok_pixel_id = TIKTOK_RE.test(x) ? x : ""; }
   // ভাষা: দোকানের ওয়েবসাইট আর অ্যাডমিন প্যানেল আলাদা (ডিফল্ট বাংলা)
   for (const k of ["site_lang", "admin_lang"]) if (has(k)) v[k] = b[k] === "en" ? "en" : "bn";
+  if (has("spam_level")) v.spam_level = ["off", "soft", "medium", "hard"].includes(String(b.spam_level)) ? String(b.spam_level) : "medium";
   // লাইভ নোটিফিকেশন (চেকবাক্স না পাঠালে = বন্ধ, তাই live_form দিয়ে বোঝা যায় অংশটা ফর্মে ছিল)
   if (has("live_form")) {
     for (const k of ["live_on", "live_pop_new", "live_pop_status", "live_refresh"]) v[k] = b[k] ? "1" : "0";
