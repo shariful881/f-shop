@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { adminBrowser, Browser, DEMO_SHOP_ID, resetDb } from "./helpers";
+import { adminBrowser, Browser, DB, DEMO_SHOP_ID, resetDb } from "./helpers";
 import { normalizeDomain, validateDnsInput, checkPendingDomains, cfFromEnv } from "../src/platform/domains";
 import { clearShopCache } from "../src/platform/resolve";
 
@@ -345,13 +345,20 @@ describe("নেমসার্ভার না বসালে ৪ দিনে
   });
 });
 
+/** প্যানেল সাধারণত slug.ourdomain.com-এ খোলা থাকে */
+async function subBase() {
+  const slug = (await env.PLATFORM_DB.prepare("SELECT slug FROM shops WHERE id = ?").bind(DEMO_SHOP_ID).first<{ slug: string }>())!.slug;
+  return `https://${slug}.ourdomain.com`;
+}
+
 describe("অ্যাডমিনের \"দোকান দেখুন\" বাটন", () => {
   it("নতুন ট্যাবে খোলে; ডোমেইন না থাকলে ফ্রি ঠিকানা, pending হলেও ফ্রি ঠিকানা, চালু হলে নিজের ডোমেইন", async () => {
     const a = await adminBrowser();
     const html = await (await a.get("/admin")).text();
     expect(html).toContain('href="/admin/view-shop" target="_blank"');
 
-    const go = async () => (await a.fetch("/admin/view-shop", { redirect: "manual" } as RequestInit)).headers.get("location");
+    const base = await subBase();
+    const go = async () => (await a.fetch("/admin/view-shop", { base, redirect: "manual" } as RequestInit)).headers.get("location");
     expect(await go()).toMatch(/^https:\/\/[a-z0-9-]+\.ourdomain\.com\/$/);
 
     await a.post("/admin/domain", { domain: "mystore.com" });
@@ -361,6 +368,65 @@ describe("অ্যাডমিনের \"দোকান দেখুন\" ব
     await a.post("/admin/domain/check", {});
     expect(await go()).toBe("https://mystore.com/");
     // ড্যাশবোর্ডের দোকানের লিংকেও নিজের ডোমেইন
-    expect(await (await a.get("/admin")).text()).toContain("https://mystore.com");
+    expect(await (await a.fetch("/admin", { base } as RequestInit)).text()).toContain("https://mystore.com");
   });
 });
+
+describe("নিজের ডোমেইন চালু হলে সব লিংক সেই ডোমেইনে", () => {
+  async function activate(a: Browser) {
+    await a.post("/admin/domain", { domain: "mystore.com" });
+    cf.zones.get("zone1")!.status = "active";
+    await a.post("/admin/domain/check", {});
+    clearShopCache();
+  }
+
+  it("অ্যাডমিনের লাইভ পেজ/দেখুন লিংক /admin/view-shop?to= দিয়ে নিজের ডোমেইনে যায়", async () => {
+    const a = await adminBrowser();
+    const slug = (await DB.prepare("SELECT slug FROM products WHERE is_active = 1 LIMIT 1").first<{ slug: string }>())!.slug;
+    const base = await subBase();
+    const go = async (to: string) => (await a.fetch(`/admin/view-shop?to=${encodeURIComponent(to)}`, { base, redirect: "manual" } as RequestInit)).headers.get("location");
+    expect(await go(`/p/${slug}`)).toMatch(new RegExp(`^https://[a-z0-9-]+\\.ourdomain\\.com/p/${slug}$`));
+    await activate(a);
+    expect(await go(`/p/${slug}`)).toBe(`https://mystore.com/p/${slug}`);
+    expect(await go("/c/1")).toBe("https://mystore.com/c/1");
+    // বাইরের সাইট বা অ্যাডমিনে পাঠানো যায় না
+    expect(await go("//evil.com/x")).toBe("https://mystore.com/");
+    expect(await go("https://evil.com")).toBe("https://mystore.com/");
+    expect(await go("/admin/orders")).toBe("https://mystore.com/");
+
+    // পণ্য তালিকা আর ল্যান্ডিং বিল্ডারের লিংক
+    const list = await (await a.get("/admin/products")).text();
+    expect(list).toContain(`href="/admin/view-shop?to=%2Fp%2F${slug}"`);
+    expect(list).not.toMatch(/href="\/p\//);
+    // ক্রেতাকে পাঠানো রিভিউ লিংক আর ক্যাটালগ ফিডও নিজের ডোমেইনে
+    expect(await (await a.fetch("/admin/reviews", { base } as RequestInit)).text()).toContain("https://mystore.com/review");
+    expect(await (await a.fetch("/admin/ads/catalog", { base } as RequestInit)).text()).toContain("https://mystore.com/feed.xml");
+  });
+
+  it("slug.ourdomain.com-এর পাবলিক পেজ নিজের ডোমেইনে ৩০১; অ্যাডমিন, পেমেন্ট/POST আর লগইন করা মালিক বাদ", async () => {
+    const a = await adminBrowser();
+    const visitor = new Browser();
+    const slugOf = (await env.PLATFORM_DB.prepare("SELECT slug FROM shops WHERE id = ?").bind(DEMO_SHOP_ID).first<{ slug: string }>())!.slug;
+    const sub = { base: `https://${slugOf}.ourdomain.com` };
+    const before = await visitor.fetch("/c/1?sort=new", { ...sub, redirect: "manual" } as RequestInit);
+    expect(before.status).not.toBe(301);
+    await activate(a);
+
+    const r = await visitor.fetch("/c/1?sort=new", { ...sub, redirect: "manual" } as RequestInit);
+    expect(r.status).toBe(301);
+    expect(r.headers.get("location")).toBe("https://mystore.com/c/1?sort=new");
+    expect((await visitor.fetch("/", { ...sub, redirect: "manual" } as RequestInit)).headers.get("location")).toBe("https://mystore.com/");
+    // অ্যাডমিন লগইন পেজ, API, থিম প্রিভিউ সাব-ডোমেইনেই
+    expect((await visitor.fetch("/admin/login", { ...sub, redirect: "manual" } as RequestInit)).status).not.toBe(301);
+    expect((await visitor.fetch("/?__preview=1", { ...sub, redirect: "manual" } as RequestInit)).status).not.toBe(301);
+    expect((await visitor.fetch("/order", { ...sub, method: "POST", redirect: "manual" } as RequestInit)).status).not.toBe(301);
+    // মালিক লগইন থাকলে নিজের দোকান সাব-ডোমেইনেই দেখে (শীঘ্রই আসছে / খসড়া)
+    expect((await a.fetch("/", { ...sub, redirect: "manual" } as RequestInit)).status).not.toBe(301);
+
+    // ডোমেইন সরালে আর পাঠায় না
+    await env.PLATFORM_DB.prepare("DELETE FROM domains").run();
+    clearShopCache();
+    expect((await visitor.fetch("/", { ...sub, redirect: "manual" } as RequestInit)).status).not.toBe(301);
+  });
+});
+

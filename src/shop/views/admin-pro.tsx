@@ -1,6 +1,7 @@
 /**
  * দোকানের অ্যাডমিন — প্রফেশনাল লেআউট (সাইডবার), ড্যাশবোর্ড আর সেটিংস কেন্দ্র।
  */
+import { shopLink } from "../lib/store-origin";
 import { LANGS } from "../i18n";
 import { orderPrefix } from "../lib/orders";
 import type { Child } from "hono/jsx";
@@ -583,7 +584,7 @@ export const SettingsSeoPage = ({ s, url }: { s: Settings; url: string }) => (
       </Section>
       <Section title="সার্চ ইঞ্জিন">
         <ul class="set-list">
-          <li>✓ <a href="/sitemap.xml" target="_blank" rel="noopener">sitemap.xml</a> আর <a href="/robots.txt" target="_blank" rel="noopener">robots.txt</a> নিজে থেকে তৈরি হয় — Google Search Console-এ sitemap জমা দিন</li>
+          <li>✓ <a href={shopLink("/sitemap.xml")} target="_blank" rel="noopener">sitemap.xml</a> আর <a href={shopLink("/robots.txt")} target="_blank" rel="noopener">robots.txt</a> নিজে থেকে তৈরি হয় — Google Search Console-এ sitemap জমা দিন</li>
           <li>✓ প্রতিটা পণ্যের নিজের লিংক, টাইটেল আর শেয়ার ইমেজ</li>
         </ul>
         <label class="set-check"><input type="checkbox" name="seo_noindex" value="1" checked={s.seo_noindex === "1"} /> দোকান Google-এ লুকান (শুধু অ্যাডের লিংক দিয়ে চালালে বা টেস্টের সময়)</label>
@@ -791,7 +792,7 @@ export const PagesPage = ({ rows, edit, error }: { rows: PageRow[]; edit?: Parti
               <td>{r.is_active ? <span class="sa-pill sa-st-active">চালু</span> : <span class="sa-pill sa-st-closed">বন্ধ</span>}{r.in_menu ? " · মেনুতে" : ""}</td>
               <td class="sa-row">
                 <a href={`/admin/pages/${r.id}`} class="sa-btn sa-btn-sm sa-btn-ghost">এডিট</a>
-                <a href={`/${r.kind === "post" ? "blog" : "page"}/${r.slug}`} target="_blank" class="sa-btn sa-btn-sm sa-btn-ghost">দেখুন ↗</a>
+                <a href={shopLink(`/${r.kind === "post" ? "blog" : "page"}/${r.slug}`)} target="_blank" rel="noopener" class="sa-btn sa-btn-sm sa-btn-ghost">দেখুন ↗</a>
                 <form method="post" action={`/admin/pages/${r.id}/delete`} data-confirm={`"${r.title}" পেজটি মুছবেন?`}><button class="sa-btn sa-btn-sm sa-btn-ghost">মুছুন</button></form>
               </td>
             </tr>
