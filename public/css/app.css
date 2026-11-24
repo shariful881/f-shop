@@ -735,3 +735,47 @@ html body .cart-count { display: inline-flex; align-items: center; justify-conte
 html body .sa-chips a span { font-weight: 700; font-variant-numeric: tabular-nums; }
 html body :is(.sa-badge, .sx-fab-badge, .sx-tab-badge, .sa-tab-badge, .px-cart-count, .cart-count)[hidden] { display: none; }
 html body .px-bottom-cart i { display: inline-flex; align-items: center; justify-content: center; min-width: 19px; height: 19px; line-height: 1; font-size: .76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---- সাইজ/রং বাছাই: হাইলাইট বক্স + বড় টাইল (views/variant-tiles.tsx) ---- */
+.vt { --vt-c: var(--brand); position: relative; display: block; padding: 12px 12px 14px; border: 2px dashed color-mix(in srgb, var(--vt-c) 55%, transparent);
+  border-radius: 14px; background: color-mix(in srgb, var(--vt-c) 7%, #fff); }
+.lp-sec.lp-has-btn .vt { --vt-c: var(--lp-btn); }
+.vt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 100%; padding: 0; margin: 0 0 10px; float: left; }
+.vt-head + * { clear: both; }
+.vt-title { font-weight: 800; font-size: 1.05rem; color: #111827; }
+.vt-req { color: #dc2626; }
+.vt-hint { font-size: .85rem; font-weight: 600; color: color-mix(in srgb, var(--vt-c) 85%, #000); }
+.vt-picked { display: none; margin-left: auto; padding: 2px 10px; border-radius: 999px; background: var(--vt-c); color: #fff; font-size: .85rem; font-weight: 700; }
+.vt-done .vt-hint, .vt:has(input:checked) .vt-hint { display: none; }
+.vt-done .vt-picked, .vt:has(input:checked) .vt-picked { display: inline-block; }
+.vt:has(input:checked) { border-style: solid; border-color: var(--vt-c); }
+.vt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; }
+.vt .pill-option { display: block; }
+.vt .pill-option > span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 56px; height: 100%;
+  padding: 8px 6px; border: 2px solid #cbd5e1; border-radius: 12px; background: #fff; color: #111827; text-align: center; line-height: 1.15;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06); transition: transform .12s, border-color .12s, background .12s; position: relative; }
+.vt .vt-label { font-size: 1.15rem; font-weight: 800; word-break: break-word; }
+.vt .vt-sub { font-size: .75rem; font-weight: 600; opacity: .8; }
+.vt .pill-option:active > span { transform: scale(.96); }
+@media (hover: hover) { .vt .pill-option:not(.disabled):hover > span { border-color: var(--vt-c); } }
+.vt .pill-option input:checked + span { border-color: var(--vt-c); background: var(--vt-c); color: #fff; transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--vt-c) 35%, transparent); }
+.vt .pill-option input:checked + span::after { content: "✓"; position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; background: #16a34a; color: #fff; font-size: 13px; font-weight: 800; border: 2px solid #fff; }
+.vt .pill-option input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--vt-c) 40%, transparent); outline-offset: 2px; }
+.vt .pill-option.disabled > span { opacity: .5; text-decoration: none; background: #f3f4f6;
+  background-image: linear-gradient(to top right, transparent calc(50% - 1px), #9ca3af, transparent calc(50% + 1px)); }
+.vt .pill-option.disabled .vt-label { text-decoration: line-through; }
+/* বাছাই না হওয়া পর্যন্ত আলতো দোলা — চোখে পড়ে */
+.vt:not(.vt-done):not(:has(input:checked)) { animation: vt-glow 2.2s ease-in-out infinite; }
+@keyframes vt-glow { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--vt-c) 0%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--vt-c) 22%, transparent); } }
+/* জমা দিতে গিয়ে বাছাই না থাকলে */
+.vt.vt-err { border-color: #dc2626; border-style: solid; background: #fef2f2; animation: vt-shake .45s; }
+.vt.vt-err .vt-hint { color: #dc2626; }
+.vt.vt-err:has(input:checked) { border-color: var(--vt-c); background: color-mix(in srgb, var(--vt-c) 7%, #fff); }
+@keyframes vt-shake { 0%, 100% { transform: none; } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@media (max-width: 480px) {
+  .vt-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+  .vt .pill-option > span { min-height: 58px; }
+}
+@media (prefers-reduced-motion: reduce) { .vt, .vt.vt-err { animation: none !important; } }

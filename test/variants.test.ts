@@ -60,6 +60,14 @@ describe("কাস্টমারের দিক", () => {
     expect(html).toContain("সাইজ/রং বাছাই করুন");
     expect(html).toContain("S / লাল");
     expect(html).toMatch(new RegExp(`value="${off}" disabled`));
+    // মোবাইলে চোখে পড়ার মতো টাইল: হাইলাইট বক্স, বড় লেবেল, স্টকে নেই লেখা
+    expect(html).toContain("data-vt");
+    expect(html).toContain('<b class="vt-label">S / লাল</b>');
+    expect(html).toContain('data-label="S / লাল"');
+    expect(html).toContain('<small class="vt-sub">স্টকে নেই</small>');
+    const pp = await (await new Browser().get("/product/wooden-wall-shelf")).text();
+    expect(pp).toContain("data-vt");
+    expect(pp).toContain("data-pp-variant");
     const home = await (await new Browser().get("/")).text();
     expect(home).toContain("অপশন বাছুন");
   });

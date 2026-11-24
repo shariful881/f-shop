@@ -11,6 +11,7 @@ import type { Cfg } from "../lib/theme-config";
 import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
 import { sanitizeHtml } from "../lib/sanitize";
 import { ProductCard } from "./shop";
+import { VariantTiles } from "./variant-tiles";
 
 export const ProductPage = (p: { p: Product; images: string[]; variants: Variant[]; s: Settings; cfg: Cfg; related: Product[]; category?: { id: number; name: string; parent_id?: number | null; parent_name?: string | null } | null; error?: string; closed?: string; reviews?: unknown }) => {
   const { p: prod, s, cfg } = p;
@@ -36,17 +37,7 @@ export const ProductPage = (p: { p: Product; images: string[]; variants: Variant
       </select>
     </label>
   ) : (
-    <fieldset class="field variant-field">
-      <span>সাইজ/রং বাছাই করুন *</span>
-      <div class="variant-pills">
-        {p.variants.map((v) => (
-          <label class={`pill-option ${v.active ? "" : "disabled"}`}>
-            <input type="radio" name="variant_id" value={String(v.id)} disabled={!v.active} required data-price={String(v.price ?? prod.price)} data-pp-variant />
-            <span>{v.label}{v.active ? "" : " (স্টকে নেই)"}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
+    <VariantTiles variants={p.variants} basePrice={prod.price} required pp />
   ));
 
   return (

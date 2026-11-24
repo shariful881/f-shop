@@ -181,6 +181,12 @@
     }
 
     form.addEventListener("submit", function (e) {
+      if (form.querySelector("input[name=variant_id]") && !form.querySelector("input[name=variant_id]:checked")) {
+        e.preventDefault();
+        toast("সাইজ/রং বাছাই করুন");
+        if (window.SellxVt) window.SellxVt(form);
+        return;
+      }
       var phone = form.querySelector("input[name=phone]");
       var digits = phoneDigits();
       if (!/^01[3-9]\d{8}$/.test(digits)) {
@@ -195,11 +201,6 @@
         e.preventDefault();
         toast("অগ্রিম পাঠিয়ে Transaction ID লিখুন");
         trxIn.focus();
-        return;
-      }
-      if (form.querySelector("input[name=variant_id]") && !form.querySelector("input[name=variant_id]:checked")) {
-        e.preventDefault();
-        toast("সাইজ/রং বাছাই করুন");
         return;
       }
       var btn = form.querySelector("[data-submit]");
@@ -476,4 +477,33 @@ document.addEventListener("click", function (e) {
     entries.forEach(function (e) { e.target.classList.toggle("is-shown", e.isIntersecting); });
   }, { threshold: 0.9 });
   badges.forEach(function (b) { io.observe(b); });
+})();
+
+/* ---- সাইজ/রং টাইল: বাছাই দেখানো, না বাছাই করে জমা দিলে সেখানে নিয়ে লাল করা ---- */
+(function () {
+  var boxes = document.querySelectorAll("[data-vt]");
+  if (!boxes.length) return;
+  function flag(box) {
+    box.classList.remove("vt-err");
+    void box.offsetWidth; // দোলা আবার চালাতে
+    box.classList.add("vt-err");
+    var h = box.querySelector("[data-vt-hint]");
+    if (h) h.textContent = "⚠️ আগে এখান থেকে একটা বাছাই করুন";
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  window.SellxVt = function (form) { var b = form.querySelector("[data-vt]"); if (b) flag(b); };
+  boxes.forEach(function (box) {
+    var out = box.querySelector("[data-vt-picked]");
+    box.addEventListener("change", function (e) {
+      var r = e.target;
+      if (!r || r.name !== "variant_id") return;
+      box.classList.add("vt-done");
+      box.classList.remove("vt-err");
+      if (out) out.textContent = "✓ " + (r.getAttribute("data-label") || "");
+    });
+    // পণ্যের পেজে required রেডিও — ব্রাউজারের ছোট বার্তার বদলে আমাদের
+    box.querySelectorAll("input[name=variant_id]").forEach(function (r) {
+      r.addEventListener("invalid", function (e) { e.preventDefault(); if (!box.classList.contains("vt-err") || !box.dataset.vtT || Date.now() - box.dataset.vtT > 600) { box.dataset.vtT = Date.now(); flag(box); } });
+    });
+  });
 })();

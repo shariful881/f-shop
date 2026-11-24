@@ -7,6 +7,7 @@ import { deliveryCharge, freeDeliveryMin } from "../lib/settings";
 import { parseLanding } from "../lib/landing";
 import { sanitizeHtml } from "../lib/sanitize";
 import { BuiltLanding } from "./landing";
+import { VariantTiles } from "./variant-tiles";
 import type { Cfg } from "../lib/theme-config";
 import { advanceAmount, advanceConfig, PAY_TYPE, payMethods } from "../lib/payment";
 
@@ -163,19 +164,7 @@ export const OrderForm = (p: {
           {e.variant && <small class="error">{e.variant}</small>}
         </label>
       ) : (
-        <fieldset class="field variant-field">
-          <span>সাইজ/রং বাছাই করুন *</span>
-          <div class="variant-pills">
-            {p.variants.map((vr) => (
-              <label class={`pill-option ${vr.active ? "" : "disabled"}`}>
-                <input type="radio" name="variant_id" value={String(vr.id)} disabled={!vr.active}
-                  checked={v.variant_id === String(vr.id)} data-price={String(vr.price ?? p.basePrice ?? p.subtotal)} />
-                <span>{vr.label}{vr.price != null && vr.price !== p.basePrice ? ` — ${taka(vr.price)}` : ""}{vr.active ? "" : " (স্টকে নেই)"}</span>
-              </label>
-            ))}
-          </div>
-          {e.variant && <small class="error">{e.variant}</small>}
-        </fieldset>
+        <VariantTiles variants={p.variants} basePrice={p.basePrice ?? p.subtotal} checked={v.variant_id} error={e.variant} />
       ))}
 
       <label class="field">
