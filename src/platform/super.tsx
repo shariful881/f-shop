@@ -18,6 +18,7 @@ import { applyLedger, approveTopup, clearSettingsCache, num, platformSettings } 
 import { clearShopCache } from "./resolve";
 import { registerSuperSupport } from "./support-routes";
 import { registerSuperVisitors } from "./visitor-chat";
+import { registerSuperDomainSale } from "./domain-sale-super";
 import { platformUsage } from "./usage";
 import { PHONE_PENDING_SQL, SUSPICIOUS_SQL } from "./verify";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
@@ -1075,3 +1076,4 @@ superApp.post("/settings", async (c) => {
 /* ---------- সাপোর্ট (টিকেট + লাইভ চ্যাট) ---------- */
 registerSuperSupport(superApp, { page, flash, allowed, forbidden, audit });
 registerSuperVisitors(superApp, { page, allowed, forbidden, audit });
+registerSuperDomainSale(superApp, { page, allowed, forbidden, flash, audit });

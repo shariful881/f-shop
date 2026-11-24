@@ -141,6 +141,7 @@ export async function expirePendingDomains(db: D1Database, cf: Cloudflare, notif
 
   const warn = await db.prepare(
     `SELECT DISTINCT shop_id, root FROM domains WHERE status = 'pending' AND zone_id IS NOT NULL AND warned_at IS NULL
+       AND root NOT IN (SELECT domain FROM domain_regs WHERE status = 'active')
        AND created_at <= datetime('now', '-${PENDING_DAYS - 1} days') AND created_at > datetime('now', '-${PENDING_DAYS} days') LIMIT 50`,
   ).all<{ shop_id: string; root: string }>();
   for (const w of warn.results) {
@@ -151,6 +152,7 @@ export async function expirePendingDomains(db: D1Database, cf: Cloudflare, notif
 
   const old = await db.prepare(
     `SELECT DISTINCT shop_id, zone_id, root FROM domains WHERE status = 'pending' AND zone_id IS NOT NULL
+       AND root NOT IN (SELECT domain FROM domain_regs WHERE status = 'active') -- SellxBD থেকে কেনা: নেমসার্ভার আমরাই বসাই, সরানো নয়
        AND created_at <= datetime('now', '-${PENDING_DAYS} days') LIMIT 20`,
   ).all<{ shop_id: string; zone_id: string; root: string }>();
   for (const o of old.results) {

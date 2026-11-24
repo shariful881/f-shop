@@ -80,6 +80,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "support", href: "/super/support", icon: "life-buoy", label: "সাপোর্ট" },
   { key: "topups", href: "/super/topups", icon: "credit-card", label: "রিচার্জ" },
   { key: "finance", href: "/super/finance", icon: "chart-line", label: "আয় ও হিসাব" },
+  { key: "domain-sale", href: "/super/domain-sale", icon: "globe", label: "ডোমেইন বিক্রি" },
   { key: "announcements", href: "/super/announcements", icon: "megaphone", label: "ঘোষণা", group: "যোগাযোগ" },
   { key: "templates", href: "/super/templates", icon: "layout-template", label: "ল্যান্ডিং টেমপ্লেট" },
   { key: "demos", href: "/super/demos", icon: "package", label: "ডেমো দোকান" },
@@ -470,7 +471,7 @@ export type TopupRow = { id: number; shop_id: string; shop_name?: string; slug?:
 export type AuditRow = { id: number; admin_email: string | null; action: string; target_type: string | null; target_id: string | null; detail: string | null; ip?: string | null; created_at: string; shop_name?: string | null };
 export type NoteRow = { id: number; admin_email: string | null; note: string; created_at: string };
 
-export const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ (পুরনো দাম)", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
+export const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ (পুরনো দাম)", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" , domain_buy: "ডোমেইন কেনা", domain_renew: "ডোমেইন রিনিউ", domain_refund: "ডোমেইনের টাকা ফেরত" };
 
 const PLAN_NAME: Record<string, string> = { free: "ফ্রি", small: "ছোট দোকান", grow: "বাড়ন্ত", big: "বড় ব্র্যান্ড" };
 

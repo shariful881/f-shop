@@ -18,5 +18,7 @@ export type WorkerEnv = {
   DEV_MODE?: string;
   WORKER_NAME?: string;           // এই Worker-এর নাম (wrangler.jsonc-এর name)
   CF_ACCOUNT_ID?: string;         // নিজের ডোমেইন ফিচারের জন্য
+  PORKBUN_API_KEY?: string;       // secret: ডোমেইন বিক্রি (pk1_… আসল, pk1_sb_… পরীক্ষা)
+  PORKBUN_SECRET_KEY?: string;    // secret: sk1_…
   CF_API_TOKEN?: string;          // secret: Zone Edit + DNS Edit + Workers Routes Edit              // "1" হলে ?shop=slug দিয়ে দোকান খোলা যায় (শুধু Codespaces/লোকাল)
 };

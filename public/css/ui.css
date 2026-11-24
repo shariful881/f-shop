@@ -792,3 +792,21 @@ body.admin .us-amber small, body.admin .us-amber .us-stat-head { color: #c2410c;
 .cat-act .btn, .cat-act form { margin-left: 4px; display: inline-flex; vertical-align: middle; }
 .cat-form { display: grid; gap: 16px; max-width: 760px; }
 @media (max-width: 640px) { .cat-act .btn-outline { display: none; } .cat-table .num:nth-child(2) { display: none; } }
+
+/* ডোমেইন কেনা (Porkbun) */
+.alert-info { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; display: flex; gap: 8px; align-items: flex-start; }
+.db-panel h2 .pill { margin-left: 6px; vertical-align: middle; }
+.db-search { margin: 12px 0; } .db-search input { flex: 1; min-width: 0; }
+.db-results { display: grid; gap: 8px; margin: 10px 0 14px; }
+.db-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--c-line, #e2e8f0); border-radius: 12px; background: #fff; }
+.db-row.no { background: #f8fafc; color: #64748b; }
+.db-row.ok { border-color: #a7f3d0; }
+.db-name b { display: block; font-size: 1.02rem; word-break: break-all; }
+.db-name small { display: block; font-size: .8rem; } .db-name small.ok { color: #047857; font-weight: 600; }
+.db-price { text-align: right; } .db-price b { display: block; font-size: 1.1rem; color: var(--c-primary, #0f766e); } .db-price small { display: block; font-size: .76rem; }
+.db-notes { margin: 6px 0 0; padding-left: 18px; } .db-notes li { margin: 2px 0; }
+.db-reg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 10px 0; }
+.db-reg-grid > div { background: #f8fafc; border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
+.db-reg-grid b { font-size: 1.05rem; } .db-reg-grid small.warn { color: #b45309; font-weight: 600; }
+.db-reg-act { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 560px) { .db-row { grid-template-columns: 1fr auto; } .db-row .db-buy, .db-row > .btn { grid-column: 1 / -1; } .db-row .db-buy .btn { width: 100%; } }

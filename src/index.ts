@@ -1,5 +1,7 @@
 import type { WorkerEnv } from "./worker-env";
 import { clearShopCache, resolveHost, type ShopRow } from "./platform/resolve";
+import { runDomainRenewals } from "./platform/domain-sale";
+import { porkbunFromEnv } from "./platform/porkbun";
 import { cfFromEnv, checkPendingDomains } from "./platform/domains";
 import { computeState, endTrial, platformSettings, runDailyBilling, trialExpired } from "./platform/billing";
 import { platformApp, unknownHostPage } from "./platform/app";
@@ -95,6 +97,9 @@ export default {
   async scheduled(event: ScheduledController, env: WorkerEnv, ctx: ExecutionContext) {
     if (event.cron === "17 0 * * *") {
       ctx.waitUntil(runDailyBilling(env.PLATFORM_DB).then((r) => console.log("daily billing", r)).then(() => markCron(env, "cron_daily_at")));
+      // ডোমেইন বিক্রি: নেমসার্ভার আবার চেষ্টা, মেয়াদের সতর্কবার্তা, ব্যালেন্স থেকে অটো-রিনিউ
+      ctx.waitUntil(runDomainRenewals(env.PLATFORM_DB, porkbunFromEnv(env), (id, msg) => env.SHOP.getByName(id).pushNotice({ ...msg, url: msg.url ?? "/admin/domain", tag: "domain-renew" }))
+        .then((r) => console.log("domain renewals", r)).catch((e) => console.error("domain renewals", e)));
     } else {
       ctx.waitUntil(checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), (id, msg) => env.SHOP.getByName(id).pushNotice(msg))
         .then((n) => console.log("domains activated", n)).then(() => markCron(env, "cron_domains_at")));

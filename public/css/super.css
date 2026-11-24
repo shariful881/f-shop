@@ -382,3 +382,7 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa-brand .brand-name { display: block; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 800; font-size: 1.32rem; letter-spacing: -.025em; line-height: 1.1; color: #fff; }
 .sa-brand .brand-x { color: #fb923c; }
 .sa-brand small { margin-top: 2px; }
+
+/* ডোমেইন বিক্রি */
+.sa-span-2 { grid-column: 1 / -1; }
+.sa-badge-warn { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 8px; display: inline-block; font-size: .85rem; }

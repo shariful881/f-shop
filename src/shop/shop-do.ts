@@ -520,6 +520,8 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       PLATFORM_DOMAIN: this.env.PLATFORM_DOMAIN,
       CF_API_TOKEN: this.env.CF_API_TOKEN,
       CF_ACCOUNT_ID: this.env.CF_ACCOUNT_ID,
+      PORKBUN_API_KEY: this.env.PORKBUN_API_KEY,
+      PORKBUN_SECRET_KEY: this.env.PORKBUN_SECRET_KEY,
       WORKER_NAME: this.env.WORKER_NAME,
       AI: this.env.AI,
       EMAIL: this.env.EMAIL,

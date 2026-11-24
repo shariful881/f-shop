@@ -5,7 +5,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
 import { freeShopUrl, safeShopPath, storeOrigin } from "../lib/store-origin";
 import { priceEditable } from "../views/admin";
-import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, CategoryFormPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
+import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, CategoryFormPage, type DomainSaleView, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { adminToken, requireAdmin } from "../middleware/admin-auth";
 import { ADMIN_COOKIES, clearSession, writeSession } from "../lib/session-cookie";
 import { createSession, destroyOtherSessions, destroySession, hashPassword, needsRehash, sha256Hex, verifyPassword } from "../lib/auth";
@@ -32,6 +32,8 @@ import { BuiltLanding } from "../views/landing";
 import { normalizeCode } from "../lib/coupons";
 import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
+import { bdtPrice, buyDomain, candidates, offerOf, pushNameservers, renewDomain, saleConfig, shopReg, type Offer } from "../../platform/domain-sale";
+import { pbError, porkbunFromEnv, type PbCheck } from "../../platform/porkbun";
 import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings, type BillingShop, type PlatformSettings } from "../../platform/billing";
 import { cheapestFor, extraStaff, isCycle, isPlan, onOldPrices, overageCharge, planForShop, plansForShop, TRIAL_PLAN, type PlanKey } from "../../platform/plans";
@@ -2042,14 +2044,93 @@ async function domainGate(c: Ctx): Promise<{ steps: DomainStep[]; ready: boolean
   return { steps, ready: steps.every((x) => x.done) };
 }
 
-async function renderDomain(c: Ctx, form?: { value: string; error: string }) {
-  const [rows, gate] = await Promise.all([shopDomains(c.env.PLATFORM_DB, c.env.SHOP_ID), domainGate(c)]);
+/** নিজের ডোমেইন পেজ — ডোমেইন কেনা (Porkbun) চালু থাকলে খোঁজার ফল আর কেনা ডোমেইনের তথ্যও */
+async function renderDomain(c: Ctx, form?: { value: string; error: string }, search?: { q: string; offers: Offer[]; error?: string; notice?: string }) {
+  const db = c.env.PLATFORM_DB;
+  const [rows, gate, ps, reg, shop] = await Promise.all([
+    shopDomains(db, c.env.SHOP_ID), domainGate(c), platformSettings(db), shopReg(db, c.env.SHOP_ID),
+    db.prepare("SELECT balance FROM shops WHERE id = ?").bind(c.env.SHOP_ID).first<{ balance: number }>(),
+  ]);
+  const cfg = saleConfig(ps);
+  const pb = porkbunFromEnv(c.env);
+  const sale: DomainSaleView = {
+    enabled: cfg.enabled && pb.configured, sandbox: pb.sandbox, balance: shop?.balance ?? 0, planOk: await domainPlanOk(c),
+    q: search?.q, offers: search?.offers, error: search?.error, notice: search?.notice,
+    reg: reg ? { ...reg, renewBdt: reg.renew_cents ? bdtPrice(reg.renew_cents / 100, cfg) : null } : null,
+  };
   return render(c, "ডোমেইন", "domains",
-    <DomainPage domains={rows} freeUrl={freeShopUrl(c)} configured={cfFromEnv(c.env).configured} value={form?.value} error={form?.error} gate={gate} />,
+    <DomainPage domains={rows} freeUrl={freeShopUrl(c)} configured={cfFromEnv(c.env).configured} value={form?.value} error={form?.error} gate={gate} sale={sale} />,
     form ? 422 : 200);
 }
 
-admin.get("/domain", (c) => renderDomain(c));
+/** নিজের ডোমেইন: ট্রায়াল বা যে প্ল্যানে ডোমেইন আছে */
+async function domainPlanOk(c: Ctx): Promise<boolean> {
+  if (c.var.shopState.status === "trial") return true;
+  const bs = await billingShop(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  return !!bs && !!planForShop(await platformSettings(c.env.PLATFORM_DB), bs.created_at, bs.plan).domain;
+}
+
+admin.get("/domain", async (c) => {
+  const q = str(c.req.query("q"), 80);
+  if (!q) return renderDomain(c);
+  const db = c.env.PLATFORM_DB;
+  const cfg = saleConfig(await platformSettings(db));
+  const pb = porkbunFromEnv(c.env);
+  if (!cfg.enabled || !pb.configured) return renderDomain(c, undefined, { q, offers: [], error: pbError("NOT_CONFIGURED") });
+  const cand = candidates(q, cfg);
+  if (cand.error) return renderDomain(c, undefined, { q, offers: [], error: cand.error });
+  // Porkbun-এর সীমা (মিনিটে ২০০টা নাম, পুরো অ্যাকাউন্টে) — এক দোকান মিনিটে ৬ বার খুঁজতে পারে
+  if (!(await hitRateLimit(c.env.DB, "domain-search", 6, 60))) return renderDomain(c, undefined, { q, offers: [], error: pbError("RATE_LIMIT_EXCEEDED") });
+  const r = await pb.checkMany(cand.names);
+  if (!r.ok) return renderDomain(c, undefined, { q, offers: [], error: pbError(r.code, r.message) });
+  const offers = cand.names.map((n) => r.results.find((x) => x.domain === n)).filter((x): x is PbCheck => !!x).map((x) => offerOf(x, cfg));
+  return renderDomain(c, undefined, { q, offers, notice: r.unresolved.length ? `${r.unresolved.join(", ")} — এই মুহূর্তে উত্তর আসেনি, একটু পরে আবার খুঁজুন।` : undefined });
+});
+
+admin.post("/domain/buy", async (c) => {
+  const body = await c.req.parseBody();
+  const domain = str(body.domain, 260).toLowerCase();
+  const gate = await domainGate(c);
+  if (!gate.ready) return renderDomain(c, undefined, { q: domain, offers: [], error: "আগে নিচের সব কাজ শেষ করুন, তারপর ডোমেইন কেনা যাবে।" });
+  if (!(await domainPlanOk(c))) return renderDomain(c, undefined, { q: domain, offers: [], error: "নিজের ডোমেইন ফ্রি প্ল্যানে নেই। বিলিং থেকে \"ছোট দোকান\" বা উপরের প্ল্যান নিন।" });
+  const n = normalizeDomain(domain, c.env.PLATFORM_DOMAIN);
+  if (!n.domain) return renderDomain(c, undefined, { q: domain, offers: [], error: n.error! });
+  if (body.agree !== "1") return renderDomain(c, undefined, { q: domain, offers: [], error: "কেনার শর্তে টিক দিন।" });
+  const r = await buyDomain(c.env.PLATFORM_DB, porkbunFromEnv(c.env), cfFromEnv(c.env), c.env.SHOP_ID, n.domain, toInt(body.bdt));
+  if (!r.ok) return renderDomain(c, undefined, { q: n.domain, offers: r.refreshed ? [r.refreshed] : [], error: r.message });
+  flash(c, "ok", r.message);
+  return c.redirect("/admin/domain", 303);
+});
+
+admin.post("/domain/renew", async (c) => {
+  const reg = await shopReg(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  if (!reg) return c.redirect("/admin/domain", 303);
+  const r = await renewDomain(c.env.PLATFORM_DB, porkbunFromEnv(c.env), c.env.SHOP_ID, reg.domain);
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect("/admin/domain", 303);
+});
+
+admin.post("/domain/autorenew", async (c) => {
+  const body = await c.req.parseBody();
+  await c.env.PLATFORM_DB.prepare("UPDATE domain_regs SET auto_renew = ?, updated_at = datetime('now') WHERE shop_id = ? AND status IN ('active', 'expired')")
+    .bind(body.on === "1" ? 1 : 0, c.env.SHOP_ID).run();
+  flash(c, "ok", body.on === "1" ? "অটো-রিনিউ চালু — মেয়াদ শেষের আগে ব্যালেন্স থেকে নিজে রিনিউ হবে।" : "অটো-রিনিউ বন্ধ — মেয়াদ শেষের আগে নিজে রিনিউ করতে হবে।");
+  return c.redirect("/admin/domain", 303);
+});
+
+/** কেনা ডোমেইন দোকান থেকে সরানো থাকলে (বা প্রথমবার বসাতে সমস্যা হলে) আবার যুক্ত করা */
+admin.post("/domain/attach", async (c) => {
+  const db = c.env.PLATFORM_DB;
+  const reg = await shopReg(db, c.env.SHOP_ID);
+  if (!reg || reg.status !== "active") return c.redirect("/admin/domain", 303);
+  if (!(await shopDomains(db, c.env.SHOP_ID)).length) {
+    const r = await addDomain(db, cfFromEnv(c.env), c.env.SHOP_ID, reg.domain);
+    if (!r.ok) { flash(c, "error", r.message); return c.redirect("/admin/domain", 303); }
+  }
+  const ok = await pushNameservers(db, porkbunFromEnv(c.env), reg.domain);
+  flash(c, ok ? "ok" : "error", ok ? `${reg.domain} দোকানে যুক্ত হয়েছে — কিছুক্ষণের মধ্যে চালু হবে।` : "নেমসার্ভার বসানো যায়নি — আমরা নিজে থেকে আবার চেষ্টা করব। দেরি হলে সাপোর্টে জানান।");
+  return c.redirect("/admin/domain", 303);
+});
 // "/admin/domain" রোল-চেকে section "domain" — "domains"-এর মতোই মালিকের জন্য
 
 admin.post("/domain", async (c) => {

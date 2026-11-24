@@ -23,6 +23,7 @@ import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
 import { waLink, type WaMsg } from "../lib/whatsapp";
 import { bn } from "../lib/format";
 import { PENDING_DAYS } from "../../platform/domains";
+import type { Offer, RegRow } from "../../platform/domain-sale";
 import { ShopShell } from "./admin-pro";
 
 export type Flash = { type: "ok" | "error"; text: string } | null;
@@ -870,7 +871,7 @@ export const BlacklistPage = ({ rows, q }: { rows: BlacklistRow[]; q: string }) 
 /* ---------- বিলিং ---------- */
 export type LedgerRow = { id: number; type: string; amount: number; balance_after: number | null; ref: string; note: string | null; created_at: string };
 export type TopupRow = { id: number; amount: number; method: string; sender: string; trx_id: string; status: string; created_at: string };
-const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" };
+const LEDGER_LABEL: Record<string, string> = { topup: "রিচার্জ", order_fee: "অর্ডার চার্জ", monthly: "প্ল্যানের বিল", trial_order: "ট্রায়াল অর্ডার", adjust: "সমন্বয়", overage: "সীমার বেশি অর্ডার", plan_change: "প্ল্যান বদল", plan_order: "অর্ডার" , domain_buy: "ডোমেইন কেনা", domain_renew: "ডোমেইন রিনিউ", domain_refund: "ডোমেইনের টাকা ফেরত" };
 const TOPUP_STATUS: Record<string, string> = { pending: "অপেক্ষায়", approved: "যোগ হয়েছে", rejected: "বাতিল" };
 
 /** রিচার্জের নম্বর/অ্যাকাউন্ট — এক চাপে কপি */
@@ -1076,7 +1077,88 @@ const DomainGate = ({ g }: { g: DomainGateView }) => {
   );
 };
 
-export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configured: boolean; value?: string; error?: string; gate?: DomainGateView }) => {
+/** ডোমেইন কেনা (Porkbun) — পেজের জন্য তথ্য */
+export type DomainSaleView = {
+  enabled: boolean; sandbox: boolean; balance: number; planOk: boolean;
+  q?: string; offers?: Offer[]; error?: string; notice?: string;
+  reg: (RegRow & { renewBdt: number | null }) | null;
+};
+
+/** দোকানদার নিজের দোকান থেকে ডোমেইন খোঁজা আর কেনা */
+const DomainBuy = ({ s, gate }: { s: DomainSaleView; gate?: DomainGateView }) => (
+  <section class="panel db-panel" id="buy">
+    <h2><Icon name="globe" size="sm" /> নতুন ডোমেইন কিনুন <span class="pill pill-ok">সবচেয়ে সহজ</span></h2>
+    <p class="muted">এখান থেকে কিনলে নেমসার্ভার বা কোনো সেটিং লাগবে না — কেনার সাথে সাথে আমরা নিজে দোকানে বসিয়ে দিই। টাকা কাটে দোকানের ব্যালেন্স থেকে (এখন {taka(s.balance)})।</p>
+    {s.sandbox && <div class="alert alert-warn"><span>পরীক্ষামূলক মোড (sandbox) — আসল ডোমেইন কেনা হবে না।</span></div>}
+    <form method="get" action="/admin/domain#buy" class="row-form db-search" role="search">
+      <input type="search" name="q" value={s.q ?? ""} placeholder="আপনার দোকানের নাম, যেমন kathbon" maxlength={80} required autocomplete="off" />
+      <button class="btn btn-primary"><Icon name="search" size="sm" /> খুঁজুন</button>
+    </form>
+    {s.error && <div class="alert alert-error">{s.error}</div>}
+    {s.notice && <p class="muted small">{s.notice}</p>}
+    {s.offers && s.offers.length > 0 && (
+      <div class="db-results">
+        {s.offers.map((o) => (
+          <div class={`db-row ${o.buyable ? "ok" : "no"}`}>
+            <div class="db-name"><b>{o.domain}</b>{o.buyable ? <small class="ok">পাওয়া যাচ্ছে</small> : <small>{o.reason}</small>}</div>
+            {o.buyable && (
+              <div class="db-price">
+                <b>{taka(o.bdt)}</b><small>প্রথম বছর</small>
+                <small class="muted">পরের বছর থেকে {taka(o.renewBdt)}/বছর</small>
+              </div>
+            )}
+            {o.buyable && (gate && !gate.ready ? <a href="#gate" class="btn btn-sm btn-outline">আগে সেটআপ শেষ করুন</a> : !s.planOk ? <a href="/admin/billing" class="btn btn-sm btn-outline">প্ল্যান নিন</a> : s.balance < o.bdt ? (
+              <a href="/admin/billing" class="btn btn-sm btn-outline" title="ব্যালেন্স কম">রিচার্জ করুন</a>
+            ) : (
+              <form method="post" action="/admin/domain/buy" class="db-buy" data-confirm={`${o.domain} কিনবেন? ব্যালেন্স থেকে ৳${o.bdt} কাটা হবে (১ বছর)। কেনা ডোমেইনের টাকা ফেরত হয় না।`}>
+                <input type="hidden" name="domain" value={o.domain} />
+                <input type="hidden" name="bdt" value={String(o.bdt)} />
+                <input type="hidden" name="agree" value="1" />
+                <button class="btn btn-sm btn-primary">কিনুন</button>
+              </form>
+            ))}
+          </div>
+        ))}
+      </div>
+    )}
+    <ul class="db-notes muted small">
+      <li>১ বছরের জন্য কেনা হয়; মেয়াদ শেষের আগে ব্যালেন্স থেকে নিজে রিনিউ হয় (চাইলে বন্ধ রাখা যায়)।</li>
+      <li>WHOIS privacy ফ্রি — আপনার নাম-ঠিকানা লুকানো থাকে।</li>
+      <li>পরে অন্য কোম্পানিতে নিতে চাইলে সাপোর্টে জানালে ট্রান্সফার করে দেওয়া হবে।</li>
+    </ul>
+  </section>
+);
+
+/** SellxBD থেকে কেনা ডোমেইনের মেয়াদ আর রিনিউ */
+const DomainRegPanel = ({ r, attached }: { r: NonNullable<DomainSaleView["reg"]>; attached: boolean }) => {
+  const left = r.expires_at ? Math.round((Date.parse(`${r.expires_at}T00:00:00Z`) - Date.now()) / 86400_000) : null;
+  return (
+    <section class="panel db-reg">
+      <h2><Icon name="shield-check" size="sm" /> SellxBD থেকে কেনা — {r.domain}
+        {r.status === "registering" ? <span class="pill">কেনা হচ্ছে</span> : r.status === "expired" ? <span class="pill pill-bad">মেয়াদ শেষ</span> : <span class="pill pill-ok">সক্রিয়</span>}</h2>
+      <div class="db-reg-grid">
+        <div><small class="muted">মেয়াদ শেষ</small><b>{r.expires_at ?? "—"}</b>{left != null && <small class={left <= 30 ? "warn" : "muted"}>{left >= 0 ? `${bn(left)} দিন বাকি` : "মেয়াদ পেরিয়েছে"}</small>}</div>
+        <div><small class="muted">রিনিউ</small><b>{r.renewBdt ? `${taka(r.renewBdt)}/বছর` : "—"}</b></div>
+        <div><small class="muted">অটো-রিনিউ</small><b>{r.auto_renew ? "চালু" : "বন্ধ"}</b>
+          <form method="post" action="/admin/domain/autorenew" class="inline"><input type="hidden" name="on" value={r.auto_renew ? "0" : "1"} /><button class="btn-link">{r.auto_renew ? "বন্ধ করুন" : "চালু করুন"}</button></form>
+        </div>
+      </div>
+      {r.auto_renew ? <p class="muted small">মেয়াদ শেষের ১৪ দিন আগে থেকে ব্যালেন্সে টাকা থাকলে নিজে রিনিউ হবে। ৩০, ৭ আর ১ দিন আগে ফোনে জানানো হবে।</p> : <p class="muted small">অটো-রিনিউ বন্ধ — মেয়াদ শেষের আগে নিচের বাটনে রিনিউ করুন, নইলে ডোমেইন হারাতে পারেন।</p>}
+      <div class="db-reg-act">
+        {(r.status === "active" || r.status === "expired") && (
+          <form method="post" action="/admin/domain/renew" class="inline" data-confirm={`${r.domain} এখনই ১ বছর রিনিউ করবেন? ব্যালেন্স থেকে${r.renewBdt ? ` ৳${r.renewBdt}` : ""} কাটা হবে।`}>
+            <button class="btn btn-sm btn-outline">এখনই রিনিউ করুন</button>
+          </form>
+        )}
+        {!attached && r.status === "active" && (
+          <form method="post" action="/admin/domain/attach" class="inline"><button class="btn btn-sm btn-primary">দোকানে যুক্ত করুন</button></form>
+        )}
+      </div>
+    </section>
+  );
+};
+
+export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configured: boolean; value?: string; error?: string; gate?: DomainGateView; sale?: DomainSaleView }) => {
   const root = p.domains[0]?.root;
   const ns: string[] = p.domains[0]?.nameservers ? JSON.parse(p.domains[0].nameservers) : [];
   const active = p.domains.length > 0 && p.domains.every((d) => d.status === "active");
@@ -1089,12 +1171,16 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
         <p><a href={p.freeUrl} target="_blank">{p.freeUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "")}</a> — সবসময় চালু থাকবে</p>
       </section>
 
+      {p.sale?.error && (root || p.sale.reg || !p.sale.enabled) && <div class="alert alert-error">{p.sale.error}</div>}
+      {p.sale?.reg && <DomainRegPanel r={p.sale.reg} attached={!!root && root === p.sale.reg.domain} />}
+      {!root && p.sale?.enabled && !p.sale.reg && <DomainBuy s={p.sale} gate={p.gate} />}
+
       {!root ? (
         <section class="panel">
-          <h2>নিজের ডোমেইন যোগ করুন</h2>
+          <h2>{p.sale?.enabled && !p.sale.reg ? "অথবা: আগে কেনা ডোমেইন যোগ করুন" : "নিজের ডোমেইন যোগ করুন"}</h2>
           {!p.configured && <div class="alert alert-error">নিজের ডোমেইন ফিচার এখনো চালু করা হয়নি। সাপোর্টে যোগাযোগ করুন।</div>}
           {p.error && <div class="alert alert-error">{p.error}</div>}
-          {p.gate && !p.gate.ready ? <DomainGate g={p.gate} /> : <>
+          {p.gate && !p.gate.ready ? <div id="gate"><DomainGate g={p.gate} /></div> : <>
           <p class="muted">যেমন <code>dokan.com</code> — www ছাড়া মূল ডোমেইন দিন। www সহ দুটোতেই আপনার দোকান চলবে।</p>
           <form method="post" action="/admin/domain" class="dg-form">
             <div class="row-form">
@@ -1113,6 +1199,9 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
             <p>আপনার দোকান চালু আছে: <a href={`https://${root}`} target="_blank">https://{root}</a> এবং <a href={`https://www.${root}`} target="_blank">www.{root}</a></p>
           ) : (
             <>
+              {p.sale?.reg?.domain === root ? (
+                <div class="alert alert-info"><Icon name="hourglass" size="sm" /><span>ডোমেইনটা SellxBD থেকে কেনা — নেমসার্ভার আমরা নিজে বসিয়েছি, আপনাকে কিছু করতে হবে না। সাধারণত কয়েক মিনিট থেকে কয়েক ঘণ্টায় চালু হয়; আমরা প্রতি ৩০ মিনিটে যাচাই করি।</span></div>
+              ) : <>
               {(() => {
                 const left = daysLeft(p.domains[0]?.created_at);
                 return left == null ? null : (
@@ -1125,6 +1214,7 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
               <p><strong>ধাপ ২:</strong> Nameserver অংশে আগের সব নেমসার্ভার মুছে এই দুটো বসান:</p>
               <div class="ns-box">{ns.map((n) => <code class="ns">{n}</code>)}</div>
               <p><strong>ধাপ ৩:</strong> সেভ করে নিচের বাটনে চাপুন। নেমসার্ভার ছড়াতে কয়েক মিনিট থেকে ২৪ ঘণ্টা লাগতে পারে — আমরা প্রতি ৩০ মিনিটে নিজে থেকেও যাচাই করি।</p>
+              </>}
               <p class="muted"><Icon name="triangle-alert" size="sm" /> এই ডোমেইনে ইমেইল বা অন্য কিছু চালালে আগে <a href="/admin/dns">DNS রেকর্ড</a> পেজে রেকর্ডগুলো ঠিক আছে কি না দেখে নিন।</p>
               <form method="post" action="/admin/domain/check" class="inline"><button class="btn btn-primary">এখনই যাচাই করুন</button></form>
               {p.domains[0]?.checked_at && <p class="muted">শেষ যাচাই: {dhakaTime(p.domains[0].checked_at)}</p>}
