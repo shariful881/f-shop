@@ -171,6 +171,22 @@ export async function activeProductBySlug(db: D1Database, slug: string): Promise
   return db.prepare("SELECT * FROM products WHERE slug = ? AND is_active = 1").bind(slug).first<Product>();
 }
 
+/** পুরনো লিংক (বদলানো slug) → পণ্যের এখনকার slug; না থাকলে null */
+export async function redirectedSlug(db: D1Database, slug: string): Promise<string | null> {
+  const r = await db.prepare("SELECT p.slug FROM slug_redirects r JOIN products p ON p.id = r.product_id WHERE r.old_slug = ? AND p.is_active = 1")
+    .bind(slug).first<{ slug: string }>();
+  return r && r.slug !== slug ? r.slug : null;
+}
+
+/** slug বদলালে পুরনোটা মনে রাখা (৩০১-এর জন্য); নতুন slug যদি কারো পুরনো লিংক হয়, সেই রেকর্ড বাদ */
+export function slugChangeStatements(db: D1Database, productId: number, oldSlug: string | null | undefined, newSlug: string): D1PreparedStatement[] {
+  if (!oldSlug || oldSlug === newSlug) return [];
+  return [
+    db.prepare("DELETE FROM slug_redirects WHERE old_slug = ?").bind(newSlug),
+    db.prepare("INSERT OR REPLACE INTO slug_redirects (old_slug, product_id) VALUES (?, ?)").bind(oldSlug, productId),
+  ];
+}
+
 /** আইডিগুলোর চালু পণ্য, আইডির ক্রম ঠিক রেখে */
 export async function activeProductsByIds(db: D1Database, ids: number[]): Promise<Product[]> {
   if (!ids.length) return [];

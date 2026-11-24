@@ -1415,7 +1415,62 @@ export const CouponsPage = (p: { coupons: CouponRow[]; errors?: Record<string, s
 };
 
 /* ---------- ল্যান্ডিং পেজ বিল্ডার ---------- */
-export type LandingRow = { id: number; name: string; slug: string; price: number; image: string | null; is_active: number; updated_at: string | null };
+export type LandingRow = { id: number; name: string; slug: string; price: number; image: string | null; is_active: number; updated_at: string | null; meta_title?: string | null };
+
+/** ল্যান্ডিং পেজের শিরোনাম, বিবরণ আর লিংক */
+export const LandingInfoPage = (p: { product: Product; v: { meta_title: string; meta_description: string; slug: string }; errors: Record<string, string>; origin: string; oldSlugs: string[] }) => {
+  const host = p.origin.replace(/^https?:\/\//, "");
+  const desc = p.v.meta_description || p.product.short_desc || "";
+  return (
+    <>
+      <p><a href="/admin/landing">← ল্যান্ডিং পেজ</a></p>
+      <PageHead title="ল্যান্ডিং পেজের তথ্য" desc={<>পণ্য: <b>{p.product.name}</b> — এই শিরোনাম আর বিবরণ ব্রাউজারের ট্যাবে, Google-এ আর Facebook/WhatsApp-এ লিংক শেয়ার করলে দেখায়।</>}
+        actions={<a href={`/admin/products/${p.product.id}/landing`} class="btn btn-outline"><Icon name="layout-template" size="sm" /> ডিজাইন এডিট</a>} />
+      <div class="lpi">
+        <form method="post" class="sa-card lpi-form" data-lpi>
+          <label class="field"><span>পেজের শিরোনাম <small data-count-for="meta_title"></small></span>
+            <input type="text" name="meta_title" value={p.v.meta_title} maxlength={100} data-count="60" placeholder={p.product.name} data-lpi-title />
+            <small class="muted">ফাঁকা রাখলে পণ্যের নাম। ৪০–৬০ অক্ষর ভালো।</small>
+          </label>
+          <label class="field"><span>বিবরণ <small data-count-for="meta_description"></small></span>
+            <textarea name="meta_description" rows={3} maxlength={300} data-count="155" placeholder={p.product.short_desc ?? "পণ্যটা কেন নেবেন — ১–২ লাইনে"} data-lpi-desc>{p.v.meta_description}</textarea>
+            <small class="muted">শেয়ার করলে শিরোনামের নিচে দেখায়। ১২০–১৫৫ অক্ষর ভালো।</small>
+          </label>
+          <label class="field"><span>পেজের লিংক</span>
+            <div class="lpi-url"><span class="lpi-pre"><bdi dir="ltr">{host}/p/</bdi></span><input type="text" name="slug" value={p.v.slug} maxlength={100} required pattern="[A-Za-z0-9\- ]+" data-lpi-slug autocomplete="off" spellcheck={false} /></div>
+            {p.errors.slug ? <small class="error">{p.errors.slug}</small> : <small class="muted">ইংরেজি অক্ষর, সংখ্যা আর - (যেমন period-panty)। ছোট আর পড়তে সহজ লিংক বিজ্ঞাপনে ভালো দেখায়।</small>}
+          </label>
+          <div class="alert alert-warn lpi-warn" data-lpi-warn hidden={p.v.slug === p.product.slug}>
+            <span>লিংক বদলালে পুরনো লিংকে (<code>/p/{p.product.slug}</code>) আসা ভিজিটর নিজে নিজে নতুন পেজে চলে যাবে — চালু বিজ্ঞাপন ভাঙবে না। তবু সুযোগ হলে বিজ্ঞাপনে নতুন লিংক বসিয়ে দিন।</span>
+          </div>
+          {p.oldSlugs.length > 0 && <p class="muted small">আগের লিংক (নতুনটায় যায়): {p.oldSlugs.map((x, i) => <>{i > 0 && ", "}<code>/p/{x}</code></>)}</p>}
+          <div class="lpi-actions">
+            <button class="btn btn-primary">সেভ করুন</button>
+            <a href={shopLink(`/p/${p.product.slug}`)} target="_blank" rel="noopener" class="btn-link">পেজ দেখুন ↗</a>
+          </div>
+        </form>
+        <aside class="lpi-preview">
+          <p class="lpi-cap">Facebook / WhatsApp-এ শেয়ার করলে</p>
+          <div class="lpi-fb">
+            {p.product.image ? <img src={imageUrl(p.product.image)} alt="" /> : <div class="lpi-noimg">ছবি নেই</div>}
+            <div class="lpi-fb-body">
+              <small class="lpi-host">{host.toUpperCase()}</small>
+              <b data-lpi-out="title">{p.v.meta_title || p.product.name}</b>
+              <span data-lpi-out="desc">{desc}</span>
+            </div>
+          </div>
+          <p class="lpi-cap">Google-এ</p>
+          <div class="lpi-g">
+            <small class="lpi-g-url">{host} › p › <span data-lpi-out="slug">{p.v.slug}</span></small>
+            <b data-lpi-out="title">{p.v.meta_title || p.product.name}</b>
+            <span data-lpi-out="desc">{desc}</span>
+          </div>
+          <p class="muted small">ছবি আসে পণ্যের মূল ছবি থেকে। Facebook আগের শেয়ারের তথ্য কিছুদিন মনে রাখে — বদলের পরপর পুরনোটা দেখালে Facebook-এর Sharing Debugger-এ লিংক দিয়ে "Scrape Again" চাপুন।</p>
+        </aside>
+      </div>
+    </>
+  );
+};
 
 /** ল্যান্ডিং পেজের তালিকা */
 export const LandingListPage = ({ rows }: { rows: LandingRow[] }) => (
@@ -1432,10 +1487,11 @@ export const LandingListPage = ({ rows }: { rows: LandingRow[] }) => (
         <thead><tr><th>পণ্য</th><th>দাম</th><th></th></tr></thead>
         <tbody>{rows.map((r) => (
           <tr>
-            <td><div class="lp-row-prod">{r.image && <img src={imageUrl(r.image)} alt="" width="40" height="40" />}<span><strong>{r.name}</strong>{!r.is_active && <span class="pill">বন্ধ</span>}<br /><small class="muted">/p/{r.slug}</small></span></div></td>
+            <td><div class="lp-row-prod">{r.image && <img src={imageUrl(r.image)} alt="" width="40" height="40" />}<span><strong>{r.meta_title || r.name}</strong>{!r.is_active && <span class="pill">বন্ধ</span>}{r.meta_title && r.meta_title !== r.name && <><br /><small class="muted">পণ্য: {r.name}</small></>}<br /><small class="muted">/p/{r.slug}</small></span></div></td>
             <td>{taka(r.price)}</td>
             <td class="right nowrap">
               <a href={`/admin/products/${r.id}/landing`} class="btn btn-outline btn-sm">এডিট</a>{" "}
+              <a href={`/admin/products/${r.id}/landing/info`} class="btn btn-outline btn-sm" title="শিরোনাম, বিবরণ আর লিংক"><Icon name="settings" size="sm" /> তথ্য</a>{" "}
               <a href={shopLink(`/p/${r.slug}`)} target="_blank" rel="noopener" class="btn-link">দেখুন ↗</a>
             </td>
           </tr>
@@ -1533,6 +1589,7 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
         </label>
         <button class="btn btn-outline btn-sm" id="lb-move" hidden>বদলান</button>
       </form>
+      <a href={`/admin/products/${p.product.id}/landing/info?from=builder`} class="btn btn-outline btn-sm lb-info"><Icon name="settings" size="sm" /> শিরোনাম ও লিংক</a>
     </div>
     {p.ai && (
       <details class="sa-card ai-box" open={!p.custom}>

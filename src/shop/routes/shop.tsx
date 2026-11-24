@@ -14,7 +14,7 @@ import { sanitizeHtml } from "../lib/sanitize";
 import { adminToken } from "../middleware/admin-auth";
 import { themeConfig } from "../lib/theme-config";
 import { themeOf } from "../lib/settings";
-import { activeProductBySlug, activeProductsByIds, cartLines, homeSections, parseGallery, withChildren, type Category, linesSubtotal, productVariants, type Product } from "../lib/products";
+import { activeProductBySlug, redirectedSlug, activeProductsByIds, cartLines, homeSections, parseGallery, withChildren, type Category, linesSubtotal, productVariants, type Product } from "../lib/products";
 import { addToCart, clearCart, maxQty, readCart, readCartEntries, removeFromCart, setCartQty, upsertCart } from "../lib/cart";
 import { ProductPage } from "../views/product";
 import { landingChrome, parseLanding } from "../lib/landing";
@@ -136,9 +136,17 @@ async function renderLanding(c: Ctx, p: Product, form?: FormState, status: 200 |
   );
 }
 
+/** লিংক বদলানো হলে পুরনো লিংক থেকে নতুনটায় (query সহ) */
+async function slugMoved(c: Ctx, prefix: "/p/" | "/product/") {
+  const to = await redirectedSlug(c.env.DB, c.req.param("slug") ?? "");
+  if (!to) return notFound(c);
+  const u = new URL(c.req.url);
+  return c.redirect(`${prefix}${encodeURIComponent(to)}${u.search}`, 301);
+}
+
 shop.get("/p/:slug", async (c) => {
   const p = await activeProductBySlug(c.env.DB, c.req.param("slug"));
-  if (!p) return notFound(c);
+  if (!p) return slugMoved(c, "/p/");
   return renderLanding(c, p);
 });
 
@@ -170,7 +178,7 @@ async function renderProduct(c: Ctx, p: Product, error?: string) {
 
 shop.get("/product/:slug", async (c) => {
   const p = await activeProductBySlug(c.env.DB, c.req.param("slug"));
-  if (!p) return notFound(c);
+  if (!p) return slugMoved(c, "/product/");
   return renderProduct(c, p, c.req.query("need") === "variant" ? "সাইজ/রং বাছাই করুন" : undefined);
 });
 

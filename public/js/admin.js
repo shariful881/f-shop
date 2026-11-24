@@ -482,3 +482,22 @@ document.addEventListener("click", function (e) {
   });
   dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); }); // বাইরে চাপলে বন্ধ
 })();
+
+/* ল্যান্ডিং পেজের তথ্য: শেয়ার/Google প্রিভিউ লেখার সাথে সাথে, লিংক বদলালে সতর্কতা */
+(function () {
+  var f = document.querySelector("[data-lpi]");
+  if (!f) return;
+  var t = f.querySelector("[data-lpi-title]"), d = f.querySelector("[data-lpi-desc]"), s = f.querySelector("[data-lpi-slug]");
+  var warn = f.querySelector("[data-lpi-warn]"), orig = s.value;
+  function slug(v) { return v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80); }
+  function put(k, v) { document.querySelectorAll('[data-lpi-out="' + k + '"]').forEach(function (el) { el.textContent = v; }); }
+  function sync() {
+    put("title", t.value.trim() || t.placeholder);
+    put("desc", d.value.trim() || d.placeholder);
+    put("slug", slug(s.value) || "…");
+    if (warn) warn.hidden = slug(s.value) === slug(orig);
+  }
+  [t, d, s].forEach(function (el) { el.addEventListener("input", sync); });
+  s.addEventListener("blur", function () { var v = slug(s.value); if (v) s.value = v; sync(); });
+  sync();
+})();

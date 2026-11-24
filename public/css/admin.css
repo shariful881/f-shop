@@ -465,3 +465,33 @@ body.admin .orders-wrap .ot-total small { font-weight: 400; }
 .dg-owns { display: flex; align-items: flex-start; gap: 8px; font-size: .9rem; color: #334155; cursor: pointer; }
 .dg-owns input { margin-top: 3px; flex: none; }
 @media (max-width: 520px) { .dg-list li { flex-wrap: wrap; } .dg-txt { flex-basis: calc(100% - 40px); } .dg-ok { display: none; } .dg-list li .btn, .dg-list li .dg-wait { margin-left: 40px; } .dg-head small { font-size: .78rem; } }
+
+/* ল্যান্ডিং পেজের তথ্য */
+.lpi { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.lpi-form { display: grid; gap: 14px; }
+.lpi-url { display: flex; align-items: stretch; border: 1px solid var(--line, #d6dde3); border-radius: 8px; overflow: hidden; background: #fff; }
+.lpi-url:focus-within { border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+.lpi-pre { display: flex; align-items: center; padding: 0 10px; background: #f1f5f4; color: #55636e; font-size: 13px; white-space: nowrap; border-right: 1px solid var(--line, #d6dde3); max-width: 55%; overflow: hidden; text-overflow: ellipsis; direction: rtl; }
+.lpi-url input { border: 0 !important; box-shadow: none !important; flex: 1; min-width: 0; outline: none; }
+.lpi-actions { display: flex; gap: 14px; align-items: center; }
+.lpi-warn { margin: 0; }
+.lpi-preview { position: sticky; top: 16px; display: grid; gap: 8px; }
+.lpi-cap { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: #55636e; text-transform: uppercase; letter-spacing: .03em; }
+.lpi-fb { border: 1px solid #dadde1; border-radius: 8px; overflow: hidden; background: #fff; }
+.lpi-fb img, .lpi-noimg { display: block; width: 100%; aspect-ratio: 1.91 / 1; object-fit: cover; background: #eef1f3; }
+.lpi-noimg { display: grid; place-items: center; color: #8a96a0; font-size: 13px; }
+.lpi-fb-body { display: grid; gap: 2px; padding: 10px 12px; background: #f0f2f5; }
+.lpi-fb-body b { font-size: 15px; color: #050505; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lpi-fb-body > span { font-size: 13px; color: #65676b; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.lpi-host { font-size: 11px; color: #65676b; }
+.lpi-g { display: grid; gap: 3px; padding: 12px 14px; border: 1px solid #e3e6e8; border-radius: 8px; background: #fff; }
+.lpi-g-url { color: #4d5156; font-size: 12px; word-break: break-all; }
+.lpi-g b { color: #1a0dab; font-size: 17px; font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.lpi-g > span { color: #4d5156; font-size: 13px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lb-info { white-space: nowrap; }
+@media (max-width: 900px) {
+  .lpi { grid-template-columns: 1fr; }
+  .lpi-preview { position: static; }
+  .lpi-actions .btn { flex: 1; }
+}
+.lpi-warn code { font-size: 12px; background: rgba(0,0,0,.05); padding: 1px 4px; border-radius: 4px; word-break: break-all; }

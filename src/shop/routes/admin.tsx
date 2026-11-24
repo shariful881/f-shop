@@ -12,7 +12,7 @@ import { createSession, destroyOtherSessions, destroySession, hashPassword, need
 import { changeStatus } from "../lib/order-status";
 import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
 import { InvoicePage, type InvoiceData } from "../views/invoice";
-import { GALLERY_MAX, categoryTree, parseFeatures, parseGallery, productVariants, withChildren, syncVariants, type Category, type Product } from "../lib/products";
+import { GALLERY_MAX, slugChangeStatements, categoryTree, parseFeatures, parseGallery, productVariants, withChildren, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
@@ -23,7 +23,7 @@ import { AccountPage, ForgotPage, ResetPage } from "../views/account";
 import { createResetToken, resetBase, resetUser, sendResetEmail } from "../lib/password-reset";
 import { hitRateLimit, peekRateLimit } from "../lib/order-guard";
 import { sendPurchase } from "../lib/capi";
-import { CouponsPage, LandingBuilderPage, LandingListPage, ReportsPage, TemplateGalleryPage, type CouponRow, type LandingRow } from "../views/admin";
+import { CouponsPage, LandingBuilderPage, LandingInfoPage, LandingListPage, ReportsPage, TemplateGalleryPage, type CouponRow, type LandingRow } from "../views/admin";
 import { buildReport, resolveRange } from "../lib/reports";
 import { defaultLanding, FONTS, normalizeLanding, parseLanding, SECTION_LABEL } from "../lib/landing";
 import { loadTemplate, MAX_MY_TEMPLATES, myTemplates, platformTemplates, thumbBlocks } from "../lib/landing-templates";
@@ -1295,6 +1295,8 @@ async function saveProduct(c: Ctx, id: number | null) {
          youtube_url=?, is_active=?, show_on_home=?, sort_order=?, options_json=?, meta_title=?, meta_description=?, track_stock=?, low_stock=?, cost_price=?,
          sku=?, barcode=?, brand=?, gallery_json=?, features=?, stock_status=?, updated_at=datetime('now') WHERE id=?`,
     ).bind(...cols, id).run();
+    const moves = slugChangeStatements(db, id, existing!.slug, v.slug);
+    if (moves.length) await db.batch(moves);
   } else {
     const r = await db.prepare(
       `INSERT INTO products (category_id, name, slug, price, compare_price, image, headline, short_desc, details_html, youtube_url, is_active, show_on_home, sort_order, options_json, meta_title, meta_description, track_stock, low_stock, cost_price,
@@ -1302,6 +1304,7 @@ async function saveProduct(c: Ctx, id: number | null) {
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`,
     ).bind(...cols).first<{ id: number }>();
     productId = r!.id;
+    await db.prepare("DELETE FROM slug_redirects WHERE old_slug = ?").bind(v.slug).run();
   }
   await syncVariants(db, productId!, options);
   // স্টক: ভ্যারিয়েন্ট না থাকলে পণ্যের নিজের, থাকলে ভ্যারিয়েন্টের যোগফল
@@ -2364,7 +2367,7 @@ const FONT_LABELS = Object.fromEntries(Object.entries(FONTS).map(([k, v]) => [k,
 /* ---------- ল্যান্ডিং পেজ: তালিকা, টেমপ্লেট গ্যালারি ---------- */
 admin.get("/landing", async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT id, name, slug, price, image, is_active, updated_at FROM products WHERE landing_json IS NOT NULL ORDER BY updated_at DESC, id DESC",
+    "SELECT id, name, slug, price, image, is_active, updated_at, meta_title FROM products WHERE landing_json IS NOT NULL ORDER BY updated_at DESC, id DESC",
   ).all<LandingRow>();
   return render(c, "ল্যান্ডিং পেজ", "landing", <LandingListPage rows={results} />);
 });
@@ -2405,6 +2408,47 @@ admin.get("/products/:id{[0-9]+}/landing", async (c) => {
   return render(c, "ল্যান্ডিং পেজ", "landing",
     // "AI দিয়ে লেখা বানান" বক্স বন্ধ (মালিকের সিদ্ধান্ত) — ai না দিলে এডিটরে দেখায় না
     <LandingBuilderPage product={p} landingJson={JSON.stringify(landing)} labels={SECTION_LABEL} custom={!!p.landing_json} products={await productChoices(c)} fonts={FONT_LABELS} />);
+});
+
+/* ---------- ল্যান্ডিং পেজের তথ্য: শিরোনাম, বিবরণ, লিংক ---------- */
+type LandingInfoForm = { meta_title: string; meta_description: string; slug: string };
+
+async function renderLandingInfo(c: Ctx, p: Product, form?: LandingInfoForm, errors: Record<string, string> = {}) {
+  const v = form ?? { meta_title: p.meta_title ?? "", meta_description: p.meta_description ?? "", slug: p.slug };
+  const { results } = await c.env.DB.prepare("SELECT old_slug FROM slug_redirects WHERE product_id = ? ORDER BY created_at DESC LIMIT 5").bind(p.id).all<{ old_slug: string }>();
+  return render(c, "ল্যান্ডিং পেজের তথ্য", "landing",
+    <LandingInfoPage product={p} v={v} errors={errors} origin={await storeOrigin(c)} oldSlugs={results.map((r) => r.old_slug).filter((x) => x !== p.slug)} />,
+    Object.keys(errors).length ? 422 : 200);
+}
+
+admin.get("/products/:id{[0-9]+}/landing/info", async (c) => {
+  const p = await productById(c, toInt(c.req.param("id")));
+  if (!p) return c.redirect("/admin/landing", 303);
+  return renderLandingInfo(c, p);
+});
+
+admin.post("/products/:id{[0-9]+}/landing/info", async (c) => {
+  const db = c.env.DB;
+  const p = await productById(c, toInt(c.req.param("id")));
+  if (!p) return c.redirect("/admin/landing", 303);
+  const b = await c.req.parseBody();
+  const v: LandingInfoForm = {
+    meta_title: str(b.meta_title, 100),
+    meta_description: str(b.meta_description, 300),
+    slug: slugify(str(b.slug, 100)),
+  };
+  const errors: Record<string, string> = {};
+  if (!v.slug) errors.slug = "লিংকে ইংরেজি অক্ষর, সংখ্যা আর - দিন (যেমন period-panty)";
+  else if (await db.prepare("SELECT id FROM products WHERE slug = ? AND id != ?").bind(v.slug, p.id).first()) errors.slug = "এই লিংক অন্য একটা পণ্যে ব্যবহার হচ্ছে — অন্য নাম দিন";
+  if (Object.keys(errors).length) return renderLandingInfo(c, p, { ...v, slug: str(b.slug, 100) }, errors);
+  await db.batch([
+    db.prepare("UPDATE products SET meta_title = ?, meta_description = ?, slug = ?, updated_at = datetime('now') WHERE id = ?")
+      .bind(v.meta_title || null, v.meta_description || null, v.slug, p.id),
+    ...slugChangeStatements(db, p.id, p.slug, v.slug),
+  ]);
+  flash(c, "ok", v.slug !== p.slug ? "সেভ হয়েছে। নতুন লিংক চালু — পুরনো লিংকে এলেও ভিজিটর নতুন পেজে চলে যাবে।" : "সেভ হয়েছে।");
+  const back = c.req.query("from") === "builder" ? `/admin/products/${p.id}/landing` : "/admin/landing";
+  return c.redirect(back, 303);
 });
 
 /** ডিজাইনটা অন্য পণ্যে সরানো (এখনকার পরিবর্তনসহ) */
