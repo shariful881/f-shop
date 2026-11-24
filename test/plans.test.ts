@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { adminBrowser, Browser, DEMO_SHOP_ID, resetDb } from "./helpers";
+import { adminBrowser, Browser, DEMO_SHOP_ID, readyForDomain, resetDb } from "./helpers";
 import { clearShopCache } from "../src/platform/resolve";
 import { clearSettingsCache } from "../src/platform/billing";
 import { cheapestFor, cyclePrice, onOldPrices, overageCharge, plans, plansForShop } from "../src/platform/plans";
@@ -51,8 +51,9 @@ describe("প্ল্যানের হিসাব", () => {
 describe("প্ল্যান অনুযায়ী সুবিধা", () => {
   it("ফ্রি প্ল্যানে নিজের ডোমেইন যোগ করা যায় না", async () => {
     await pdb().prepare("UPDATE shops SET plan = 'free' WHERE id = ?").bind(DEMO_SHOP_ID).run();
+    await readyForDomain();
     const a = await adminBrowser();
-    const r = await a.post("/admin/domain", { domain: "myshop.com" });
+    const r = await a.post("/admin/domain", { domain: "myshop.com", owns: "1" });
     expect(await r.text()).toContain("ফ্রি প্ল্যানে নেই");
     expect(await pdb().prepare("SELECT 1 FROM domains WHERE hostname = 'myshop.com'").first()).toBeNull();
   });

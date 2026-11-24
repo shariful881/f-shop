@@ -150,7 +150,7 @@ superApp.get("/", async (c) => {
     q(`SELECT id, name, slug, status, created_at FROM shops WHERE ${NO_DEMO} ORDER BY created_at DESC LIMIT 6`),
     q(`SELECT a.*, s.name shop_name FROM audit_log a LEFT JOIN shops s ON a.target_type = 'shop' AND s.id = a.target_id ORDER BY a.id DESC LIMIT 6`),
     q("SELECT COUNT(*) n, COALESCE(SUM(amount), 0) amount FROM topups WHERE status = 'pending'"),
-    q("SELECT SUM(status = 'pending') pending, SUM(status = 'failed') failed FROM domains"),
+    q("SELECT COUNT(DISTINCT CASE WHEN status = 'pending' THEN zone_id END) pending, SUM(status = 'failed') failed FROM domains"),
     q("SELECT key, value FROM platform_settings WHERE key IN ('cron_daily_at', 'cron_domains_at')"),
   ]);
   const rows = <T,>(i: number) => res[i]!.results as T[];
@@ -211,6 +211,7 @@ const FILTER_SQL: Record<string, string> = {
   paying: "s.first_topup_at IS NOT NULL",
   custom_domain: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id)",
   domain_failed: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id AND d.status = 'failed')",
+  domain_pending: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id AND d.status = 'pending')",
   suspicious: SUSPICIOUS_SQL,
   phone_pending: PHONE_PENDING_SQL,
   demo: "s.demo_niche IS NOT NULL",

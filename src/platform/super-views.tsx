@@ -6,6 +6,7 @@ import { RISK_LABEL } from "./verify";
 import { WARN_AT, type Usage } from "./usage";
 import { plans } from "./plans";
 import { topupMethod } from "./billing";
+import { PENDING_DAYS, PENDING_WARN } from "./domains";
 import type { Child } from "hono/jsx";
 import { ASSET_VERSION } from "../shop/views/layout";
 import { Icon, type IconName } from "../shop/views/icons";
@@ -260,6 +261,9 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
   const sRev = delta(d.revenue.month, d.revenue.lastMonth);
   return (
     <>
+      {d.pending.domains >= PENDING_WARN && (
+        <div class="sa-alert-danger"><Icon name="triangle-alert" size="sm" /> <span><b>{bn(d.pending.domains)}টা ডোমেইন নেমসার্ভারের অপেক্ষায়।</b> Cloudflare-এ pending zone-এর সীমা আছে — বেশি জমলে নতুন ডোমেইন যোগ আটকে যাবে। <a href="/super/shops?filter=domain_pending">দোকানগুলো দেখুন</a> আর দোকানদারকে নেমসার্ভার বসাতে বলুন, নইলে {bn(PENDING_DAYS)} দিন পরে নিজে সরে যাবে।</span></div>
+      )}
       {(d.pending.topups > 0 || d.pending.failedDomains > 0 || d.dues.shops > 0 || d.suspicious > 0 || d.phonePending > 0) && (
         <div class="sa-todo">
           <b>আজকের কাজ:</b>
@@ -306,7 +310,7 @@ export const DashboardPage = ({ d, role }: { d: DashData; role: SuperRole }) => 
           ]} />
           <div class="sa-mini-stats">
             <div><small>বকেয়া</small><b class="sa-down">{taka(d.dues.amount)}</b></div>
-            <div><small>ডোমেইন অপেক্ষায়</small><b>{bn(d.pending.domains)}</b></div>
+            <div><small>ডোমেইন অপেক্ষায়</small><b class={d.pending.domains >= PENDING_WARN ? "sa-down" : ""}><a href="/super/shops?filter=domain_pending">{bn(d.pending.domains)}</a></b></div>
           </div>
         </Card>
         <Card title="সিস্টেম">
@@ -387,6 +391,7 @@ export const SHOP_FILTERS: Record<string, string> = {
   paying: "পেইড",
   custom_domain: "নিজের ডোমেইন",
   domain_failed: "ডোমেইনে সমস্যা",
+  domain_pending: "ডোমেইন অপেক্ষায়",
   suspicious: "সন্দেহজনক",
   phone_pending: "ফোনে যাচাই বাকি",
   demo: "ডেমো (হিসাবে নেই)",

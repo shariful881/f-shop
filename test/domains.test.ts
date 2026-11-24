@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { adminBrowser, Browser, DEMO_SHOP_ID, resetDb } from "./helpers";
+import { adminBrowser, Browser, DEMO_SHOP_ID, readyForDomain, resetDb } from "./helpers";
 import { normalizeDomain, validateDnsInput, checkPendingDomains, cfFromEnv } from "../src/platform/domains";
 import { clearShopCache } from "../src/platform/resolve";
 
@@ -21,6 +21,7 @@ function reply(result: unknown, ok = true, errors: unknown[] = []) {
 
 beforeEach(async () => {
   await resetDb();
+  await readyForDomain();
   await env.PLATFORM_DB.prepare("DELETE FROM domains WHERE zone_id IS NOT NULL").run();
   clearShopCache();
   cf = { zones: new Map(), dns: new Map(), scanned: new Map(), workerDomains: [], calls: [] };
@@ -115,7 +116,7 @@ describe("ডোমেইন ইনপুট যাচাই", () => {
 describe("নিজের ডোমেইন: নেমসার্ভার পদ্ধতি", () => {
   it("যোগ → নেমসার্ভার দেখায় → যাচাই (অপেক্ষায়) → নেমসার্ভার বসলে চালু → ডোমেইনে দোকান খোলে", async () => {
     const a = await adminBrowser();
-    const r = await a.post("/admin/domain", { domain: "www.dokan.com" });
+    const r = await a.post("/admin/domain", { domain: "www.dokan.com", owns: "1" });
     expect(r.status).toBe(303);
     expect(await domainRows()).toEqual([
       { hostname: "dokan.com", status: "pending", zone_id: "zone1" },
@@ -151,7 +152,7 @@ describe("নিজের ডোমেইন: নেমসার্ভার প
 
   it("cron প্রতি ৩০ মিনিটে অপেক্ষায় থাকা ডোমেইন নিজে চালু করে", async () => {
     const a = await adminBrowser();
-    await a.post("/admin/domain", { domain: "auto.com" });
+    await a.post("/admin/domain", { domain: "auto.com", owns: "1" });
     cf.zones.get("zone1")!.status = "active";
     const n = await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env));
     expect(n).toBe(1);
@@ -162,19 +163,19 @@ describe("নিজের ডোমেইন: নেমসার্ভার প
     await env.PLATFORM_DB.prepare("INSERT INTO shops (id, slug, name) VALUES ('other', 'other', 'অন্য')").run();
     await env.PLATFORM_DB.prepare("INSERT INTO domains (hostname, shop_id, status, zone_id, root) VALUES ('taken.com', 'other', 'active', 'zx', 'taken.com')").run();
     const a = await adminBrowser();
-    const r = await a.post("/admin/domain", { domain: "taken.com" });
+    const r = await a.post("/admin/domain", { domain: "taken.com", owns: "1" });
     expect(r.status).toBe(422);
     expect(await r.text()).toContain("অন্য একটা দোকানে");
 
-    await a.post("/admin/domain", { domain: "first.com" });
-    const r2 = await a.post("/admin/domain", { domain: "second.com" });
+    await a.post("/admin/domain", { domain: "first.com", owns: "1" });
+    const r2 = await a.post("/admin/domain", { domain: "second.com", owns: "1" });
     expect(await r2.text()).toContain("আগেই একটা ডোমেইন আছে");
   });
 
   it("Cloudflare-এ অন্য অ্যাকাউন্টে থাকলে বোঝার মতো বার্তা", async () => {
     cf.failCreate = { code: 1061, message: "already exists" };
     const a = await adminBrowser();
-    const r = await a.post("/admin/domain", { domain: "exists.com" });
+    const r = await a.post("/admin/domain", { domain: "exists.com", owns: "1" });
     expect(r.status).toBe(422);
     expect(await r.text()).toContain("অন্য কোনো অ্যাকাউন্টে");
     expect(await domainRows()).toEqual([]);
@@ -182,7 +183,7 @@ describe("নিজের ডোমেইন: নেমসার্ভার প
 
   it("ডোমেইন সরালে zone আর Worker সংযোগ মুছে যায়", async () => {
     const a = await adminBrowser();
-    await a.post("/admin/domain", { domain: "gone.com" });
+    await a.post("/admin/domain", { domain: "gone.com", owns: "1" });
     cf.zones.get("zone1")!.status = "active";
     await a.post("/admin/domain/check", {});
     await a.post("/admin/domain/remove", {});
@@ -206,7 +207,7 @@ describe("নিজের ডোমেইন: নেমসার্ভার প
 describe("DNS রেকর্ড পেজ", () => {
   async function withDomain() {
     const a = await adminBrowser();
-    await a.post("/admin/domain", { domain: "mail.test.com".replace("mail.", "") });
+    await a.post("/admin/domain", { domain: "mail.test.com".replace("mail.", ""), owns: "1" });
     return a;
   }
 
@@ -287,40 +288,40 @@ describe("প্ল্যাটফর্মের নিজের zone-এর �
   });
 });
 
-describe("নেমসার্ভার না বসালে ৪ দিনে ডোমেইন নিজে সরে যায়", () => {
+describe("নেমসার্ভার না বসালে ২ দিনে ডোমেইন নিজে সরে যায়", () => {
   const age = (days: number) => env.PLATFORM_DB.prepare(`UPDATE domains SET created_at = datetime('now', '-${days} days') WHERE zone_id IS NOT NULL`).run();
   const notes: { shop: string; title: string }[] = [];
   const notify = async (shop: string, m: { title: string }) => { notes.push({ shop, title: m.title }); };
   beforeEach(() => { notes.length = 0; });
 
-  it("পেজে বাকি দিন দেখায়; ৩ দিনে একবার সতর্ক; ৪ দিনে zone মুছে দোকান থেকে সরায়", async () => {
+  it("পেজে বাকি দিন দেখায়; ১ দিনে একবার সতর্ক; ২ দিনে zone মুছে দোকান থেকে সরায়", async () => {
     const a = await adminBrowser();
-    await a.post("/admin/domain", { domain: "late.com" });
+    await a.post("/admin/domain", { domain: "late.com", owns: "1" });
     const html = await (await a.get("/admin/domain")).text();
-    expect(html).toContain("৪ দিন");
+    expect(html).toContain("২ দিন");
     expect(html).toContain("বাকি");
 
-    await age(3.2);
+    await age(1.2);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect(notes).toEqual([{ shop: DEMO_SHOP_ID, title: "ডোমেইন কাল সরে যাবে" }]);
     expect((await domainRows()).length).toBe(2);
     expect(cf.zones.has("zone1")).toBe(true);
 
-    await age(4.1);
+    await age(2.1);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect(cf.zones.has("zone1")).toBe(false);
     expect((await domainRows()).length).toBe(0);
     expect(notes.at(-1)).toEqual({ shop: DEMO_SHOP_ID, title: "ডোমেইন সরানো হয়েছে" });
     // আবার যোগ করা যায়
-    await a.post("/admin/domain", { domain: "late.com" });
+    await a.post("/admin/domain", { domain: "late.com", owns: "1" });
     expect((await domainRows()).length).toBe(2);
   });
 
   it("শেষ মুহূর্তে নেমসার্ভার বসে গেলে সরায় না, চালু করে", async () => {
     const a = await adminBrowser();
-    await a.post("/admin/domain", { domain: "justintime.com" });
-    await age(5);
+    await a.post("/admin/domain", { domain: "justintime.com", owns: "1" });
+    await age(3);
     cf.zones.get("zone1")!.status = "active";
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect(cf.zones.has("zone1")).toBe(true);
@@ -329,13 +330,13 @@ describe("নেমসার্ভার না বসালে ৪ দিনে
 
   it("Cloudflare-এ zone আগেই না থাকলে শুধু তালিকা থেকে সরায়; চালু ডোমেইনে হাত দেয় না", async () => {
     const a = await adminBrowser();
-    await a.post("/admin/domain", { domain: "vanished.com" });
+    await a.post("/admin/domain", { domain: "vanished.com", owns: "1" });
     cf.zones.delete("zone1");
     await age(9);
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     expect((await domainRows()).length).toBe(0);
 
-    await a.post("/admin/domain", { domain: "live.com" });
+    await a.post("/admin/domain", { domain: "live.com", owns: "1" });
     cf.zones.get("zone2")!.status = "active";
     await checkPendingDomains(env.PLATFORM_DB, cfFromEnv(env), notify);
     await age(30);
@@ -354,7 +355,7 @@ describe("অ্যাডমিনের \"দোকান দেখুন\" ব
     const go = async () => (await a.fetch("/admin/view-shop", { redirect: "manual" } as RequestInit)).headers.get("location");
     expect(await go()).toMatch(/^https:\/\/[a-z0-9-]+\.ourdomain\.com\/$/);
 
-    await a.post("/admin/domain", { domain: "mystore.com" });
+    await a.post("/admin/domain", { domain: "mystore.com", owns: "1" });
     expect(await go()).toMatch(/\.ourdomain\.com\/$/);
 
     cf.zones.get("zone1")!.status = "active";
@@ -362,5 +363,35 @@ describe("অ্যাডমিনের \"দোকান দেখুন\" ব
     expect(await go()).toBe("https://mystore.com/");
     // ড্যাশবোর্ডের দোকানের লিংকেও নিজের ডোমেইন
     expect(await (await a.get("/admin")).text()).toContain("https://mystore.com");
+  });
+});
+
+describe("ডোমেইন যোগের আগে সেটআপ আর মোবাইল যাচাই", () => {
+  it("সব কাজ শেষ না হলে ফর্ম নেই, তালিকা আর লিংক দেখায়; সরাসরি POST-ও আটকায়", async () => {
+    await env.PLATFORM_DB.prepare("UPDATE shops SET phone_verified = 0 WHERE id = ?").bind(DEMO_SHOP_ID).run();
+    clearShopCache();
+    const a = await adminBrowser();
+    const html = await (await a.get("/admin/domain")).text();
+    expect(html).toContain("নিজের ডোমেইন যোগ করার আগে এই কাজগুলো শেষ করুন");
+    expect(html).toContain("মোবাইল নম্বর যাচাই");
+    expect(html).toContain("৬/৭");
+    expect(html).not.toContain('name="owns"');
+    const r = await a.post("/admin/domain", { domain: "early.com", owns: "1" });
+    expect(r.status).toBe(422);
+    expect(await r.text()).toContain("আগে নিচের সব কাজ শেষ করুন");
+    expect(cf.calls.some((x) => x.startsWith("POST /zones"))).toBe(false);
+    // ড্যাশবোর্ডে তালা
+    const dt = await (await a.get("/admin")).text();
+    expect(dt).toContain("🔒 উপরের কাজ আর মোবাইল যাচাই শেষ হলে খুলবে");
+  });
+
+  it("সব শেষ হলে ফর্ম খোলে; মালিকানার টিক ছাড়া যোগ হয় না", async () => {
+    const a = await adminBrowser();
+    const html = await (await a.get("/admin/domain")).text();
+    expect(html).toContain('name="owns"');
+    const r = await a.post("/admin/domain", { domain: "notick.com" });
+    expect(r.status).toBe(422);
+    expect(await r.text()).toContain("এই ঘরে টিক দিন");
+    expect((await domainRows()).length).toBe(0);
   });
 });

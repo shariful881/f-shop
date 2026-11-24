@@ -439,3 +439,29 @@ body.admin .orders-wrap .ot-total small { font-weight: 400; }
 .lv-flash { animation: lv-flash 6s ease-out; }
 @keyframes lv-flash { 0%, 30% { background: #fef9c3; box-shadow: 0 0 0 2px #facc15; } 100% { background: inherit; box-shadow: none; } }
 .lv-banner { display: block; width: 100%; margin: 0 0 14px; padding: 11px 14px; border: 0; border-radius: 12px; background: #fef3c7; color: #92400e; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+
+/* ডোমেইন যোগের আগের কাজের তালিকা */
+.dg { border: 1px solid #e5eaf0; border-radius: 16px; padding: 16px; background: linear-gradient(180deg, #f8fafc, #fff); display: grid; gap: 12px; }
+.dg-head { display: flex; align-items: center; gap: 12px; }
+.dg-head > div { flex: 1; display: grid; gap: 2px; }
+.dg-head small { color: #64748b; }
+.dg-lock { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: #fef3c7; color: #b45309; }
+.dg-count { flex: none; font-weight: 800; font-size: 1.1rem; color: #0f766e; background: #ccfbf1; border-radius: 99px; padding: 4px 12px; }
+.dg-bar { height: 8px; border-radius: 99px; background: #e2e8f0; overflow: hidden; }
+.dg-bar i { display: block; height: 100%; background: linear-gradient(90deg, #14b8a6, #10b981); border-radius: 99px; transition: width .3s; }
+.dg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dg-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #e5eaf0; border-radius: 12px; background: #fff; }
+.dg-list li.is-done { background: #f0fdf4; border-color: #bbf7d0; }
+.dg-list li.is-next { border-color: #5eead4; box-shadow: 0 0 0 3px rgba(20, 184, 166, .12); }
+.dg-ic { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: .85rem; background: #f1f5f9; color: #475569; }
+.dg-list li.is-done .dg-ic { background: #10b981; color: #fff; }
+.dg-txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.dg-txt small { color: #64748b; font-size: .8rem; }
+.dg-list li.is-done .dg-txt b { color: #166534; }
+.dg-ok { flex: none; color: #16a34a; font-weight: 700; font-size: .85rem; }
+.dg-wait { flex: none; color: #b45309; background: #fef3c7; border-radius: 99px; padding: 2px 10px; font-weight: 600; font-size: .8rem; }
+.dg-list .btn { flex: none; }
+.dg-form { display: grid; gap: 10px; }
+.dg-owns { display: flex; align-items: flex-start; gap: 8px; font-size: .9rem; color: #334155; cursor: pointer; }
+.dg-owns input { margin-top: 3px; flex: none; }
+@media (max-width: 520px) { .dg-list li { flex-wrap: wrap; } .dg-txt { flex-basis: calc(100% - 40px); } .dg-ok { display: none; } .dg-list li .btn, .dg-list li .dg-wait { margin-left: 40px; } .dg-head small { font-size: .78rem; } }

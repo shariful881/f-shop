@@ -310,7 +310,7 @@ admin.get("/", async (c) => {
   }
   const mm = one(m);
   const pr = one(prods);
-  const domain = await c.env.PLATFORM_DB.prepare("SELECT 1 FROM domains WHERE shop_id = ? AND status = 'active' LIMIT 1").bind(c.env.SHOP_ID).first().catch(() => null);
+  const domain = await c.env.PLATFORM_DB.prepare("SELECT 1 FROM domains WHERE shop_id = ? AND status = 'active' AND zone_id IS NOT NULL LIMIT 1").bind(c.env.SHOP_ID).first().catch(() => null);
   const setup: SetupStep[] = [
     { key: "info", label: "দোকানের নাম আর যোগাযোগ নম্বর", desc: "কাস্টমার যাতে আপনাকে খুঁজে পান", done: !!s.site_name && !!s.contact_phone && s.contact_phone !== "01700000000", href: "/admin/settings" },
     { key: "logo", label: "লোগো দিন", desc: "দোকানের পরিচয়", done: !!s.logo, href: "/admin/settings/appearance" },
@@ -319,7 +319,7 @@ admin.get("/", async (c) => {
     { key: "pixel", label: "Facebook Pixel + Conversions API", desc: "অ্যাডের ফল মাপতে আর খরচ কমাতে", done: !!s.fb_pixel_id && !!s.fb_capi_token, href: "/admin/settings/tracking" },
     { key: "seo", label: "SEO টাইটেল আর ডেসক্রিপশন", desc: "Google আর শেয়ারে সুন্দর দেখাতে", done: !!s.seo_title && !!s.seo_description, href: "/admin/settings/seo" },
     { key: "courier", label: "কুরিয়ার যুক্ত করুন", desc: "এক ক্লিকে পার্সেল বুকিং", done: configuredCouriers(s).length > 0, href: "/admin/courier" },
-    { key: "domain", label: "নিজের ডোমেইন (ঐচ্ছিক)", desc: "yourshop.com", done: !!domain, href: "/admin/domain" },
+    { key: "domain", label: "নিজের ডোমেইন (ঐচ্ছিক)", desc: domain || (await domainGate(c)).ready ? "yourshop.com" : "🔒 উপরের কাজ আর মোবাইল যাচাই শেষ হলে খুলবে", done: !!domain, href: "/admin/domain" },
   ];
   const d: ShopDash = {
     today: { orders: one(t).n ?? 0, value: one(t).v ?? 0 },
@@ -2029,10 +2029,33 @@ admin.get("/view-shop", async (c) => {
   return c.redirect(`${await storeOrigin(c)}/`, 302);
 });
 
+/**
+ * নিজের ডোমেইন যোগের আগে যা শেষ করতে হবে — Cloudflare-এ pending zone-এর সীমা আছে,
+ * তাই শুধু সত্যিই চালু দোকানকে ডোমেইন যোগ করতে দেওয়া। শেষ ধাপ: সুপার অ্যাডমিন থেকে মোবাইল যাচাই।
+ */
+export type DomainStep = { key: string; label: string; desc: string; done: boolean; href?: string };
+async function domainGate(c: Ctx): Promise<{ steps: DomainStep[]; ready: boolean }> {
+  const s = c.var.settings;
+  const [act, shop] = await Promise.all([
+    c.env.DB.prepare("SELECT COUNT(*) n FROM products WHERE is_active = 1").first<{ n: number }>().catch(() => null),
+    c.env.PLATFORM_DB.prepare("SELECT phone_verified FROM shops WHERE id = ?").bind(c.env.SHOP_ID).first<{ phone_verified: number | null }>().catch(() => null),
+  ]);
+  const steps: DomainStep[] = [
+    { key: "info", label: "দোকানের নাম আর যোগাযোগ নম্বর", desc: "কাস্টমার যাতে আপনাকে চিনতে আর ফোন করতে পারেন", done: !!s.site_name && !!s.contact_phone && s.contact_phone !== "01700000000", href: "/admin/settings" },
+    { key: "logo", label: "লোগো", desc: "দোকানের পরিচয়", done: !!s.logo, href: "/admin/settings/appearance" },
+    { key: "pixel", label: "Facebook Pixel ID", desc: "শুরু থেকে অ্যাডের ডেটা জমাতে", done: !!s.fb_pixel_id, href: "/admin/settings/tracking" },
+    { key: "product", label: "কমপক্ষে ১টা চালু পণ্য", desc: "পণ্য ছাড়া দোকান ফাঁকা দেখায়", done: (act?.n ?? 0) > 0, href: "/admin/products/new" },
+    { key: "delivery", label: "ডেলিভারি চার্জ", desc: "ঢাকার ভিতরে আর বাইরে", done: !!s.delivery_inside && !!s.delivery_outside, href: "/admin/settings/delivery" },
+    { key: "seo", label: "SEO টাইটেল আর ডেসক্রিপশন", desc: "Google আর ফেসবুক শেয়ারে সুন্দর দেখাতে", done: !!s.seo_title && !!s.seo_description, href: "/admin/settings/seo" },
+    { key: "phone", label: "মোবাইল নম্বর যাচাই", desc: "SellxBD টিম আপনাকে ফোন করে যাচাই করবে — উপরের কাজ শেষ হলে সাপোর্টে জানান", done: shop?.phone_verified !== 0 },
+  ];
+  return { steps, ready: steps.every((x) => x.done) };
+}
+
 async function renderDomain(c: Ctx, form?: { value: string; error: string }) {
-  const rows = await shopDomains(c.env.PLATFORM_DB, c.env.SHOP_ID);
+  const [rows, gate] = await Promise.all([shopDomains(c.env.PLATFORM_DB, c.env.SHOP_ID), domainGate(c)]);
   return render(c, "ডোমেইন", "domains",
-    <DomainPage domains={rows} freeUrl={freeShopUrl(c)} configured={cfFromEnv(c.env).configured} value={form?.value} error={form?.error} />,
+    <DomainPage domains={rows} freeUrl={freeShopUrl(c)} configured={cfFromEnv(c.env).configured} value={form?.value} error={form?.error} gate={gate} />,
     form ? 422 : 200);
 }
 
@@ -2040,7 +2063,11 @@ admin.get("/domain", (c) => renderDomain(c));
 // "/admin/domain" রোল-চেকে section "domain" — "domains"-এর মতোই মালিকের জন্য
 
 admin.post("/domain", async (c) => {
-  const input = str((await c.req.parseBody()).domain, 260);
+  const body = await c.req.parseBody();
+  const input = str(body.domain, 260);
+  const gate = await domainGate(c);
+  if (!gate.ready) return renderDomain(c, { value: input, error: "আগে নিচের সব কাজ শেষ করুন, তারপর ডোমেইন যোগ করা যাবে।" });
+  if (body.owns !== "1") return renderDomain(c, { value: input, error: "ডোমেইন কেনা আছে আর প্যানেলে ঢুকতে পারেন — এই ঘরে টিক দিন।" });
   const n = normalizeDomain(input, c.env.PLATFORM_DOMAIN);
   if (!n.domain) return renderDomain(c, { value: input, error: n.error! });
   if (c.var.shopState.status !== "trial") {

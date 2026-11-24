@@ -101,6 +101,8 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sa-link { font-size: .88rem; font-weight: 600; }
 .sa-todo { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: #fff7ed; border: 1px solid #fed7aa; color: #7c2d12; border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
 .sa-todo a { color: #9a3412 !important; font-weight: 600; text-decoration: none; }
+.sa-alert-danger { display: flex; gap: 8px; align-items: flex-start; background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.sa-alert-danger a { color: #b91c1c !important; font-weight: 700; }
 .sa-todo a:hover { text-decoration: underline; }
 
 /* টেবিল */

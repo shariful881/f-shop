@@ -1042,14 +1042,40 @@ export const StaffPage = (p: { users: StaffRow[]; me: number; fee: number; trial
 /* ---------- ডোমেইন ---------- */
 export type DomainView = { hostname: string; status: string; nameservers: string | null; root: string | null; checked_at: string | null; error: string | null; created_at?: string };
 
-/** নেমসার্ভার বসানোর জন্য বাকি দিন (৪ দিনের সীমা — platform/domains.ts PENDING_DAYS) */
+/** নেমসার্ভার বসানোর জন্য বাকি দিন (সীমা — platform/domains.ts PENDING_DAYS) */
 function daysLeft(created?: string): number | null {
   if (!created) return null;
   const end = new Date(created.replace(" ", "T") + "Z").getTime() + PENDING_DAYS * 86400e3;
   return Math.max(0, Math.ceil((end - Date.now()) / 86400e3));
 }
 
-export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configured: boolean; value?: string; error?: string }) => {
+export type DomainGateView = { steps: { key: string; label: string; desc: string; done: boolean; href?: string }[]; ready: boolean };
+
+const DomainGate = ({ g }: { g: DomainGateView }) => {
+  const n = g.steps.filter((x) => x.done).length;
+  const firstTodo = g.steps.find((x) => !x.done)?.key;
+  return (
+    <div class="dg">
+      <div class="dg-head">
+        <span class="dg-lock"><Icon name="lock" size="sm" /></span>
+        <div><b>নিজের ডোমেইন যোগ করার আগে এই কাজগুলো শেষ করুন</b><small>সব শেষ হলে এখানেই ডোমেইন যোগের ঘর খুলে যাবে।</small></div>
+        <span class="dg-count">{bn(n)}/{bn(g.steps.length)}</span>
+      </div>
+      <div class="dg-bar"><i style={`width:${Math.round((n / g.steps.length) * 100)}%`} /></div>
+      <ol class="dg-list">
+        {g.steps.map((x, i) => (
+          <li class={`${x.done ? "is-done" : ""}${x.key === firstTodo ? " is-next" : ""}`}>
+            <span class="dg-ic">{x.done ? <Icon name="check" size="sm" /> : bn(i + 1)}</span>
+            <span class="dg-txt"><b>{x.label}</b><small>{x.desc}</small></span>
+            {x.done ? <span class="dg-ok">হয়েছে</span> : x.href ? <a class="btn btn-sm btn-primary" href={x.href}>ঠিক করুন</a> : <span class="dg-wait">অপেক্ষায়</span>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+};
+
+export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configured: boolean; value?: string; error?: string; gate?: DomainGateView }) => {
   const root = p.domains[0]?.root;
   const ns: string[] = p.domains[0]?.nameservers ? JSON.parse(p.domains[0].nameservers) : [];
   const active = p.domains.length > 0 && p.domains.every((d) => d.status === "active");
@@ -1066,12 +1092,17 @@ export const DomainPage = (p: { domains: DomainView[]; freeUrl: string; configur
         <section class="panel">
           <h2>নিজের ডোমেইন যোগ করুন</h2>
           {!p.configured && <div class="alert alert-error">নিজের ডোমেইন ফিচার এখনো চালু করা হয়নি। সাপোর্টে যোগাযোগ করুন।</div>}
-          <p class="muted">যেমন <code>dokan.com</code> — www ছাড়া মূল ডোমেইন দিন। www সহ দুটোতেই আপনার দোকান চলবে।</p>
-          <form method="post" action="/admin/domain" class="row-form">
-            <input type="text" name="domain" value={p.value ?? ""} placeholder="dokan.com" required />
-            <button class="btn btn-primary">যোগ করুন</button>
-          </form>
           {p.error && <div class="alert alert-error">{p.error}</div>}
+          {p.gate && !p.gate.ready ? <DomainGate g={p.gate} /> : <>
+          <p class="muted">যেমন <code>dokan.com</code> — www ছাড়া মূল ডোমেইন দিন। www সহ দুটোতেই আপনার দোকান চলবে।</p>
+          <form method="post" action="/admin/domain" class="dg-form">
+            <div class="row-form">
+              <input type="text" name="domain" value={p.value ?? ""} placeholder="dokan.com" required />
+              <button class="btn btn-primary">যোগ করুন</button>
+            </div>
+            <label class="dg-owns"><input type="checkbox" name="owns" value="1" required /> <span>এই ডোমেইন আমার কেনা আছে, আর ডোমেইন কোম্পানির প্যানেলে আমি ঢুকে নেমসার্ভার বদলাতে পারি।</span></label>
+          </form>
+          </>}
           <p class="muted">যোগ করার পর আমরা দুটো নেমসার্ভার দেব। সেগুলো আপনার ডোমেইন কোম্পানির প্যানেলে বসালেই দোকান আপনার ডোমেইনে চালু হবে। {bn(PENDING_DAYS)} দিনের মধ্যে না বসালে ডোমেইনটা নিজে সরে যায়।</p>
         </section>
       ) : (

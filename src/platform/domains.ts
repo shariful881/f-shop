@@ -13,7 +13,10 @@ export type DomainRow = {
 };
 
 /** নেমসার্ভার না বসালে এত দিন পরে ডোমেইন নিজে সরে যায় (Cloudflare-এ pending zone জমে নতুন ডোমেইন যোগ আটকে না দেয়) */
-export const PENDING_DAYS = 4;
+export const PENDING_DAYS = 2;
+
+/** সুপার অ্যাডমিনে লাল সতর্কতা: এতগুলো ডোমেইন একসাথে অপেক্ষায় থাকলে (Cloudflare-এর pending zone সীমার আগেই) */
+export const PENDING_WARN = 10;
 
 /** ইনপুট থেকে মূল ডোমেইন (dokan.com) বের করা, ভুল হলে বার্তা */
 export function normalizeDomain(input: string, platformDomain: string): { domain?: string; error?: string } {
@@ -116,7 +119,7 @@ export async function removeDomain(db: D1Database, cf: Cloudflare, shopId: strin
 
 type Notify = (shopId: string, msg: { title: string; body: string; url: string; tag?: string }) => Promise<unknown>;
 
-/** প্রতি ৩০ মিনিটে: অপেক্ষায় থাকা ডোমেইন যাচাই, ৭ দিন পেরোলে সরানো */
+/** প্রতি ৩০ মিনিটে: অপেক্ষায় থাকা ডোমেইন যাচাই, PENDING_DAYS পেরোলে সরানো */
 export async function checkPendingDomains(db: D1Database, cf: Cloudflare, notify?: Notify) {
   if (!cf.configured) return 0;
   const { results } = await db.prepare(
@@ -129,7 +132,7 @@ export async function checkPendingDomains(db: D1Database, cf: Cloudflare, notify
 }
 
 /**
- * ৭ দিনের মধ্যে নেমসার্ভার না বসালে: Cloudflare-এর zone মুছে দোকান থেকে ডোমেইন সরানো।
+ * PENDING_DAYS দিনের মধ্যে নেমসার্ভার না বসালে: Cloudflare-এর zone মুছে দোকান থেকে ডোমেইন সরানো।
  * শেষ ১ দিন বাকি থাকতে একবার ফোনে সতর্কবার্তা। সরানোর আগে শেষবার যাচাই — ঠিক তখন বসে গেলে থেকে যায়।
  */
 export async function expirePendingDomains(db: D1Database, cf: Cloudflare, notify?: Notify) {

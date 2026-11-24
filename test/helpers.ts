@@ -162,3 +162,12 @@ export async function adminBrowser(email = "admin@test.com", password = "pass123
 export async function setStatus(adminB: Browser, orderId: number, status: string) {
   return adminB.post(`/admin/orders/${orderId}/status`, { status });
 }
+
+/** নিজের ডোমেইন যোগের সব শর্ত পূরণ: নাম-নম্বর, লোগো, Pixel, চালু পণ্য, ডেলিভারি চার্জ, SEO, মোবাইল যাচাই */
+export async function readyForDomain(shopId = DEMO_SHOP_ID) {
+  const db = makeDb(shopId);
+  const kv: [string, string][] = [["site_name", "ডেমো দোকান"], ["contact_phone", "01811112222"], ["logo", "/img/logo.png"], ["fb_pixel_id", "1234567890"],
+    ["delivery_inside", "70"], ["delivery_outside", "130"], ["seo_title", "ডেমো দোকান"], ["seo_description", "সেরা পণ্য"]];
+  await db.batch(kv.map(([k, v]) => db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v)));
+  await env.PLATFORM_DB.prepare("UPDATE shops SET phone_verified = 1 WHERE id = ?").bind(shopId).run();
+}
