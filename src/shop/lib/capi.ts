@@ -134,7 +134,7 @@ export async function sendPurchase(db: D1Database, orderId: number, s: Settings,
   const claim = await db
     .prepare(
       `UPDATE orders SET purchase_sending_until = datetime('now', '+30 seconds')
-       WHERE id = ? AND purchase_sent_at IS NULL AND status IN (${atOrder ? "'new', " : ""}'confirmed', 'shipped')
+       WHERE id = ? AND purchase_sent_at IS NULL AND spam = 0 AND status IN (${atOrder ? "'new', " : ""}'confirmed', 'shipped')
          AND (purchase_sending_until IS NULL OR purchase_sending_until < datetime('now'))`,
     )
     .bind(orderId)

@@ -2,7 +2,7 @@ import { liveOrder } from "../lib/live";
 import { Hono } from "hono";
 import { dateBn } from "../../platform/blog";
 import { platformSettings } from "../../platform/billing";
-import { courierRecordReady, orderCourierReport, platformCourierKeys } from "../lib/courier";
+import { cachedCourierRecords, courierRecordReady, orderCourierReport, platformCourierKeys } from "../lib/courier";
 import { getCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Ctx } from "../env";
 import { Layout } from "../views/layout";
@@ -32,7 +32,9 @@ import { markConverted, saveDraft } from "../lib/incomplete";
 import { SOLD_OUT_MSG, soldOut, variantsForSale } from "../lib/stock";
 import { feedItems, feedOn, toFeedCsv, toRss } from "../lib/feed";
 import { advanceAmount, advanceConfig, needsAdvance, normalizeTrx, payMethods } from "../lib/payment";
-import { ownRecords, riskOf, sharedRecords } from "../lib/fraud";
+import { ownRecords, riskOf, sharedRecords, type CourierSummary } from "../lib/fraud";
+import { cleanFillMs, cleanFp, decide, localSignals, recordSignals, saveDecision, spamCount, spamLevel, spamOn } from "../lib/spam";
+import { saveSettings } from "../lib/settings";
 import { productReviews, reviewableOrder } from "../lib/reviews";
 import { ReviewPage, ReviewsBlock, type ReviewFormState } from "../views/reviews";
 import { imageStorageKey } from "../env";
@@ -568,8 +570,9 @@ shop.post("/order", async (c) => {
       const amount = advanceAmount(s, total, delivery);
       let risky = false;
       if (advCfg.who === "risky") {
-        const [own, shared] = await Promise.all([ownRecords(c.env.DB, [v.phone]), sharedRecords(c.env.PLATFORM_DB, s, c.env.SHOP_ID, [v.phone])]);
-        const r = riskOf(own[v.phone], shared[v.phone]);
+        // কুরিয়ারের রেকর্ড শুধু আগে খোঁজা থাকলে (ক্যাশ) — অর্ডার দিতে ক্রেতাকে অপেক্ষা করাতে হয় না
+        const [own, shared, cached] = await Promise.all([ownRecords(c.env.DB, [v.phone]), sharedRecords(c.env.PLATFORM_DB, s, c.env.SHOP_ID, [v.phone]), cachedCourierRecords(c.env.DB, [v.phone])]);
+        const r = riskOf(own[v.phone], shared[v.phone], cached[v.phone]);
         risky = r.level === "bad" || r.level === "warn";
       }
       const need = needsAdvance(s, v.area, risky, amount);
@@ -608,37 +611,62 @@ shop.post("/order", async (c) => {
       extras,
       prefix: orderPrefix(st),
       advance,
+      spam: { held: spamOn(st), fp: cleanFp(body.fp), fillMs: cleanFillMs(body.ft) },
     }, products);
 
-    // Lead: সার্ভার এখন (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
-    // Purchase: গার্ড চালু (ডিফল্ট) থাকলে এখানে যায় না — শুধু দোকানদার কনফার্ম করলে।
-    // গার্ড বন্ধ থাকলে এখনই সার্ভার থেকে যায় (ধন্যবাদ পেজে ব্রাউজার থেকেও, একই event_id)।
-    trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: subtotal + delivery - (coupon?.discount ?? 0) });
-    if (!purchaseGuardOn(st)) {
-      const job = sendPurchase(c.env.DB, order.id, st, { atOrder: true }).catch((e) => { console.error("purchase at order", e); });
-      try { c.executionCtx.waitUntil(job); } catch { await job; }
-    }
-
+    const total = subtotal + delivery - (coupon?.discount ?? 0);
     await markConverted(c.env.DB, v.phone, order.id);
+
+    // অর্ডার "নতুন" তালিকায় এলে যা যা হয়: Lead, (গার্ড বন্ধ থাকলে) Purchase, ফোনে নোটিফিকেশন, প্যানেলে পপআপ
+    // Lead: সার্ভার থেকে (রেসপন্সের পরে), ব্রাউজার ধন্যবাদ পেজে — দুই জায়গায় একই event_id
+    // Purchase: গার্ড চালু (ডিফল্ট) থাকলে এখানে যায় না — শুধু দোকানদার কনফার্ম করলে।
+    const announce = async () => {
+      trackServer(c, "Lead", `lead_${order.order_no}`, { ...productData(products), value: total });
+      const jobs: Promise<unknown>[] = [];
+      if (!purchaseGuardOn(st)) jobs.push(sendPurchase(c.env.DB, order.id, st, { atOrder: true }).catch((e) => { console.error("purchase at order", e); }));
+      jobs.push(pushToShop(c.env.DB, c.env.PLATFORM_DB, {
+        title: `নতুন অর্ডার ${order.order_no}`,
+        body: `৳${total.toLocaleString("en-IN")} · ${values.name} · ${products.map((x) => x.name).join(", ").slice(0, 80)}`,
+        url: `/admin/orders/${order.id}`,
+        tag: order.order_no,
+      }).catch(() => 0));
+      jobs.push(liveOrder(c.env, order.id, "order_new"));
+      await Promise.all(jobs);
+    };
     // কুরিয়ারে ক্রেতার রেকর্ড — অর্ডারে একবার খুঁজে সেভ (রেসপন্সের পরে, ক্রেতাকে অপেক্ষা করাতে হয় না)
-    if (st.demo_mode !== "1") {
-      const crJob = (async () => {
-        const plat = platformCourierKeys(await platformSettings(c.env.PLATFORM_DB));
-        if (courierRecordReady(st, plat)) await orderCourierReport(c.env.DB, st, plat, order.id, v.phone);
-      })().catch((e) => { console.error("courier report at order", e); });
-      try { c.executionCtx.waitUntil(crJob); } catch { await crJob; }
+    const courierReport = async (): Promise<CourierSummary | { error: string } | null> => {
+      if (st.demo_mode === "1") return null;
+      const plat = platformCourierKeys(await platformSettings(c.env.PLATFORM_DB));
+      if (!courierRecordReady(st, plat)) return null;
+      return orderCourierReport(c.env.DB, st, plat, order.id, v.phone);
+    };
+
+    let job: Promise<unknown>;
+    if (spamOn(st)) {
+      // স্প্যাম ফিল্টার: কাস্টমার সাথে সাথে "সফল" দেখে, যাচাই পেছনে
+      job = (async () => {
+        const local = await localSignals(c.env.DB, {
+          orderId: order.id, phone: v.phone, deviceIds, fp: cleanFp(body.fp), ip: clientIp(c) || null,
+          fillMs: body.ft === undefined ? undefined : cleanFillMs(body.ft), name: values.name || "", address: values.address || "", paid: !!advance,
+        });
+        const report = await withTimeout(courierReport().catch((e) => ({ error: String(e) })), 8000, { error: "সময় শেষ" });
+        const [own, shared] = await Promise.all([ownRecords(c.env.DB, [v.phone], order.id), sharedRecords(c.env.PLATFORM_DB, st, c.env.SHOP_ID, [v.phone])]);
+        const signals = [...local, ...recordSignals(own[v.phone], shared[v.phone], report)];
+        const d = decide(spamLevel(st), signals);
+        if (!(await saveDecision(c.env.DB, order.id, d.spam, d.score, signals))) return; // এর মধ্যে দোকানদার নিজে কিছু করেছেন
+        if (d.spam) await spamDailyNotice(c);
+        else await announce();
+      })().catch(async (e) => {
+        // যাচাইয়ে সমস্যা হলে অর্ডার আটকে রাখা হয় না — নতুন তালিকায়
+        console.error("spam screen", e);
+        const r = await c.env.DB.prepare("UPDATE orders SET spam = 0, spam_reasons = ? WHERE id = ? AND spam = 2")
+          .bind(JSON.stringify([{ k: "unchecked", w: 0, t: "যাচাই শেষ হয়নি" }]), order.id).run().catch(() => null);
+        if (r?.meta.changes) await announce().catch(() => {});
+      });
+    } else {
+      job = Promise.all([courierReport().catch((e) => { console.error("courier report at order", e); }), announce()]);
     }
-    // দোকানদারের ফোনে নোটিফিকেশন (রেসপন্সের পরে)
-    const pushJob = pushToShop(c.env.DB, c.env.PLATFORM_DB, {
-      title: `নতুন অর্ডার ${order.order_no}`,
-      body: `৳${(subtotal + delivery - (coupon?.discount ?? 0)).toLocaleString("en-IN")} · ${values.name} · ${products.map((x) => x.name).join(", ").slice(0, 80)}`,
-      url: `/admin/orders/${order.id}`,
-      tag: order.order_no,
-    }).catch(() => 0);
-    try { c.executionCtx.waitUntil(pushJob); } catch { await pushJob; }
-    // খোলা অ্যাডমিন প্যানেলে সাথে সাথে পপআপ + শব্দ
-    const liveJob = liveOrder(c.env, order.id, "order_new");
-    try { c.executionCtx.waitUntil(liveJob); } catch { await liveJob; }
+    try { c.executionCtx.waitUntil(job); } catch { await job; }
     if (source === "cart") clearCart(c);
     setCookie(c, "lo", order.order_no, { path: "/", httpOnly: true, sameSite: "Lax", secure: isHttps(c), maxAge: 60 * 60 * 24 });
     return c.redirect("/thanks", 303);
@@ -841,8 +869,9 @@ shop.get("/thanks", async (c) => {
   if (!data) return c.redirect("/", 303);
   const s = c.var.settings;
   const o = data.order;
-  const guardOff = !purchaseGuardOn(s);
-  const head = pixel(c, [...(guardOff ? [{
+  // স্প্যাম তালিকার অর্ডারে Facebook-এ কিছু যায় না (যাচাই চলার সময় Purchase-ও না)
+  const guardOff = !purchaseGuardOn(s) && !o.spam;
+  const head = o.spam === 1 ? pixel(c) : pixel(c, [...(guardOff ? [{
     name: "Purchase",
     id: `purchase_${o.order_no}`,
     once: true,
@@ -876,6 +905,25 @@ shop.get("/thanks", async (c) => {
     </Layout>,
   );
 });
+
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
+}
+
+/** স্প্যামে অর্ডার গেলে দোকানদারের ফোনে দিনে একবার মনে করিয়ে দেওয়া (প্রথম স্প্যামের সময়) */
+async function spamDailyNotice(c: Ctx) {
+  const day = new Date(Date.now() + 6 * 3600_000).toISOString().slice(0, 10);
+  const row = await c.env.DB.prepare("SELECT value FROM settings WHERE key = 'spam_notice_day'").first<{ value: string }>();
+  if (row?.value === day) return;
+  await saveSettings(c.env.DB, { spam_notice_day: day });
+  const n = await spamCount(c.env.DB);
+  await pushToShop(c.env.DB, c.env.PLATFORM_DB, {
+    title: "স্প্যামে অর্ডার আছে",
+    body: `সন্দেহজনক ${bn(n)}টা অর্ডার স্প্যাম তালিকায় রাখা হয়েছে। আসল কোনোটা থাকলে এক চাপে নতুনে ফেরাতে পারবেন।`,
+    url: "/admin/orders?status=spam",
+    tag: "spam-daily",
+  }).catch(() => 0);
+}
 
 export const ordersClosedMessage = (contact: string) =>
   `দুঃখিত, এই মুহূর্তে অনলাইনে অর্ডার নেওয়া বন্ধ আছে। অর্ডার করতে কল করুন: ${contact}`;

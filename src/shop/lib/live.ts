@@ -35,7 +35,7 @@ export async function recordLive(env: { DB: D1Database; LIVE?: LiveHub }, ev: Li
 }
 
 export async function newOrderCount(db: D1Database): Promise<number> {
-  const r = await db.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'new'").first<{ n: number }>();
+  const r = await db.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'new' AND spam = 0").first<{ n: number }>();
   return r?.n ?? 0;
 }
 

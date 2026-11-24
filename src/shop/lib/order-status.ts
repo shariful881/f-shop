@@ -28,10 +28,12 @@ export async function changeStatus(db: D1Database, orderId: number, to: OrderSta
   const upd = await db
     .prepare(
       `UPDATE orders SET status = ?, updated_at = datetime('now'),
-         confirmed_at = CASE WHEN ? = 'confirmed' THEN datetime('now') ELSE confirmed_at END
+         confirmed_at = CASE WHEN ? = 'confirmed' THEN datetime('now') ELSE confirmed_at END,
+         spam_released = CASE WHEN spam > 0 AND ? IN ('confirmed', 'shipped') THEN 1 ELSE spam_released END,
+         spam = 0
        WHERE id = ? AND status = ?`,
     )
-    .bind(to, to, orderId, order.status)
+    .bind(to, to, to, orderId, order.status)
     .run();
   if (!upd.meta.changes) return { ok: false, message: "অর্ডারটি এর মধ্যে বদলে গেছে, পেজ রিফ্রেশ করুন" };
 

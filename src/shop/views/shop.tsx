@@ -149,6 +149,8 @@ export const OrderForm = (p: {
       <input type="hidden" name="source" value={p.source} />
       {p.productId && <input type="hidden" name="product_id" value={String(p.productId)} />}
       <input type="hidden" name="did_ls" value="" data-did-ls />
+      <input type="hidden" name="fp" value="" data-fp />
+      <input type="hidden" name="ft" value="" data-ft />
 
       {p.variants && p.variants.length > 0 && (p.variantStyle === "select" ? (
         <label class="field variant-field">

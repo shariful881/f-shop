@@ -55,6 +55,14 @@ export type Order = {
   updated_at: string;
   email?: string | null;
   extra_json?: string | null;
+  /** স্প্যাম ফিল্টার: 0 সাধারণ, 1 স্প্যাম তালিকায়, 2 যাচাই চলছে */
+  spam?: number;
+  spam_score?: number | null;
+  spam_reasons?: string | null;
+  was_spam?: number;
+  spam_released?: number;
+  fp?: string | null;
+  fill_ms?: number | null;
 };
 
 /** চেকআউটের নিজের ঘরগুলো (লেবেল → মান) */
@@ -107,6 +115,8 @@ export type NewOrder = {
   prefix?: string;
   /** অগ্রিম পেমেন্ট (ধাপ ৬) */
   advance?: { amount: number; method: string; trx: string; sender: string | null } | null;
+  /** স্প্যাম যাচাই: held = সেভের সময় "যাচাই চলছে" (spam = 2) */
+  spam?: { held: boolean; fp: string | null; fillMs: number | null } | null;
 };
 
 export const AREA_LABEL = { inside: "ঢাকার ভিতরে", outside: "ঢাকার বাইরে" } as const;
@@ -139,6 +149,7 @@ export async function createOrder(db: D1Database, o: NewOrder, products: Product
         )
         .bind(tmp, p.id, p.name, p.price, p.qty ?? 1, p.variant_id ?? null, p.variant_label ?? null),
     ),
+    ...(o.spam ? [db.prepare("UPDATE orders SET spam = ?, fp = ?, fill_ms = ? WHERE order_no = ?").bind(o.spam.held ? 2 : 0, o.spam.fp, o.spam.fillMs, tmp)] : []),
     ...(o.couponId && discount ? [db.prepare("UPDATE coupons SET used_count = used_count + 1 WHERE id = ?").bind(o.couponId)] : []),
     ...(o.advance ? [db.prepare("UPDATE orders SET advance_amount = ?, pay_method = ?, pay_trx = ?, pay_sender = ?, pay_status = 'pending' WHERE order_no = ?")
       .bind(Math.min(o.advance.amount, total), o.advance.method, o.advance.trx, o.advance.sender, tmp)] : []),

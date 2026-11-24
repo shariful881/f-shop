@@ -70,7 +70,7 @@ export async function resetDb() {
     DB.prepare("UPDATE settings SET value='01700000000' WHERE key='contact_phone'"),
     DB.prepare("UPDATE settings SET value='' WHERE key LIKE 'steadfast_%' OR key LIKE 'pathao_%' OR key LIKE 'redx_%'"),
     DB.prepare("UPDATE settings SET value='0' WHERE key='sms_enabled'"),
-    DB.prepare("DELETE FROM settings WHERE key IN ('incomplete_capture', 'fraud_share', 'bdcourier_token')"),
+    DB.prepare("DELETE FROM settings WHERE key IN ('incomplete_capture', 'fraud_share', 'bdcourier_token', 'spam_level', 'spam_notice_day')"),
   ]);
   await env.PLATFORM_DB.prepare("DELETE FROM phone_outcomes").run();
   await seedDemo();
