@@ -499,7 +499,7 @@ document.addEventListener("click", function (e) {
       if (!r || r.name !== "variant_id") return;
       box.classList.add("vt-done");
       box.classList.remove("vt-err");
-      if (out) out.textContent = "✓ " + (r.getAttribute("data-label") || "");
+      if (out) out.textContent = "✓ বাছাই: " + (r.getAttribute("data-label") || "");
     });
     // পণ্যের পেজে required রেডিও — ব্রাউজারের ছোট বার্তার বদলে আমাদের
     box.querySelectorAll("input[name=variant_id]").forEach(function (r) {

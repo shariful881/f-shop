@@ -18,14 +18,11 @@ export const VariantTiles = (p: {
   return (
     <fieldset class={`field variant-field vt ${p.checked ? "vt-done" : ""} ${p.error ? "vt-err" : ""}`} data-vt>
       <legend class="vt-head">
-        <span class="vt-ico" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" /></svg>
-        </span>
         <span class="vt-text">
           <span class="vt-title">সাইজ/রং বাছাই করুন<b class="vt-req" aria-label="আবশ্যক">*</b></span>
           <span class="vt-hint" data-vt-hint>নিচ থেকে আপনার পছন্দেরটা চাপুন <i class="vt-arrow" aria-hidden="true">↓</i></span>
         </span>
-        <span class="vt-picked" data-vt-picked>{p.checked ? `✓ ${p.variants.find((v) => String(v.id) === p.checked)?.label ?? ""}` : ""}</span>
+        <span class="vt-picked" data-vt-picked>{p.checked ? `✓ বাছাই: ${p.variants.find((v) => String(v.id) === p.checked)?.label ?? ""}` : ""}</span>
       </legend>
       <div class="variant-pills vt-grid">
         {p.variants.map((v) => (
