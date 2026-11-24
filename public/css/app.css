@@ -740,12 +740,20 @@ html body .px-bottom-cart i { display: inline-flex; align-items: center; justify
 .vt { --vt-c: var(--brand); position: relative; display: block; padding: 12px 12px 14px; border: 2px dashed color-mix(in srgb, var(--vt-c) 55%, transparent);
   border-radius: 14px; background: color-mix(in srgb, var(--vt-c) 7%, #fff); }
 .lp-sec.lp-has-btn .vt { --vt-c: var(--lp-btn); }
-.vt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 100%; padding: 0; margin: 0 0 10px; float: left; }
+.vt-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 0 0 10px; margin: 0 0 12px; float: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--vt-c) 18%, transparent); }
 .vt-head + * { clear: both; }
-.vt-title { font-weight: 800; font-size: 1.05rem; color: #111827; }
-.vt-req { color: #dc2626; }
-.vt-hint { font-size: .85rem; font-weight: 600; color: color-mix(in srgb, var(--vt-c) 85%, #000); }
-.vt-picked { display: none; margin-left: auto; padding: 2px 10px; border-radius: 999px; background: var(--vt-c); color: #fff; font-size: .85rem; font-weight: 700; }
+.vt-ico { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--vt-c), color-mix(in srgb, var(--vt-c) 70%, #000)); box-shadow: 0 3px 8px color-mix(in srgb, var(--vt-c) 35%, transparent); }
+.vt-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.vt-title { font-weight: 800; font-size: 1.08rem; line-height: 1.25; color: #111827; letter-spacing: .1px; }
+.vt-req { color: #dc2626; margin-left: 3px; }
+.vt-hint { font-size: .82rem; font-weight: 500; color: #6b7280; line-height: 1.3; }
+.vt-arrow { display: inline-block; font-style: normal; font-weight: 800; color: var(--vt-c); animation: vt-bob 1.2s ease-in-out infinite; }
+@keyframes vt-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+.vt-picked { display: none; flex: none; padding: 4px 12px; border-radius: 999px; background: var(--vt-c); color: #fff; font-size: .85rem; font-weight: 700; }
+.vt.vt-err .vt-ico { background: #dc2626; box-shadow: 0 3px 8px rgba(220,38,38,.35); }
+.vt.vt-err .vt-hint { font-weight: 700; }
 .vt-done .vt-hint, .vt:has(input:checked) .vt-hint { display: none; }
 .vt-done .vt-picked, .vt:has(input:checked) .vt-picked { display: inline-block; }
 .vt:has(input:checked) { border-style: solid; border-color: var(--vt-c); }
@@ -778,4 +786,4 @@ html body .px-bottom-cart i { display: inline-flex; align-items: center; justify
   .vt-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
   .vt .pill-option > span { min-height: 58px; }
 }
-@media (prefers-reduced-motion: reduce) { .vt, .vt.vt-err { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .vt, .vt.vt-err, .vt-arrow { animation: none !important; } }

@@ -488,7 +488,7 @@ document.addEventListener("click", function (e) {
     void box.offsetWidth; // দোলা আবার চালাতে
     box.classList.add("vt-err");
     var h = box.querySelector("[data-vt-hint]");
-    if (h) h.textContent = "⚠️ আগে এখান থেকে একটা বাছাই করুন";
+    if (h) h.textContent = "আগে এখান থেকে একটা বাছাই করুন";
     box.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   window.SellxVt = function (form) { var b = form.querySelector("[data-vt]"); if (b) flag(b); };
