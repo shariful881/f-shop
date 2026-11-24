@@ -259,6 +259,15 @@ document.addEventListener("click", function (e) {
     cb.addEventListener("change", function () { box.hidden = !cb.checked; });
   });
 
+  /* খোঁজার ফর্ম: চাপার পর বোতামে "খোঁজা হচ্ছে…" (Porkbun-এর উত্তরে ১–২ সেকেন্ড লাগে) */
+  document.querySelectorAll("form[data-ds-search]").forEach(function (f) {
+    f.addEventListener("submit", function () {
+      var b = f.querySelector("[data-busy]");
+      if (!b) return;
+      setTimeout(function () { b.disabled = true; b.classList.add("is-busy"); b.textContent = b.getAttribute("data-busy"); }, 0);
+    });
+  });
+
   /* পণ্যের গ্যালারি: "+ আরও ছবি" চাপলে পরের লুকানো ঘর দেখায় */
   document.querySelectorAll("[data-pf-gal-more]").forEach(function (btn) {
     btn.addEventListener("click", function () {

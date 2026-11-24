@@ -16,6 +16,8 @@ export type Bindings = {
   CF_ACCOUNT_ID?: string;
   PORKBUN_API_KEY?: string;
   PORKBUN_SECRET_KEY?: string;
+  PORKBUN_BASE?: string;
+  DEV_MODE?: string;
   WORKER_NAME?: string;
   AI?: Ai;
   EMAIL?: import("../worker-env").WorkerEnv["EMAIL"];

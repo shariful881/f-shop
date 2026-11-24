@@ -20,5 +20,6 @@ export type WorkerEnv = {
   CF_ACCOUNT_ID?: string;         // নিজের ডোমেইন ফিচারের জন্য
   PORKBUN_API_KEY?: string;       // secret: ডোমেইন বিক্রি (pk1_… আসল, pk1_sb_… পরীক্ষা)
   PORKBUN_SECRET_KEY?: string;    // secret: sk1_…
+  PORKBUN_BASE?: string;          // শুধু লোকাল (DEV_MODE): নকল Porkbun সার্ভার
   CF_API_TOKEN?: string;          // secret: Zone Edit + DNS Edit + Workers Routes Edit              // "1" হলে ?shop=slug দিয়ে দোকান খোলা যায় (শুধু Codespaces/লোকাল)
 };

@@ -5,7 +5,8 @@
  * নিয়ম (Porkbun ডক, নভেম্বর ২০২৬): একবারে $১০০-এর বেশি অর্ডার নয়, মাসে API খরচের সীমা (ডিফল্ট $১০০, অ্যাকাউন্টে বদলানো যায়),
  * premium ডোমেইন API-তে কেনা যায় না, রেজিস্ট্রেশন সবসময় রেজিস্ট্রির ন্যূনতম মেয়াদে (সাধারণত ১ বছর), WHOIS privacy নিজে চালু।
  */
-export type PorkbunConfig = { apiKey?: string; secret?: string };
+/** base: শুধু লোকাল পরীক্ষায় নকল সার্ভার (PORKBUN_BASE) — লাইভে খালি */
+export type PorkbunConfig = { apiKey?: string; secret?: string; base?: string };
 
 export type PbResult<T = Record<string, unknown>> = { ok: boolean; data: T; code?: string; message?: string };
 
@@ -63,7 +64,7 @@ export class Porkbun {
       };
       // একই কেনা/রিনিউ নেটওয়ার্কের কারণে দুবার গেলে Porkbun আগের উত্তরই দেয় (২৪ ঘণ্টা)
       if (idem) headers["Idempotency-Key"] = idem;
-      const res = await fetch(`${BASE}${path}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
+      const res = await fetch(`${this.cfg.base || BASE}${path}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
       const json = (await res.json().catch(() => ({}))) as Record<string, any>;
       const ok = res.ok && json.status === "SUCCESS";
       return { ok, data: json as T, code: ok ? undefined : String(json.code || `HTTP_${res.status}`), message: ok ? undefined : String(json.message || "Porkbun থেকে উত্তর আসেনি") };
@@ -118,8 +119,8 @@ export class Porkbun {
   }
 }
 
-export function porkbunFromEnv(env: { PORKBUN_API_KEY?: string; PORKBUN_SECRET_KEY?: string }): Porkbun {
-  return new Porkbun({ apiKey: env.PORKBUN_API_KEY, secret: env.PORKBUN_SECRET_KEY });
+export function porkbunFromEnv(env: { PORKBUN_API_KEY?: string; PORKBUN_SECRET_KEY?: string; PORKBUN_BASE?: string; DEV_MODE?: string }): Porkbun {
+  return new Porkbun({ apiKey: env.PORKBUN_API_KEY, secret: env.PORKBUN_SECRET_KEY, base: env.DEV_MODE === "1" ? env.PORKBUN_BASE : undefined });
 }
 
 /** Porkbun-এর ত্রুটি → দোকানদারের বোঝার মতো বার্তা */

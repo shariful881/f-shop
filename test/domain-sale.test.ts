@@ -102,7 +102,7 @@ describe("দাম আর খোঁজা (ইউনিট)", () => {
   it("কেনা যাবে না: নেওয়া, প্রিমিয়াম, দাম বেশি", () => {
     expect(offerOf(parseCheck("x.com", { avail: "no", price: "11" })!, cfg).reason).toContain("নিয়েছে");
     expect(offerOf(parseCheck("x.com", { avail: "yes", premium: "yes", price: "11" })!, cfg).reason).toContain("প্রিমিয়াম");
-    expect(offerOf(parseCheck("x.com", { avail: "yes", price: "40" })!, cfg).reason).toContain("সীমার");
+    expect(offerOf(parseCheck("x.com", { avail: "yes", price: "40" })!, cfg).reason).toContain("রিনিউ খরচ অনেক বেশি");
     const o = offerOf(parseCheck("x.xyz", { avail: "yes", price: "2.04", additional: { renewal: { price: "14.00" } } })!, cfg);
     expect(o).toMatchObject({ buyable: true, bdt: 570, renewBdt: 2120 });
   });
@@ -124,6 +124,12 @@ describe("দোকানের প্যানেলে ডোমেইন ক�
     expect(page).toContain("৳১,৭৫০"); // .com
     expect(page).toContain("৳৫৬০"); // .shop
     expect(page).toContain("পরীক্ষামূলক মোড");
+    // .com "সেরা পছন্দ", কাছাকাছি নাম আলাদা অংশে
+    expect(page).toMatch(/ds-best[\s\S]*kathbon<b>\.com<\/b>/);
+    expect(page).toContain("আরও কিছু নাম");
+    expect(page).toContain("kathbonbd<b>.com</b>");
+    // .xyz: প্রথম বছর ৳২৭০ (2.04×130+300=565→570), রিনিউ বেশি → হলুদ চিহ্ন
+    expect(page).toContain("ds-renew jump");
 
     const r = await a.post("/admin/domain/buy", { domain: "kathbon.com", bdt: 1750, agree: 1 });
     expect(r.status).toBe(303);
@@ -256,5 +262,23 @@ describe("রিনিউ", () => {
     const out = await expirePendingDomains(env.PLATFORM_DB, cfFromEnv(env));
     expect(out.removed).toBe(0);
     expect((await env.PLATFORM_DB.prepare("SELECT COUNT(*) n FROM domains WHERE root = 'kathbon.com'").first<{ n: number }>())!.n).toBe(2);
+  });
+});
+
+describe("খোঁজার ফল সাজানো", () => {
+  it("ব্যালেন্স কম হলে কেনার বদলে রিচার্জ; নেওয়া নাম আলাদা ভাঁজে", async () => {
+    await setBalance(600);
+    const a = await adminBrowser();
+    pb.taken.add("taken.shop");
+    const page = await (await a.get("/admin/domain?q=taken")).text();
+    expect(page).toContain("পাওয়া যাচ্ছে না (২)");
+    // .xyz ৳৫৭০ কেনা যায়, .com ৳১,৭৫০ নয়
+    expect(page).toMatch(/taken<b>\.xyz<\/b><\/span>[^]*?name="bdt" value="570"/);
+    expect(page).toMatch(/<details class="ds-taken">[^]*taken<b>\.com<\/b>/);
+    const fresh = await (await a.get("/admin/domain?q=freshname")).text();
+    const at = fresh.indexOf("freshname<b>.com</b>");
+    const comRow = fresh.slice(at, fresh.indexOf('class="ds-row', at));
+    expect(comRow).toContain("রিচার্জ করুন");
+    expect(comRow).not.toContain('action="/admin/domain/buy"');
   });
 });

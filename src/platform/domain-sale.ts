@@ -32,12 +32,28 @@ export function offerOf(c: PbCheck, cfg: SaleConfig): Offer {
   if (!c.available) reason = "আগেই কেউ নিয়েছে";
   else if (c.premium) reason = "প্রিমিয়াম ডোমেইন — এখানে কেনা যায় না";
   else if (!cfg.tlds.includes(tld)) reason = `.${tld} এখানে বিক্রি হয় না`;
-  else if (!c.price || c.price > cfg.maxUsd || c.renewal > cfg.maxUsd) reason = "দাম আমাদের সীমার বেশি";
+  else if (!c.price || c.price > cfg.maxUsd || c.renewal > cfg.maxUsd) reason = "এই এক্সটেনশনের রিনিউ খরচ অনেক বেশি — এখানে বিক্রি হয় না";
   return { ...c, bdt: c.price ? bdtPrice(c.price, cfg) : 0, renewBdt: c.renewal ? bdtPrice(c.renewal, cfg) : 0, buyable: !reason, reason };
 }
 
+/** .com না পেলে কাছাকাছি নাম (একই খোঁজায়, আলাদা অংশে দেখায়) */
+export function variants(base: string): string[] {
+  if (base.length > 40) return [];
+  const v = [`${base}bd`, `${base}shop`, `get${base}`, `${base}store`, `${base}online`].filter((x) => x.length <= 63 && x !== base);
+  return [...new Set(v)].map((x) => `${x}.com`);
+}
+
+/** খোঁজার ফল সাজানো: পাওয়া যায় আগে, তারপর কম রিনিউ দাম; "সেরা পছন্দ" — .com পেলে সেটা, নইলে সবচেয়ে কম রিনিউ */
+export function arrangeOffers(main: Offer[], extra: Offer[]) {
+  const buyable = main.filter((o) => o.buyable);
+  const best = buyable.find((o) => o.domain.endsWith(".com")) ?? [...buyable].sort((a, b) => a.renewBdt - b.renewBdt)[0] ?? null;
+  const rest = buyable.filter((o) => o !== best).sort((a, b) => a.renewBdt - b.renewBdt || a.bdt - b.bdt);
+  const taken = main.filter((o) => !o.buyable);
+  return { best, rest, taken, suggest: extra.filter((o) => o.buyable).slice(0, 4) };
+}
+
 /** খোঁজার লেখা → নামের তালিকা ("kathbon" → kathbon.com, kathbon.shop…; "kathbon.shop" আগে) */
-export function candidates(input: string, cfg: SaleConfig): { names: string[]; error?: string } {
+export function candidates(input: string, cfg: SaleConfig): { names: string[]; base?: string; error?: string } {
   let q = (input || "").trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/^www\./, "").split(/[/?#\s]/)[0]!;
   if (!q) return { names: [], error: "ডোমেইনের নাম লিখুন" };
   let first: string | null = null;
@@ -51,7 +67,7 @@ export function candidates(input: string, cfg: SaleConfig): { names: string[]; e
     return { names: [], error: "শুধু ইংরেজি অক্ষর (a-z), সংখ্যা আর মাঝে হাইফেন (-) দিয়ে নাম লিখুন — যেমন kathbon বা kath-bon" };
   }
   const names = [...new Set([...(first ? [first] : []), ...cfg.tlds.map((t) => `${q}.${t}`)])];
-  return { names };
+  return { names, base: q };
 }
 
 export type RegRow = {

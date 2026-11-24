@@ -23,7 +23,7 @@ import { codAmount, PAY_NAME, PAY_STATUS, type PayKey } from "../lib/payment";
 import { waLink, type WaMsg } from "../lib/whatsapp";
 import { bn } from "../lib/format";
 import { PENDING_DAYS } from "../../platform/domains";
-import type { Offer, RegRow } from "../../platform/domain-sale";
+import { arrangeOffers, type Offer, type RegRow } from "../../platform/domain-sale";
 import { ShopShell } from "./admin-pro";
 
 export type Flash = { type: "ok" | "error"; text: string } | null;
@@ -1080,54 +1080,114 @@ const DomainGate = ({ g }: { g: DomainGateView }) => {
 /** ডোমেইন কেনা (Porkbun) — পেজের জন্য তথ্য */
 export type DomainSaleView = {
   enabled: boolean; sandbox: boolean; balance: number; planOk: boolean;
-  q?: string; offers?: Offer[]; error?: string; notice?: string;
+  q?: string; offers?: Offer[]; extra?: Offer[]; error?: string; notice?: string; tlds?: string[];
   reg: (RegRow & { renewBdt: number | null }) | null;
 };
 
 /** দোকানদার নিজের দোকান থেকে ডোমেইন খোঁজা আর কেনা */
-const DomainBuy = ({ s, gate }: { s: DomainSaleView; gate?: DomainGateView }) => (
-  <section class="panel db-panel" id="buy">
-    <h2><Icon name="globe" size="sm" /> নতুন ডোমেইন কিনুন <span class="pill pill-ok">সবচেয়ে সহজ</span></h2>
-    <p class="muted">এখান থেকে কিনলে নেমসার্ভার বা কোনো সেটিং লাগবে না — কেনার সাথে সাথে আমরা নিজে দোকানে বসিয়ে দিই। টাকা কাটে দোকানের ব্যালেন্স থেকে (এখন {taka(s.balance)})।</p>
-    {s.sandbox && <div class="alert alert-warn"><span>পরীক্ষামূলক মোড (sandbox) — আসল ডোমেইন কেনা হবে না।</span></div>}
-    <form method="get" action="/admin/domain#buy" class="row-form db-search" role="search">
-      <input type="search" name="q" value={s.q ?? ""} placeholder="আপনার দোকানের নাম, যেমন kathbon" maxlength={80} required autocomplete="off" />
-      <button class="btn btn-primary"><Icon name="search" size="sm" /> খুঁজুন</button>
-    </form>
-    {s.error && <div class="alert alert-error">{s.error}</div>}
-    {s.notice && <p class="muted small">{s.notice}</p>}
-    {s.offers && s.offers.length > 0 && (
-      <div class="db-results">
-        {s.offers.map((o) => (
-          <div class={`db-row ${o.buyable ? "ok" : "no"}`}>
-            <div class="db-name"><b>{o.domain}</b>{o.buyable ? <small class="ok">পাওয়া যাচ্ছে</small> : <small>{o.reason}</small>}</div>
-            {o.buyable && (
-              <div class="db-price">
-                <b>{taka(o.bdt)}</b><small>প্রথম বছর</small>
-                <small class="muted">পরের বছর থেকে {taka(o.renewBdt)}/বছর</small>
+const DomainBuy = ({ s, gate }: { s: DomainSaleView; gate?: DomainGateView }) => {
+  const arr = s.offers ? arrangeOffers(s.offers, s.extra ?? []) : null;
+  /** কেনার বোতাম — শর্ত না মিললে কী করতে হবে সেই বোতাম */
+  const Action = ({ o }: { o: Offer }) =>
+    gate && !gate.ready ? <a href="#gate" class="btn btn-sm btn-outline">আগে সেটআপ শেষ করুন</a>
+    : !s.planOk ? <a href="/admin/billing" class="btn btn-sm btn-outline">প্ল্যান নিন</a>
+    : s.balance < o.bdt ? <a href="/admin/billing" class="btn btn-sm btn-outline ds-need" title={`আরও ৳${o.bdt - s.balance} দরকার`}>রিচার্জ করুন</a>
+    : (
+      <form method="post" action="/admin/domain/buy" class="ds-buy"
+        data-confirm={`${o.domain} কিনবেন?\n\nএখন কাটা হবে: ৳${o.bdt} (১ বছর)\nপরের বছর থেকে: ৳${o.renewBdt}/বছর\n\nকেনা ডোমেইনের টাকা ফেরত হয় না।`}>
+        <input type="hidden" name="domain" value={o.domain} />
+        <input type="hidden" name="bdt" value={String(o.bdt)} />
+        <input type="hidden" name="agree" value="1" />
+        <button class="btn btn-sm btn-primary"><Icon name="shopping-cart" size="sm" /> কিনুন</button>
+      </form>
+    );
+  const Name = ({ d }: { d: string }) => {
+    const dot = d.indexOf(".");
+    return <span class="ds-dn">{d.slice(0, dot)}<b>{d.slice(dot)}</b></span>;
+  };
+  const Price = ({ o }: { o: Offer }) => {
+    const jump = o.renewBdt > o.bdt * 1.3;
+    return (
+      <div class="ds-price">
+        <div class="ds-now">{taka(o.bdt)}<small>/প্রথম বছর</small></div>
+        <div class={`ds-renew ${jump ? "jump" : ""}`}>{jump ? <Icon name="triangle-alert" size="sm" /> : null}রিনিউ {taka(o.renewBdt)}/বছর</div>
+      </div>
+    );
+  };
+  return (
+    <section class="panel ds" id="buy">
+      <div class="ds-head">
+        <div>
+          <h2><Icon name="globe" size="sm" /> নতুন ডোমেইন কিনুন</h2>
+          <p class="muted">নেমসার্ভার বা কোনো সেটিং লাগবে না — কেনার সাথে সাথে আমরা নিজে দোকানে বসিয়ে দিই।</p>
+        </div>
+        <a href="/admin/billing" class="ds-bal" title="রিচার্জ করুন"><small>ব্যালেন্স</small><b>{taka(s.balance)}</b></a>
+      </div>
+      {s.sandbox && <div class="alert alert-warn"><span>পরীক্ষামূলক মোড (sandbox) — আসল ডোমেইন কেনা হবে না।</span></div>}
+      <form method="get" action="/admin/domain#buy" class="ds-search" role="search" data-ds-search>
+        <Icon name="search" />
+        <input type="search" name="q" value={s.q ?? ""} placeholder="আপনার ব্র্যান্ডের নাম লিখুন, যেমন kathbon" maxlength={80} required autocomplete="off" autocapitalize="off" spellcheck={false} aria-label="ডোমেইনের নাম" />
+        <button class="btn btn-primary" data-busy="খোঁজা হচ্ছে…">ডোমেইন খুঁজুন</button>
+      </form>
+      {!s.q && s.tlds && <div class="ds-tlds">{s.tlds.map((t) => <span>.{t}</span>)}</div>}
+      {s.error && <div class="alert alert-error">{s.error}</div>}
+      {s.notice && <p class="muted small">{s.notice}</p>}
+
+      {arr && (arr.best || arr.rest.length > 0 ? (
+        <div class="ds-results">
+          {arr.best && (
+            <div class="ds-row ds-best">
+              <span class="ds-tag"><Icon name="star" size="sm" /> সেরা পছন্দ</span>
+              <div class="ds-name"><Name d={arr.best.domain} /><small class="ok"><Icon name="check" size="sm" /> পাওয়া যাচ্ছে</small></div>
+              <Price o={arr.best} />
+              <Action o={arr.best} />
+            </div>
+          )}
+          {arr.rest.map((o) => (
+            <div class="ds-row">
+              <div class="ds-name"><Name d={o.domain} /><small class="ok"><Icon name="check" size="sm" /> পাওয়া যাচ্ছে</small></div>
+              <Price o={o} />
+              <Action o={o} />
+            </div>
+          ))}
+        </div>
+      ) : s.offers && s.offers.length > 0 ? <div class="alert alert-warn"><span>এই নামে কোনো ডোমেইন খালি নেই — অন্য নাম দিয়ে খুঁজুন বা নিচের নামগুলো দেখুন।</span></div> : null)}
+
+      {arr && arr.suggest.length > 0 && (
+        <div class="ds-more">
+          <h3>আরও কিছু নাম</h3>
+          <div class="ds-results">
+            {arr.suggest.map((o) => (
+              <div class="ds-row">
+                <div class="ds-name"><Name d={o.domain} /><small class="ok"><Icon name="check" size="sm" /> পাওয়া যাচ্ছে</small></div>
+                <Price o={o} />
+                <Action o={o} />
               </div>
-            )}
-            {o.buyable && (gate && !gate.ready ? <a href="#gate" class="btn btn-sm btn-outline">আগে সেটআপ শেষ করুন</a> : !s.planOk ? <a href="/admin/billing" class="btn btn-sm btn-outline">প্ল্যান নিন</a> : s.balance < o.bdt ? (
-              <a href="/admin/billing" class="btn btn-sm btn-outline" title="ব্যালেন্স কম">রিচার্জ করুন</a>
-            ) : (
-              <form method="post" action="/admin/domain/buy" class="db-buy" data-confirm={`${o.domain} কিনবেন? ব্যালেন্স থেকে ৳${o.bdt} কাটা হবে (১ বছর)। কেনা ডোমেইনের টাকা ফেরত হয় না।`}>
-                <input type="hidden" name="domain" value={o.domain} />
-                <input type="hidden" name="bdt" value={String(o.bdt)} />
-                <input type="hidden" name="agree" value="1" />
-                <button class="btn btn-sm btn-primary">কিনুন</button>
-              </form>
             ))}
           </div>
-        ))}
+        </div>
+      )}
+
+      {arr && arr.taken.length > 0 && (
+        <details class="ds-taken">
+          <summary>পাওয়া যাচ্ছে না ({bn(arr.taken.length)})</summary>
+          <ul>{arr.taken.map((o) => <li><Name d={o.domain} /><span class="muted">{o.reason}</span></li>)}</ul>
+        </details>
+      )}
+
+      {arr && (arr.best || arr.rest.length > 0) && (
+        <p class="ds-legend muted small"><Icon name="triangle-alert" size="sm" /> হলুদ চিহ্ন = প্রথম বছরে ছাড়, পরের বছর থেকে দাম অনেক বেশি। লম্বা সময় রাখতে চাইলে রিনিউয়ের দাম দেখে বাছুন।</p>
+      )}
+
+      <div class="ds-perks">
+        <div><Icon name="zap" size="sm" /><span><b>নিজে বসে যায়</b><small>কোনো DNS/নেমসার্ভার সেটিং নয়</small></span></div>
+        <div><Icon name="shield-check" size="sm" /><span><b>WHOIS privacy ফ্রি</b><small>আপনার নাম-ঠিকানা লুকানো</small></span></div>
+        <div><Icon name="rotate-ccw" size="sm" /><span><b>অটো-রিনিউ</b><small>ব্যালেন্স থেকে, চাইলে বন্ধ</small></span></div>
+        <div><Icon name="life-buoy" size="sm" /><span><b>ট্রান্সফার সুবিধা</b><small>অন্য কোম্পানিতে নিতে চাইলে সাপোর্ট</small></span></div>
       </div>
-    )}
-    <ul class="db-notes muted small">
-      <li>১ বছরের জন্য কেনা হয়; মেয়াদ শেষের আগে ব্যালেন্স থেকে নিজে রিনিউ হয় (চাইলে বন্ধ রাখা যায়)।</li>
-      <li>WHOIS privacy ফ্রি — আপনার নাম-ঠিকানা লুকানো থাকে।</li>
-      <li>পরে অন্য কোম্পানিতে নিতে চাইলে সাপোর্টে জানালে ট্রান্সফার করে দেওয়া হবে।</li>
-    </ul>
-  </section>
-);
+    </section>
+  );
+};
 
 /** SellxBD থেকে কেনা ডোমেইনের মেয়াদ আর রিনিউ */
 const DomainRegPanel = ({ r, attached }: { r: NonNullable<DomainSaleView["reg"]>; attached: boolean }) => {

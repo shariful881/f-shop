@@ -32,7 +32,7 @@ import { BuiltLanding } from "../views/landing";
 import { normalizeCode } from "../lib/coupons";
 import { BillingPage, DnsPage, DomainPage, StaffPage, type DnsView, type LedgerRow, type StaffRow, type TopupRow } from "../views/admin";
 import { addDomain, cfFromEnv, checkDomain, isProtected, normalizeDomain, removeDomain, shopDomains, validateDnsInput } from "../../platform/domains";
-import { bdtPrice, buyDomain, candidates, offerOf, pushNameservers, renewDomain, saleConfig, shopReg, type Offer } from "../../platform/domain-sale";
+import { bdtPrice, buyDomain, candidates, offerOf, variants, pushNameservers, renewDomain, saleConfig, shopReg, type Offer } from "../../platform/domain-sale";
 import { pbError, porkbunFromEnv, type PbCheck } from "../../platform/porkbun";
 import { cfError, type DnsRecord } from "../../platform/cf";
 import { applyLedger, billingShop, changePlan, chargeConfirmedOrder, platformSettings, type BillingShop, type PlatformSettings } from "../../platform/billing";
@@ -2045,7 +2045,7 @@ async function domainGate(c: Ctx): Promise<{ steps: DomainStep[]; ready: boolean
 }
 
 /** নিজের ডোমেইন পেজ — ডোমেইন কেনা (Porkbun) চালু থাকলে খোঁজার ফল আর কেনা ডোমেইনের তথ্যও */
-async function renderDomain(c: Ctx, form?: { value: string; error: string }, search?: { q: string; offers: Offer[]; error?: string; notice?: string }) {
+async function renderDomain(c: Ctx, form?: { value: string; error: string }, search?: { q: string; offers: Offer[]; extra?: Offer[]; error?: string; notice?: string }) {
   const db = c.env.PLATFORM_DB;
   const [rows, gate, ps, reg, shop] = await Promise.all([
     shopDomains(db, c.env.SHOP_ID), domainGate(c), platformSettings(db), shopReg(db, c.env.SHOP_ID),
@@ -2055,7 +2055,7 @@ async function renderDomain(c: Ctx, form?: { value: string; error: string }, sea
   const pb = porkbunFromEnv(c.env);
   const sale: DomainSaleView = {
     enabled: cfg.enabled && pb.configured, sandbox: pb.sandbox, balance: shop?.balance ?? 0, planOk: await domainPlanOk(c),
-    q: search?.q, offers: search?.offers, error: search?.error, notice: search?.notice,
+    q: search?.q, offers: search?.offers, extra: search?.extra, error: search?.error, notice: search?.notice, tlds: cfg.tlds,
     reg: reg ? { ...reg, renewBdt: reg.renew_cents ? bdtPrice(reg.renew_cents / 100, cfg) : null } : null,
   };
   return render(c, "ডোমেইন", "domains",
@@ -2081,10 +2081,12 @@ admin.get("/domain", async (c) => {
   if (cand.error) return renderDomain(c, undefined, { q, offers: [], error: cand.error });
   // Porkbun-এর সীমা (মিনিটে ২০০টা নাম, পুরো অ্যাকাউন্টে) — এক দোকান মিনিটে ৬ বার খুঁজতে পারে
   if (!(await hitRateLimit(c.env.DB, "domain-search", 6, 60))) return renderDomain(c, undefined, { q, offers: [], error: pbError("RATE_LIMIT_EXCEEDED") });
-  const r = await pb.checkMany(cand.names);
+  const extra = cfg.tlds.includes("com") ? variants(cand.base!).filter((n) => !cand.names.includes(n)) : [];
+  const r = await pb.checkMany([...cand.names, ...extra].slice(0, 25));
   if (!r.ok) return renderDomain(c, undefined, { q, offers: [], error: pbError(r.code, r.message) });
-  const offers = cand.names.map((n) => r.results.find((x) => x.domain === n)).filter((x): x is PbCheck => !!x).map((x) => offerOf(x, cfg));
-  return renderDomain(c, undefined, { q, offers, notice: r.unresolved.length ? `${r.unresolved.join(", ")} — এই মুহূর্তে উত্তর আসেনি, একটু পরে আবার খুঁজুন।` : undefined });
+  const pick = (names: string[]) => names.map((n) => r.results.find((x) => x.domain === n)).filter((x): x is PbCheck => !!x).map((x) => offerOf(x, cfg));
+  const missing = r.unresolved.filter((n) => cand.names.includes(n));
+  return renderDomain(c, undefined, { q, offers: pick(cand.names), extra: pick(extra), notice: missing.length ? `${missing.join(", ")} — এই মুহূর্তে উত্তর আসেনি, একটু পরে আবার খুঁজুন।` : undefined });
 });
 
 admin.post("/domain/buy", async (c) => {
