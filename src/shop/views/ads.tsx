@@ -1,6 +1,7 @@
 /**
  * অ্যাড ও ক্যাটালগ — অ্যাডের আসল খরচ (বাতিল/ফেরত বাদ দিয়ে) আর ক্যাটালগ ফিড।
  */
+import { shopLink } from "../lib/store-origin";
 import { bn, taka } from "../lib/format";
 import { per, roas, usdRate, type AdReport, type Funnel } from "../lib/ads";
 import type { Settings } from "../lib/settings";
@@ -186,7 +187,7 @@ export const CatalogPage = (p: { s: Settings; origin: string; count: number; ski
         <label class="field"><span>শুধু Facebook (CSV)</span>
           <div class="store-link"><input type="text" id="feed-csv" value={csv} readonly /><button type="button" class="btn btn-sm" data-copy="#feed-csv">কপি</button></div>
         </label>
-        <p class="small"><a href="/feed.xml" target="_blank" rel="noopener">ফিড খুলে দেখুন →</a></p>
+        <p class="small"><a href={shopLink("/feed.xml")} target="_blank" rel="noopener">ফিড খুলে দেখুন →</a></p>
       </section>
 
       <div class="panels">

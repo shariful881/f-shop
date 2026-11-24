@@ -64,6 +64,10 @@ export default {
 
     let shop = target.shop;
 
+    // নিজের ডোমেইন চালু থাকলে slug.sellxbd.com-এর পাবলিক পেজ → নিজের ডোমেইনে (একই পেজের দুই ঠিকানা থাকে না)
+    const moved = customDomainRedirect(env, host, url, request, shop);
+    if (moved) return moved;
+
     // ট্রায়ালের সময় শেষ হলে এখনই চালু করা (দৈনিক cron-এর অপেক্ষা না করে)
     if (trialExpired(shop)) {
       await endTrial(env.PLATFORM_DB, shop.id, await platformSettings(env.PLATFORM_DB));
@@ -100,6 +104,24 @@ export default {
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;
+
+/** ক্রেতা যে পেজগুলো দেখে — শুধু এগুলোই নিজের ডোমেইনে পাঠানো হয় (অ্যাডমিন, API, পেমেন্ট, ছবি নয়) */
+const PUBLIC_PAGE = /^\/(?:$|product\/|p\/|c\/|search$|page\/|blog(?:\/|$)|cart$|checkout$|track$|review$|sitemap\.xml$|robots\.txt$|feed\.(?:xml|csv)$)/;
+
+/**
+ * slug.sellxbd.com → নিজের ডোমেইন (301)। বাদ: লোকাল, GET/HEAD ছাড়া, অ্যাডমিন লগইন থাকলে
+ * (থিম এডিটরের প্রিভিউ আর "শীঘ্রই আসছে" মোডে মালিক নিজের সাব-ডোমেইনেই দোকান দেখে), ?__preview।
+ * ১ ঘণ্টা cache — ডোমেইন পরে সরালে ব্রাউজার বেশিক্ষণ পুরনো ঠিকানায় যায় না।
+ */
+export function customDomainRedirect(env: WorkerEnv, host: string, url: URL, request: Request, shop: ShopRow): Response | null {
+  const root = shop.custom_root;
+  const base = (env.PLATFORM_DOMAIN || "").toLowerCase();
+  if (!root || env.DEV_MODE === "1" || !base || !host.toLowerCase().endsWith(`.${base}`)) return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (!PUBLIC_PAGE.test(url.pathname) || url.searchParams.has("__preview")) return null;
+  if (/(?:^|;\s*)(?:__Host-)?admin_session=/.test(request.headers.get("cookie") || "")) return null;
+  return new Response(null, { status: 301, headers: { location: `https://${root}${url.pathname}${url.search}`, "cache-control": "public, max-age=3600" } });
+}
 
 /** সুপার অ্যাডমিনের "সিস্টেম" কার্ডের জন্য — cron শেষ কবে চলেছে */
 async function markCron(env: WorkerEnv, key: string) {

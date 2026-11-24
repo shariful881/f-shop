@@ -1,4 +1,5 @@
 import { COURIER_NAME, type CourierKey } from "../lib/courier";
+import { shopLink } from "../lib/store-origin";
 import { SMS_PLACEHOLDERS, SMS_PLACEHOLDERS_EN, SMS_PROVIDERS } from "../lib/sms";
 import { getLang } from "../i18n";
 import type { Child } from "hono/jsx";
@@ -550,7 +551,7 @@ export const ProductsPage = ({ products, categories }: { products: Product[]; ca
           {products.map((p) => (
             <tr class={p.is_active ? "" : "dim"}>
               <td><img src={imageUrl(p.image)} width="48" height="48" class="thumb" alt="" /></td>
-              <td><strong>{p.name}</strong><br /><a href={`/p/${p.slug}`} target="_blank"><small>/p/{p.slug}</small></a></td>
+              <td><strong>{p.name}</strong><br /><a href={shopLink(`/p/${p.slug}`)} target="_blank" rel="noopener"><small>/p/{p.slug}</small></a></td>
               <td>{taka(p.price)}{p.compare_price ? <><br /><del class="muted">{taka(p.compare_price)}</del></> : null}</td>
               <td>{p.track_stock === 1
                 ? (p.stock ?? 0) <= 0 ? <span class="pill pill-bad">শেষ</span> : <span class={(p.stock ?? 0) <= (p.low_stock ?? 5) ? "pill pill-warn" : ""}>{bn(p.stock ?? 0)}টা</span>
@@ -592,7 +593,7 @@ export const ProductFormPage = (p: { product?: Partial<Product>; categories: Cat
         <h1>{isEdit ? v.name || "পণ্য এডিট" : "নতুন পণ্য"}</h1>
         {isEdit && (
           <div class="inline-actions">
-            <a href={`/p/${v.slug}`} target="_blank" rel="noopener" class="btn btn-sm"><Icon name="eye" size="sm" /> দেখুন</a>
+            <a href={shopLink(`/p/${v.slug}`)} target="_blank" rel="noopener" class="btn btn-sm"><Icon name="eye" size="sm" /> দেখুন</a>
             <a href={`/admin/products/${v.id}/landing`} class="btn btn-outline btn-sm"><Icon name="layout-template" size="sm" /> ল্যান্ডিং পেজ বিল্ডার</a>
           </div>
         )}
@@ -766,7 +767,7 @@ export const CategoriesPage = ({ rows }: { rows: CatRow[] }) => {
                   <td class="num">{bn(c.sort_order)}</td>
                   <td class="num">{c.depth || c.total === c.count ? bn(c.count) : <>{bn(c.total)} <small class="muted">(নিজে {bn(c.count)})</small></>}</td>
                   <td class="cat-act">
-                    <a href={`/c/${c.id}`} target="_blank" rel="noopener" class="btn btn-sm" title="দোকানে দেখুন"><Icon name="eye" size="sm" /></a>
+                    <a href={shopLink(`/c/${c.id}`)} target="_blank" rel="noopener" class="btn btn-sm" title="দোকানে দেখুন"><Icon name="eye" size="sm" /></a>
                     {!c.depth && <a href={`/admin/categories/new?parent=${c.id}`} class="btn btn-sm" title="সাব-ক্যাটাগরি যোগ করুন"><Icon name="plus" size="sm" /> সাব</a>}
                     <a href={`/admin/categories/${c.id}/edit`} class="btn btn-sm btn-outline">এডিট</a>
                     <form method="post" action={`/admin/categories/${c.id}/delete`} class="inline"
@@ -793,7 +794,7 @@ export const CategoryFormPage = ({ cat, parents, errors }: { cat: Partial<Catego
     <p><a href="/admin/categories" class="btn-link"><Icon name="arrow-left" size="sm" /> ক্যাটাগরি তালিকা</a></p>
     <div class="detail-head">
       <h1>{isEdit ? cat.name || "ক্যাটাগরি এডিট" : "নতুন ক্যাটাগরি"}</h1>
-      {isEdit && <a href={`/c/${cat.id}`} target="_blank" rel="noopener" class="btn btn-sm"><Icon name="eye" size="sm" /> দোকানে দেখুন</a>}
+      {isEdit && <a href={shopLink(`/c/${cat.id}`)} target="_blank" rel="noopener" class="btn btn-sm"><Icon name="eye" size="sm" /> দোকানে দেখুন</a>}
     </div>
     <form method="post" action={isEdit ? `/admin/categories/${cat.id}` : "/admin/categories"} enctype="multipart/form-data" class="sa-card cat-form">
       <input type="hidden" name="full" value="1" />
@@ -1285,7 +1286,7 @@ export const LandingListPage = ({ rows }: { rows: LandingRow[] }) => (
             <td>{taka(r.price)}</td>
             <td class="right nowrap">
               <a href={`/admin/products/${r.id}/landing`} class="btn btn-outline btn-sm">এডিট</a>{" "}
-              <a href={`/p/${r.slug}`} target="_blank" class="btn-link">দেখুন ↗</a>
+              <a href={shopLink(`/p/${r.slug}`)} target="_blank" rel="noopener" class="btn-link">দেখুন ↗</a>
             </td>
           </tr>
         ))}</tbody>
@@ -1433,7 +1434,7 @@ export const LandingBuilderPage = (p: { product: Product; landingJson: string; l
       <button class="btn btn-primary">সেভ করুন</button>
       <button type="button" class="btn btn-outline lb-only-mobile" id="lb-open"><Icon name="pencil" size="sm" /> এডিট</button>
       <button type="button" class="btn btn-outline" id="save-template">টেমপ্লেট হিসেবে রাখুন</button>
-      <a href={`/p/${p.product.slug}`} target="_blank" class="btn-link">লাইভ পেজ ↗</a>
+      <a href={shopLink(`/p/${p.product.slug}`)} target="_blank" rel="noopener" class="btn-link">লাইভ পেজ ↗</a>
       <button type="button" class="btn-link" id="copy-json" title="সুপার অ্যাডমিনে নতুন টেমপ্লেট বানাতে">JSON কপি</button>
     </form>
     {p.custom && (

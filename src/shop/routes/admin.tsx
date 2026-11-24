@@ -3,6 +3,7 @@ import { liveOrder, recentActivity } from "../lib/live";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { imageStorageKey, type AppEnv, type Ctx } from "../env";
+import { freeShopUrl, safeShopPath, storeOrigin } from "../lib/store-origin";
 import { priceEditable } from "../views/admin";
 import { AdminLayout, BlacklistPage, BulkImagesPage, CategoriesPage, CategoryFormPage, LoginPage, OrderDetailPage, OrdersPage, ProductFormPage, ProductsPage, STATUS_TABS, type BlacklistRow, type Flash } from "../views/admin";
 import { adminToken, requireAdmin } from "../middleware/admin-auth";
@@ -15,7 +16,7 @@ import { GALLERY_MAX, categoryTree, parseFeatures, parseGallery, productVariants
 import { normalizePhone } from "../lib/phone";
 import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES, TIKTOK_RE, type ThemeKey } from "../lib/settings";
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
-import { clientIp, isHttps, publicOrigin, str, toInt } from "../lib/http";
+import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsPaymentPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
 import { bn, taka, youtubeId } from "../lib/format";
 import { AccountPage, ForgotPage, ResetPage } from "../views/account";
@@ -720,7 +721,7 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
   const record = { own: own[o.phone], shared: shared[o.phone], courier: parseOrderReport(o.courier_report) ?? cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings, await platformCourier(c)) };
   return render(c, o.order_no, "orders",
     <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
-      record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} wa={waMessages(o, data.items, c.var.settings, publicOrigin(c))} />);
+      record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} wa={waMessages(o, data.items, c.var.settings, await storeOrigin(c))} />);
 });
 
 /** স্ট্যাটাস বদল + তার পরের কাজ (বিলিং, Purchase, SMS) — একটা আর একসাথে অনেক অর্ডার দুটোতেই */
@@ -1517,7 +1518,7 @@ const SET_PAGES: Record<string, { title: string; view: (c: Ctx) => unknown }> = 
   delivery: { title: "ডেলিভারি", view: (c) => <SettingsDeliveryPage s={c.var.settings} /> },
   checkout: { title: "অর্ডার ফর্ম", view: (c) => <SettingsCheckoutPage s={c.var.settings} /> },
   payment: { title: "অগ্রিম পেমেন্ট", view: (c) => <SettingsPaymentPage s={c.var.settings} /> },
-  seo: { title: "SEO", view: (c) => <SettingsSeoPage s={c.var.settings} url={publicOrigin(c)} /> },
+  seo: { title: "SEO", view: async (c) => <SettingsSeoPage s={c.var.settings} url={await storeOrigin(c)} /> },
   tracking: { title: "পিক্সেল ও ট্র্যাকিং", view: (c) => <SettingsTrackingPage s={c.var.settings} /> },
 };
 
@@ -1624,12 +1625,12 @@ admin.post("/design/discard", async (c) => {
 });
 
 admin.get("/settings", (c) => render(c, SET_PAGES.general!.title, "settings", SET_PAGES.general!.view(c)));
-admin.get("/settings/:section{[a-z]+}", (c) => {
+admin.get("/settings/:section{[a-z]+}", async (c) => {
   const pg = SET_PAGES[c.req.param("section")];
   if (!pg) return c.redirect("/admin/settings", 303);
   const sec = c.req.param("section");
   const nav = sec === "appearance" ? "theme" : sec === "tracking" || sec === "delivery" ? sec : "settings";
-  return render(c, pg.title, nav, pg.view(c));
+  return render(c, pg.title, nav, await pg.view(c));
 });
 
 /** ছবি আপলোড (লোগো, ফেভিকন, শেয়ার ইমেজ) — সফল হলে নতুন key, ভুল হলে error */
@@ -2012,21 +2013,10 @@ admin.post("/staff/:id{[0-9]+}/delete", async (c) => {
 });
 
 /* ---------- নিজের ডোমেইন (শুধু মালিক) — section "domains" ---------- */
-function freeShopUrl(c: Ctx) {
-  return `https://${c.env.SHOP_SLUG}.${c.env.PLATFORM_DOMAIN}`;
-}
-
-/** দোকানের আসল ঠিকানা: নিজের ডোমেইন চালু থাকলে সেটা, নইলে ফ্রি ঠিকানা (slug.sellxbd.com) */
-async function storeOrigin(c: Ctx): Promise<string> {
-  const d = await c.env.PLATFORM_DB.prepare("SELECT root FROM domains WHERE shop_id = ? AND status = 'active' AND zone_id IS NOT NULL AND hostname = root LIMIT 1")
-    .bind(c.env.SHOP_ID).first<{ root: string }>().catch(() => null);
-  return d?.root ? `https://${d.root}` : freeShopUrl(c);
-}
-
-/** "দোকান দেখুন" বাটন (নতুন ট্যাবে খোলে) */
+/** "দোকান দেখুন" আর অ্যাডমিনের সব "দেখুন" লিংক (নতুন ট্যাবে): ?to=/p/slug — নিজের ডোমেইন চালু থাকলে সেখানে */
 admin.get("/view-shop", async (c) => {
   c.header("Cache-Control", "no-store");
-  return c.redirect(`${await storeOrigin(c)}/`, 302);
+  return c.redirect(`${await storeOrigin(c)}${safeShopPath(c.req.query("to"))}`, 302);
 });
 
 /**
@@ -2590,7 +2580,7 @@ admin.post("/ads/rate", async (c) => {
 });
 
 admin.get("/ads/catalog", async (c) => {
-  const origin = publicOrigin(c);
+  const origin = await storeOrigin(c);
   const { items, skipped } = await feedItems(c.env.DB, c.var.settings, origin);
   return render(c, "অ্যাড ও ক্যাটালগ", "ads",
     <CatalogPage s={c.var.settings} origin={origin} count={items.length} skipped={skipped} out={items.filter((i) => i.availability === "out of stock").length} />);
@@ -2640,7 +2630,7 @@ admin.get("/reviews", async (c) => {
   const q = c.req.query("status") || "pending";
   const status = (q in REVIEW_TABS ? q : "pending") as ReviewStatus;
   const [rows, counts] = await Promise.all([adminReviews(c.env.DB, status), reviewCounts(c.env.DB)]);
-  return render(c, "রিভিউ", "reviews", <ReviewsAdminPage rows={rows} status={status} counts={counts} enabled={c.var.settings.reviews_enabled !== "0"} link={`${publicOrigin(c)}/review`} />);
+  return render(c, "রিভিউ", "reviews", <ReviewsAdminPage rows={rows} status={status} counts={counts} enabled={c.var.settings.reviews_enabled !== "0"} link={`${await storeOrigin(c)}/review`} />);
 });
 
 admin.post("/reviews/settings", async (c) => {

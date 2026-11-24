@@ -2,9 +2,12 @@ import type { WorkerEnv } from "../worker-env";
 
 import type { BillingShop } from "./billing";
 
-export type ShopRow = BillingShop & { slug: string; name: string; seed_demo: number; images_r2?: number };
+export type ShopRow = BillingShop & { slug: string; name: string; seed_demo: number; images_r2?: number;
+  /** চালু নিজের ডোমেইন (যেমন kathbon.com) — থাকলে slug.sellxbd.com-এর পাবলিক পেজ সেখানে পাঠানো হয় */
+  custom_root?: string | null };
 
-const COLS = "s.id, s.slug, s.name, s.status, s.seed_demo, s.balance, s.trial_ends_at, s.trial_orders_left, s.next_bill_at, s.low_balance_since, s.staff_count, s.plan, s.period_orders, s.created_at, s.images_r2, s.email_verified, s.phone_verified";
+const COLS = `s.id, s.slug, s.name, s.status, s.seed_demo, s.balance, s.trial_ends_at, s.trial_orders_left, s.next_bill_at, s.low_balance_since, s.staff_count, s.plan, s.period_orders, s.created_at, s.images_r2, s.email_verified, s.phone_verified,
+  (SELECT d2.root FROM domains d2 WHERE d2.shop_id = s.id AND d2.status = 'active' AND d2.zone_id IS NOT NULL AND d2.hostname = d2.root ORDER BY d2.created_at LIMIT 1) AS custom_root`;
 
 /** একই Worker-এ বারবার ডাটাবেসে না গিয়ে ৩০ সেকেন্ড মনে রাখা */
 const cache = new Map<string, { at: number; shop: ShopRow | null }>();
