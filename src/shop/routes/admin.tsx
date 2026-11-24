@@ -10,7 +10,8 @@ import { adminToken, requireAdmin } from "../middleware/admin-auth";
 import { ADMIN_COOKIES, clearSession, writeSession } from "../lib/session-cookie";
 import { createSession, destroyOtherSessions, destroySession, hashPassword, needsRehash, sha256Hex, verifyPassword } from "../lib/auth";
 import { changeStatus } from "../lib/order-status";
-import { getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
+import { AREA_LABEL, getOrderById, type Order, type OrderItem, type OrderStatus } from "../lib/orders";
+import { logChangeStatement, orderChanges, type ChangeRow } from "../lib/order-changes";
 import { InvoicePage, type InvoiceData } from "../views/invoice";
 import { GALLERY_MAX, slugChangeStatements, categoryTree, parseFeatures, parseGallery, productVariants, withChildren, syncVariants, type Category, type Product } from "../lib/products";
 import { normalizePhone } from "../lib/phone";
@@ -746,8 +747,11 @@ admin.get("/orders/:id{[0-9]+}", async (c) => {
     cachedCourierRecords(db, [o.phone]),
   ]);
   const record = { own: own[o.phone], shared: shared[o.phone], courier: parseOrderReport(o.courier_report) ?? cached[o.phone] ?? null, sharing: c.var.settings.fraud_share !== "0", canCheck: courierRecordReady(c.var.settings, await platformCourier(c)) };
+  const changes = await orderChanges(db, o.id);
+  const st = c.var.settings;
   return render(c, o.order_no, "orders",
-    <OrderDetailPage order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
+    <OrderDetailPage changes={changes} editCustomer={c.req.query("edit") === "customer"}
+      rates={{ inside: deliveryCharge(st, "inside"), outside: deliveryCharge(st, "outside"), freeMin: freeDeliveryMin(st) }} order={o} items={data.items} history={hist!.results as Order[]} blocked={{ phone: types.includes("phone"), device: types.includes("device") }} couriers={configuredCouriers(c.var.settings)} sms={sms}
       record={{ ...record, risk: riskOf(record.own, record.shared, record.courier) }} wa={waMessages(o, data.items, c.var.settings, await storeOrigin(c))} />);
 });
 
@@ -859,10 +863,65 @@ admin.post("/orders/:id{[0-9]+}/price", async (c) => {
     return c.redirect(`/admin/orders/${id}`, 303);
   }
   // ছাড় তুলে দিলে কুপনের নামও যায়
-  await db.prepare("UPDATE orders SET delivery_charge = ?, discount = ?, total = ?, coupon_code = CASE WHEN ? > 0 THEN coupon_code ELSE NULL END WHERE id = ?")
-    .bind(delivery, discount, total, discount, id).run();
+  const pch: ChangeRow[] = [];
+  if (delivery !== o.delivery_charge) pch.push(["ডেলিভারি চার্জ", taka(o.delivery_charge), taka(delivery)]);
+  if (discount !== o.discount) pch.push(["ছাড়", taka(o.discount), taka(discount)]);
+  if (pch.length) pch.push(["মোট", taka(o.subtotal + o.delivery_charge - o.discount), taka(total)]);
+  await db.batch([
+    db.prepare("UPDATE orders SET delivery_charge = ?, discount = ?, total = ?, coupon_code = CASE WHEN ? > 0 THEN coupon_code ELSE NULL END WHERE id = ?")
+      .bind(delivery, discount, total, discount, id),
+    ...(pch.length ? [logChangeStatement(db, id, pch, c.var.admin)] : []),
+  ]);
   flash(c, "ok", `সেভ হয়েছে — ছাড় ${taka(discount)}, ডেলিভারি ${taka(delivery)}, নতুন মোট ${taka(total)}।`);
   return c.redirect(`/admin/orders/${id}`, 303);
+});
+
+/** ক্রেতার নাম, ফোন, ঠিকানা আর এলাকা বদল (কল করে ঠিক করা) — এলাকা বদলালে ডেলিভারি চার্জ নিজে */
+admin.post("/orders/:id{[0-9]+}/customer", async (c) => {
+  const id = toInt(c.req.param("id"));
+  const db = c.env.DB;
+  const back = `/admin/orders/${id}`;
+  const o = await db.prepare("SELECT id, status, consignment_id, name, phone, address, area, subtotal, delivery_charge, discount, total, advance_amount, pay_status FROM orders WHERE id = ?").bind(id).first<Order>();
+  if (!o) return c.redirect("/admin/orders", 303);
+  if (!priceEditable(o)) {
+    flash(c, "error", o.consignment_id ? "কুরিয়ারে পাঠানো হয়ে গেছে — ক্রেতার তথ্য এখন কুরিয়ারের প্যানেলে বদলান।" : "শিপড, বাতিল বা ফেক অর্ডারের তথ্য বদলানো যায় না।");
+    return c.redirect(back, 303);
+  }
+  const b = await c.req.parseBody();
+  const name = str(b.name, 100);
+  const phone = normalizePhone(str(b.phone, 30));
+  const address = str(b.address, 300);
+  const area: Order["area"] = b.area === "outside" ? "outside" : b.area === "inside" ? "inside" : o.area;
+  const keep = b.keep_delivery === "1";
+  const bad = !name ? "নাম লিখুন।" : !phone ? "মোবাইল নম্বর ঠিক নয় — ১১ অঙ্কের বাংলাদেশি নম্বর দিন (যেমন 01712345678)।" : address.length < 5 ? "পুরো ঠিকানা লিখুন।" : "";
+  if (bad) { flash(c, "error", bad); return c.redirect(`${back}?edit=customer`, 303); }
+
+  const delivery = area !== o.area && !keep ? deliveryCharge(c.var.settings, area, o.subtotal) : o.delivery_charge;
+  const discount = Math.min(o.discount, o.subtotal + delivery);
+  const total = o.subtotal + delivery - discount;
+  if (o.pay_status === "verified" && (o.advance_amount ?? 0) > total) {
+    flash(c, "error", `অগ্রিম ${taka(o.advance_amount!)} পাওয়া গেছে — মোট এর চেয়ে কম করা যায় না। "ডেলিভারি চার্জ আগের মতো রাখুন" টিক দিন।`);
+    return c.redirect(`${back}?edit=customer`, 303);
+  }
+  const ch: ChangeRow[] = [];
+  if (name !== o.name) ch.push(["নাম", o.name, name]);
+  if (phone !== o.phone) ch.push(["মোবাইল", o.phone, phone!]);
+  if (address !== o.address) ch.push(["ঠিকানা", o.address, address]);
+  if (area !== o.area) ch.push(["এলাকা", AREA_LABEL[o.area], AREA_LABEL[area]]);
+  if (delivery !== o.delivery_charge) ch.push(["ডেলিভারি চার্জ", taka(o.delivery_charge), taka(delivery)]);
+  if (discount !== o.discount) ch.push(["ছাড়", taka(o.discount), taka(discount)]);
+  if (total !== o.total) ch.push(["মোট", taka(o.total), taka(total)]);
+  if (!ch.length) { flash(c, "ok", "কিছু বদলায়নি।"); return c.redirect(back, 303); }
+  await db.batch([
+    // ফোন বদলালে আগের নম্বরের কুরিয়ার রিপোর্ট আর খাটে না
+    db.prepare(`UPDATE orders SET name = ?, phone = ?, address = ?, area = ?, delivery_charge = ?, discount = ?, total = ?,
+                courier_report = CASE WHEN phone = ? THEN courier_report ELSE NULL END WHERE id = ?`)
+      .bind(name, phone, address, area, delivery, discount, total, phone, id),
+    logChangeStatement(db, id, ch, c.var.admin),
+  ]);
+  const money = delivery !== o.delivery_charge ? ` ডেলিভারি ${taka(o.delivery_charge)} → ${taka(delivery)}, নতুন মোট ${taka(total)}।` : "";
+  flash(c, "ok", `ক্রেতার তথ্য সেভ হয়েছে।${money}`);
+  return c.redirect(back, 303);
 });
 
 admin.post("/orders/:id{[0-9]+}/purchase", async (c) => {

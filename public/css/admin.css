@@ -530,3 +530,33 @@ body.admin .orders-wrap .ot-total small { font-weight: 400; }
   .ph-dlg { width: 100vw; max-width: 100vw; max-height: 88vh; margin: auto 0 0; border-radius: 16px 16px 0 0; }
   .ph-sum { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* অর্ডারের পাতা: ক্রেতার তথ্য এডিট আর পরিবর্তনের ইতিহাস */
+.panel-head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.panel-head-row h2 { margin: 0; }
+.cust-edit { display: grid; gap: 12px; padding: 14px; border: 1px solid #99f6e4; border-radius: 12px; background: #f0fdfa; margin-bottom: 10px; }
+.cust-edit .field { margin: 0; }
+.cust-edit input, .cust-edit textarea { font-size: 16px; }
+.ce-area { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ce-area label { display: block; cursor: pointer; position: relative; }
+.ce-area input { position: absolute; opacity: 0; pointer-events: none; }
+.ce-area span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px; border: 2px solid #cbd5e1; border-radius: 10px; background: #fff; font-weight: 700; text-align: center; }
+.ce-area small { font-weight: 600; color: #64748b; }
+.ce-area input:checked + span { border-color: #0f766e; background: #0f766e; color: #fff; }
+.ce-area input:checked + span small { color: #ccfbf1; }
+.ce-area input:focus-visible + span { outline: 3px solid rgba(15, 118, 110, .35); outline-offset: 2px; }
+.ce-money { padding: 10px 12px; border-radius: 10px; background: #fffbeb; border: 1px solid #fcd34d; display: grid; gap: 6px; }
+.ce-diff { margin: 0; font-size: .92rem; }
+.ce-diff s { color: #94a3b8; }
+.ce-diff b { color: #0f766e; }
+.ce-money .check { display: flex; gap: 6px; align-items: center; font-size: .88rem; }
+.ce-actions { display: flex; gap: 8px; }
+.oc-log { margin-top: 12px; border-top: 1px dashed #e2e8f0; padding-top: 10px; }
+.oc-log summary { cursor: pointer; font-weight: 700; font-size: .9rem; color: #334155; display: flex; align-items: center; gap: 6px; }
+.oc-log ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.oc-log ol > li { padding: 8px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+.oc-log-meta { font-size: .78rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.oc-log ul { margin: 0; padding-left: 16px; font-size: .86rem; }
+.oc-log s { color: #94a3b8; }
+.oc-new { color: #0f766e; font-weight: 600; }
+@media (max-width: 640px) { .ce-actions .btn { flex: 1; } }

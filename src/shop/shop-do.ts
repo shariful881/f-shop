@@ -38,6 +38,7 @@ import m0028 from "../../migrations/shop/0028_activity.sql";
 import m0029 from "../../migrations/shop/0029_product_extra.sql";
 import m0030 from "../../migrations/shop/0030_category_extra.sql";
 import m0031 from "../../migrations/shop/0031_slug_redirects.sql";
+import m0032 from "../../migrations/shop/0032_order_changes.sql";
 import { MirrorImageStore, QuotaImageStore, r2Key, R2_CACHE, SqlImageStore, type ImageStore } from "./lib/images";
 import { pushToShop } from "./lib/push";
 import { mediaUsage } from "./lib/media";
@@ -77,6 +78,7 @@ export const SHOP_MIGRATIONS: [string, string][] = [
   ["0029_product_extra", m0029],
   ["0030_category_extra", m0030],
   ["0031_slug_redirects", m0031],
+  ["0032_order_changes", m0032],
 ];
 
 export type SetupInput = {
@@ -102,7 +104,7 @@ export const INTERNAL_HEADERS = ["x-fshop-id", "x-fshop-slug", "x-fshop-seed", "
  * এক দোকানের কোড অন্য দোকানের ডাটাবেস দেখতে পারে না।
  */
 /** ব্যাকআপ থেকে ফেরানোর টেবিল — আগে যার উপর অন্যরা নির্ভর করে */
-export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend", "reviews", "incomplete_orders"];
+export const RESTORE_TABLES = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "sms_logs", "stock_moves", "ad_spend", "reviews", "incomplete_orders", "order_changes", "slug_redirects"];
 
 /** অনুরোধের দোকান-অবস্থা থেকে ছবির জায়গার সীমা (না থাকলে সীমা নেই — যেমন ভেতরের কাজ) */
 function quotaStore(plain: ImageStore, db: SqlDatabase, stateHeader: string | null) {
@@ -371,7 +373,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
   /** সুপার অ্যাডমিনের পুরো ব্যাকআপ (JSON) — পাসওয়ার্ড, সেশন আর ছবির বাইট বাদে */
   async exportData(shopId: string) {
     await this.ensureInit(shopId, false);
-    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders", "stock_moves", "ad_spend", "reviews"];
+    const tables = ["categories", "products", "product_variants", "orders", "order_items", "coupons", "pages", "settings", "blacklist_entries", "my_templates", "images", "sms_logs", "incomplete_orders", "stock_moves", "ad_spend", "reviews", "order_changes", "slug_redirects"];
     const out: Record<string, unknown[]> = {};
     for (const t of tables) {
       const r = await this.db.prepare(`SELECT * FROM ${t} LIMIT 50000`).all().catch(() => ({ results: [] }));

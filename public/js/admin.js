@@ -529,3 +529,35 @@ document.addEventListener("click", function (e) {
   });
   dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
 })();
+
+/* অর্ডারের পাতা: ক্রেতার তথ্য এডিট — খোলা/বন্ধ, এলাকা বদলালে নতুন ডেলিভারি আর মোট আগে দেখানো */
+(function () {
+  var f = document.querySelector("[data-cust-edit]");
+  if (!f) return;
+  var kv = f.parentNode.querySelector("dl.kv");
+  function show(on) {
+    f.hidden = !on;
+    if (kv) kv.hidden = on;
+    if (on) { var n = f.querySelector("[name=name]"); if (n) n.focus(); f.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+  }
+  if (!f.hidden && kv) kv.hidden = true;
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-cust-edit-open]")) { e.preventDefault(); show(f.hidden); }
+    else if (e.target.closest("[data-cust-edit-cancel]")) { e.preventDefault(); f.reset(); calc(); show(false); }
+  });
+  var d = f.dataset, sub = +d.subtotal, del0 = +d.delivery, disc0 = +d.discount, tot0 = +d.total, free = +d.free;
+  var box = f.querySelector("[data-ce-money]"), diff = f.querySelector("[data-ce-diff]"), keep = f.querySelector("[data-ce-keep]");
+  function tk(n) { return "৳" + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",").replace(/\d/g, function (x) { return "০১২৩৪৫৬৭৮৯"[x]; }); }
+  function calc() {
+    var r = f.querySelector("[name=area]:checked"), area = r ? r.value : d.area;
+    if (area === d.area) { box.hidden = true; return; }
+    box.hidden = false;
+    var del = keep.checked ? del0 : (free > 0 && sub >= free ? 0 : +(area === "inside" ? d.in : d.out));
+    var disc = Math.min(disc0, sub + del), tot = sub + del - disc;
+    diff.innerHTML = del === del0
+      ? "ডেলিভারি চার্জ একই থাকবে (" + tk(del0) + ") · মোট " + tk(tot)
+      : "ডেলিভারি <s>" + tk(del0) + "</s> → <b>" + tk(del) + "</b> · মোট <s>" + tk(tot0) + "</s> → <b>" + tk(tot) + "</b>";
+  }
+  f.addEventListener("change", calc);
+  calc();
+})();

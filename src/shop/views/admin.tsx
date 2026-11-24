@@ -17,6 +17,7 @@ import { MediaField } from "./media-field";
 import { topupMethod, type ShopState } from "../../platform/billing";
 import type { Report } from "../lib/reports";
 import { canAccess, ROLE_LABEL, type Role } from "../lib/auth";
+import type { OrderChange } from "../lib/order-changes";
 import type { CourierSummary, Own, Risk, Shared } from "../lib/fraud";
 import { CourierCard, FraudDialog } from "./fraud-report";
 import { PhoneHistoryBadge, PhoneHistoryDialog, type PhoneStat } from "./phone-history";
@@ -398,7 +399,47 @@ const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
 /** দাম/ছাড় বদলানো যায়: নতুন বা কনফার্ম, আর কুরিয়ারে যায়নি */
 export const priceEditable = (o: Pick<Order, "status" | "consignment_id">) => (o.status === "new" || o.status === "confirmed") && !o.consignment_id;
 
-export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord; wa?: WaMsg[] }) => {
+/** ক্রেতার তথ্য বদলের ফর্ম — এলাকা বদলালে নতুন ডেলিভারি চার্জ আর মোট আগে দেখায় (admin.js [data-cust-edit]) */
+const CustomerEditForm = ({ o, rates, open }: { o: Order; rates: { inside: number; outside: number; freeMin: number }; open: boolean }) => (
+  <form method="post" action={`/admin/orders/${o.id}/customer`} id="cust-edit" class="admin-form cust-edit" hidden={!open} data-cust-edit
+    data-subtotal={String(o.subtotal)} data-delivery={String(o.delivery_charge)} data-discount={String(o.discount)} data-total={String(o.total)}
+    data-area={o.area} data-in={String(rates.inside)} data-out={String(rates.outside)} data-free={String(rates.freeMin)}>
+    <label class="field"><span>নাম</span><input type="text" name="name" value={o.name} required maxlength={100} autocomplete="off" /></label>
+    <label class="field"><span>মোবাইল নম্বর</span><input type="tel" name="phone" value={o.phone} required maxlength={20} inputmode="tel" autocomplete="off" /></label>
+    <label class="field"><span>ঠিকানা</span><textarea name="address" rows={2} required maxlength={300}>{o.address}</textarea></label>
+    <div class="field"><span>ডেলিভারি এলাকা</span>
+      <div class="ce-area">
+        <label><input type="radio" name="area" value="inside" checked={o.area === "inside"} /><span>ঢাকার ভিতরে<small>{taka(rates.inside)}</small></span></label>
+        <label><input type="radio" name="area" value="outside" checked={o.area === "outside"} /><span>ঢাকার বাইরে<small>{taka(rates.outside)}</small></span></label>
+      </div>
+    </div>
+    <div class="ce-money" data-ce-money hidden>
+      <p class="ce-diff" data-ce-diff></p>
+      <label class="check"><input type="checkbox" name="keep_delivery" value="1" data-ce-keep /> ডেলিভারি চার্জ আগের মতো রাখুন ({taka(o.delivery_charge)})</label>
+    </div>
+    <div class="ce-actions">
+      <button class="btn btn-primary"><Icon name="check" size="sm" /> সেভ করুন</button>
+      <a href={`/admin/orders/${o.id}`} class="btn btn-outline" data-cust-edit-cancel>বাতিল</a>
+    </div>
+  </form>
+);
+
+/** কে কখন কী বদলেছে */
+const OrderChangeLog = ({ changes }: { changes: OrderChange[] }) => (
+  <details class="oc-log">
+    <summary><Icon name="history" size="sm" /> পরিবর্তনের ইতিহাস ({bn(changes.length)})</summary>
+    <ol>
+      {changes.map((c) => (
+        <li>
+          <div class="oc-log-meta"><span>{dhakaTime(c.created_at)}</span>{c.by_name && <span>· {c.by_name}{c.by_role && ROLE_LABEL[c.by_role as Role] ? ` (${ROLE_LABEL[c.by_role as Role]})` : ""}</span>}</div>
+          <ul>{c.changes.map(([k, a, b]) => <li><b>{k}:</b> <s>{a}</s> → <span class="oc-new">{b}</span></li>)}</ul>
+        </li>
+      ))}
+    </ol>
+  </details>
+);
+
+export const OrderDetailPage = (p: { changes?: OrderChange[]; editCustomer?: boolean; rates?: { inside: number; outside: number; freeMin: number }; order: Order; items: OrderItem[]; history: Order[]; blocked: { phone: boolean; device: boolean }; couriers?: CourierKey[]; sms?: SmsLogRow[]; record?: BuyerRecord; wa?: WaMsg[] }) => {
   const o = p.order;
   return (
     <>
@@ -426,7 +467,9 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
 
       <div class="panels">
         <section class="panel">
-          <h2>কাস্টমার</h2>
+          <div class="panel-head-row"><h2>কাস্টমার</h2>
+            {priceEditable(o) && <a href="#cust-edit" class="btn btn-outline btn-sm" data-cust-edit-open><Icon name="pencil" size="sm" /> এডিট</a>}</div>
+          {priceEditable(o) && p.rates && <CustomerEditForm o={o} rates={p.rates} open={!!p.editCustomer} />}
           <dl class="kv">
             <dt>নাম</dt><dd>{o.name}</dd>
             <dt>মোবাইল</dt><dd><a href={`tel:${o.phone}`}>{o.phone}</a> {p.blocked.phone && <span class="pill pill-bad">ব্লক</span>}</dd>
@@ -437,6 +480,8 @@ export const OrderDetailPage = (p: { order: Order; items: OrderItem[]; history: 
             {orderExtras(o).map(([k, val]) => <><dt>{k}</dt><dd>{val}</dd></>)}
             {o.note && <><dt>নোট</dt><dd>{o.note}</dd></>}
           </dl>
+          {!priceEditable(o) && o.consignment_id && (o.status === "new" || o.status === "confirmed") && <p class="muted small">কুরিয়ারে পাঠানো হয়ে গেছে — ক্রেতার তথ্য বদলাতে কুরিয়ারের প্যানেলে বদলান।</p>}
+          {(p.changes ?? []).length > 0 && <OrderChangeLog changes={p.changes!} />}
         </section>
 
         <section class="panel">

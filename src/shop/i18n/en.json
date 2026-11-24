@@ -3812,5 +3812,14 @@
  "ডুপ্লিকেট?": "Duplicate?",
  "এই নম্বরের অর্ডার": "Orders from this number",
  "এই অর্ডার": "This order",
- "এই নম্বরের সব অর্ডার তালিকায় দেখুন →": "See all orders from this number →"
+ "এই নম্বরের সব অর্ডার তালিকায় দেখুন →": "See all orders from this number →",
+ "পরিবর্তনের ইতিহাস ({x})": "Change history ({x})",
+ "ক্রেতার তথ্য সেভ হয়েছে।": "Customer info saved.",
+ "নাম লিখুন।": "Enter the name.",
+ "পুরো ঠিকানা লিখুন।": "Enter the full address.",
+ "মোবাইল নম্বর ঠিক নয় — ১১ অঙ্কের বাংলাদেশি নম্বর দিন (যেমন 01712345678)।": "Invalid mobile number — enter an 11-digit Bangladeshi number (e.g. 01712345678).",
+ "কুরিয়ারে পাঠানো হয়ে গেছে — ক্রেতার তথ্য এখন কুরিয়ারের প্যানেলে বদলান।": "Already sent to courier — change customer info in the courier's panel now.",
+ "কুরিয়ারে পাঠানো হয়ে গেছে — ক্রেতার তথ্য বদলাতে কুরিয়ারের প্যানেলে বদলান।": "Already sent to courier — change customer info in the courier's panel.",
+ "শিপড, বাতিল বা ফেক অর্ডারের তথ্য বদলানো যায় না।": "Shipped, cancelled or fake orders can't be edited.",
+ "ডেলিভারি চার্জ আগের মতো রাখুন ({x})": "Keep the delivery charge as before ({x})"
 }
