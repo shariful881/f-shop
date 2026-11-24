@@ -53,6 +53,8 @@ describe("অর্ডারে নোট আর ফলো-আপ", () => {
     const id2 = await addOrder("N2");
     const a = await adminBrowser();
     await a.post(`/admin/orders/${id}/notes`, { body: "ফোন ধরেনি", remind: "1h" });
+    // ঘড়ি নির্ভর না করতে (রাত ১১টার পরে "১ ঘণ্টা পরে" কালকের দিনে পড়ে) — আজকের মধ্যে আনা
+    await DB.prepare("UPDATE order_notes SET remind_at = datetime('now', '-1 minute') WHERE order_id = ?").bind(id).run();
     // পেরিয়ে যাওয়া সময়ের একটা (সরাসরি)
     await DB.prepare("INSERT INTO order_notes (order_id, body, remind_at) VALUES (?, 'সন্ধ্যায় কল', datetime('now', '-10 minutes'))").bind(id2).run();
     const tab = await (await a.get("/admin/orders?follow=1")).text();
