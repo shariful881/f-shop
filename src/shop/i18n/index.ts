@@ -48,7 +48,7 @@ const encode = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").rep
 const BN = /[\u0980-\u09F2\u09F4-\u09FF]/;
 const BN_DIGIT = /[০-৯]/;
 /** যেসব attribute-এ দেখানো লেখা থাকে */
-const ATTRS = ["placeholder", "title", "aria-label", "alt", "data-confirm", "data-ph", "label", "content"];
+const ATTRS = ["placeholder", "title", "aria-label", "alt", "data-confirm", "data-ph", "data-l", "label", "content"];
 
 /** HTML পেজের বাংলা লেখা ইংরেজি করা (শুধু ইংরেজি মোডে) */
 export function translateHtml(res: Response, scope: "admin" | "site" = "site"): Response {

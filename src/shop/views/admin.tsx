@@ -408,6 +408,16 @@ const RISK_TEXT = {
   bad: "অনেক পার্সেল ফেরত বা ফেক — অগ্রিম ডেলিভারি চার্জ নিয়ে পাঠানো নিরাপদ।",
 } as const;
 
+/** রেকর্ডের চারটা ঘর — মোবাইলে টেবিলের মাথা লুকানো থাকে, তাই প্রতিটা ঘরে নিজের নাম (data-l) */
+const RecCells = ({ d, r, c, f }: { d?: number; r?: number; c?: number; f?: number }) => (
+  <>
+    <td data-l="ডেলিভারি" class={d ? "rc-ok" : ""}>{bn(d ?? 0)}</td>
+    <td data-l="ফেরত" class={r ? "rc-bad" : ""}>{bn(r ?? 0)}</td>
+    <td data-l="বাতিল" class={c ? "rc-warn" : ""}>{bn(c ?? 0)}</td>
+    <td data-l="ফেক" class={f ? "rc-bad" : ""}>{bn(f ?? 0)}</td>
+  </>
+);
+
 /** ক্রেতার রেকর্ড: এই দোকান, SellxBD-এর অন্য দোকান, কুরিয়ার */
 const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
   const own = r.own;
@@ -419,12 +429,12 @@ const BuyerRecordPanel = ({ o, r }: { o: Order; r: BuyerRecord }) => {
       <table class="table compact rec-table">
         <thead><tr><th></th><th>ডেলিভারি</th><th>ফেরত</th><th>বাতিল</th><th>ফেক</th></tr></thead>
         <tbody>
-          <tr><td>এই দোকানে</td><td>{bn(own?.delivered ?? 0)}</td><td>{bn(own?.returned ?? 0)}</td><td>{bn(own?.cancelled ?? 0)}</td><td>{bn(own?.fake ?? 0)}</td></tr>
+          <tr><td>এই দোকানে</td><RecCells d={own?.delivered} r={own?.returned} c={own?.cancelled} f={own?.fake} /></tr>
           {r.sharing
-            ? <tr><td>SellxBD-এর অন্য দোকানে{sh?.shops ? <small class="muted"> ({bn(sh.shops)}টা দোকান)</small> : ""}</td><td>{bn(sh?.delivered ?? 0)}</td><td>{bn(sh?.returned ?? 0)}</td><td>{bn(sh?.cancelled ?? 0)}</td><td>{bn(sh?.fake ?? 0)}</td></tr>
-            : <tr><td colspan={5} class="muted small">অন্য দোকানের রেকর্ড বন্ধ — <a href="/admin/courier">কুরিয়ার সেটিংসে</a> চালু করুন</td></tr>}
+            ? <tr><td>SellxBD-এর অন্য দোকানে{sh?.shops ? <small class="muted"> ({bn(sh.shops)}টা দোকান)</small> : ""}</td><RecCells d={sh?.delivered} r={sh?.returned} c={sh?.cancelled} f={sh?.fake} /></tr>
+            : <tr class="rec-off"><td colspan={5} class="muted small">অন্য দোকানের রেকর্ড বন্ধ — <a href="/admin/courier">কুরিয়ার সেটিংসে</a> চালু করুন</td></tr>}
           {r.courier && (
-            <tr><td>কুরিয়ারে <small class="muted">({r.courier.source})</small></td>
+            <tr class="rec-courier"><td>কুরিয়ারে <small class="muted">({r.courier.source})</small></td>
               <td colspan={4}>{r.courier.ratio == null ? "কোনো পার্সেল নেই" : <>সফল <strong>{bn(r.courier.ratio)}%</strong>{r.courier.source === "BD Courier" ? ` — মোট ${bn(r.courier.total)}টা, ফেরত ${bn(r.courier.cancelled)}টা` : ""}</>}
                 {(r.courier.reports ?? 0) > 0 && <> · <span class="pill pill-bad">{bn(r.courier.reports!)}টা ফ্রড রিপোর্ট</span></>}
                 {r.courier.checked_at && <><br /><small class="muted">খোঁজা হয়েছে {dhakaTime(r.courier.checked_at)}</small></>}
@@ -633,8 +643,8 @@ export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: strin
           {o.purchase_response && <details><summary>Facebook-এর রেসপন্স</summary><pre class="pre">{o.purchase_response}</pre></details>}
         </section>
 
-        <section class="panel">
-          <h2>ট্র্যাকিং তথ্য</h2>
+        <details class="panel track-fold">
+          <summary><h2>ট্র্যাকিং তথ্য</h2><small class="muted">IP, ডিভাইস, fbp/fbc, ব্রাউজার</small><Icon name="chevron-down" size="sm" /></summary>
           <dl class="kv small">
             <dt>IP</dt><dd>{o.ip || "—"}</dd>
             <dt>ডিভাইস</dt><dd><code>{o.device_id || "—"}</code> {p.blocked.device && <span class="pill pill-bad">ব্লক</span>}</dd>
@@ -644,7 +654,7 @@ export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: strin
             <dt>ব্রাউজার</dt><dd class="break">{o.user_agent || "—"}</dd>
             <dt>কনফার্ম</dt><dd>{dhakaTime(o.confirmed_at)}</dd>
           </dl>
-        </section>
+        </details>
       </div>
 
       <section class="panel">

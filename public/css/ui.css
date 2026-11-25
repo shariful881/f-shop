@@ -575,6 +575,38 @@ body.admin .rec-table th, body.admin .rec-table td { text-align: center; }
 body.admin .rec-table th:first-child, body.admin .rec-table td:first-child { text-align: left; }
 body.admin .rec-table td[colspan] { text-align: left; }
 body.admin .buyer-record form { margin-top: 10px; }
+body.admin .rec-table td.rc-ok { color: var(--ok, #15803d); font-weight: 700; }
+body.admin .rec-table td.rc-bad { color: var(--bad, #dc2626); font-weight: 700; }
+body.admin .rec-table td.rc-warn { color: #b45309; font-weight: 700; }
+
+/* ট্র্যাকিং তথ্য — FAQ-এর মতো ভাঁজ, তীর চাপলে খোলে */
+body.admin details.track-fold { padding: 0; }
+body.admin details.track-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; padding: 14px 20px; user-select: none; }
+body.admin details.track-fold > summary::-webkit-details-marker { display: none; }
+body.admin details.track-fold > summary h2 { margin: 0; }
+body.admin details.track-fold > summary small { flex: 1 1 auto; min-width: 0; }
+body.admin details.track-fold > summary svg { margin-left: auto; flex: none; width: 30px; height: 30px; padding: 6px; border-radius: 50%; background: var(--bg-soft, #f1f5f9); transition: transform .2s; }
+body.admin details.track-fold[open] > summary svg { transform: rotate(180deg); }
+body.admin details.track-fold > .kv { padding: 0 20px 16px; border-top: 1px solid var(--border, #e5e7eb); padding-top: 12px; }
+body.admin details.track-fold .kv dd, body.admin details.track-fold .kv code { overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
+
+@media (max-width: 640px) {
+  /* ক্রেতার রেকর্ড: টেবিলের বদলে সারি-প্রতি কার্ড, চারটা ছোট বাক্স */
+  body.admin .buyer-record h2 { font-size: 1.05rem; }
+  body.admin .buyer-record h2 .badge { white-space: normal; line-height: 1.35; }
+  body.admin .rec-table, body.admin .rec-table tbody { display: block; width: 100%; border: 0; }
+  body.admin .rec-table thead { display: none; }
+  body.admin .rec-table tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 10px; margin: 0 0 8px; border: 1px solid var(--border, #e5e7eb); border-radius: 12px; background: var(--bg-soft, #f8fafc); }
+  body.admin .rec-table td { display: block; border: 0 !important; padding: 0 !important; min-width: 0; }
+  body.admin .rec-table td:first-child { grid-column: 1 / -1; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
+  body.admin .rec-table td[data-l] { text-align: center; background: #fff; border-radius: 8px; padding: 6px 2px !important; font-size: 1.05rem; font-weight: 700; }
+  body.admin .rec-table td[data-l]::before { content: attr(data-l); display: block; font-size: .68rem; font-weight: 500; color: var(--muted, #64748b); margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.admin .rec-table tr.rec-courier td[colspan], body.admin .rec-table tr.rec-off td[colspan] { grid-column: 1 / -1; text-align: left; white-space: normal !important; overflow-wrap: anywhere; line-height: 1.6; }
+  body.admin .rec-table tr.rec-off { background: transparent; border-style: dashed; }
+  body.admin .rec-table td[colspan] .pill { white-space: normal !important; display: inline-block; max-width: 100%; margin-top: 4px; }
+  body.admin details.track-fold > summary { padding: 14px 20px; }
+  body.admin details.track-fold > .kv { padding: 12px 20px 16px; }
+}
 body.admin .row-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
 body.admin .row-actions form.inline { display: inline; }
 body.admin .incomplete-table td { vertical-align: top; }
