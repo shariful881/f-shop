@@ -68,8 +68,9 @@ const BackupPage = (p: { open: boolean; shops: BackupShop[]; last: { full: strin
           <form method="post" action="/super/backup/full" class="sa-form bk-full" data-bk-full>
             <p class="sa-muted">ZIP-এর ভেতরে প্রতিটা অংশ আলাদা ফোল্ডারে: 1-platform-database, 2-shops, 3-images, 4-code, 5-secrets, সাথে বাংলায় README।</p>
             <label class="sa-check"><input type="checkbox" name="images" value="1" /> ছবিসহ <span class="sa-muted">(ফাইল অনেক বড় হবে, সময় লাগবে)</span></label>
-            <label class="sa-check"><input type="checkbox" name="secrets" value="1" data-bk-secret-toggle /> গোপন চাবিসহ — পাসওয়ার্ড দিয়ে তালাবদ্ধ</label>
-            <div class="bk-pass" data-bk-pass hidden>
+            <label class="sa-check"><input type="checkbox" name="secrets" value="1" /> গোপন চাবিসহ — পাসওয়ার্ড দিয়ে তালাবদ্ধ</label>
+            <div class="bk-pass">
+              <p class="sa-muted">চাবিসহ নামাতে নিচের দুই ঘরে একই পাসওয়ার্ড দিন (চাবি ছাড়া নামালে ফাঁকা রাখুন)।</p>
               <label>চাবির পাসওয়ার্ড (কমপক্ষে {bn(PASS_MIN)} অক্ষর)<input type="password" name="pass" minlength={PASS_MIN} autocomplete="new-password" /></label>
               <label>আবার লিখুন<input type="password" name="pass2" minlength={PASS_MIN} autocomplete="new-password" /></label>
               <p class="bk-warn">এই পাসওয়ার্ড ভুলে গেলে চাবি আর খোলা যাবে না। কোথাও লিখে রাখুন (ব্যাকআপ ফাইলের সাথে নয়)।</p>
@@ -116,7 +117,6 @@ const BackupPage = (p: { open: boolean; shops: BackupShop[]; last: { full: strin
         </Card>
       </>
     )}
-    <script dangerouslySetInnerHTML={{ __html: `document.addEventListener("change",function(e){var t=e.target;if(t&&t.matches&&t.matches("[data-bk-secret-toggle]")){var b=document.querySelector("[data-bk-pass]");if(b){b.hidden=!t.checked;b.querySelectorAll("input").forEach(function(i){i.required=t.checked;});}}});` }} />
   </div>
 );
 
