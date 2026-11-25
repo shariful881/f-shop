@@ -388,6 +388,19 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     return { shop_id: shopId, exported_at: new Date().toISOString(), tables: out };
   }
 
+  /** ব্যাকআপের জন্য দোকানের ছবির তালিকা (শুধু তথ্য, বাইট নয়) */
+  async imageList(shopId: string): Promise<{ key: string; type: string; size: number }[]> {
+    await this.ensureInit(shopId, false);
+    const r = await this.db.prepare("SELECT key, type, size FROM images ORDER BY key").all<{ key: string; type: string; size: number }>();
+    return r.results;
+  }
+
+  /** একটা ছবির বাইট দোকানের ডাটাবেস থেকে (R2-তে না থাকলে) */
+  async imageBytes(shopId: string, key: string): Promise<{ type: string; body: Uint8Array } | null> {
+    await this.ensureInit(shopId, false);
+    return new SqlImageStore(this.db).get(key);
+  }
+
   /**
    * ব্যাকআপ (exportData-এর JSON) থেকে দোকানের ডাটা ফিরিয়ে আনা — সব এক transaction-এ, ভুল হলে কিছুই বদলায় না।
    * ইউজার/পাসওয়ার্ড আর ছবির ফাইল যেমন আছে তেমন থাকে (ব্যাকআপে এগুলো থাকে না)।

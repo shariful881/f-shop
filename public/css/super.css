@@ -386,3 +386,20 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 /* ডোমেইন বিক্রি */
 .sa-span-2 { grid-column: 1 / -1; }
 .sa-badge-warn { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 8px; display: inline-block; font-size: .85rem; }
+
+/* ব্যাকআপ */
+.bk .bk-tips { margin: 8px 0 0; padding-left: 18px; line-height: 1.8; }
+.bk .bk-warn { color: #b45309; }
+.bk .bk-unlock { max-width: 420px; }
+.bk .bk-full .sa-check { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.bk .bk-pass { border: 1px dashed #f59e0b; background: #fffbeb; border-radius: 10px; padding: 10px 12px; margin: 8px 0; max-width: 460px; }
+.bk .bk-pass label { display: block; margin-bottom: 8px; font-weight: 600; }
+.bk .bk-pass input, .bk .bk-unlock input { display: block; width: 100%; margin-top: 4px; }
+.bk-table td:last-child { width: 1%; white-space: nowrap; }
+.bk .bk-big { font-size: 1.05rem; padding: 12px 22px; margin: 6px 0; }
+.bk .bk-act { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; align-items: flex-start; }
+.bk .bk-sec { position: relative; }
+.bk .bk-sec summary { list-style: none; cursor: pointer; }
+.bk .bk-sec summary::-webkit-details-marker { display: none; }
+.bk .bk-sec form { display: grid; gap: 6px; margin-top: 6px; min-width: 220px; }
+@media (max-width: 700px) { .bk .bk-act { justify-content: flex-start; } }

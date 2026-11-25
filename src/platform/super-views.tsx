@@ -47,6 +47,7 @@ export const PERMS: Record<string, SuperRole[]> = {
   errors: ["owner", "admin"],
   team: ["owner"],
   settings: ["owner"],
+  backup: ["owner"], // সব দোকানের ক্রেতার তথ্য আর চাবি — শুধু মালিক
   account: ALL,
 };
 const mbStr = (b: number) => `${bn(Number((b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0)))} MB`;
@@ -88,6 +89,7 @@ const NAV: { key: string; href: string; icon: IconName; label: string; group?: s
   { key: "audit", href: "/super/audit", icon: "file-text", label: "অডিট লগ", group: "নিরাপত্তা" },
   { key: "errors", href: "/super/errors", icon: "triangle-alert", label: "এরর লগ" },
   { key: "team", href: "/super/team", icon: "users", label: "টিম" },
+  { key: "backup", href: "/super/backup", icon: "download", label: "ব্যাকআপ" },
   { key: "settings", href: "/super/settings", icon: "settings", label: "প্ল্যাটফর্ম সেটিংস" },
 ];
 
@@ -799,7 +801,7 @@ export const AnnouncementsPage = ({ rows }: { rows: AnnRow[] }) => (
 
 /* ---------- অডিট লগ ---------- */
 export const ACTION_LABEL: Record<string, string> = {
-  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
+  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "backup.full": "পুরো ব্যাকআপ", "backup.platform": "মূল ডাটাবেসের ব্যাকআপ", "backup.shop": "দোকানের ব্যাকআপ", "backup.images": "ছবির ব্যাকআপ", "backup.code": "কোডের ব্যাকআপ", "backup.secrets": "চাবির ব্যাকআপ", "backup.unlock": "ব্যাকআপ খোলা", "backup.unlock_fail": "ব্যাকআপ খুলতে ভুল পাসওয়ার্ড", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
   "shop.impersonate": "দোকানে সাপোর্ট লগইন", "shop.note": "নোট", "topup.approve": "রিচার্জ অনুমোদন", "topup.reject": "রিচার্জ বাতিল",
   "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ", "blog.save": "ব্লগ পোস্ট সেভ", "blog.delete": "ব্লগ পোস্ট মুছা",
   "team.add": "টিমে যোগ", "team.update": "টিম সদস্য বদল", "team.password": "পাসওয়ার্ড বদল", "export.shops": "দোকানের তালিকা ডাউনলোড",
