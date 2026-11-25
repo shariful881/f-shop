@@ -1,4 +1,5 @@
 import { cyclePrice, storageLabel, type Plan, type PlanKey } from "./plans";
+import { pxBrowserScript } from "./fb";
 import type { Child } from "hono/jsx";
 import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
@@ -27,7 +28,7 @@ export type PSeo = {
   image?: string;
   jsonLd?: unknown[];
   /** Search Console / Bing যাচাইয়ের কোড আর GA4 আইডি (শুধু পাবলিক পেজে) */
-  site?: { gsc?: string; bing?: string; ga4?: string };
+  site?: { gsc?: string; bing?: string; ga4?: string; fbpx?: string };
 };
 
 /** সেটিংসে মেটা ট্যাগ পুরোটা পেস্ট করলেও শুধু কোডটা নেওয়া */
@@ -55,6 +56,7 @@ export const PLayout = (p: { title: string; children?: Child; nav?: Child; flash
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${seo.site.ga4}`}></script>
         {raw(`<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config","${seo.site.ga4}");</script>`)}
       </>}
+      {!p.admin && seo.site?.fbpx && raw(pxBrowserScript(seo.site.fbpx))}
       {!p.admin && <link rel="alternate" type="application/rss+xml" title={`${PLATFORM_NAME} ব্লগ`} href="/blog/feed.xml" />}
       <meta name="theme-color" content="#0f766e" />
       {/* Google: ICO/PNG সমর্থিত (SVG নয়), ৪৮px-এর বড় ভালো */}
@@ -380,7 +382,7 @@ export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode
                   <p>{n.tagline}</p>
                   <div class="h-niche-cats">{n.cats.slice(0, 4).map((c) => <span>{c}</span>)}</div>
                   <div class="h-niche-actions">
-                    {d && <a href={d.url} target="_blank" rel="noopener" class="btn btn-sm h-niche-demo">ডেমো দেখুন <Icon name="external-link" size="sm" /></a>}
+                    {d && <a href={d.url} target="_blank" rel="noopener" class="btn btn-sm h-niche-demo" data-px-demo="1">ডেমো দেখুন <Icon name="external-link" size="sm" /></a>}
                     <a href={`/signup?niche=${n.key}`} class="btn btn-sm h-niche-go">এই দোকান খুলুন</a>
                   </div>
                 </div>

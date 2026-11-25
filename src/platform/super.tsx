@@ -3,6 +3,7 @@
  * প্রতিটা কাজ রোল দিয়ে আটকানো, আর গুরুত্বপূর্ণ কাজ অডিট লগে লেখা হয়।
  */
 import { Hono } from "hono";
+import { pxLater, pxReady, shopPxUser } from "./fb";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { hashPassword, verifyPassword } from "../shop/lib/auth";
@@ -29,7 +30,7 @@ import { PLAN_KEYS, plans } from "./plans";
 import { clearSession, SUPER_COOKIES } from "../shop/lib/session-cookie";
 import { shopUrl, superFromCookie, type PCtx, type PEnv, type SuperRole } from "./lib";
 import {
-  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, CourierReportSettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
+  AccountPage, AnnouncementsPage, GoogleSettings, BlogListPage, BlogEditPage, type BlogRow, ErrorsPage, type ErrorRow, DemosPage, type DemoRow, TemplateForm, TemplatesPage, type TplRow, AuditPage, can, DashboardPage, FinancePage, SecuritySettings, CourierReportSettings, FbPixelSettings, SettingsPage, ShopDetailPage, ShopsPage, SuperShell, TeamPage, TopupsPage,
   SHOP_FILTERS, SHOP_SORTS, SUPER_ROLE_LABEL,
   type AnnRow, type AuditRow, type DashData, type FinanceData, type LedgerRow, type NoteRow, type SFlash, type ShopRow, type TeamRow, type TopupRow,
 } from "./super-views";
@@ -406,12 +407,32 @@ superApp.post("/r2/purge", async (c) => {
 });
 
 /* ---------- যাচাই আর সন্দেহ ---------- */
+
+/**
+ * SellxBD-এর অ্যাড: ফোনে কথা বলে মোবাইল যাচাই হলে তবেই CompleteRegistration — ভুয়া সাইনআপ Facebook-এ যায় না।
+ * দোকানপ্রতি একবারই (ad_click.reg), দোকান খোলার সময়ের ব্রাউজার তথ্য দিয়ে সার্ভার থেকে।
+ */
+async function sendVerifiedRegistration(c: PCtx, shopId: string) {
+  const ps = await platformSettings(c.env.PLATFORM_DB);
+  if (!pxReady(ps)) return;
+  const shop = await c.env.PLATFORM_DB.prepare("SELECT id, slug, niche, owner_phone, owner_email, ad_click, demo_niche FROM shops WHERE id = ?").bind(shopId)
+    .first<{ id: string; slug: string; niche: string | null; owner_phone: string | null; owner_email: string | null; ad_click: string | null; demo_niche: string | null }>();
+  if (!shop || shop.demo_niche) return;
+  let ad: Record<string, unknown> = {};
+  try { ad = shop.ad_click ? JSON.parse(shop.ad_click) : {}; } catch {}
+  if (ad.reg) return;
+  await c.env.PLATFORM_DB.prepare("UPDATE shops SET ad_click = ? WHERE id = ?").bind(JSON.stringify({ ...ad, reg: 1 }), shopId).run();
+  pxLater(c.executionCtx, ps, [{ name: "CompleteRegistration", id: `reg_${shop.id}`, url: typeof ad.url === "string" ? ad.url : `https://${c.env.PLATFORM_DOMAIN}/signup`,
+    user: shopPxUser(shop), custom: { content_name: shop.niche || "shop", status: "verified", currency: "BDT", value: 0 } }]);
+}
+
 superApp.post("/shops/:id/verify", async (c) => {
   if (!allowed(c, "shop.status")) return forbidden(c);
   const id = c.req.param("id");
   const what = String((await c.req.parseBody()).what ?? "both");
   const set = what === "phone" ? "phone_verified = 1" : what === "email" ? "email_verified = 1" : "email_verified = 1, phone_verified = 1";
   await c.env.PLATFORM_DB.prepare(`UPDATE shops SET ${set} WHERE id = ?`).bind(id).run();
+  if (what !== "email") await sendVerifiedRegistration(c, id);
   clearShopCache();
   await audit(c, "shop.verify", "shop", id, what === "phone" ? "ফোনে কথা বলে মোবাইল যাচাই" : what === "email" ? "ইমেইল যাচাই করা ধরা" : "যাচাই করা ধরা");
   const after = await c.env.PLATFORM_DB.prepare("SELECT email_verified, phone_verified FROM shops WHERE id = ?").bind(id).first<{ email_verified: number; phone_verified: number }>();
@@ -548,7 +569,16 @@ superApp.post("/topups/:id/approve", async (c) => {
   const id = toInt(c.req.param("id"));
   const t = await c.env.PLATFORM_DB.prepare("SELECT shop_id, amount, trx_id FROM topups WHERE id = ?").bind(id).first<{ shop_id: string; amount: number; trx_id: string }>();
   const res = await approveTopup(c.env.PLATFORM_DB, id);
-  if (res.ok && t) await audit(c, "topup.approve", "shop", t.shop_id, `৳${t.amount} · ${t.trx_id}`);
+  if (res.ok && t) {
+    await audit(c, "topup.approve", "shop", t.shop_id, `৳${t.amount} · ${t.trx_id}`);
+    // SellxBD-এর অ্যাড: Purchase (দোকানদার ব্রাউজারে নেই, তাই দোকান খোলার সময়ের তথ্য দিয়ে সার্ভার থেকে)
+    const ps = await platformSettings(c.env.PLATFORM_DB);
+    if (pxReady(ps)) {
+      const shop = await c.env.PLATFORM_DB.prepare("SELECT id, slug, owner_phone, owner_email, ad_click FROM shops WHERE id = ?").bind(t.shop_id).first<{ id: string; slug: string; owner_phone: string | null; owner_email: string | null; ad_click: string | null }>();
+      if (shop) pxLater(c.executionCtx, ps, [{ name: "Purchase", id: `topup_${id}`, url: shopUrl(c.env, shop.slug, "/admin/billing"), user: shopPxUser(shop),
+        custom: { currency: "BDT", value: t.amount, content_name: "recharge", content_type: "product", order_id: `topup_${id}` } }]);
+    }
+  }
   clearShopCache();
   flash(c, res.ok ? "ok" : "error", res.message);
   return c.redirect("/super/topups", 303);
@@ -989,7 +1019,28 @@ const LONG_TEXT_KEYS = ["dbbl_account_name", "dbbl_branch"];
 superApp.get("/settings", async (c) => {
   if (!allowed(c, "settings")) return forbidden(c);
   const ps = await platformSettings(c.env.PLATFORM_DB, true);
-  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><CourierReportSettings s={ps} /><GoogleSettings s={ps} /></>);
+  return page(c, "প্ল্যাটফর্ম সেটিংস", "settings", <><SettingsPage s={ps} /><SecuritySettings s={ps} emailBinding={!!c.env.EMAIL} /><CourierReportSettings s={ps} /><GoogleSettings s={ps} /><FbPixelSettings s={ps} /></>);
+});
+
+superApp.post("/settings/fb-pixel", async (c) => {
+  if (!allowed(c, "settings")) return forbidden(c);
+  const b = await c.req.parseBody();
+  const db = c.env.PLATFORM_DB;
+  const id = str(b.fb_px_id, 20).replace(/\s/g, "");
+  const test = str(b.fb_px_test, 30).replace(/\s/g, "");
+  const token = str(b.fb_px_token, 600).trim();
+  if ((id && !/^\d{6,20}$/.test(id)) || (test && !/^[A-Za-z0-9]{4,30}$/.test(test)) || (token && /\s/.test(token))) {
+    flash(c, "error", "Pixel ID শুধু সংখ্যা, আর টোকেন/টেস্ট কোডে ফাঁকা জায়গা থাকবে না।");
+    return c.redirect("/super/settings", 303);
+  }
+  const vals: [string, string][] = [["fb_px_id", id], ["fb_px_test", test]];
+  if (token) vals.push(["fb_px_token", token]);
+  else if (b.fb_px_token_clear === "1") vals.push(["fb_px_token", ""]);
+  await db.batch(vals.map(([k, v]) => db.prepare("INSERT INTO platform_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v)));
+  clearSettingsCache();
+  await audit(c, "settings.fb-pixel", "settings", null, `pixel: ${id || "—"}, টোকেন: ${token ? "নতুন" : b.fb_px_token_clear === "1" ? "মোছা" : "আগেরটা"}, test: ${test || "—"}`);
+  flash(c, "ok", "Facebook Pixel সেটিংস সেভ হয়েছে।");
+  return c.redirect("/super/settings", 303);
 });
 
 superApp.post("/settings/seo", async (c) => {

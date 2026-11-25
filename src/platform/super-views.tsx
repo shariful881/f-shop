@@ -997,6 +997,27 @@ export const GoogleSettings = ({ s }: { s: Record<string, string> }) => (
   </form>
 );
 
+/** SellxBD-এর নিজের Facebook Pixel + Conversions API — টোকেন কখনো পেজে দেখানো হয় না */
+export const FbPixelSettings = ({ s }: { s: Record<string, string> }) => {
+  const hasToken = !!(s.fb_px_token || "").trim();
+  return (
+    <form method="post" action="/super/settings/fb-pixel" style="margin-top:16px">
+      <Card title="Facebook Pixel আর Conversions API (SellxBD-এর নিজের অ্যাডের জন্য)">
+        <div class="sa-form">
+          <p class="sa-muted"><small>শুধু মূল সাইটে (sellxbd.com) বসে — দোকানগুলোর নিজের Pixel আলাদা। যা যায়: সব পেজে PageView; দাম/ডেমো দেখলে ViewContent; WhatsApp/ফোনে চাপলে Contact; সাইনআপ ফর্ম শুরু করলে Lead; দোকান খুললে StartTrial; আপনি ফোনে কথা বলে মোবাইল যাচাই করলে CompleteRegistration (অ্যাড এটার জন্য অপ্টিমাইজ করুন); দোকানদার রিচার্জ পেজ খুললে InitiateCheckout; আপনি রিচার্জ অনুমোদন করলে Purchase (টাকার অঙ্কসহ)।</small></p>
+          <label>Pixel ID (Dataset ID)</label><input type="text" name="fb_px_id" value={s.fb_px_id || ""} maxlength={20} inputmode="numeric" autocomplete="off" placeholder="যেমন 1234567890123456" />
+          <label>Conversions API Access Token {hasToken && <small class="sa-muted">(দেওয়া আছে — বদলাতে নতুনটা লিখুন)</small>}</label>
+          <input type="password" name="fb_px_token" value="" placeholder={hasToken ? "••••••••" : "Events Manager → Settings → Generate access token"} autocomplete="new-password" />
+          {hasToken && <label class="sa-check"><input type="checkbox" name="fb_px_token_clear" value="1" /> টোকেন মুছে ফেলুন</label>}
+          <label>Test Events কোড (শুধু পরীক্ষার সময়)</label><input type="text" name="fb_px_test" value={s.fb_px_test || ""} maxlength={30} autocomplete="off" placeholder="TEST12345" />
+          <small class="sa-muted">Events Manager → Test events-এ যে কোড দেয়। পরীক্ষা শেষে মুছে দিন, নইলে সার্ভারের ইভেন্ট আসল হিসাবে গোনা হবে না।</small>
+          <button class="sa-btn">সেভ করুন</button>
+        </div>
+      </Card>
+    </form>
+  );
+};
+
 /** সব দোকানের কুরিয়ার রিপোর্টের চাবি — চাবি কখনো পেজে দেখানো হয় না */
 export const CourierReportSettings = ({ s }: { s: Record<string, string> }) => {
   const has = (k: string) => !!(s[k] || "").trim();

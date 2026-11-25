@@ -1,4 +1,5 @@
 import { siteLang } from "../i18n";
+import { cookieVal, pxLater, pxReady, shopPxUser } from "../../platform/fb";
 import { liveOrder, recentActivity } from "../lib/live";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -2057,7 +2058,20 @@ admin.post("/verify/phone", async (c) => {
   return c.redirect(r.ok ? "/admin/verify" : "/admin/verify?sent=1", 303);
 });
 
-admin.get("/billing", (c) => renderBilling(c));
+admin.get("/billing", async (c) => {
+  // SellxBD-এর অ্যাড: দোকানদার রিচার্জ পেজ খুললে InitiateCheckout — দোকানপ্রতি দিনে একবার, শুধু সার্ভার থেকে
+  try {
+    const ps = await platformSettings(c.env.PLATFORM_DB);
+    if (pxReady(ps) && (await hitRateLimit(c.env.DB, "px-ic", 1, 86400))) {
+      const shop = await c.env.PLATFORM_DB.prepare("SELECT id, owner_phone, owner_email, ad_click FROM shops WHERE id = ?").bind(c.env.SHOP_ID).first<{ id: string; owner_phone: string | null; owner_email: string | null; ad_click: string | null }>();
+      const ck = c.req.header("cookie");
+      if (shop) pxLater(c.executionCtx, ps, [{ name: "InitiateCheckout", id: `ic_${c.env.SHOP_ID.slice(0, 12)}_${Math.floor(Date.now() / 86400000)}`, url: c.req.url,
+        user: shopPxUser(shop, { ip: clientIp(c), ua: c.req.header("user-agent") || null, fbp: cookieVal(ck, "_fbp"), fbc: cookieVal(ck, "_fbc") }),
+        custom: { currency: "BDT", content_name: "recharge", content_category: "sellxbd" } }]);
+    }
+  } catch (e) { console.warn("px ic", e); }
+  return renderBilling(c);
+});
 
 admin.post("/billing/plan", async (c) => {
   const b = await c.req.parseBody();

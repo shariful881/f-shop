@@ -24,6 +24,7 @@ import { clearSession, readSession, SUPER_COOKIES, writeSession } from "../shop/
 import { clearShopCache } from "./resolve";
 import { nicheByKey } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
+import { BROWSER_EVENTS, cookieVal, fbcFrom, newPxId, okEventId, pxId, pxLater, pxReady, pxSignupDonePage, type AdClick } from "./fb";
 
 /** প্ল্যাটফর্মের অ্যাপ: ourdomain.com — হোম, সাইনআপ, সুপার অ্যাডমিন */
 export const platformApp = new Hono<PEnv>();
@@ -86,7 +87,7 @@ const homeDesc = (f: Fees) => `কোড ছাড়া নিজের ই-ক
 /** Search Console/Bing যাচাই আর GA4 — সুপার অ্যাডমিন → সেটিংস → Google */
 async function siteTags(c: PCtx): Promise<PSeo["site"]> {
   const s = await platformSettings(c.env.PLATFORM_DB);
-  return { gsc: s.gsc_verification || "", bing: s.bing_verification || "", ga4: s.ga4_id || "" };
+  return { gsc: s.gsc_verification || "", bing: s.bing_verification || "", ga4: s.ga4_id || "", fbpx: pxId(s) };
 }
 
 /** পাবলিক পেজ: মেনু + পেজ + ফুটার */
@@ -254,6 +255,28 @@ platformApp.get("/signup", async (c) => {
     <SignupPage domain={c.env.PLATFORM_DOMAIN} values={niche ? { niche } : undefined} {...await signupGuardProps(c)} /></PLayout>);
 });
 
+/**
+ * ব্রাউজারের Pixel ইভেন্টের সার্ভার কপি (Conversions API) — একই event_id, তাই Facebook একবার গোনে।
+ * শুধু মূল সাইটের পাবলিক ইভেন্ট; দোকান খোলা আর রিচার্জের ইভেন্ট সার্ভার নিজেই পাঠায়।
+ */
+platformApp.post("/px", async (c) => {
+  const ps = await platformSettings(c.env.PLATFORM_DB);
+  if (!pxReady(ps)) return c.body(null, 204);
+  let b: { n?: unknown; id?: unknown; p?: unknown; u?: unknown } = {};
+  try { b = JSON.parse((await c.req.text()).slice(0, 4000)); } catch { return c.body(null, 204); }
+  const name = typeof b.n === "string" ? b.n : "";
+  if (!BROWSER_EVENTS.has(name) || !okEventId(b.id)) return c.body(null, 204);
+  let url = `https://${c.env.PLATFORM_DOMAIN}/`;
+  try { const u = new URL(String(b.u)); if (u.hostname === c.env.PLATFORM_DOMAIN || u.hostname.endsWith(`.${c.env.PLATFORM_DOMAIN}`)) url = u.href.slice(0, 500); } catch {}
+  if (!(await platformRateLimit(c.env, `px:${clientIp(c)}`, 120, 3600))) return c.body(null, 204);
+  const custom: Record<string, unknown> = {};
+  if (b.p && typeof b.p === "object") for (const [k, v] of Object.entries(b.p as Record<string, unknown>)) if (/^content_(name|category)$/.test(k) && typeof v === "string") custom[k] = v.slice(0, 60);
+  const ck = c.req.header("cookie");
+  pxLater(c.executionCtx, ps, [{ name, id: b.id as string, url, custom: Object.keys(custom).length ? custom : undefined,
+    user: { ip: clientIp(c), ua: c.req.header("user-agent") || null, fbp: cookieVal(ck, "_fbp"), fbc: fbcFrom(cookieVal(ck, "_fbc"), url) } }]);
+  return c.body(null, 204);
+});
+
 /** লাইভ চেক: ঠিকানাটি খালি আছে কি না */
 platformApp.get("/signup/check", async (c) => {
   const slug = (c.req.query("slug") || "").trim().toLowerCase();
@@ -342,7 +365,21 @@ platformApp.post("/signup", async (c) => {
   clearShopCache();
   // ইমেইল যাচাইয়ের লিংক সাথে সাথে (ফোনের কোড দোকানদার নিজে চাইলে — SMS-এর খরচ বাঁচে)
   if (needs.email) c.executionCtx.waitUntil(sendEmailLink(c.env, id, shopUrl(c.env, values.slug!, "")).catch((e) => console.error("signup email", e)));
-  return c.redirect(shopUrl(c.env, values.slug!, `/admin/auto-login?t=${token}`), 303);
+  const to = shopUrl(c.env, values.slug!, `/admin/auto-login?t=${token}`);
+  // SellxBD-এর নিজের অ্যাড: StartTrial (সার্ভার + ব্রাউজার, একই event_id)
+  if (pxId(ps)) {
+    const ck = c.req.header("cookie");
+    const src = c.req.header("referer") || `https://${c.env.PLATFORM_DOMAIN}/signup`;
+    const ad: AdClick = { fbp: cookieVal(ck, "_fbp") ?? undefined, fbc: fbcFrom(cookieVal(ck, "_fbc"), src) ?? undefined, ua: (c.req.header("user-agent") || "").slice(0, 400) || undefined, ip: clientIp(c) || undefined, url: src.slice(0, 300) };
+    await c.env.PLATFORM_DB.prepare("UPDATE shops SET ad_click = ? WHERE id = ?").bind(JSON.stringify(ad), id).run().catch(() => {});
+    const params = { content_name: values.niche || "shop", status: "trial", currency: "BDT", value: 0 };
+    // CompleteRegistration এখানে নয় — সুপার অ্যাডমিন ফোনে কথা বলে মোবাইল যাচাই করলে তবেই (ভুয়া সাইনআপ Facebook-এ যায় না)
+    const evs = [{ name: "StartTrial", id: newPxId("trial"), params: { ...params, predicted_ltv: 0 } }];
+    pxLater(c.executionCtx, ps, evs.map((e) => ({ name: e.name, id: e.id, url: src, custom: e.params,
+      user: { ip: ad.ip, ua: ad.ua, fbp: ad.fbp, fbc: ad.fbc, phone, email: values.email, externalId: id } })));
+    return c.html(pxSignupDonePage(pxId(ps), id, evs, to));
+  }
+  return c.redirect(to, 303);
 });
 
 /* ---------- সুপার অ্যাডমিন ---------- */
