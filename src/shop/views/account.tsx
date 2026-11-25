@@ -50,7 +50,7 @@ export const ForgotPage = (p: { sent?: boolean; error?: string; email?: string; 
     {p.sent ? (
       <div class="alert alert-ok">এই ইমেইলে দোকানের অ্যাকাউন্ট থাকলে নতুন পাসওয়ার্ড দেওয়ার লিংক পাঠানো হয়েছে (৩০ মিনিট কাজ করবে)। ইনবক্স আর স্প্যাম দেখুন।</div>
     ) : p.unavailable ? (
-      <div class="alert alert-error">এখন ইমেইল পাঠানো যাচ্ছে না। SellxBD সাপোর্টে (WhatsApp 01300901666) যোগাযোগ করুন।</div>
+      <div class="alert alert-error">এখন ইমেইল পাঠানো যাচ্ছে না। SellxBD সাপোর্টে (WhatsApp 01724212271) যোগাযোগ করুন।</div>
     ) : (
       <>
         <p class="muted small" style="text-align:center;margin:0">লগইনের ইমেইল দিন — নতুন পাসওয়ার্ড দেওয়ার লিংক পাঠানো হবে</p>
