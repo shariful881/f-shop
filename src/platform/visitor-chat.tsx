@@ -7,15 +7,14 @@
 import type { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { sha256Hex } from "../shop/lib/auth";
-import { dhakaTime, bn } from "../shop/lib/format";
+import { dhakaTime } from "../shop/lib/format";
 import { clientIp, isHttps, str, toInt } from "../shop/lib/http";
 import { normalizePhone } from "../shop/lib/phone";
 import { Bubble } from "../shop/views/support";
-import { Icon } from "../shop/views/icons";
 import { platformSettings } from "./billing";
 import { platformRateLimit, type PCtx, type PEnv } from "./lib";
 import { agentsOnline, emit, hoursText, telegram, withinHours, type Message } from "./support";
-import { ago } from "./super-views";
+import { DeskShell, deskCounts, ProfileLink, tierOf } from "./support-desk";
 
 export type VisitorChat = {
   id: number; token_hash: string; name: string; phone: string | null; page: string | null; status: "open" | "closed";
@@ -185,19 +184,8 @@ export function registerSuperVisitors(app: Hono<PEnv>, h: Helpers) {
   const isAjax = (c: PCtx) => c.req.header("x-sx-ajax") === "1";
   const load = (c: PCtx, id: number) => db(c).prepare("SELECT * FROM visitor_chats WHERE id = ?").bind(id).first<VisitorChat>();
 
-  app.get("/visitors", async (c) => {
-    const no = guard(c); if (no) return no;
-    const view = c.req.query("view") === "closed" ? "closed" : "open";
-    const [rows, counts] = await db(c).batch([
-      db(c).prepare(`SELECT v.*, COALESCE(a.name, a.email) AS agent_name FROM visitor_chats v LEFT JOIN super_admins a ON a.id = v.assigned_to
-        WHERE v.status = ? ORDER BY (v.team_unread > 0) DESC, v.last_message_at DESC LIMIT 100`).bind(view),
-      db(c).prepare("SELECT SUM(status = 'open') o, SUM(status = 'closed') cl FROM visitor_chats"),
-    ]);
-    const n = counts!.results[0] as { o: number | null; cl: number | null };
-    return h.page(c, "সাইটের ভিজিটর চ্যাট", "support",
-      <VisitorInbox rows={rows!.results as (VisitorChat & { agent_name: string | null })[]} view={view} open={n.o ?? 0} closed={n.cl ?? 0} />,
-      200, <a href="/super/support" class="sa-btn sa-btn-ghost sa-btn-sm">← দোকানের সাপোর্ট</a>);
-  });
+  // পুরোনো তালিকা এখন সাপোর্ট ডেস্কের "ওয়েবসাইট ভিজিটর" কিউ
+  app.get("/visitors", (c) => c.redirect(c.req.query("view") === "closed" ? "/super/support/leads" : "/super/support?who=visitor", 303));
 
   app.get("/visitors/:id{[0-9]+}", async (c) => {
     const no = guard(c); if (no) return no;
@@ -206,8 +194,12 @@ export function registerSuperVisitors(app: Hono<PEnv>, h: Helpers) {
     const msgs = await list(c, v.id);
     if (v.team_unread) await db(c).prepare("UPDATE visitor_chats SET team_unread = 0 WHERE id = ?").bind(v.id).run();
     const shop = v.phone ? await db(c).prepare("SELECT id, name, slug FROM shops WHERE owner_phone = ? AND deleted_at IS NULL LIMIT 1").bind(v.phone).first<{ id: string; name: string; slug: string }>() : null;
-    return h.page(c, `${v.name} — ভিজিটর চ্যাট`, "support", <VisitorThread v={v} msgs={msgs} shop={shop} />, 200,
-      <a href="/super/visitors" class="sa-btn sa-btn-ghost sa-btn-sm">← ভিজিটর চ্যাট</a>);
+    const sh = shop ? await db(c).prepare("SELECT status, plan FROM shops WHERE id = ?").bind(shop.id).first<{ status: string; plan: string | null }>() : null;
+    return h.page(c, `${v.name} — ভিজিটর চ্যাট`, "support",
+      <DeskShell active="chat-visitor" counts={await deskCounts(c)} canSettings={h.allowed(c, "support.settings")}>
+        {v.phone && <ProfileLink href={`/super/support/lead/${v.phone}`} tier={sh ? tierOf(sh) : "visitor"} label={`${v.name}-এর পুরো প্রোফাইল (এই নম্বরের সব চ্যাট)`} />}
+        <VisitorThread v={v} msgs={msgs} shop={shop} />
+      </DeskShell>);
   });
 
   app.get("/visitors/:id{[0-9]+}/messages", async (c) => {
@@ -230,6 +222,7 @@ export function registerSuperVisitors(app: Hono<PEnv>, h: Helpers) {
     await db(c).prepare("UPDATE visitor_chats SET assigned_to = COALESCE(assigned_to, ?), status = 'open' WHERE id = ?").bind(me(c).id, v.id).run();
     await emit(c.env, { type: "visitor_reply", chatId: v.id });
     if (isAjax(c)) return c.json({ message: teamOut(m) });
+    if (typeof b.back === "string" && /^\/super\/support\/lead\/01\d{9}$/.test(b.back)) return c.redirect(b.back, 303);
     return c.redirect(`/super/visitors/${v.id}`, 303);
   });
 
@@ -244,50 +237,11 @@ export function registerSuperVisitors(app: Hono<PEnv>, h: Helpers) {
       await addMessage(c, v.id, "system", null, next === "closed" ? "কথোপকথন শেষ হয়েছে। আবার কিছু জানতে চাইলে এখানেই লিখুন।" : "কথোপকথন আবার খোলা হয়েছে।");
       await h.audit(c, next === "closed" ? "visitor.close" : "visitor.reopen", "visitor_chat", String(v.id));
     }
-    return c.redirect(next === "closed" ? "/super/visitors" : `/super/visitors/${v.id}`, 303);
+    return c.redirect(next === "closed" ? "/super/support?who=visitor" : `/super/visitors/${v.id}`, 303);
   });
 }
 
 /* =================== টিমের পেজ =================== */
-const VisitorInbox = (p: { rows: (VisitorChat & { agent_name: string | null })[]; view: string; open: number; closed: number }) => (
-  <div class="sx-inbox" data-sx-agent-page="visitors">
-    <nav class="sx-channels">
-      <a href="/super/support"><Icon name="life-buoy" size="sm" /> দোকানের সাপোর্ট</a>
-      <a href="/super/visitors" class="active"><Icon name="globe" size="sm" /> সাইটের ভিজিটর</a>
-    </nav>
-    <div class="sa-card">
-      <div class="sx-toolbar">
-        <nav class="sa-chips">
-          <a href="/super/visitors" class={p.view === "open" ? "active" : ""}>চলমান<span class="sx-n">{bn(p.open)}</span></a>
-          <a href="/super/visitors?view=closed" class={p.view === "closed" ? "active" : ""}>শেষ হওয়া<span class="sx-n">{bn(p.closed)}</span></a>
-        </nav>
-      </div>
-      {p.rows.length === 0 ? (
-        <p class="sa-empty">{p.view === "open" ? "এখন কোনো ভিজিটর চ্যাট নেই। sellxbd.com-এর কোণের চ্যাট বাটন থেকে কেউ মেসেজ দিলে এখানে আসবে।" : "শেষ হওয়া কোনো চ্যাট নেই।"}</p>
-      ) : (
-        <div class="sx-list">
-          {p.rows.map((v) => (
-            <a href={`/super/visitors/${v.id}`} class={`sx-row${v.team_unread ? " unread" : ""}`} data-visitor={v.id}>
-              <span class="sx-ch" title="ভিজিটর"><Icon name="globe" size="sm" /></span>
-              <div class="sx-row-main">
-                <div class="sx-row-title"><b>{v.name}</b> <span class="sx-muted">{v.phone ? `· ${v.phone}` : ""} · {v.page || "/"}</span></div>
-                <div class="sx-row-prev">{v.last_sender === "team" ? "↩ আপনি: " : ""}{v.last_preview}</div>
-              </div>
-              <div class="sx-row-side">
-                <span class={`sx-st sx-st-${v.status === "open" ? (v.last_sender === "visitor" ? "open" : "pending") : "closed"}`}>
-                  {v.status === "closed" ? "শেষ" : v.last_sender === "visitor" ? "উত্তর দিন" : "ভিজিটরের অপেক্ষায়"}
-                </span>
-                <small>{ago(v.last_message_at)}{v.agent_name ? ` · ${v.agent_name}` : ""}</small>
-                {v.team_unread > 0 && <span class="sa-badge">{bn(v.team_unread)}</span>}
-              </div>
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  </div>
-);
-
 const asMsg = (m: VMsg): Message => ({ id: m.id, ticket_id: m.chat_id, sender: m.sender === "visitor" ? "shop" : m.sender, author: m.author, body: m.body, attachment: null, internal: 0, created_at: m.created_at });
 
 const VisitorThread = (p: { v: VisitorChat; msgs: VMsg[]; shop: { id: string; name: string; slug: string } | null }) => {

@@ -326,6 +326,8 @@
   }
 
   /* ================= সুপার অ্যাডমিন (এজেন্ট) ================= */
+  // সাপোর্ট প্রোফাইলের লম্বা থ্রেড — শেষ মেসেজে নামিয়ে রাখা
+  $$(".hd-thread").forEach(scrollEnd);
   var nav = $("[data-sx-nav-badge]");
   var pageEl = $("[data-sx-agent-page]");
   var pageKind = pageEl ? pageEl.dataset.sxAgentPage : null;
@@ -336,7 +338,7 @@
       if (lastId && r.last > lastId) { ding(); toast("নতুন কথোপকথন", "ইনবক্সে দেখুন", BASE); titleFlash("🛟 নতুন সাপোর্ট"); if (pageKind === "inbox") softReload(); }
       lastId = r.last;
       // ভিজিটর চ্যাট (WebSocket না থাকলেও ধরা পড়ে)
-      if (lastV && r.vlast > lastV) { ding(); toast("💬 সাইটের ভিজিটর মেসেজ দিয়েছে", "দেখুন", "/super/visitors"); if (pageKind === "visitors") softReload(); if (vLog) vPoll(); }
+      if (lastV && r.vlast > lastV) { ding(); toast("💬 সাইটের ভিজিটর মেসেজ দিয়েছে", "দেখুন", "/super/visitors"); if (pageKind === "visitors" || pageKind === "inbox") softReload(); if (vLog) vPoll(); }
       lastV = r.vlast || 0;
     }).catch(function () {});
   }
@@ -405,7 +407,7 @@
     ding(); titleFlash(d.isNew ? "🟢 সাইটে নতুন ভিজিটর" : "💬 ভিজিটরের মেসেজ");
     toast((d.isNew ? "🟢 সাইটে নতুন চ্যাট — " : "💬 ভিজিটর — ") + (d.name || ""), d.message && d.message.body ? d.message.body.slice(0, 100) : "", VBASE + "/" + d.chatId);
     pulse();
-    if (pageKind === "visitors") { clearTimeout(reloadT); reloadT = setTimeout(softReload, 1200); }
+    if (pageKind === "visitors" || pageKind === "inbox") { clearTimeout(reloadT); reloadT = setTimeout(softReload, 1200); }
   });
   pulse();
   setInterval(function () { if (!wsOk && !document.hidden) pulse(); }, 30000);

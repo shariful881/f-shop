@@ -53,10 +53,17 @@ describe("ভিজিটর চ্যাট", () => {
     expect(row).toMatchObject({ name: "করিম", phone: "01712345678", page: "/pricing", team_unread: 1, last_sender: "visitor" });
 
     const s = await superB();
-    const inbox = await (await get(s, "/super/visitors")).text();
+    const inbox = await (await get(s, "/super/support?who=visitor")).text();
     expect(inbox).toContain("করিম");
     expect(inbox).toContain("দাম কত?");
-    expect(await (await get(s, "/super/support")).text()).toContain("সাইটের ভিজিটর");
+    expect(inbox).toContain("ওয়েবসাইট ভিজিটর");
+    expect(inbox).toContain("উত্তরের অপেক্ষায় — সিরিয়াল");
+    // ফোন নম্বর ধরে প্রোফাইল
+    const leads = await (await get(s, "/super/support/leads")).text();
+    expect(leads).toContain("01712345678");
+    const prof = await (await get(s, "/super/support/lead/01712345678")).text();
+    expect(prof).toContain("দাম কত?");
+    expect(prof).toContain("দোকান খোলা হয়নি");
     const pulse = await (await get(s, "/super/support/pulse")).json() as any;
     expect(pulse.vopen).toBe(1);
 
@@ -82,7 +89,8 @@ describe("ভিজিটর চ্যাট", () => {
     // শেষ করা
     await s.fetch(`/super/visitors/${row.id}/status`, { method: "POST", base: P, body: new URLSearchParams({ status: "closed" }) } as RequestInit);
     expect((await pdb().prepare("SELECT status FROM visitor_chats WHERE id = ?").bind(row.id).first<any>())!.status).toBe("closed");
-    expect(await (await get(s, "/super/visitors?view=closed")).text()).toContain("করিম");
+    expect(await (await get(s, "/super/support/leads")).text()).toContain("করিম");
+    expect(await (await get(s, "/super/support?who=visitor")).text()).not.toContain("করিম"); // শেষ হওয়া চ্যাট কিউতে নেই
   });
 
   it("অন্য ভিজিটরের চ্যাট দেখা যায় না; কুকি ছাড়া পাঠানো যায় না", async () => {

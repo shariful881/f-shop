@@ -4,22 +4,11 @@
 import { bn, dhakaTime, taka } from "../shop/lib/format";
 import { CATEGORIES, PRIORITY, STATUS_TEAM, type Message, type Ticket } from "./support";
 import { ChannelTag, PriorityTag, StatusTag, Thread } from "../shop/views/support";
-import { ago, Kpi, StatusPill } from "./super-views";
+import { ago, StatusPill } from "./super-views";
 import { Icon } from "../shop/views/icons";
 
-export type InboxRow = Ticket & { shop_name: string; slug: string; agent_name: string | null };
-export type Metrics = { open: number; unassigned: number; mine: number; urgent: number; frt: number | null; resolved7: number; csat: number | null; rated: number; online: number };
 export type TeamMember = { id: number; name: string | null; email: string };
 export type Canned = { id: number; title: string; body: string; sort_order: number };
-
-export const INBOX_VIEWS: { key: string; label: string }[] = [
-  { key: "open", label: "চলমান" },
-  { key: "mine", label: "আমার" },
-  { key: "unassigned", label: "অ্যাসাইন হয়নি" },
-  { key: "waiting", label: "দোকানের অপেক্ষায়" },
-  { key: "resolved", label: "সমাধান" },
-  { key: "all", label: "সব" },
-];
 
 /** মিনিট → "২ ঘ ১৫ মি" */
 export function dur(min: number | null): string {
@@ -30,69 +19,6 @@ export function dur(min: number | null): string {
   if (h < 48) return `${bn(h)} ঘ ${bn(m % 60)} মি`;
   return `${bn(Math.round(h / 24))} দিন`;
 }
-
-export const InboxPage = (p: { rows: InboxRow[]; m: Metrics; view: string; q: string; channel: string; counts: Record<string, number>; chCounts: { chat: number; ticket: number }; visitors?: number }) => {
-  const qs = (o: Record<string, string>) => {
-    const u = new URLSearchParams({ view: p.view, ...(p.q ? { q: p.q } : {}), ...(p.channel ? { channel: p.channel } : {}), ...o });
-    for (const [k, v] of [...u]) if (!v) u.delete(k);
-    return `/super/support?${u}`;
-  };
-  return (
-    <div class="sx-inbox" data-sx-agent-page="inbox">
-      <div class="sa-kpis">
-        <Kpi label="চলমান কথোপকথন" value={bn(p.m.open)} sub={p.m.urgent ? `${bn(p.m.urgent)}টা জরুরি` : "জরুরি কিছু নেই"} tone={p.m.urgent ? "down" : "up"} href={qs({ view: "open" })} />
-        <Kpi label="অ্যাসাইন হয়নি" value={bn(p.m.unassigned)} sub={p.m.unassigned ? "কেউ দায়িত্ব নিন →" : "সব ভাগ করা ✓"} tone={p.m.unassigned ? "warn" : "up"} href={qs({ view: "unassigned" })} />
-        <Kpi label="গড় প্রথম উত্তর (৭ দিন)" value={dur(p.m.frt)} sub={p.m.frt == null ? "এখনো ডাটা নেই" : p.m.frt <= 30 ? "দারুণ ✓" : p.m.frt <= 240 ? "ঠিক আছে" : "দেরি হচ্ছে"} tone={p.m.frt == null || p.m.frt <= 240 ? "up" : "down"} />
-        <Kpi label="সমাধান (৭ দিন)" value={bn(p.m.resolved7)} />
-        <Kpi label="সন্তুষ্টি (CSAT, ৩০ দিন)" value={p.m.csat == null ? "—" : `${bn(p.m.csat.toFixed(1))} ★`} sub={`${bn(p.m.rated)}টা রেটিং`} tone={p.m.csat == null || p.m.csat >= 4 ? "up" : "down"} />
-        <Kpi label="টিম অনলাইনে" value={bn(p.m.online)} sub="এই পেজ খোলা থাকলে আপনিও অনলাইন" />
-      </div>
-
-      <nav class="sx-channels">
-        <a href={qs({ channel: "" })} class={!p.channel ? "active" : ""}>সব কথোপকথন</a>
-        <a href={qs({ channel: "chat" })} class={p.channel === "chat" ? "active" : ""}><Icon name="message-circle" size="sm" /> লাইভ চ্যাট{p.chCounts.chat > 0 && <span class="sa-badge">{bn(p.chCounts.chat)}</span>}</a>
-        <a href={qs({ channel: "ticket" })} class={p.channel === "ticket" ? "active" : ""}><Icon name="ticket" size="sm" /> সাপোর্ট টিকেট{p.chCounts.ticket > 0 && <span class="sa-badge">{bn(p.chCounts.ticket)}</span>}</a>
-        <a href="/super/visitors"><Icon name="globe" size="sm" /> সাইটের ভিজিটর{(p.visitors ?? 0) > 0 && <span class="sa-badge">{bn(p.visitors!)}</span>}</a>
-      </nav>
-
-      <div class="sa-card">
-        <div class="sx-toolbar">
-          <nav class="sa-chips">
-            {INBOX_VIEWS.map((v) => (
-              <a href={qs({ view: v.key })} class={p.view === v.key ? "active" : ""}>{v.label}{p.counts[v.key] != null && <span class="sx-n">{bn(p.counts[v.key]!)}</span>}</a>
-            ))}
-          </nav>
-          <form method="get" action="/super/support" class="sx-filter">
-            <input type="hidden" name="view" value={p.view} />
-            {p.channel && <input type="hidden" name="channel" value={p.channel} />}
-            <input type="search" name="q" value={p.q} placeholder="বিষয়, দোকান বা #নম্বর…" />
-          </form>
-        </div>
-
-        {p.rows.length === 0 ? (
-          <p class="sa-empty">এখানে কোনো কথোপকথন নেই।</p>
-        ) : (
-          <div class="sx-list" data-sx-inbox-list>
-            {p.rows.map((t) => (
-              <a href={`/super/support/${t.id}`} class={`sx-row${t.team_unread ? " unread" : ""} sx-pri-row-${t.priority}`} data-ticket={t.id}>
-                <ChannelTag c={t.channel} />
-                <div class="sx-row-main">
-                  <div class="sx-row-title"><b>{t.shop_name}</b> <span class="sx-muted">· {t.subject} · #{bn(t.id)}</span> <PriorityTag p={t.priority} /></div>
-                  <div class="sx-row-prev">{t.last_sender === "team" ? "↩ আপনি: " : ""}{t.last_preview}</div>
-                </div>
-                <div class="sx-row-side">
-                  <StatusTag s={t.status} team />
-                  <small>{ago(t.last_message_at)}{t.agent_name ? ` · ${t.agent_name}` : " · কেউ নেয়নি"}</small>
-                  {t.team_unread > 0 && <span class="sa-badge">{bn(t.team_unread)}</span>}
-                </div>
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 export type ShopCtx = {
   id: string; name: string; slug: string; status: string; owner_name: string | null; owner_phone: string | null; owner_email: string | null;

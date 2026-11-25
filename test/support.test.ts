@@ -70,9 +70,10 @@ describe("দোকানদার → টিকেট", () => {
     expect(await (await a.fetch("/admin/support")).text()).toContain("পার্সেল যাচ্ছে না");
 
     const s = await agent();
-    const inbox = await (await sget(s, "/super/support")).text();
+    const inbox = await (await sget(s, "/super/support/tickets")).text();
     expect(inbox).toContain("পার্সেল যাচ্ছে না");
-    expect(inbox).toContain("অ্যাসাইন হয়নি");
+    expect(inbox).toContain("কেউ নেয়নি");
+    expect(inbox).toContain("উত্তরের অপেক্ষায় — সিরিয়াল");
   });
 
   it("খালি বা খুব ছোট টিকেট নেয় না, ভুল ফাইল নেয় না", async () => {
@@ -163,7 +164,8 @@ describe("টিমের উত্তর, নোট, অবস্থা", () =>
     expect((await ticket(id))!.rating).toBe(5);
     await a.post(`/admin/support/${id}/rate`, { rating: "1" }); // দ্বিতীয়বার বদলানো যায় না
     expect((await ticket(id))!.rating).toBe(5);
-    expect(await (await sget(s, "/super/support?view=resolved")).text()).toContain("৫.০ ★");
+    expect(await (await sget(s, "/super/support/tickets?view=resolved")).text()).toContain("পার্সেল যাচ্ছে না");
+    expect(await (await sget(s, `/super/support/shop/${(await ticket(id))!.shop_id}`)).text()).toContain("৫.০ ★");
   });
 });
 
@@ -250,7 +252,7 @@ describe("সুপার অ্যাডমিন: অনুমতি, তৈ�
     const t = (await ticket(id))!;
     expect(t.assigned_to).toBe(meId);
     expect(t.priority).toBe("urgent");
-    expect(await (await sget(s, "/super/support?view=mine")).text()).toContain("পার্সেল যাচ্ছে না");
+    expect(await (await sget(s, "/super/support/tickets?view=mine")).text()).toContain("পার্সেল যাচ্ছে না");
     expect(await (await a.fetch(`/admin/support/${id}`)).text()).not.toContain("দায়িত্বে:");
   });
 });
@@ -312,7 +314,7 @@ describe("উইজেটের দুই ভাগ", () => {
     expect(list.tickets[0].status_label).toBe("উত্তরের অপেক্ষায়");
 
     const s = await agent();
-    const chats = await (await sget(s, "/super/support?channel=chat")).text();
+    const chats = await (await sget(s, "/super/support")).text();
     expect(chats).toContain("চ্যাটের মেসেজ");
     expect(chats).not.toContain("পেমেন্ট আটকে আছে");
   });
