@@ -8,6 +8,7 @@ import { getLang } from "../i18n";
 import { sha256Hex } from "./auth";
 import { platformSettings } from "../../platform/billing";
 import { emailFrom, emailSafeName } from "../../platform/verify";
+import { emailHtml, emailText, type EmailParts } from "../../platform/email-template";
 import type { WorkerEnv } from "../../worker-env";
 
 export const RESET_MINUTES = 30;
@@ -41,24 +42,40 @@ export async function resetUser(db: D1Database, token: string) {
 
 type Env = Pick<WorkerEnv, "PLATFORM_DB" | "EMAIL" | "PLATFORM_DOMAIN">;
 
+/** পাসওয়ার্ড রিসেটের ইমেইল (টেস্ট আর প্রিভিউয়েও ব্যবহার হয়) */
+export function resetMail(lang: "bn" | "en", name: string, url: string, supportPhone: string | undefined, siteUrl: string) {
+  const bn = lang === "bn";
+  const parts: EmailParts = bn
+    ? {
+        lang, preheader: `${name}-এর অ্যাডমিন প্যানেলে নতুন পাসওয়ার্ড দিন।`, badge: "পাসওয়ার্ড রিসেট",
+        title: "নতুন পাসওয়ার্ড দিন", greeting: "আসসালামু আলাইকুম,",
+        intro: "আপনার অ্যাডমিন প্যানেলের পাসওয়ার্ড বদলানোর অনুরোধ পেয়েছি। নিচের বাটনে চেপে নতুন পাসওয়ার্ড দিন।",
+        facts: [["দোকান", name]], button: { label: "নতুন পাসওয়ার্ড দিন", url }, expiry: `লিংকটা ${RESET_MINUTES} মিনিট কাজ করবে, একবারই`,
+        safety: "আপনি পাসওয়ার্ড রিসেট না চেয়ে থাকলে এই ইমেইল উপেক্ষা করুন — আপনার পাসওয়ার্ড বদলাবে না। এই লিংক কাউকে দেবেন না।",
+        supportPhone, siteUrl,
+      }
+    : {
+        lang, preheader: `Set a new password for the ${name} admin panel.`, badge: "Password reset",
+        title: "Set a new password", greeting: "Hello,",
+        intro: "We received a request to change your admin panel password. Press the button below to set a new one.",
+        facts: [["Shop", name]], button: { label: "Set new password", url }, expiry: `This link works for ${RESET_MINUTES} minutes, only once`,
+        safety: "If you didn't ask for a password reset, ignore this email — your password won't change. Don't share this link.",
+        supportPhone, siteUrl,
+      };
+  return {
+    subject: bn ? `${name} — পাসওয়ার্ড রিসেট` : `${name} — password reset`,
+    text: emailText(parts, parts.intro),
+    html: emailHtml(parts),
+  };
+}
+
 export async function sendResetEmail(env: Env, to: string, url: string, shopName: string): Promise<boolean> {
   if (!env.EMAIL) return false;
   const s = await platformSettings(env.PLATFORM_DB);
   const name = emailSafeName(shopName);
   try {
-    const btn = (label: string) => `<a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">${label}</a>`;
     // অ্যাডমিন প্যানেলের ভাষায় (রিকোয়েস্ট /admin/forgot থেকে আসে)
-    const mail = getLang() === "en"
-      ? {
-          subject: `${name} — password reset`,
-          text: `Hello,\n\nTo set a new password for the admin panel of "${name}", open the link below (works for ${RESET_MINUTES} minutes, only once):\n${url}\n\nIf you didn't ask for a password reset, ignore this email — your password won't change.\n\n— SellxBD`,
-          html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>Hello,</p><p>To set a new password for the admin panel of <b>${name}</b>, press the button below (works for ${RESET_MINUTES} minutes, only once):</p><p>${btn("Set new password")}</p><p style="color:#64748b;font-size:13px">If the button doesn't work, open this link:<br>${url}</p><p style="color:#64748b;font-size:13px">If you didn't ask for a password reset, ignore this email — your password won't change.</p><p>— SellxBD</p></div>`,
-        }
-      : {
-          subject: `${name} — পাসওয়ার্ড রিসেট`,
-          text: `আসসালামু আলাইকুম,\n\n"${name}"-এর অ্যাডমিন প্যানেলে নতুন পাসওয়ার্ড দিতে নিচের লিংকে চাপুন (${RESET_MINUTES} মিনিট কাজ করবে, একবারই):\n${url}\n\nআপনি পাসওয়ার্ড রিসেট না চেয়ে থাকলে এই ইমেইল উপেক্ষা করুন — আপনার পাসওয়ার্ড বদলাবে না।\n\n— SellxBD`,
-          html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>আসসালামু আলাইকুম,</p><p><b>${name}</b>-এর অ্যাডমিন প্যানেলে নতুন পাসওয়ার্ড দিতে নিচের বাটনে চাপুন (${RESET_MINUTES} মিনিট কাজ করবে, একবারই):</p><p>${btn("নতুন পাসওয়ার্ড দিন")}</p><p style="color:#64748b;font-size:13px">বাটন কাজ না করলে এই লিংক খুলুন:<br>${url}</p><p style="color:#64748b;font-size:13px">আপনি পাসওয়ার্ড রিসেট না চেয়ে থাকলে এই ইমেইল উপেক্ষা করুন — আপনার পাসওয়ার্ড বদলাবে না।</p><p>— SellxBD</p></div>`,
-        };
+    const mail = resetMail(getLang() === "en" ? "en" : "bn", name, url, s.support_phone || undefined, `https://${env.PLATFORM_DOMAIN}`);
     await env.EMAIL.send({ to, from: { email: emailFrom(env, s), name: "SellxBD" }, ...mail });
     return true;
   } catch (e) {

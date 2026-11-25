@@ -1,4 +1,5 @@
 import { getLang } from "../shop/i18n";
+import { emailHtml, emailText, type EmailParts } from "./email-template";
 /**
  * সাইনআপের পাহারা — বট আর প্রতারক আটকানো।
  *
@@ -149,6 +150,33 @@ async function sentRecently(env: WorkerEnv, shopId: string, kind: "email" | "pho
 export type SendResult = { ok: boolean; message: string };
 
 /** যাচাইয়ের লিংক ইমেইলে — base = দোকানের ঠিকানা (https://slug.sellxbd.com) */
+/** যাচাইয়ের ইমেইলের বিষয়, লেখা আর HTML (টেস্ট আর প্রিভিউয়েও ব্যবহার হয়) */
+export function verifyMail(lang: "bn" | "en", name: string, url: string, supportPhone: string | undefined, siteUrl: string) {
+  const bn = lang === "bn";
+  const parts: EmailParts = bn
+    ? {
+        lang, preheader: `${name} চালু করতে একটা ক্লিক বাকি — ইমেইল যাচাই করুন।`, badge: "ইমেইল যাচাই",
+        title: "আপনার দোকান চালু করতে ইমেইল যাচাই করুন", greeting: "আসসালামু আলাইকুম,",
+        intro: "SellxBD-তে দোকান খোলার জন্য ধন্যবাদ! নিচের বাটনে চাপলেই আপনার ইমেইল যাচাই হয়ে যাবে আর দোকান চালু হবে।",
+        facts: [["দোকান", name]], button: { label: "ইমেইল যাচাই করুন", url }, expiry: "লিংকটা ২ দিন কাজ করবে",
+        safety: "আপনি SellxBD-তে দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন — কিছুই চালু হবে না।",
+        supportPhone, siteUrl,
+      }
+    : {
+        lang, preheader: `One click left to activate ${name} — verify your email.`, badge: "Email verification",
+        title: "Verify your email to activate your shop", greeting: "Hello,",
+        intro: "Thanks for opening a shop on SellxBD! Press the button below to verify your email and activate your shop.",
+        facts: [["Shop", name]], button: { label: "Verify email", url }, expiry: "This link works for 2 days",
+        safety: "If you didn't open a shop on SellxBD, ignore this email — nothing will be activated.",
+        supportPhone, siteUrl,
+      };
+  return {
+    subject: bn ? `${name} — ইমেইল যাচাই করুন` : `${name} — verify your email`,
+    text: emailText(parts, parts.intro),
+    html: emailHtml(parts),
+  };
+}
+
 export async function sendEmailLink(env: WorkerEnv, shopId: string, base: string): Promise<SendResult> {
   const s = await platformSettings(env.PLATFORM_DB);
   const shop = await loadShop(env, shopId);
@@ -165,18 +193,7 @@ export async function sendEmailLink(env: WorkerEnv, shopId: string, base: string
     await env.EMAIL.send({
       to: shop.owner_email,
       from: { email: emailFrom(env, s), name: "SellxBD" },
-      // দোকানের অ্যাডমিন থেকে আবার পাঠালে প্যানেলের ভাষায়
-      ...(getLang() === "en"
-        ? {
-            subject: `${name} — verify your email`,
-            text: `Hello,\n\nTo activate your shop "${name}", open the link below (works for 2 days):\n${url}\n\nIf you didn't open a shop, ignore this email.\n\n— SellxBD`,
-            html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>Hello,</p><p>To activate your shop <b>${name}</b>, press the button below (works for 2 days):</p><p><a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Verify email</a></p><p style="color:#64748b;font-size:13px">If the button doesn't work, open this link:<br>${url}</p><p style="color:#64748b;font-size:13px">If you didn't open a shop, ignore this email.</p><p>— SellxBD</p></div>`,
-          }
-        : {
-          subject: `${name} — ইমেইল যাচাই করুন`,
-          text: `আসসালামু আলাইকুম,\n\nআপনার দোকান "${name}" চালু করতে নিচের লিংকে চাপুন (২ দিন কাজ করবে):\n${url}\n\nআপনি দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন।\n\n— SellxBD`,
-          html: `<div style="font-family:sans-serif;max-width:520px;line-height:1.6"><p>আসসালামু আলাইকুম,</p><p>আপনার দোকান <b>${name}</b> চালু করতে নিচের বাটনে চাপুন (২ দিন কাজ করবে):</p><p><a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">ইমেইল যাচাই করুন</a></p><p style="color:#64748b;font-size:13px">বাটন কাজ না করলে এই লিংক খুলুন:<br>${url}</p><p style="color:#64748b;font-size:13px">আপনি দোকান না খুলে থাকলে এই ইমেইল উপেক্ষা করুন।</p><p>— SellxBD</p></div>`,
-          }),
+      ...verifyMail(getLang() === "en" ? "en" : "bn", name, url, s.support_phone || undefined, `https://${env.PLATFORM_DOMAIN}`),
     });
     return { ok: true, message: `যাচাইয়ের লিংক ${shop.owner_email}-এ পাঠানো হয়েছে। ইনবক্স (না পেলে স্প্যাম) দেখুন।` };
   } catch (e) {
