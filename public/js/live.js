@@ -151,8 +151,25 @@
     var open = panel.hidden;
     panel.hidden = !open;
     btn.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open) renderBell();
+    if (open) { renderBell(); placePanel(); }
   });
+  /* মোবাইলে বেল স্ক্রিনের বাঁদিকে থাকে — প্যানেল স্ক্রিন জুড়ে, বেলের ঠিক নিচে (CSS: position fixed) */
+  function placePanel() {
+    if (window.innerWidth > 640) { panel.style.top = ""; panel.style.maxHeight = ""; return; }
+    var top = Math.max(8, Math.round(btn.getBoundingClientRect().bottom + 8));
+    // হেডারে blur থাকলে fixed-এর মাপ হেডার থেকে ধরা হয় — সেই ফারাক বাদ দিই
+    panel.style.top = "0px";
+    var shift = panel.getBoundingClientRect().top;
+    panel.style.top = (top - shift) + "px";
+    // নিচে আটকানো বার (অর্ডারের কাজের বার বা ট্যাববার) থাকলে তার উপরে শেষ
+    var bottom = window.innerHeight - 12;
+    document.querySelectorAll(".od-bar, .sa-tabbar").forEach(function (b) {
+      var r = b.getBoundingClientRect();
+      if (r.height && getComputedStyle(b).display !== "none" && r.top < bottom) bottom = r.top - 8;
+    });
+    panel.style.maxHeight = Math.max(220, bottom - top) + "px";
+  }
+  window.addEventListener("resize", function () { if (!panel.hidden) placePanel(); });
   bell.querySelector(".lv-read").addEventListener("click", markRead);
   document.addEventListener("click", function (ev) { if (!panel.hidden && !bell.contains(ev.target)) { panel.hidden = true; btn.setAttribute("aria-expanded", "false"); markRead(); } });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && !panel.hidden) { panel.hidden = true; markRead(); } });

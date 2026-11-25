@@ -423,6 +423,14 @@ body.admin .orders-wrap .ot-total small { font-weight: 400; }
 .lv-empty { padding: 18px 14px; color: #94a3b8; text-align: center; font-size: .9rem; }
 .lv-foot { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 14px; border-top: 1px solid #f1f5f9; background: #f8fafc; font-size: .85rem; color: #475569; }
 .lv-foot select { font: inherit; font-size: .85rem; padding: 2px 6px; border-radius: 6px; border: 1px solid #cbd5e1; margin-left: 4px; }
+@media (max-width: 640px) {
+  /* মোবাইলে নোটিফিকেশন প্যানেল স্ক্রিনের দুই পাশে ১০px রেখে, বেলের নিচে (top live.js দেয়) */
+  .lv-panel { position: fixed; left: 10px; right: 10px; width: auto; top: 120px; z-index: 1000; display: flex; flex-direction: column; }
+  .lv-panel[hidden] { display: none; }
+  .lv-panel .lv-list { max-height: none; flex: 1 1 auto; min-height: 0; }
+  .lv-list li a { padding: 12px 14px; }
+  .lv-list li a > span { overflow-wrap: anywhere; }
+}
 .lv-foot label { display: inline-flex; align-items: center; gap: 5px; }
 .lv-sound { border-color: #f59e0b !important; color: #b45309 !important; }
 
