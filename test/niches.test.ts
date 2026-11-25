@@ -102,7 +102,7 @@ describe("সাইনআপে নিশ বাছাই", () => {
 
 describe("ডেমো দোকান", () => {
   it("সুপার অ্যাডমিন তৈরি করে: সাপোর্ট নম্বর, লোগো, ডেমো বার, অর্ডার বন্ধ, বিল হয় না, হোমপেজে লিংক", async () => {
-    await pdb().prepare("INSERT INTO platform_settings (key, value) VALUES ('support_phone', '01300901666') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+    await pdb().prepare("INSERT INTO platform_settings (key, value) VALUES ('support_phone', '01724212271') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
     clearSettingsCache();
     const b = await superB();
     const dp = await (await b.fetch("/super/demos", { base: P } as RequestInit)).text();
@@ -111,8 +111,8 @@ describe("ডেমো দোকান", () => {
     const s = (await pdb().prepare("SELECT * FROM shops WHERE demo_niche = 'sutokotha'").first<Record<string, any>>())!;
     expect(s).toMatchObject({ slug: "sutokotha", status: "active", next_bill_at: null });
     expect(await setting(s.id, "site_name")).toBe("সুতোকথা");
-    expect(await setting(s.id, "contact_phone")).toBe("01300901666");
-    expect(await setting(s.id, "whatsapp")).toBe("01300901666");
+    expect(await setting(s.id, "contact_phone")).toBe("01724212271");
+    expect(await setting(s.id, "whatsapp")).toBe("01724212271");
     expect(await setting(s.id, "logo")).toBe("logo/sutokotha.png");
     expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(20);
 
