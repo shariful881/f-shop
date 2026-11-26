@@ -257,7 +257,7 @@ superApp.get("/shops", async (c) => {
   const counts = Object.fromEntries(Object.entries((cnt!.results[0] ?? {}) as Record<string, number>).map(([k, v]) => [k, Number(v) || 0]));
   return page(c, "দোকান", "shops",
     <ShopsPage rows={list!.results as ShopRow[]} counts={counts} q={q} filter={filter} sort={sort} page={pg} per={PER_PAGE}
-      total={(total!.results[0] as { n: number }).n} shopLink={(slug) => shopUrl(c.env, slug)} canEnter={allowed(c, "shop.impersonate")} canExport={allowed(c, "shops.export")} />);
+      total={(total!.results[0] as { n: number }).n} shopLink={(slug) => shopUrl(c.env, slug)} canEnter={allowed(c, "shop.impersonate")} canExport={allowed(c, "shops.export")} canVerify={allowed(c, "shop.status")} />);
 });
 
 /** CSV — Excel-এ খোলার জন্য (সূত্র-ইনজেকশন থেকে নিরাপদ) */
@@ -430,7 +430,9 @@ async function sendVerifiedRegistration(c: PCtx, shopId: string) {
 superApp.post("/shops/:id/verify", async (c) => {
   if (!allowed(c, "shop.status")) return forbidden(c);
   const id = c.req.param("id");
-  const what = String((await c.req.parseBody()).what ?? "both");
+  const body = await c.req.parseBody();
+  const what = String(body.what ?? "both");
+  const back = typeof body.back === "string" && /^\/super\/shops(\?[\w=&%.\-+]*)?$/.test(body.back) ? body.back : `/super/shops/${id}`;
   const set = what === "phone" ? "phone_verified = 1" : what === "email" ? "email_verified = 1" : "email_verified = 1, phone_verified = 1";
   await c.env.PLATFORM_DB.prepare(`UPDATE shops SET ${set} WHERE id = ?`).bind(id).run();
   if (what !== "email") await sendVerifiedRegistration(c, id);
@@ -438,7 +440,7 @@ superApp.post("/shops/:id/verify", async (c) => {
   await audit(c, "shop.verify", "shop", id, what === "phone" ? "ফোনে কথা বলে মোবাইল যাচাই" : what === "email" ? "ইমেইল যাচাই করা ধরা" : "যাচাই করা ধরা");
   const after = await c.env.PLATFORM_DB.prepare("SELECT email_verified, phone_verified FROM shops WHERE id = ?").bind(id).first<{ email_verified: number; phone_verified: number }>();
   flash(c, "ok", after?.email_verified && after.phone_verified ? "যাচাই শেষ — দোকান এখন অর্ডার নিতে পারবে।" : "সেভ হয়েছে — বাকি যাচাই শেষ হলে অর্ডার চালু হবে।");
-  return c.redirect(`/super/shops/${id}`, 303);
+  return c.redirect(back, 303);
 });
 superApp.post("/shops/:id/risk-clear", async (c) => {
   if (!allowed(c, "shop.status")) return forbidden(c);

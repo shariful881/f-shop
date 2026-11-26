@@ -241,3 +241,18 @@ describe("কুরিয়ার রিপোর্টের চাবি (স
     expect(log!.detail).not.toContain("SECRET");
   });
 });
+
+describe("দোকানের তালিকায় যাচাই", () => {
+  it("মোবাইল কল লিংক, যাচাইয়ের চিহ্ন, তালিকা থেকেই যাচাই", async () => {
+    const db = pdb();
+    await db.prepare("UPDATE shops SET owner_phone = '01918345338', owner_email = 'o@t.com', phone_verified = 0, email_verified = 1 WHERE id = ?").bind(DEMO_SHOP_ID).run();
+    const o = await member("owner@t.com", "owner");
+    const all = await (await get(o, "/super/shops?q=01918345338")).text();
+    expect(all).toContain('href="tel:01918345338"');
+    expect(all).toContain("যাচাই বাকি");
+    expect(all).toContain("✓ যাচাই");
+    const r = await post(o, `/super/shops/${DEMO_SHOP_ID}/verify`, { what: "phone", back: "/super/shops?filter=trial" });
+    expect(r.headers.get("location")).toBe("/super/shops?filter=trial");
+    expect((await db.prepare("SELECT phone_verified FROM shops WHERE id = ?").bind(DEMO_SHOP_ID).first<{ phone_verified: number }>())?.phone_verified).toBe(1);
+  });
+});

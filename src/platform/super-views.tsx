@@ -401,7 +401,30 @@ export const SHOP_FILTERS: Record<string, string> = {
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
 
-export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; q: string; filter: string; sort: string; page: number; total: number; per: number; shopLink: (slug: string) => string; canEnter?: boolean; canExport?: boolean }) => {
+/** দোকানের তালিকায় মালিকের মোবাইল/ইমেইল — চাপলে কল/মেইল, যাচাই হয়েছে কি না, বাকি থাকলে এক চাপে যাচাই */
+const VerifyLine = ({ kind, s, can, back }: { kind: "phone" | "email"; s: ShopRow; can?: boolean; back: string }) => {
+  const value = kind === "phone" ? s.owner_phone : s.owner_email;
+  if (!value) return null;
+  const ok = (kind === "phone" ? s.phone_verified : s.email_verified) !== 0;
+  return (
+    <div class="sl-vline">
+      <a href={kind === "phone" ? `tel:${value}` : `mailto:${value}`} class="sl-contact" title={kind === "phone" ? "চাপলে কল হবে" : "চাপলে মেইল"}>
+        <Icon name={kind === "phone" ? "phone" : "mail"} size="sm" /> {value}
+      </a>
+      {ok ? <span class="sl-ok" title="যাচাই হয়েছে">✓ যাচাই</span> : <span class="sl-no" title="যাচাই বাকি">যাচাই বাকি</span>}
+      {!ok && can && (
+        <form method="post" action={`/super/shops/${s.id}/verify`} class="sl-vform"
+          data-confirm={kind === "phone" ? `${value} নম্বরে ফোন করে দোকানদারের সাথে কথা হয়েছে আর সব ঠিক আছে?` : `${value} ইমেইল যাচাই করা ধরবেন?`}>
+          <input type="hidden" name="what" value={kind} /><input type="hidden" name="back" value={back} />
+          <button class="sa-btn sa-btn-sm sl-vbtn">✓ যাচাই করুন</button>
+        </form>
+      )}
+    </div>
+  );
+};
+
+export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; q: string; filter: string; sort: string; page: number; total: number; per: number; shopLink: (slug: string) => string; canEnter?: boolean; canExport?: boolean; canVerify?: boolean }) => {
+  const backUrl = `/super/shops?${new URLSearchParams({ ...(p.filter ? { filter: p.filter } : {}), ...(p.q ? { q: p.q } : {}), ...(p.sort ? { sort: p.sort } : {}), ...(p.page > 1 ? { page: String(p.page) } : {}) })}`;
   const qs = (o: Record<string, string | number>) => {
     const u = new URLSearchParams({ q: p.q, filter: p.filter, sort: p.sort, page: String(p.page), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])) });
     for (const [k, v] of [...u]) if (!v || (k === "page" && v === "1") || (k === "sort" && v === "new")) u.delete(k);
@@ -435,7 +458,9 @@ export const ShopsPage = (p: { rows: ShopRow[]; counts: Record<string, number>; 
                     <td><a href={`/super/shops/${s.id}`}><b>{s.name}</b></a><br />
                       <a href={p.shopLink(s.slug)} target="_blank" rel="noopener" class="sa-muted">{s.slug} ↗</a>
                       {s.domains && <><br /><small class="sa-tag"><Icon name="globe" size="sm" /> {s.domains}</small></>}</td>
-                    <td>{s.owner_name || "—"}<br /><small class="sa-muted">{s.owner_phone}</small></td>
+                    <td class="sl-owner">{s.owner_name || "—"}
+                      <VerifyLine kind="phone" s={s} can={p.canVerify} back={backUrl} />
+                      <VerifyLine kind="email" s={s} can={p.canVerify} back={backUrl} /></td>
                     <td><StatusPill s={s.status} />{s.status === "trial" && <><br /><small class="sa-muted">শেষ {dhakaTime(s.trial_ends_at).slice(0, 10)}</small></>}</td>
                     <td class={`sa-r ${s.balance < 0 ? "sa-down" : ""}`}>{taka(s.balance)}</td>
                     <td class="sa-r">{n0(s.confirmed_orders)}</td>
