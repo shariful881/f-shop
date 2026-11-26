@@ -509,3 +509,10 @@ body.platform .brand-name { font-size: 1.32rem; }
   .vx-fab.is-open { display: none; }
 }
 @media print { .vx-fab, .vx-panel { display: none !important; } }
+
+/* সাইনআপ: এই নম্বর/ইমেইলে আগেই দোকান */
+.signup-exists { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 14px 16px; margin: 0 0 16px; }
+.signup-exists p { margin: 0 0 8px; }
+.signup-exists .se-site { color: #0f766e; font-weight: 600; overflow-wrap: anywhere; }
+.signup-exists .se-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.signup-exists .se-actions .btn { flex: 1 1 180px; text-align: center; }

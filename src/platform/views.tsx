@@ -579,7 +579,8 @@ export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode
 };
 
 /* ---------- সাইনআপ ---------- */
-export const SignupPage = (p: { values?: Record<string, string>; errors?: Record<string, string>; alert?: string; domain: string; turnstile?: string; verify?: { email: boolean; phone: boolean } }) => {
+export const SignupPage = (p: { values?: Record<string, string>; errors?: Record<string, string>; alert?: string; domain: string; turnstile?: string; verify?: { email: boolean; phone: boolean };
+  existing?: { login: string; forgot: string; site: string; by: string } }) => {
   const v = p.values ?? {};
   const e = p.errors ?? {};
   return (
@@ -588,6 +589,17 @@ export const SignupPage = (p: { values?: Record<string, string>; errors?: Record
         <h1>দোকান খুলুন</h1>
         <p class="muted">১ মাস সব ফিচার ফ্রি। কোনো কার্ড লাগবে না।</p>
         {p.alert && <div class="alert alert-error">{p.alert}</div>}
+        {p.existing && (
+          <div class="signup-exists">
+            <p><b>{p.existing.by} দিয়ে আগেই দোকান খোলা আছে:</b><br /><span class="se-site">{p.existing.site}</span></p>
+            <p class="muted small">এক মোবাইল নম্বর বা ইমেইল দিয়ে একটাই দোকান খোলা যায়। নিজের দোকানে লগইন করুন, পাসওয়ার্ড মনে না থাকলে নতুন পাসওয়ার্ড সেট করুন।</p>
+            <div class="se-actions">
+              <a class="btn btn-primary" href={p.existing.login}>দোকানে লগইন করুন</a>
+              <a class="btn btn-outline" href={p.existing.forgot}>পাসওয়ার্ড ভুলে গেছেন?</a>
+            </div>
+            <p class="muted small">ইমেইলও মনে না থাকলে বা আরেকটা দোকান দরকার হলে SellxBD সাপোর্টে যোগাযোগ করুন।</p>
+          </div>
+        )}
         <form method="post" action="/signup" class="order-form" data-signup>
           <label class="field"><span>দোকানের নাম *</span><input type="text" name="shop_name" value={v.shop_name ?? ""} required maxlength={60} />{e.shop_name && <small class="error">{e.shop_name}</small>}</label>
           <label class="field"><span>দোকানের ঠিকানা *</span>

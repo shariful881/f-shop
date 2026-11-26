@@ -25,7 +25,7 @@ const setting = async (shopId: string, k: string) => ((await shopDb(shopId).prep
 function signup(over: Record<string, string>) {
   return new Browser(freshIp()).fetch("/signup", {
     method: "POST", base: P,
-    body: new URLSearchParams({ shop_name: "নতুন দোকান", owner_name: "করিম", phone: "01812345678", email: `${over.slug}@x.com`, password: "secret123", seed_demo: "1", ...over }),
+    body: new URLSearchParams({ shop_name: "নতুন দোকান", owner_name: "করিম", phone: `0181${String([...(over.slug ?? "")].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 10_000_000, 0)).padStart(7, "0")}`, email: `${over.slug}@x.com`, password: "secret123", seed_demo: "1", ...over }),
   } as RequestInit);
 }
 

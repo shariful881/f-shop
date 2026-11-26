@@ -306,8 +306,8 @@ platformApp.post("/signup", async (c) => {
   const password = typeof b.password === "string" ? b.password : "";
   const guard = await signupGuardProps(c);
   const tags = await siteTags(c);
-  const fail = (errors: Record<string, string>, alert?: string, status: 422 | 429 = 422) =>
-    html(c, <PLayout title="দোকান খুলুন" nav={publicNav} seo={{ noindex: true, site: tags }}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={values} errors={errors} alert={alert} {...guard} /></PLayout>, status);
+  const fail = (errors: Record<string, string>, alert?: string, status: 422 | 429 = 422, existing?: { login: string; forgot: string; site: string; by: string }) =>
+    html(c, <PLayout title="দোকান খুলুন" nav={publicNav} seo={{ noindex: true, site: tags }}><SignupPage domain={c.env.PLATFORM_DOMAIN} values={values} errors={errors} alert={alert} existing={existing} {...guard} /></PLayout>, status);
 
   if (!(await platformRateLimit(c.env, `signup:${clientIp(c)}`, 5, 3600))) {
     return fail({}, "এক ঘণ্টায় অনেকবার চেষ্টা হয়েছে। পরে আবার চেষ্টা করুন।", 429);
@@ -330,6 +330,25 @@ platformApp.post("/signup", async (c) => {
     errors.turnstile = "আপনি মানুষ কিনা যাচাই হয়নি — বক্সটায় টিক দিয়ে আবার চেষ্টা করুন";
   }
   if (Object.keys(errors).length) return fail(errors);
+
+  // এক মোবাইল নম্বর বা এক ইমেইলে একটাই দোকান (মোঃ, ২৬ নভেম্বর) — মিললে নতুন দোকান নয়, আগের দোকানে লগইন/পাসওয়ার্ড রিসেট
+  const dup = await c.env.PLATFORM_DB.prepare(
+    `SELECT slug, owner_phone, lower(owner_email) AS email FROM shops
+     WHERE deleted_at IS NULL AND demo_niche IS NULL AND (owner_phone = ? OR lower(owner_email) = ?) ORDER BY created_at LIMIT 1`,
+  ).bind(phone, values.email).first<{ slug: string; owner_phone: string | null; email: string | null }>();
+  if (dup) {
+    const byPhone = dup.owner_phone === phone;
+    const byEmail = dup.email === values.email;
+    const dupErr: Record<string, string> = {};
+    if (byPhone) dupErr.phone = "এই মোবাইল নম্বর দিয়ে আগেই একটা দোকান খোলা আছে";
+    if (byEmail) dupErr.email = "এই ইমেইল দিয়ে আগেই একটা দোকান খোলা আছে";
+    return fail(dupErr, undefined, 422, {
+      site: `${dup.slug}.${c.env.PLATFORM_DOMAIN}`,
+      login: shopUrl(c.env, dup.slug, "/admin/login"),
+      forgot: shopUrl(c.env, dup.slug, "/admin/forgot"),
+      by: byPhone && byEmail ? "এই মোবাইল নম্বর আর ইমেইল" : byPhone ? "এই মোবাইল নম্বর" : "এই ইমেইল",
+    });
+  }
 
   const id = crypto.randomUUID();
   const needs = verifyNeeds(c.env, ps);

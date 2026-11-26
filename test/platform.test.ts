@@ -10,6 +10,13 @@ const freshIp = () => `172.16.${Math.floor(ipN / 250)}.${(ipN++ % 250) + 1}`;
 
 beforeEach(resetDb);
 
+/** আলাদা ঠিকানার দোকানে আলাদা মোবাইল/ইমেইল (এক নম্বর/ইমেইলে একটাই দোকান) */
+const uniqFor = (slug?: string) => {
+  if (!slug || slug === "rahim") return {};
+  let h = 0;
+  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) % 10_000_000;
+  return { phone: `0171${String(h).padStart(7, "0")}`, email: `${slug}@example.com` };
+};
 function signup(over: Record<string, string> = {}, ip = freshIp()) {
   const b = new Browser(ip);
   return {
@@ -19,7 +26,7 @@ function signup(over: Record<string, string> = {}, ip = freshIp()) {
       base: P,
       body: new URLSearchParams({
         shop_name: "রহিমের দোকান", slug: "rahim", owner_name: "রহিম", phone: "+880 1712-345678",
-        email: "Rahim@Example.com", password: "secret123", seed_demo: "1", ...over,
+        email: "Rahim@Example.com", password: "secret123", seed_demo: "1", ...uniqFor(over.slug), ...over,
       }),
     } as RequestInit),
   };
@@ -90,7 +97,7 @@ describe("সাইনআপ", () => {
     const b = new Browser();
     const r = await b.fetch("/admin/login", {
       method: "POST", base: "https://login-test.ourdomain.com",
-      body: new URLSearchParams({ email: "rahim@example.com", password: "secret123" }),
+      body: new URLSearchParams({ email: "login-test@example.com", password: "secret123" }),
     } as RequestInit);
     expect(r.status).toBe(303);
   });
@@ -213,5 +220,32 @@ describe("প্রথম সুপার অ্যাডমিন (এককা
     // লগইন হয়
     const login = await SELF.fetch(P + "/super/login", { method: "POST", body: new URLSearchParams({ email: "me@x.com", password: "longpassword1" }), headers: { origin: P }, redirect: "manual" });
     expect(login.headers.get("location")).toBe("/super");
+  });
+});
+
+describe("এক মোবাইল/ইমেইলে একটাই দোকান", () => {
+  it("একই মোবাইল বা একই ইমেইলে দ্বিতীয় দোকান খোলা যায় না — লগইন আর পাসওয়ার্ড রিসেটের লিংক দেখায়", async () => {
+    const db = env.PLATFORM_DB;
+    const first = await signup({ slug: "dup-first", phone: "01755500011", email: "dup@example.com" }).res;
+    expect(first.status).toBe(303);
+
+    const samePhone = await signup({ slug: "dup-second", phone: "+880 1755-500011", email: "other@example.com" }).res;
+    expect(samePhone.status).toBe(422);
+    const h1 = await samePhone.text();
+    expect(h1).toContain("এই মোবাইল নম্বর দিয়ে আগেই একটা দোকান খোলা আছে");
+    expect(h1).toContain("dup-first.");
+    expect(h1).toContain("/admin/forgot");
+    expect(h1).toContain("/admin/login");
+
+    const sameEmail = await signup({ slug: "dup-third", phone: "01755500099", email: "DUP@example.com" }).res;
+    expect(sameEmail.status).toBe(422);
+    expect(await sameEmail.text()).toContain("এই ইমেইল দিয়ে আগেই একটা দোকান খোলা আছে");
+
+    const n = await db.prepare("SELECT COUNT(*) n FROM shops WHERE slug LIKE 'dup-%'").first<{ n: number }>();
+    expect(n?.n).toBe(1);
+
+    // মুছে ফেলা দোকানের নম্বরে আবার খোলা যায়
+    await db.prepare("UPDATE shops SET deleted_at = datetime('now') WHERE slug = 'dup-first'").run();
+    expect((await signup({ slug: "dup-again", phone: "01755500011", email: "dup@example.com" }).res).status).toBe(303);
   });
 });
