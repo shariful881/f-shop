@@ -6,7 +6,7 @@ import { ASSET_VERSION } from "./layout";
 import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL, orderExtras } from "../lib/orders";
 import type { Settings } from "../lib/settings";
-import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
+import { bn, dhakaTime, imageUrl, taka, enNum } from "../lib/format";
 import { barcodeSvg } from "../lib/barcode";
 import { codAmount, PAY_NAME, type PayKey } from "../lib/payment";
 import { COURIER_NAME, type CourierKey } from "../lib/courier";
@@ -28,7 +28,7 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
       <header class="iv-head">
         <div>
           {s.logo ? <img src={imageUrl(s.logo)} alt="" class="iv-logo" /> : <h1>{s.site_name}</h1>}
-          <p class="iv-shop">{s.site_name}{s.contact_phone && <> · 📞 {bn(s.contact_phone)}</>}{s.store_email && <> · {s.store_email}</>}</p>
+          <p class="iv-shop">{s.site_name}{s.contact_phone && <> · 📞 {enNum(s.contact_phone)}</>}{s.store_email && <> · {s.store_email}</>}</p>
           {s.store_address && <p class="iv-shop">{s.store_address}</p>}
         </div>
         <div class="iv-meta">
@@ -41,7 +41,7 @@ const A4 = ({ d, s }: { d: InvoiceData; s: Settings }) => {
       </header>
       <div class="iv-to">
         <h3>যাকে পাঠানো হবে</h3>
-        <p><b>{o.name}</b> · 📞 {bn(o.phone)}</p>
+        <p><b>{o.name}</b> · 📞 {enNum(o.phone)}</p>
         <p>{o.address}</p>
         <p class="iv-muted">{AREA_LABEL[o.area]}{o.email ? ` · ${o.email}` : ""}</p>
         {orderExtras(o).map(([k, v]) => <p class="iv-muted">{k}: {v}</p>)}
@@ -83,12 +83,12 @@ const Sticker = ({ d, s }: { d: InvoiceData; s: Settings }) => {
   const qty = d.items.reduce((x, i) => x + (i.qty || 1), 0);
   return (
     <section class="iv-page iv-sticker">
-      <div class="st-top"><b>{s.site_name}</b>{s.contact_phone && <span>{bn(s.contact_phone)}</span>}</div>
+      <div class="st-top"><b>{s.site_name}</b>{s.contact_phone && <span>{enNum(s.contact_phone)}</span>}</div>
       {cr && <div class="st-courier"><span>{cr.name}</span><b>{cr.id}</b>{cr.track && <small>ট্র্যাকিং: {cr.track}</small>}</div>}
       <div class="st-to">
         <small>প্রাপক</small>
         <b class="st-name">{o.name}</b>
-        <b class="st-phone">{bn(o.phone)}</b>
+        <b class="st-phone">{enNum(o.phone)}</b>
         <p>{o.address}</p>
       </div>
       <div class="st-items"><span>{d.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} × ${bn(i.qty || 1)}`).join(" · ")}</span><em>মোট {bn(qty)}টি</em></div>

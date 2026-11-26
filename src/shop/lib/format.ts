@@ -8,6 +8,14 @@ export function bn(v: string | number): string {
   return String(v).replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)]!);
 }
 
+/**
+ * মোবাইল, WhatsApp, বিকাশ/নগদ, ব্যাংক অ্যাকাউন্ট নম্বর সবসময় ইংরেজি অঙ্কে (মোঃ, ২৬ নভেম্বর):
+ * বাংলা অঙ্ক কপি করে ফোনে/বিকাশে দিলে চলে না। দোকানদার বাংলা অঙ্কে লিখলেও ইংরেজিতে দেখায়।
+ */
+export function enNum(v: string | number | null | undefined): string {
+  return String(v ?? "").replace(/[০-৯]/g, (d) => String(BN_DIGITS.indexOf(d)));
+}
+
 /** ১২৫০ → ৳১,২৫০ */
 export function taka(n: number): string {
   const v = Math.round(n);

@@ -1,3 +1,4 @@
+import { enNum } from "./format";
 /**
  * ধাপ ৬: অগ্রিম পেমেন্ট — ক্রেতা দোকানদারের bKash/Nagad/Rocket নম্বরে টাকা পাঠিয়ে Transaction ID দেয়,
  * দোকানদার নিজের অ্যাপে মিলিয়ে "পেয়েছি" চাপে। টাকা সরাসরি দোকানদারের কাছে যায়, আমাদের হাত দিয়ে নয়।
@@ -13,8 +14,8 @@ export type PayMethod = { key: PayKey; name: string; number: string; type: strin
 
 export function payMethods(s: Settings): PayMethod[] {
   return (["bkash", "nagad", "rocket"] as PayKey[])
-    .filter((k) => /^01[3-9]\d{8,9}$/.test(s[`payment_${k}`] || ""))
-    .map((k) => ({ key: k, name: PAY_NAME[k], number: s[`payment_${k}`]!, type: s[`payment_${k}_type`] || "personal" }));
+    .filter((k) => /^01[3-9]\d{8,9}$/.test(enNum(s[`payment_${k}`]).trim()))
+    .map((k) => ({ key: k, name: PAY_NAME[k], number: enNum(s[`payment_${k}`]).trim(), type: s[`payment_${k}_type`] || "personal" }));
 }
 
 export type AdvanceMode = "off" | "delivery" | "full" | "fixed";

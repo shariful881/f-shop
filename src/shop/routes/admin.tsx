@@ -21,7 +21,7 @@ import { GA4_RE, GTM_RE, safeColor, loadSettings, saveSettings, themeOf, THEMES,
 import { cfgDiff, cfgFromForm, GROUPS, themeConfig, type Cfg } from "../lib/theme-config";
 import { clientIp, isHttps, str, toInt } from "../lib/http";
 import { PagesPage, SettingsAppearancePage, type PageRow, SettingsCheckoutPage, SettingsDeliveryPage, SettingsPaymentPage, SettingsGeneralPage, SettingsSeoPage, SettingsTrackingPage, ShopDashboardPage, type ShopDash, type SetupStep } from "../views/admin-pro";
-import { bn, taka, youtubeId } from "../lib/format";
+import { bn, enNum, taka, youtubeId } from "../lib/format";
 import { AccountPage, ForgotPage, ResetPage } from "../views/account";
 import { createResetToken, resetBase, resetUser, sendResetEmail } from "../lib/password-reset";
 import { hitRateLimit, peekRateLimit } from "../lib/order-guard";
@@ -1919,6 +1919,8 @@ async function saveSettingsForm(c: Ctx, section: string) {
     if (r.value !== undefined) v[key] = r.value;
   }
 
+  // নম্বর সবসময় ইংরেজি অঙ্কে সেভ (বাংলা অঙ্কে tel:/wa.me/বিকাশ চলে না)
+  for (const k of ["contact_phone", "whatsapp", "payment_bkash", "payment_nagad", "payment_rocket"]) if (k in v) v[k] = enNum(v[k]).trim();
   await saveSettings(c.env.DB, v);
   await cleanupIfUnused(c, stale);
   flash(c, "ok", "সেটিংস সেভ হয়েছে।");

@@ -3,7 +3,7 @@
  * Thread আর Bubble সুপার অ্যাডমিনও ব্যবহার করে।
  */
 import { CATEGORIES, PRIORITY, STATUS, type Message, type Ticket } from "../../platform/support";
-import { bn, dhakaTime } from "../lib/format";
+import { bn, dhakaTime, enNum } from "../lib/format";
 import { Icon } from "./icons";
 
 export const StatusTag = ({ s, team }: { s: string; team?: boolean }) => {
@@ -53,7 +53,7 @@ export const ShopSupportList = (p: { tickets: Ticket[]; online: boolean; hours: 
         <div>
           <b data-sx-presence-text>{p.online && p.within ? "টিম এখন অনলাইনে" : "টিম এখন অফলাইনে"}</b>
           <small>সাপোর্টের সময়: প্রতিদিন {p.hours}</small>
-          {p.phone && <small>জরুরি ফোন: <a href={`tel:${p.phone}`}>{bn(p.phone)}</a></small>}
+          {p.phone && <small>জরুরি ফোন: <a href={`tel:${p.phone}`}>{enNum(p.phone)}</a></small>}
         </div>
       </div>
     </div>

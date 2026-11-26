@@ -3,7 +3,7 @@ import { pxBrowserScript } from "./fb";
 import type { Child } from "hono/jsx";
 import { NICHES } from "../shop/lib/niches";
 import { ASSET_VERSION } from "../shop/views/layout";
-import { bn, dhakaTime, taka } from "../shop/lib/format";
+import { bn, dhakaTime, taka, enNum } from "../shop/lib/format";
 
 export const PLATFORM_NAME = "SellxBD";
 import { SiteFooter } from "./pages";
@@ -415,7 +415,7 @@ export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode
             <span class="hp-ic"><Icon name="phone" /></span>
             <h3>কল বা WhatsApp</h3>
             <p>শুরু করার আগে কিছু জানতে চান? সরাসরি কথা বলুন।</p>
-            {f.support ? <a href={`tel:${f.support}`} class="hp-link">{bn(f.support)} <Icon name="arrow-right" size="sm" /></a> : <a href="/contact" class="hp-link">যোগাযোগ <Icon name="arrow-right" size="sm" /></a>}
+            {f.support ? <a href={`tel:${f.support}`} class="hp-link">{enNum(f.support)} <Icon name="arrow-right" size="sm" /></a> : <a href="/contact" class="hp-link">যোগাযোগ <Icon name="arrow-right" size="sm" /></a>}
           </div>
         </div>
       </div>
@@ -563,7 +563,7 @@ export const HomePage = ({ devMode, fees: f, demos = [], posts = [] }: { devMode
         </div>
         <div class="hp-final-cta">
           <a href="/signup" class="btn btn-accent btn-lg">ফ্রিতে দোকান খুলুন <Icon name="arrow-right" /></a>
-          {f.support && <a href={`tel:${f.support}`} class="hp-final-call"><Icon name="phone" size="sm" /> {bn(f.support)}</a>}
+          {f.support && <a href={`tel:${f.support}`} class="hp-final-call"><Icon name="phone" size="sm" /> {enNum(f.support)}</a>}
         </div>
       </div>
     </section>

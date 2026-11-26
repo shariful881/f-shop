@@ -2,7 +2,7 @@ import { linesSubtotal, type HomeSection, type Product, type Variant } from "../
 import type { Settings } from "../lib/settings";
 import type { Order, OrderItem } from "../lib/orders";
 import { AREA_LABEL } from "../lib/orders";
-import { bn, discountPercent, imageUrl, taka, youtubeId } from "../lib/format";
+import { bn, discountPercent, imageUrl, taka, youtubeId, enNum } from "../lib/format";
 import { deliveryCharge, freeDeliveryMin } from "../lib/settings";
 import { parseLanding } from "../lib/landing";
 import { sanitizeHtml } from "../lib/sanitize";
@@ -106,7 +106,7 @@ const AdvanceBox = ({ s, area, total, delivery, form }: { s: Settings; area: str
         {methods.map((m) => (
           <label class="pay-method">
             <input type="radio" name="pay_method" value={m.key} checked={picked === m.key} />
-            <span><b>{m.name}</b> <span class="pay-num" data-copy-text={m.number}>{m.number}</span><small>{PAY_TYPE[m.type] ?? ""}</small></span>
+            <span><b>{m.name}</b> <span class="pay-num" data-copy-text={enNum(m.number)}>{enNum(m.number)}</span><small>{PAY_TYPE[m.type] ?? ""}</small></span>
           </label>
         ))}
       </div>
@@ -416,7 +416,7 @@ export const CheckoutPage = ({ products, settings, form, closed, max = 5 }: { pr
 /* ---------- ধন্যবাদ ---------- */
 /** ধন্যবাদের লেখায় {name}, {order_no}, {total}, {phone}, {shop} বসানো */
 export function fillThanks(t: string, o: Order, s: Settings): string {
-  const map: Record<string, string> = { name: o.name, order_no: o.order_no, orderid: o.order_no, total: taka(o.total).replace("৳", ""), totalamount: taka(o.total).replace("৳", ""), phone: bn(o.phone), shop: s.site_name || "", mysite: s.site_name || "" };
+  const map: Record<string, string> = { name: o.name, order_no: o.order_no, orderid: o.order_no, total: taka(o.total).replace("৳", ""), totalamount: taka(o.total).replace("৳", ""), phone: enNum(o.phone), shop: s.site_name || "", mysite: s.site_name || "" };
   return t.replace(/\{(\w+)\}/g, (m, k: string) => map[k.toLowerCase()] ?? m);
 }
 export const ThanksPage = ({ order, items, settings }: { order: Order; items: OrderItem[]; settings: Settings }) => (
@@ -424,7 +424,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     <div class="thanks-icon">✓</div>
     <h1>ধন্যবাদ, আপনার অর্ডারটি পেয়েছি!</h1>
     <p class="order-no">অর্ডার নম্বর: <strong>{order.order_no}</strong></p>
-    {settings.thanks_message ? <p class="thanks-message">{fillThanks(settings.thanks_message, order, settings)}</p> : <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{bn(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>}
+    {settings.thanks_message ? <p class="thanks-message">{fillThanks(settings.thanks_message, order, settings)}</p> : <p>আমাদের প্রতিনিধি শীঘ্রই <strong>{enNum(order.phone)}</strong> নম্বরে কল করে অর্ডারটি কনফার্ম করবেন।</p>}
     <div class="summary">
       {items.map((i) => <div><span>{i.product_name}{i.variant_label ? ` (${i.variant_label})` : ""}{(i.qty || 1) > 1 ? ` × ${bn(i.qty)}` : ""}</span><span>{taka(i.price * (i.qty || 1))}</span></div>)}
       <div><span>ডেলিভারি চার্জ ({AREA_LABEL[order.area]})</span><span>{taka(order.delivery_charge)}</span></div>
@@ -437,7 +437,7 @@ export const ThanksPage = ({ order, items, settings }: { order: Order; items: Or
     </div>
     {order.pay_trx && <p class="small">আপনার অগ্রিম পেমেন্ট দোকান মিলিয়ে দেখবে, তারপর অর্ডার কনফার্ম হবে।</p>}
     <p class="muted">ঠিকানা: {order.address}</p>
-    <p>কোনো প্রশ্ন থাকলে কল করুন: <a href={`tel:${settings.contact_phone}`}>{bn(settings.contact_phone || "")}</a></p>
+    <p>কোনো প্রশ্ন থাকলে কল করুন: <a href={`tel:${enNum(settings.contact_phone).replace(/[^\d+]/g, "")}`}>{enNum(settings.contact_phone || "")}</a></p>
     <a href="/" class="btn btn-outline">আরও পণ্য দেখুন</a>
   </div>
 );

@@ -104,7 +104,7 @@
       var a = el("a", null, "WhatsApp"); a.href = "https://wa.me/88" + state.phone; a.target = "_blank"; a.rel = "noopener";
       foot.appendChild(a);
       foot.appendChild(document.createTextNode(" বা ফোন: "));
-      var t = el("a", null, bn(state.phone)); t.href = "tel:" + state.phone;
+      var t = el("a", null, String(state.phone)); t.href = "tel:" + state.phone;
       foot.appendChild(t);
     }
     var has = !!state.chat;

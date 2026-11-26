@@ -9,7 +9,7 @@ import type { HomeSection, Product } from "../lib/products";
 import type { Settings } from "../lib/settings";
 import { freeDeliveryMin, themeOf } from "../lib/settings";
 import { homeOrder, type Cfg } from "../lib/theme-config";
-import { bn, dhakaTime, imageUrl, taka } from "../lib/format";
+import { bn, dhakaTime, imageUrl, taka, enNum } from "../lib/format";
 import { AREA_LABEL, STATUS_LABEL, type Order, type OrderItem } from "../lib/orders";
 import { ProductCard } from "./shop";
 
@@ -46,8 +46,8 @@ export const Icon = ({ name, size = 22 }: { name: keyof typeof I; size?: number 
   </svg>
 );
 
-const phoneHref = (s: Settings) => `tel:${(s.contact_phone || "").replace(/[^\d+]/g, "")}`;
-export const waHref = (s: Settings) => (s.whatsapp ? `https://wa.me/88${s.whatsapp.replace(/\D/g, "").replace(/^88/, "")}` : "");
+const phoneHref = (s: Settings) => `tel:${enNum(s.contact_phone).replace(/[^\d+]/g, "")}`;
+export const waHref = (s: Settings) => (s.whatsapp ? `https://wa.me/88${enNum(s.whatsapp).replace(/\D/g, "").replace(/^88/, "")}` : "");
 const on = (cfg: Cfg, k: string) => cfg[k] === "1";
 const cartIco = (cfg: Cfg): keyof typeof I => (cfg.cart_icon === "bag" ? "bag" : cfg.cart_icon === "basket" ? "basket" : "cart");
 const safeLink = (l?: string) => (l && /^(\/[^/]|https:\/\/)/.test(l) ? l : undefined);
@@ -68,7 +68,7 @@ const TopBar = ({ s, cfg }: { s: Settings; cfg: Cfg }) => {
     <div class="px-topbar">
       <div class={`wrap px-topbar-in ${hot ? "" : "solo"}`}>
         <span class="px-note">{note}</span>
-        {hot && <a href={phoneHref(s)} class="px-hotline"><Icon name="phone" size={14} /> হটলাইন: {bn(s.contact_phone!)}</a>}
+        {hot && <a href={phoneHref(s)} class="px-hotline"><Icon name="phone" size={14} /> হটলাইন: {enNum(s.contact_phone!)}</a>}
       </div>
     </div>
   );
@@ -87,7 +87,7 @@ const Drawer = ({ s, nav, cfg, pages = [] }: { s: Settings; nav: NavCat[]; cfg: 
       <a href="/cart">কার্ট</a>
       {on(cfg, "track_link") && <a href="/track">অর্ডার ট্র্যাক করুন</a>}
       {pages.map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}
-      {s.contact_phone && <a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a>}
+      {s.contact_phone && <a href={phoneHref(s)}>📞 {enNum(s.contact_phone)}</a>}
     </aside>
     <label for="px-drawer" class="px-scrim" aria-hidden="true"></label>
   </>
@@ -119,7 +119,7 @@ export const StoreHeader = ({ s, cfg, cartCount, nav, q, pages = [] }: { s: Sett
   );
   const call = on(cfg, "header_call") && s.contact_phone && (
     <a href={phoneHref(s)} class="px-call px-only-desktop">
-      <Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{bn(s.contact_phone)}</b></span>
+      <Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{enNum(s.contact_phone)}</b></span>
     </a>
   );
   const shell = (header: Child) => (
@@ -138,7 +138,7 @@ export const StoreHeader = ({ s, cfg, cartCount, nav, q, pages = [] }: { s: Sett
           {menuBtn}
           <a href="/" class="logo">{logo}</a>
           {search && <div class="px-only-desktop px-search-wrap"><SearchBox q={q} /></div>}
-          {on(cfg, "header_call") && s.contact_phone && <a href={phoneHref(s)} class="px-call px-only-desktop"><Icon name="phone" size={18} /> {bn(s.contact_phone)}</a>}
+          {on(cfg, "header_call") && s.contact_phone && <a href={phoneHref(s)} class="px-call px-only-desktop"><Icon name="phone" size={18} /> {enNum(s.contact_phone)}</a>}
           <a href="/cart" class="cart-link" aria-label="কার্ট">
             <Icon name={cartIco(cfg)} size={20} /> কার্ট <span class="cart-count" data-cart-count>{bn(cartCount)}</span>
           </a>
@@ -259,7 +259,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
               {pages.map((pg) => <a href={pg.href ?? `/page/${pg.slug}`}>{pg.title}</a>)}
             </nav>
             <p class="px-fc-contact">
-              {s.contact_phone && <a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a>}
+              {s.contact_phone && <a href={phoneHref(s)}>📞 {enNum(s.contact_phone)}</a>}
               {wa && <a href={wa} target="_blank" rel="noopener">💬 WhatsApp</a>}
               {s.store_email && <a href={`mailto:${s.store_email}`}>✉️ {s.store_email}</a>}
             </p>
@@ -279,7 +279,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
         {trust}
         <footer class="site-footer">
           <div class="wrap">
-            {s.contact_phone && <p>যেকোনো প্রয়োজনে কল করুন: <a href={phoneHref(s)}>{bn(s.contact_phone)}</a></p>}
+            {s.contact_phone && <p>যেকোনো প্রয়োজনে কল করুন: <a href={phoneHref(s)}>{enNum(s.contact_phone)}</a></p>}
             {(wa || s.store_email || socials.length > 0) && (
               <p class="footer-links">
                 {track && <a href="/track">অর্ডার ট্র্যাক</a>}
@@ -329,7 +329,7 @@ export const StoreFooter = ({ s, cfg, nav, pages = [] }: { s: Settings; cfg: Cfg
           <div>
             <h4>যোগাযোগ</h4>
             <ul>
-              {s.contact_phone && <li><a href={phoneHref(s)}>📞 {bn(s.contact_phone)}</a></li>}
+              {s.contact_phone && <li><a href={phoneHref(s)}>📞 {enNum(s.contact_phone)}</a></li>}
               {wa && <li><a href={wa} target="_blank" rel="noopener">💬 WhatsApp</a></li>}
               {s.store_email && <li><a href={`mailto:${s.store_email}`}>✉️ {s.store_email}</a></li>}
               {s.store_address && <li>📍 {s.store_address}</li>}
@@ -457,7 +457,7 @@ export const StoreHome = ({ s, cfg, sections, picked, latest }: { s: Settings; c
             <div class="px-hero-main">
               {slider}
               <div class="px-hero-side px-only-desktop">
-                {s.contact_phone && <a href={phoneHref(s)} class="px-hs-box"><Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{bn(s.contact_phone)}</b></span></a>}
+                {s.contact_phone && <a href={phoneHref(s)} class="px-hs-box"><Icon name="phone" /><span><small>অর্ডার করতে কল করুন</small><b>{enNum(s.contact_phone)}</b></span></a>}
                 <div class="px-hs-box"><Icon name="truck" /><span><small>ডেলিভারি চার্জ</small><b>ঢাকায় ৳{bn(inside || "60")} · বাইরে ৳{bn(outside || "120")}</b></span></div>
                 <div class="px-hs-box"><Icon name="cash" /><span><small>পেমেন্ট</small><b>পণ্য হাতে পেয়ে টাকা দিন</b></span></div>
               </div>
@@ -680,7 +680,7 @@ export const ComingSoonPage = ({ s, cfg }: { s: Settings; cfg: Cfg }) => (
       <main class="px-soon-box">
         {s.logo ? <img src={imageUrl(s.logo)} alt={s.site_name || ""} height="64" /> : <h1>{s.site_name}</h1>}
         <p>{cfg.coming_soon_text}</p>
-        {s.contact_phone && <a href={phoneHref(s)} class="btn btn-primary">📞 {bn(s.contact_phone)}</a>}
+        {s.contact_phone && <a href={phoneHref(s)} class="btn btn-primary">📞 {enNum(s.contact_phone)}</a>}
       </main>
     </body>
   </html>
@@ -704,7 +704,7 @@ export const TrackPage = ({ s, order, error, values }: { s: Settings; order: { o
         <div class="px-track-result">
           <p>অর্ডার <b>{order.order.order_no}</b> · {dhakaTime(order.order.created_at)}</p>
           {st === "cancelled" || st === "fake" ? (
-            <div class="alert alert-error">এই অর্ডারটি বাতিল হয়েছে। প্রশ্ন থাকলে কল করুন: {bn(s.contact_phone || "")}</div>
+            <div class="alert alert-error">এই অর্ডারটি বাতিল হয়েছে। প্রশ্ন থাকলে কল করুন: {enNum(s.contact_phone || "")}</div>
           ) : (
             <ol class="px-steps">
               {STEPS.map((k, i) => <li class={i <= idx ? "done" : ""}><span>{bn(i + 1)}</span>{STATUS_LABEL[k]}</li>)}
