@@ -375,7 +375,7 @@ export type ShopRow = {
   id: string; slug: string; name: string; owner_name: string | null; owner_phone: string | null; owner_email: string | null;
   status: string; trial_ends_at: string | null; trial_orders_left: number; created_at: string; domains: string | null;
   balance: number; confirmed_orders: number; last_order_at: string | null; last_login_at: string | null; staff_count: number;
-  plan?: string; period_orders?: number; plan_next?: string | null; deleted_at?: string | null; delete_warned?: string | null;
+  plan?: string; period_orders?: number; plan_next?: string | null; deleted_at?: string | null; delete_warned?: string | null; demo_niche?: string | null;
   email_verified?: number; phone_verified?: number; signup_ip?: string | null; risk?: string | null; risk_cleared?: number;
   next_bill_at: string | null; low_balance_since: string | null; activated_at: string | null; first_topup_at: string | null; status_changed_at: string | null;
 };
@@ -561,6 +561,13 @@ export const ShopDetailPage = (p: {
       </div>
 
       <VerifyRiskBox s={s} canEdit={can(r, "shop.status")} />
+
+      {!s.deleted_at && !s.demo_niche && can(r, "demos") && (
+        <form method="post" action={`/super/shops/${s.id}/refresh-samples`} class="sa-form" style="margin:0 0 12px"
+          data-confirm="এই দোকানে ছবিসহ ১২টা নমুনা পণ্য বসবে (আগের ছবি ছাড়া কাঠের নমুনা থাকলে সরে যাবে), আর ব্যানার/ক্যাটাগরির ছবি খালি থাকলে বসবে। দোকানদারের নিজের পণ্যে হাত পড়বে না। চালাবেন?">
+          <button class="sa-btn sa-btn-sm sa-btn-ghost">🖼 ছবিসহ নমুনা পণ্য ও ব্যানার বসান</button>
+        </form>
+      )}
 
       {p.live && <LiveStats l={p.live} />}
 
@@ -841,7 +848,7 @@ export const AnnouncementsPage = ({ rows }: { rows: AnnRow[] }) => (
 
 /* ---------- অডিট লগ ---------- */
 export const ACTION_LABEL: Record<string, string> = {
-  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "shop.restore_deleted": "মুছে ফেলা দোকান ফেরানো", "backup.deleted_download": "মুছে ফেলা দোকানের কপি নামানো", "backup.full": "পুরো ব্যাকআপ", "backup.platform": "মূল ডাটাবেসের ব্যাকআপ", "backup.shop": "দোকানের ব্যাকআপ", "backup.images": "ছবির ব্যাকআপ", "backup.code": "কোডের ব্যাকআপ", "backup.secrets": "চাবির ব্যাকআপ", "backup.unlock": "ব্যাকআপ খোলা", "backup.unlock_fail": "ব্যাকআপ খুলতে ভুল পাসওয়ার্ড", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
+  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "shop.restore_deleted": "মুছে ফেলা দোকান ফেরানো", "shop.samples": "ছবিসহ নমুনা বসানো", "shop.samples_bulk": "সব দোকানে ছবিসহ নমুনা", "backup.deleted_download": "মুছে ফেলা দোকানের কপি নামানো", "backup.full": "পুরো ব্যাকআপ", "backup.platform": "মূল ডাটাবেসের ব্যাকআপ", "backup.shop": "দোকানের ব্যাকআপ", "backup.images": "ছবির ব্যাকআপ", "backup.code": "কোডের ব্যাকআপ", "backup.secrets": "চাবির ব্যাকআপ", "backup.unlock": "ব্যাকআপ খোলা", "backup.unlock_fail": "ব্যাকআপ খুলতে ভুল পাসওয়ার্ড", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
   "shop.impersonate": "দোকানে সাপোর্ট লগইন", "shop.note": "নোট", "topup.approve": "রিচার্জ অনুমোদন", "topup.reject": "রিচার্জ বাতিল",
   "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ", "blog.save": "ব্লগ পোস্ট সেভ", "blog.delete": "ব্লগ পোস্ট মুছা",
   "team.add": "টিমে যোগ", "team.update": "টিম সদস্য বদল", "team.password": "পাসওয়ার্ড বদল", "export.shops": "দোকানের তালিকা ডাউনলোড",
@@ -1189,6 +1196,9 @@ export const DemosPage = ({ rows, support }: { rows: DemoRow[]; support: string 
     <p class="sa-muted">প্রতিটা নিশের একটা ডেমো দোকান — সাপোর্ট নম্বর {support || "(সেটিংসে বসান)"}, উপরে ডেমো বার, অর্ডার বন্ধ, বিল হয় না। "তৈরি / আপডেট" আবার চাপলে নতুন পণ্য বা পেজ যোগ হয়, আগের ছবি থাকে।
       ডেমোর ছবি সাইটের নিজের ফাইল থেকে আসে (repo-র <code>public/demo-img</code>) — সাইনআপে নিশ বাছলে নতুন দোকানে কপি হয় না, সব দোকান এক জায়গার ছবি দেখায়, দোকানের জায়গায় গোনা হয় না।</p>
     <form method="post" action="/super/demos-share-images" class="sa-form" style="margin:8px 0 14px"><button class="sa-btn sa-btn-sm sa-btn-ghost">আগের দোকানে কপি হওয়া ডেমো ছবি এক জায়গায় আনুন (জায়গা খালি)</button></form>
+    <form method="post" action="/super/demos/refresh-samples" class="sa-form" style="margin:0 0 14px" data-confirm="যেসব দোকানে এখনো আগের ছবি ছাড়া ৩টা কাঠের নমুনা পণ্য আছে (অর্ডার হয়নি), সেগুলো সরিয়ে ছবিসহ ১২টা নমুনা পণ্য, ব্যানার আর ক্যাটাগরির ছবি বসবে। দোকানদারের নিজের পণ্যে হাত পড়বে না। চালাবেন?">
+      <button class="sa-btn sa-btn-sm">🖼 পুরনো দোকানগুলোর ছবি ছাড়া নমুনা পণ্য বদলে ছবিসহ নমুনা বসান</button>
+    </form>
     <div class="sa-table-wrap"><table class="sa-table">
       <thead><tr><th>নিশ</th><th>দোকান</th><th>পণ্য</th><th></th></tr></thead>
       <tbody>{rows.map((r) => (

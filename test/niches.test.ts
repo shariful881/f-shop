@@ -94,7 +94,7 @@ describe("সাইনআপে নিশ বাছাই", () => {
     await signup({ slug: "vulshop", niche: "nai" });
     const s = (await pdb().prepare("SELECT id, niche FROM shops WHERE slug = 'vulshop'").first<{ id: string; niche: string | null }>())!;
     expect(s.niche).toBeNull();
-    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(3);
+    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(12);
     const html = await (await new Browser().fetch("/signup?niche=khatibari", { base: P } as RequestInit)).text();
     expect(html).toMatch(/<option value="khatibari" selected/);
   });
@@ -215,5 +215,29 @@ describe("একসাথে ছবি আপলোড", () => {
     expect(p.image).toMatch(/^p\/.+\.png$/);
     expect(((await DB.prepare("SELECT value FROM settings WHERE key = 'banner_2'").first()) as any).value).toMatch(/^banner2\//);
     expect(nicheByKey("sutokotha")?.name).toBe("সুতোকথা");
+  });
+});
+
+describe("ছবিসহ নমুনা", () => {
+  it("পুরনো ছবি ছাড়া কাঠের নমুনা বদলে ছবিসহ নমুনা; অর্ডার হওয়া বা নিজের পণ্যে হাত দেয় না", async () => {
+    const { runInDurableObject } = await import("cloudflare:test");
+    const { shopStub, createShop } = await import("./helpers");
+    await createShop("old-sample", "old-sample");
+    const r = await runInDurableObject(shopStub("old-sample"), async (i: any) => {
+      await i.ensureInit("old-sample", true); // পুরনো ৩টা কাঠের নমুনা
+      await i.db.prepare("INSERT INTO products (name, slug, price, is_active) VALUES ('নিজের পণ্য', 'nijer', 100, 1)").run();
+      const res = await i.refreshSampleProducts("old-sample", true);
+      const rows = (await i.db.prepare("SELECT slug, image FROM products").all()).results;
+      return { res, rows };
+    });
+    expect(r.res.removed).toBe(3);
+    expect(r.res.added).toBe(12);
+    const slugs = r.rows.map((x: any) => x.slug);
+    expect(slugs).toContain("nijer");
+    expect(slugs).not.toContain("wooden-wall-shelf");
+    expect(r.rows.filter((x: any) => String(x.image).startsWith("demo/")).length).toBe(12);
+    // আবার চালালে কিছু বদলায় না
+    const again = await runInDurableObject(shopStub("old-sample"), (i: any) => i.refreshSampleProducts("old-sample", true));
+    expect(again).toEqual({ removed: 0, added: 0 });
   });
 });

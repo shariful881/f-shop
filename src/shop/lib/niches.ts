@@ -75,3 +75,66 @@ export function nicheStatements(db: Db, n: Niche, opts: { withProducts: boolean;
   }
   return out;
 }
+
+/**
+ * "সাধারণ দোকান" — সাইনআপে কোনো নিশ না বাছলে নমুনা পণ্য (মোঃ, ২৭ নভেম্বর ২০২৬):
+ * আগের ৩টা কাঠের পণ্যে ছবি ছিল না, প্রো স্টোর থিমে দোকান খালি খালি দেখাত।
+ * এখন কয়েকটা নিশের ডেমো ছবি মিলিয়ে ১২টা পণ্য, ৩টা ব্যানার আর ক্যাটাগরির ছবি — কপি নয় (key "demo/<file>")।
+ */
+type GeneralItem = { cat: string; img: string; name: string; price: number; compare: number };
+export const GENERAL_CATS: { name: string; img: string }[] = [
+  { name: "গ্যাজেট", img: "gadgetpara-05" },
+  { name: "রান্নাঘর", img: "rannaghor-01" },
+  { name: "ফ্যাশন", img: "sutokotha-01" },
+  { name: "বিউটি ও যত্ন", img: "tokmaya-05" },
+  { name: "বাচ্চার পণ্য", img: "chhottosona-11" },
+];
+export const GENERAL_ITEMS: GeneralItem[] = [
+  { cat: "গ্যাজেট", img: "gadgetpara-01", name: "TWS ইয়ারবাড ENC — ব্ল্যাক", price: 1450, compare: 1950 },
+  { cat: "গ্যাজেট", img: "gadgetpara-05", name: "কলিং স্মার্টওয়াচ ১.৯৬\" — ব্ল্যাক", price: 2450, compare: 3200 },
+  { cat: "গ্যাজেট", img: "gadgetpara-13", name: "পাওয়ার ব্যাংক ২০০০০mAh ২২.৫W", price: 2150, compare: 2700 },
+  { cat: "রান্নাঘর", img: "rannaghor-01", name: "১৪-ইন-১ ভেজিটেবল কাটার", price: 950, compare: 1250 },
+  { cat: "রান্নাঘর", img: "rannaghor-07", name: "নন-স্টিক ফ্রাই প্যান ২৬cm", price: 1450, compare: 1850 },
+  { cat: "রান্নাঘর", img: "rannaghor-13", name: "ইলেকট্রিক কেটলি ১.৮ লিটার", price: 1150, compare: 1450 },
+  { cat: "ফ্যাশন", img: "sutokotha-01", name: "ফ্লোরাল প্রিন্ট লন থ্রি-পিস — গোলাপি", price: 2150, compare: 2650 },
+  { cat: "ফ্যাশন", img: "sutokotha-18", name: "রেডিমেড লন কুর্তি — টিল", price: 1250, compare: 1600 },
+  { cat: "বিউটি ও যত্ন", img: "tokmaya-05", name: "ভিটামিন সি ব্রাইটেনিং সিরাম — ৩০ml", price: 1450, compare: 1850 },
+  { cat: "বিউটি ও যত্ন", img: "tokmaya-01", name: "ওয়াটারি সান জেল SPF50+ — ৫০ml", price: 1150, compare: 1450 },
+  { cat: "বাচ্চার পণ্য", img: "chhottosona-11", name: "সফট টেডি বিয়ার ২৪ ইঞ্চি", price: 990, compare: 1300 },
+  { cat: "বাচ্চার পণ্য", img: "chhottosona-05", name: "নিউবর্ন কটন রমপার সেট ৩ পিস", price: 990, compare: 1300 },
+];
+export const GENERAL_BANNERS = ["gadgetpara-banner-1", "rannaghor-banner-1", "sutokotha-banner-1"];
+export const generalSlug = (img: string) => `nomuna-${img}`;
+
+/** সাধারণ নমুনা দোকানের SQL — শুধু খালি জায়গায় (ব্যানার/ক্যাটাগরির ছবি আগে থাকলে বদলায় না) */
+export function generalStatements(db: Db, opts: { phone?: string; tagline?: string }) {
+  const out: unknown[] = [];
+  const setIfEmpty = (k: string, v: string) =>
+    out.push(db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value WHERE settings.value = ''").bind(k, v));
+  GENERAL_CATS.forEach((c, i) => {
+    out.push(db.prepare("INSERT INTO categories (name, sort_order) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = ?)").bind(c.name, i + 1, c.name));
+    out.push(db.prepare("UPDATE categories SET image = ? WHERE name = ? AND (image IS NULL OR image = '')").bind(`demo/${c.img}.jpg`, c.name));
+  });
+  GENERAL_ITEMS.forEach((p, i) => {
+    out.push(db.prepare(
+      `INSERT OR IGNORE INTO products (category_id, name, slug, price, compare_price, headline, short_desc, details_html, image, is_active, show_on_home, sort_order)
+       VALUES ((SELECT id FROM categories WHERE name = ?), ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)`,
+    ).bind(p.cat, p.name, generalSlug(p.img), p.price, p.compare, p.name, `${p.name} — নমুনা পণ্য, নিজের পণ্য যোগ করে এটা মুছে দিন।`,
+      "<h3>পণ্যের বিবরণ</h3><p>এটা নমুনা পণ্য — আপনার দোকান কেমন দেখাবে বোঝার জন্য। অ্যাডমিন প্যানেল থেকে নিজের পণ্য যোগ করুন, তারপর নমুনাগুলো মুছে দিন।</p><p>ঢাকার ভেতরে ১–২ দিনে, ঢাকার বাইরে ২–৪ দিনে ক্যাশ অন ডেলিভারি।</p>",
+      `demo/${p.img}.jpg`, i + 1));
+  });
+  GENERAL_BANNERS.forEach((b, i) => setIfEmpty(`banner_${i + 1}`, `demo/${b}.jpg`));
+  out.push(db.prepare("INSERT INTO settings (key, value) VALUES ('theme_cfg_pro', ?) ON CONFLICT(key) DO NOTHING").bind(JSON.stringify({
+    topbar: "1", announcement: opts.tagline || "ক্যাশ অন ডেলিভারি — পণ্য হাতে পেয়ে টাকা দিন", header_search: "1", header_nav: "1",
+    sec_categories: "1", sec_trust: "1", sec_latest: "1", latest_count: "8", footer_trust: "1", float_whatsapp: "1", bottom_nav: "1",
+  })));
+  return out;
+}
+
+/** নিশের ক্যাটাগরিতে ছবি (প্রথম পণ্যের ডেমো ছবি) — টাইলে খালি আইকন না দেখাতে */
+export function nicheCategoryImages(db: Db, n: Niche) {
+  return n.cats.map((name) => {
+    const i = n.products.findIndex((p) => p.cat === name);
+    return i < 0 ? null : db.prepare("UPDATE categories SET image = ? WHERE name = ? AND (image IS NULL OR image = '')").bind(`demo/${nicheProductSlug(n.key, i)}.jpg`, name);
+  }).filter(Boolean);
+}

@@ -46,7 +46,7 @@ import { pushToShop } from "./lib/push";
 import { nextReminder } from "./lib/order-notes";
 import { mediaUsage } from "./lib/media";
 import seedDemoSql from "../../scripts/seed-demo.sql";
-import { nicheByKey, nicheStatements } from "./lib/niches";
+import { generalStatements, nicheByKey, nicheCategoryImages, nicheStatements } from "./lib/niches";
 import { NICHE_LOGOS } from "./data/logos";
 
 export const SHOP_MIGRATIONS: [string, string][] = [
@@ -214,10 +214,13 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     await this.ensureInit(input.shopId, false);
     const niche = nicheByKey(input.niche);
     if (niche) {
-      await this.db.batch(nicheStatements(this.db, niche, { withProducts: input.seedDemo, phone: input.ownerPhone }) as never);
+      await this.db.batch([
+        ...(nicheStatements(this.db, niche, { withProducts: input.seedDemo, phone: input.ownerPhone }) as never[]),
+        ...(input.seedDemo ? nicheCategoryImages(this.db, niche) as never[] : []),
+      ]);
     } else if (input.seedDemo) {
-      await this.seedDemo();
-      await this.db.prepare("DELETE FROM users WHERE email = 'demo@fshop.test'").run();
+      // নিশ না বাছলে "সাধারণ দোকান": ছবিসহ নমুনা পণ্য, ব্যানার, ক্যাটাগরির ছবি
+      await this.db.batch(generalStatements(this.db, { phone: input.ownerPhone }) as never[]);
     }
     await this.db.batch([
       this.db.prepare("INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1) ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, is_admin = 1")
@@ -244,6 +247,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
       this.db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, v);
     await this.db.batch([
       ...(nicheStatements(this.db, n, { withProducts: true, phone: input.phone }) as never[]),
+      ...(nicheCategoryImages(this.db, n) as never[]),
       set("site_name", n.name), set("contact_phone", input.phone), set("whatsapp", input.phone),
       set("store_address", "ঢাকা, বাংলাদেশ"), set("demo_mode", "1"), set("demo_niche", n.key), set("demo_signup_url", input.signupUrl),
       this.db.prepare("INSERT OR IGNORE INTO users (name, email, password_hash, is_admin) VALUES ('ডেমো অ্যাডমিন', ?, ?, 1)").bind(input.ownerEmail, input.passwordHash),
@@ -258,6 +262,34 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     }
     const p = await this.db.prepare("SELECT COUNT(*) n, COALESCE(SUM(image IS NOT NULL AND image != ''), 0) img FROM products").first<{ n: number; img: number }>();
     return { products: p?.n ?? 0, withImage: p?.img ?? 0 };
+  }
+
+  /**
+   * আগের (ছবি ছাড়া) ৩টা কাঠের নমুনা পণ্য থাকলে সাধারণ ছবিসহ নমুনায় বদলানো (সুপার অ্যাডমিন বাটন)।
+   * শুধু যেগুলো এখনো ছবি ছাড়া, অর্ডার হয়নি; দোকানদারের নিজের পণ্যে হাত দেয় না। ব্যানার/ক্যাটাগরির ছবি শুধু খালি থাকলে।
+   */
+  async refreshSampleProducts(shopId: string, onlyIfOld = false): Promise<{ removed: number; added: number }> {
+    await this.ensureInit(shopId, false);
+    const old = ["wooden-wall-shelf", "handmade-photo-frame", "wooden-chopping-board"];
+    const ph = old.map(() => "?").join(",");
+    const { results } = await this.db.prepare(
+      `SELECT id FROM products WHERE slug IN (${ph}) AND (image IS NULL OR image = '') AND NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.product_id = products.id)`,
+    ).bind(...old).all<{ id: number }>();
+    const ids = results.map((r) => r.id);
+    if (ids.length) {
+      const ip = ids.map(() => "?").join(",");
+      await this.db.batch([
+        this.db.prepare(`DELETE FROM product_variants WHERE product_id IN (${ip})`).bind(...ids),
+        this.db.prepare(`DELETE FROM products WHERE id IN (${ip})`).bind(...ids),
+        // পুরনো নমুনার ক্যাটাগরি খালি হলে মোছা
+        this.db.prepare("DELETE FROM categories WHERE name IN ('ঘর সাজানো') AND NOT EXISTS (SELECT 1 FROM products p WHERE p.category_id = categories.id)"),
+      ]);
+    }
+    if (onlyIfOld && !ids.length) return { removed: 0, added: 0 };
+    const before = await this.db.prepare("SELECT COUNT(*) n FROM products").first<{ n: number }>();
+    await this.db.batch(generalStatements(this.db, {}) as never[]);
+    const after = await this.db.prepare("SELECT COUNT(*) n FROM products").first<{ n: number }>();
+    return { removed: ids.length, added: (after?.n ?? 0) - (before?.n ?? 0) };
   }
 
   /** কোন নিশ-পণ্য আর ব্যানারে এখনো ছবি নেই (ডেমোতে ছবি বসানোর জন্য) */

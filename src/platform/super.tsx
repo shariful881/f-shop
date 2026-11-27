@@ -868,6 +868,33 @@ superApp.post("/demos/:key", async (c) => {
   return c.redirect("/super/demos", 303);
 });
 
+/** আগের ছবি ছাড়া কাঠের নমুনা পণ্য → ছবিসহ সাধারণ নমুনা (একটা দোকানে, বা যেসব দোকানে পুরনো নমুনা এখনো আছে) */
+superApp.post("/shops/:id/refresh-samples", async (c) => {
+  if (!allowed(c, "demos")) return forbidden(c);
+  const id = c.req.param("id");
+  const r = await c.env.SHOP.getByName(id).refreshSampleProducts(id);
+  clearShopCache();
+  await audit(c, "shop.samples", "shop", id, `পুরনো নমুনা ${r.removed}, নতুন ${r.added}`);
+  flash(c, "ok", `ছবিসহ নমুনা বসেছে — পুরনো ${bn(r.removed)}টা সরানো, নতুন ${bn(r.added)}টা পণ্য। ব্যানার আর ক্যাটাগরির ছবি খালি থাকলে বসেছে।`);
+  return c.redirect(`/super/shops/${id}`, 303);
+});
+
+superApp.post("/demos/refresh-samples", async (c) => {
+  if (!allowed(c, "demos")) return forbidden(c);
+  const { results } = await c.env.PLATFORM_DB.prepare(
+    "SELECT id FROM shops WHERE deleted_at IS NULL AND demo_niche IS NULL AND (niche IS NULL OR niche = '') ORDER BY created_at DESC LIMIT 200",
+  ).all<{ id: string }>();
+  let shops = 0, added = 0;
+  for (const s of results) {
+    const r = await c.env.SHOP.getByName(s.id).refreshSampleProducts(s.id, true).catch(() => ({ removed: 0, added: 0 }));
+    if (r.removed) { shops++; added += r.added; }
+  }
+  clearShopCache();
+  await audit(c, "shop.samples_bulk", null, null, `${shops}টা দোকানে ছবিসহ নমুনা`);
+  flash(c, "ok", shops ? `${bn(shops)}টা দোকানে পুরনো ছবি ছাড়া নমুনা বদলে ছবিসহ নমুনা বসেছে (মোট ${bn(added)}টা পণ্য)।` : "কোনো দোকানে পুরনো নমুনা পণ্য পাওয়া যায়নি।");
+  return c.redirect("/super/demos", 303);
+});
+
 superApp.get("/templates", async (c) => {
   if (!allowed(c, "templates")) return forbidden(c);
   const { results } = await c.env.PLATFORM_DB.prepare("SELECT * FROM landing_templates ORDER BY sort_order, id").all<TplRow>();
