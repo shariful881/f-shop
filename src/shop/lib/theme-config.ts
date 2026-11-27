@@ -191,6 +191,8 @@ const ALL_GROUPS: { key: string; title: string; desc: string; fields: Field[] }[
     key: "listpage", title: "ক্যাটাগরি আর সার্চ পেজ", desc: "ক্যাটাগরি, সব পণ্য আর সার্চের ফলাফলের পেজ।",
     fields: [
       { key: "list_per_page", type: "select", label: "এক পাতায় কয়টা পণ্য", options: { "24": "২৪টা", "48": "৪৮টা", "96": "৯৬টা" } },
+      { key: "list_cat_image", type: "toggle", label: "ক্যাটাগরির ছবি (উপরের ব্যানার)", hint: "ক্যাটাগরিতে ছবি দেওয়া থাকলে পেজের উপরে দেখায়" },
+      { key: "list_cat_title", type: "toggle", label: "ক্যাটাগরির নাম আর পণ্যের সংখ্যা", hint: "বন্ধ করলেও Google-এর জন্য নামটা লুকিয়ে থাকে" },
       { key: "list_filter", type: "toggle", label: "দামের ফিল্টার (সর্বনিম্ন–সর্বোচ্চ)" },
       { key: "list_sort", type: "toggle", label: "\"সাজান\" (দাম কম-বেশি, নতুন)" },
       { key: "breadcrumbs", type: "toggle", label: "উপরে পথ দেখানো (হোম › ...)" },
@@ -286,7 +288,7 @@ const BASE: Cfg = {
   product_link: "product", pd_cart_text: "কার্টে যোগ করুন", pd_buy_text: "এখনই কিনুন", pd_delivery_info: "1", pd_trust: "1",
   pd_call: "1", pd_call_text: "কল করে অর্ডার করুন", pd_wa: "1", pd_wa_text: "WhatsApp-এ জিজ্ঞাসা করুন", pd_msg: "0", pd_msg_text: "Messenger-এ মেসেজ দিন",
   pd_sticky: "1", pd_sticky_text: "অর্ডার করুন", pd_variant_style: "pills", pd_zoom: "1", pd_share: "0", pd_related: "1", pd_related_title: "আরও দেখুন", pd_related_count: "4", pd_related_mobile: "auto", pd_related_desktop: "auto",
-  card_btn_size: "md", list_filter: "1", list_per_page: "24", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
+  card_btn_size: "md", list_filter: "1", list_per_page: "24", list_cat_image: "1", list_cat_title: "1", header_pages: "1", footer_logo: "", footer_payments: "ক্যাশ অন ডেলিভারি, bKash, Nagad", side_cart: "1",
   hero_style: "slider", title_style: "ribbon", marquee: "0", offers_countdown: "0", card_design: "classic",
   rv_show: "1", rv_landing: "0", rv_title: "ক্রেতাদের রিভিউ", rv_layout: "list", rv_count: "10", rv_summary: "1", rv_verified: "1", rv_photos: "1", rv_reply: "1",
   rv_empty: "show", rv_empty_text: "এখনো কোনো রিভিউ নেই।", rv_btn: "1", rv_btn_text: "এই পণ্য কিনেছেন? রিভিউ দিন", rv_card_stars: "1",
