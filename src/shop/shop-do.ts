@@ -210,6 +210,7 @@ export class ShopDO extends DurableObject<WorkerEnv> {
    * ফেরত দেয় এককালীন লগইন টোকেন (৫ মিনিট) — দোকানের ঠিকানায় সরাসরি ড্যাশবোর্ডে ঢোকার জন্য।
    */
   async setupShop(input: SetupInput): Promise<string> {
+    this.migrate(); // মুছে ফেলা দোকান ফেরানোর সময় একই instance-এ টেবিল আবার লাগে (নতুন দোকানে কিছু করে না)
     await this.ensureInit(input.shopId, false);
     const niche = nicheByKey(input.niche);
     if (niche) {
@@ -386,6 +387,20 @@ export class ShopDO extends DurableObject<WorkerEnv> {
     }
     out.users = (await this.db.prepare("SELECT id, email, name, role, is_admin, active, created_at FROM users").all().catch(() => ({ results: [] }))).results;
     return { shop_id: shopId, exported_at: new Date().toISOString(), tables: out };
+  }
+
+  /** মুছে ফেলা দোকান ফেরানোর সময় ছবির তথ্য (ফাইল R2-তে রাখা আছে) */
+  async restoreImageMeta(shopId: string, rows: { key: string; type: string; size: number; name?: string; alt?: string; width?: number; height?: number; created_at?: string }[]): Promise<number> {
+    await this.ensureInit(shopId, false);
+    let n = 0;
+    for (const r of rows) {
+      if (!r || typeof r.key !== "string") continue;
+      await this.db.prepare(
+        "INSERT OR IGNORE INTO images (key, type, size, chunks, created_at, name, alt, width, height, r2) VALUES (?, ?, ?, 0, COALESCE(?, datetime('now')), ?, ?, ?, ?, 1)",
+      ).bind(r.key, r.type || "image/jpeg", Number(r.size) || 0, r.created_at ?? null, r.name ?? null, r.alt ?? null, r.width ?? null, r.height ?? null).run();
+      n++;
+    }
+    return n;
   }
 
   /** ব্যাকআপের জন্য দোকানের ছবির তালিকা (শুধু তথ্য, বাইট নয়) */

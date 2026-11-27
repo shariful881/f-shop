@@ -397,6 +397,7 @@ export const SHOP_FILTERS: Record<string, string> = {
   domain_pending: "ডোমেইন অপেক্ষায়",
   suspicious: "সন্দেহজনক",
   phone_pending: "ফোনে যাচাই বাকি",
+  trial_idle: "নিষ্ক্রিয় ট্রায়াল",
   demo: "ডেমো (হিসাবে নেই)",
 };
 export const SHOP_SORTS: Record<string, string> = { new: "নতুন আগে", old: "পুরনো আগে", orders: "বেশি অর্ডার", balance_low: "কম ব্যালেন্স", balance_high: "বেশি ব্যালেন্স", last_order: "সাম্প্রতিক অর্ডার", name: "নাম" };
@@ -504,6 +505,7 @@ const PLAN_NAME: Record<string, string> = { free: "ফ্রি", small: "ছো
 
 export const ShopDetailPage = (p: {
   s: ShopRow;
+  kept?: { bytes: number; images_kept: number; created_at: string; expires_at: string } | null;
   role: SuperRole;
   shopLink: string;
   domains: { hostname: string; status: string; error: string | null; checked_at: string | null }[];
@@ -526,6 +528,19 @@ export const ShopDetailPage = (p: {
           <h2>{s.name} <StatusPill s={s.status} /></h2>
           <p class="sa-muted">{s.owner_name} · {s.owner_phone} · {s.owner_email} · তৈরি {dhakaTime(s.created_at)}</p>
           {s.deleted_at && <p class="sa-alert sa-alert-err">দোকানের সব ডাটা {dhakaTime(s.deleted_at)}-এ মুছে ফেলা হয়েছে ({s.delete_warned === "super" ? "সুপার অ্যাডমিন" : "৩০ দিন অচল বা বন্ধ"})। শুধু দোকানদারের তথ্য, প্ল্যান আর লেনদেন আছে।</p>}
+          {s.deleted_at && (p.kept ? (
+            <div class="sa-alert sa-kept">
+              <p><b>দোকানের ডাটার কপি রাখা আছে</b> — {dhakaTime(p.kept.expires_at).slice(0, 10)} পর্যন্ত ({p.kept.images_kept ? "ছবিসহ" : "ছবি ছাড়া"})। দোকানদার ফিরে এলে ফেরাতে পারবেন।</p>
+              {can(r, "backup") && (
+                <div class="sa-kept-actions">
+                  <form method="post" action={`/super/shops/${s.id}/restore-deleted`} class="sa-inline" data-confirm={`${s.name} দোকান কপি থেকে ফেরাবেন? দোকান চালু (ফ্রি প্ল্যান) হবে; মালিক "পাসওয়ার্ড ভুলে গেছেন?" দিয়ে নতুন পাসওয়ার্ড দেবেন।`}>
+                    <button class="sa-btn sa-btn-primary sa-btn-sm">↩ দোকান ফেরান</button>
+                  </form>
+                  <a class="sa-btn sa-btn-sm" href={`/super/shops/${s.id}/deleted-backup.json`}>⬇ কপি নামান (JSON)</a>
+                </div>
+              )}
+            </div>
+          ) : <p class="sa-muted">এই দোকানের ডাটার কোনো কপি নেই (৯০ দিন পেরিয়ে গেছে, বা কপি রাখা শুরুর আগে মোছা)।</p>)}
         </div>
         <div class="sa-head-actions">
           <a href={p.shopLink} target="_blank" rel="noopener" class="sa-btn sa-btn-ghost">দোকান দেখুন ↗</a>
@@ -826,7 +841,7 @@ export const AnnouncementsPage = ({ rows }: { rows: AnnRow[] }) => (
 
 /* ---------- অডিট লগ ---------- */
 export const ACTION_LABEL: Record<string, string> = {
-  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "backup.full": "পুরো ব্যাকআপ", "backup.platform": "মূল ডাটাবেসের ব্যাকআপ", "backup.shop": "দোকানের ব্যাকআপ", "backup.images": "ছবির ব্যাকআপ", "backup.code": "কোডের ব্যাকআপ", "backup.secrets": "চাবির ব্যাকআপ", "backup.unlock": "ব্যাকআপ খোলা", "backup.unlock_fail": "ব্যাকআপ খুলতে ভুল পাসওয়ার্ড", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
+  login: "লগইন", "shop.status": "দোকানের অবস্থা বদল", "shop.export": "দোকানের ব্যাকআপ", "shop.restore": "ব্যাকআপ থেকে ফেরানো", "shop.restore_deleted": "মুছে ফেলা দোকান ফেরানো", "backup.deleted_download": "মুছে ফেলা দোকানের কপি নামানো", "backup.full": "পুরো ব্যাকআপ", "backup.platform": "মূল ডাটাবেসের ব্যাকআপ", "backup.shop": "দোকানের ব্যাকআপ", "backup.images": "ছবির ব্যাকআপ", "backup.code": "কোডের ব্যাকআপ", "backup.secrets": "চাবির ব্যাকআপ", "backup.unlock": "ব্যাকআপ খোলা", "backup.unlock_fail": "ব্যাকআপ খুলতে ভুল পাসওয়ার্ড", "shop.trial": "ট্রায়াল বাড়ানো", "shop.adjust": "ব্যালেন্স সমন্বয়", "shop.edit": "দোকানের তথ্য বদল",
   "shop.impersonate": "দোকানে সাপোর্ট লগইন", "shop.note": "নোট", "topup.approve": "রিচার্জ অনুমোদন", "topup.reject": "রিচার্জ বাতিল",
   "settings.update": "প্ল্যাটফর্ম সেটিংস", "announcement.create": "ঘোষণা প্রকাশ", "announcement.toggle": "ঘোষণা চালু/বন্ধ", "blog.save": "ব্লগ পোস্ট সেভ", "blog.delete": "ব্লগ পোস্ট মুছা",
   "team.add": "টিমে যোগ", "team.update": "টিম সদস্য বদল", "team.password": "পাসওয়ার্ড বদল", "export.shops": "দোকানের তালিকা ডাউনলোড",

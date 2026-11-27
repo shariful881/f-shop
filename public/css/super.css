@@ -413,3 +413,8 @@ a.sa-kpi:hover { border-color: #99f6e4; box-shadow: 0 6px 18px rgba(15,118,110,.
 .sl-no { background: #fee2e2; color: #991b1b; border-radius: 999px; padding: 1px 8px; font-size: .72rem; white-space: nowrap; }
 .sl-vform { display: inline; margin: 0; }
 .sl-vbtn { padding: 2px 8px !important; font-size: .72rem !important; }
+
+/* মুছে ফেলা দোকানের রাখা কপি */
+.sa-kept { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
+.sa-kept p { margin: 0 0 8px; }
+.sa-kept-actions { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { adminBrowser, Browser, createShop, DB, DEMO_SHOP_ID, resetDb, shopStub } from "./helpers";
 import { clearSettingsCache } from "../src/platform/billing";
 import { clearShopCache } from "../src/platform/resolve";
-import { runShopCleanup } from "../src/platform/cleanup";
+import { loadBackup, restoreDeletedShop, runShopCleanup } from "../src/platform/cleanup";
 import type { ShopDO } from "../src/shop/shop-do";
 
 const pdb = () => env.PLATFORM_DB;
@@ -100,5 +100,59 @@ describe("ট্রায়াল ১ মাস", () => {
     expect(html).toContain("১ মাস সব ফিচার ফ্রি");
     const home = await (await new Browser().fetch("/", { base: "https://ourdomain.com" } as RequestInit)).text();
     expect(home).toContain("৩০ দিন");
+  });
+});
+
+describe("নিষ্ক্রিয় দোকান: ট্রায়াল শেষে সময়, কপি রাখা, ফেরানো, মনে করানো", () => {
+  const make = async (id: string, slug: string, fields: string) => {
+    await createShop(id, slug);
+    await runInDurableObject(shopStub(id), (i: ShopDO) => i.ensureInit(id, false));
+    await pdb().prepare(`UPDATE shops SET ${fields}, owner_name = 'রহিম', owner_phone = '01712345678', owner_email = 'r@x.com' WHERE id = ?`).bind(id).run();
+    clearShopCache();
+  };
+
+  it("কখনো না ঢোকা দোকান ট্রায়াল শেষে সাথে সাথে মোছে না — ট্রায়াল শেষ থেকে ৩০ দিন", async () => {
+    await make("t-end", "t-end", "status = 'active', plan = 'free', created_at = datetime('now', '-40 days'), activated_at = datetime('now', '-2 days'), last_login_at = NULL");
+    await runShopCleanup(env as any);
+    const s = await pdb().prepare("SELECT deleted_at FROM shops WHERE id = 't-end'").first<{ deleted_at: string | null }>();
+    expect(s?.deleted_at).toBeNull();
+  });
+
+  it("মোছার আগে কপি রাখে; সুপার অ্যাডমিন কপি থেকে দোকান ফেরাতে পারেন", async () => {
+    await make("t-del", "t-del", "status = 'active', plan = 'free', created_at = datetime('now', '-80 days'), activated_at = datetime('now', '-50 days'), last_login_at = datetime('now', '-45 days')");
+    await runInDurableObject(shopStub("t-del"), async (i: ShopDO) => {
+      await (i as any).db.prepare("INSERT INTO products (name, slug, price, is_active) VALUES ('ফেরানোর পণ্য', 'fer-pon', 500, 1)").run();
+    });
+    const r = await runShopCleanup(env as any);
+    expect(r.deleted).toBeGreaterThanOrEqual(1);
+    const s = await pdb().prepare("SELECT deleted_at FROM shops WHERE id = 't-del'").first<{ deleted_at: string | null }>();
+    expect(s?.deleted_at).not.toBeNull();
+    const b = await loadBackup(env as any, "t-del");
+    expect(JSON.stringify(b?.data.tables.products)).toContain("ফেরানোর পণ্য");
+
+    const back = await restoreDeletedShop(env as any, "t-del");
+    expect(back.ok).toBe(true);
+    const after = await pdb().prepare("SELECT deleted_at, status FROM shops WHERE id = 't-del'").first<{ deleted_at: string | null; status: string }>();
+    expect(after).toMatchObject({ deleted_at: null, status: "active" });
+    const names = await runInDurableObject(shopStub("t-del"), async (i: ShopDO) => (await (i as any).db.prepare("SELECT name FROM products").all()).results);
+    expect(JSON.stringify(names)).toContain("ফেরানোর পণ্য");
+    expect(await loadBackup(env as any, "t-del")).toBeNull();
+  });
+
+  it("৯০ দিন পেরোলে কপি মুছে যায়", async () => {
+    await pdb().prepare("INSERT INTO deleted_backups (shop_id, slug, name, bytes, parts, expires_at) VALUES ('old-x', 'old-x', 'x', 1, 1, datetime('now', '-1 day'))").run();
+    await pdb().prepare("INSERT INTO deleted_backup_parts (shop_id, part, data) VALUES ('old-x', 0, X'00')").run();
+    await runShopCleanup(env as any);
+    expect(await pdb().prepare("SELECT 1 FROM deleted_backups WHERE shop_id = 'old-x'").first()).toBeNull();
+  });
+
+  it("ট্রায়ালে ৩ দিন প্যানেলে না ঢুকলে একবার মনে করায়; সুপার অ্যাডমিনে নিষ্ক্রিয় ট্রায়াল ফিল্টার", async () => {
+    await make("t-nudge", "t-nudge", "status = 'trial', created_at = datetime('now', '-4 days'), last_login_at = datetime('now', '-4 days')");
+    const r1 = await runShopCleanup(env as any);
+    expect(r1.nudged).toBeGreaterThanOrEqual(1);
+    const n = await pdb().prepare("SELECT nudged FROM shops WHERE id = 't-nudge'").first<{ nudged: string }>();
+    expect(n?.nudged).toContain("d3");
+    const r2 = await runShopCleanup(env as any);
+    expect(r2.nudged).toBe(0);
   });
 });

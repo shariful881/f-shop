@@ -23,6 +23,7 @@ import { registerSuperDomainSale } from "./domain-sale-super";
 import { registerSuperBackup } from "./backup-super";
 import { platformUsage } from "./usage";
 import { PHONE_PENDING_SQL, SUSPICIOUS_SQL } from "./verify";
+import { loadBackup, restoreDeletedShop, TRIAL_IDLE_SQL } from "./cleanup";
 import { confirmBrowserCheck, purgeShopsLocal, r2Status, setAutoPurge, syncShopsToR2, verifyR2Public } from "./r2";
 import { okCover, slugOk } from "./blog";
 import { okGa4, okVerify, verifyCode } from "./views";
@@ -217,6 +218,7 @@ const FILTER_SQL: Record<string, string> = {
   domain_pending: "EXISTS (SELECT 1 FROM domains d WHERE d.shop_id = s.id AND d.status = 'pending')",
   suspicious: SUSPICIOUS_SQL,
   phone_pending: PHONE_PENDING_SQL,
+  trial_idle: TRIAL_IDLE_SQL,
   demo: "s.demo_niche IS NOT NULL",
 };
 const SORT_SQL: Record<string, string> = {
@@ -298,13 +300,34 @@ superApp.get("/shops/:id", async (c) => {
   ]);
   const orders30 = series(days, ord!.results as { d: string; v: number }[]);
   // দোকানের নিজের ডাটাবেস থেকে পণ্য/অর্ডারের হিসাব (ব্যর্থ হলে পেজ তবুও খোলে)
-  const live = await c.env.SHOP.getByName(s.id).quickStats(s.id).catch(() => null);
+  const live = s.deleted_at ? null : await c.env.SHOP.getByName(s.id).quickStats(s.id).catch(() => null);
+  const kept = s.deleted_at ? await db.prepare("SELECT bytes, images_kept, created_at, expires_at FROM deleted_backups WHERE shop_id = ? AND expires_at > datetime('now')").bind(s.id)
+    .first<{ bytes: number; images_kept: number; created_at: string; expires_at: string }>() : null;
   const r = (rev!.results[0] ?? {}) as { lifetime: number | null; topups: number | null };
   return page(c, s.name, "shops",
     <ShopDetailPage s={s} role={me(c).role} shopLink={shopUrl(c.env, s.slug)} domains={dom!.results as any}
       orders30={orders30} orders30Total={orders30.reduce((x, y) => x + y.value, 0)}
       revenue={{ lifetime: r.lifetime ?? 0, topups: r.topups ?? 0 }}
-      ledger={led!.results as LedgerRow[]} topups={tps!.results as TopupRow[]} notes={notes!.results as NoteRow[]} audit={aud!.results as AuditRow[]} live={live as any} />);
+      ledger={led!.results as LedgerRow[]} topups={tps!.results as TopupRow[]} notes={notes!.results as NoteRow[]} audit={aud!.results as AuditRow[]} live={live as any} kept={kept} />);
+});
+
+/** মুছে ফেলা দোকানের রাখা কপি — নামানো (JSON) আর ফেরানো; শুধু মালিক */
+superApp.get("/shops/:id/deleted-backup.json", async (c) => {
+  if (!allowed(c, "backup")) return forbidden(c);
+  const id = c.req.param("id");
+  const b = await loadBackup(c.env, id);
+  if (!b) return c.notFound();
+  await audit(c, "backup.deleted_download", "shop", id, "মুছে ফেলা দোকানের কপি নামানো");
+  return new Response(JSON.stringify(b.data), { headers: { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="deleted-shop-${id}.json"`, "cache-control": "no-store" } });
+});
+
+superApp.post("/shops/:id/restore-deleted", async (c) => {
+  if (!allowed(c, "backup")) return forbidden(c);
+  const id = c.req.param("id");
+  const r = await restoreDeletedShop(c.env, id);
+  if (r.ok) await audit(c, "shop.restore_deleted", "shop", id, "মুছে ফেলা দোকান কপি থেকে ফেরানো");
+  flash(c, r.ok ? "ok" : "error", r.message);
+  return c.redirect(`/super/shops/${id}`, 303);
 });
 
 /** পুরো দোকানের ব্যাকআপ (JSON) — শুধু মালিক, অডিটে লেখা হয় */
