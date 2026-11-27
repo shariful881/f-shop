@@ -402,6 +402,14 @@ export function cfgCss(cfg: Cfg): string {
   if (c("c_bg")) r.push(`body{background:${c("c_bg")}}`);
   if (c("c_header_bg")) r.push(`.site-header,.px-header{background:${c("c_header_bg")}}`);
   if (c("c_header_text")) r.push(`.site-header,.site-header .logo,.cart-link,.px-header,.px-logo,.px-icon-btn,.px-call,.px-nav a{color:${c("c_header_text")}}`);
+  // হেডারে মাউস রাখলে/ছোট লেখা: রঙিন হেডারে brand রং মিশে যেত — হেডারের নিজের লেখার রং আর হালকা পর্দা
+  if (c("c_header_bg") || c("c_header_text")) {
+    const ht = c("c_header_text") || (isDark(c("c_header_bg")!) ? "#ffffff" : "#1f2937");
+    const veil = isDark(c("c_header_bg") || "#ffffff") ? "rgba(255,255,255,.16)" : "rgba(0,0,0,.06)";
+    r.push(`.px-header .px-inline-nav a:hover,.px-header .px-nav a:hover,.site-header .px-nav a:hover{color:${ht};background:${veil};border-bottom-color:${ht}}`);
+    r.push(`.px-header .px-call small,.px-header .px-call svg,.site-header .px-call svg{color:${ht};opacity:.85}`);
+    r.push(`.px-header .px-icon-btn:hover{background:${veil}}`);
+  }
   if (c("c_topbar_bg")) r.push(`.px-topbar{background:${c("c_topbar_bg")}}`);
   if (c("c_topbar_text")) r.push(`.px-topbar,.px-hotline{color:${c("c_topbar_text")}}`);
   if (c("c_btn")) r.push(`.btn-primary,.theme-pro .card-actions .btn-primary,.sticky-order{background:${c("c_btn")};border-color:${c("c_btn")}}`);
@@ -457,4 +465,13 @@ export function cfgCss(cfg: Cfg): string {
 export function cfgFontsHref(cfg: Cfg): string | null {
   const keys = [...new Set([cfg.font_body, cfg.font_heading].filter((k): k is string => !!k && !!FONTS[k]))];
   return keys.length ? `https://fonts.googleapis.com/css2?${keys.map((k) => `family=${FONTS[k]!.query}`).join("&")}&display=swap` : null;
+}
+
+/** রং গাঢ় কিনা (লেখার জন্য সাদা না কালো) — #rgb/#rrggbb */
+function isDark(hex: string): boolean {
+  let h = hex.replace("#", "").trim();
+  if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+  if (!/^[0-9a-f]{6}$/i.test(h)) return false;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b! < 0.55;
 }
