@@ -64,11 +64,14 @@ describe("সাইনআপ", () => {
     expect((await db.prepare("SELECT COUNT(*) n FROM users").first())!.n).toBe(1); // ডেমো ইউজার নেই
     expect((await db.prepare("SELECT value FROM settings WHERE key='site_name'").first())!.value).toBe("রহিমের দোকান");
     expect((await db.prepare("SELECT value FROM settings WHERE key='contact_phone'").first())!.value).toBe("01712345678");
-    expect((await db.prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(12);
+    expect((await db.prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(24);
     // নিশ না বাছলে ছবিসহ সাধারণ নমুনা: সব পণ্যে ছবি, ব্যানার, ক্যাটাগরির ছবি
-    expect((await db.prepare("SELECT COUNT(*) n FROM products WHERE image LIKE 'demo/%'").first())!.n).toBe(12);
+    expect((await db.prepare("SELECT COUNT(*) n FROM products WHERE image LIKE 'demo/%'").first())!.n).toBe(24);
+    expect((await db.prepare("SELECT COUNT(*) n FROM products WHERE landing_json IS NOT NULL").first())!.n).toBe(1);
+    expect((await db.prepare("SELECT COUNT(*) n FROM pages").first())!.n).toBeGreaterThanOrEqual(4);
+    expect((await db.prepare("SELECT COUNT(*) n FROM product_variants").first())!.n).toBeGreaterThanOrEqual(9);
     expect((await db.prepare("SELECT value FROM settings WHERE key='banner_1'").first())!.value).toMatch(/^demo\/.+\.jpg$/);
-    expect((await db.prepare("SELECT COUNT(*) n FROM categories WHERE image LIKE 'demo/%'").first())!.n).toBe(5);
+    expect((await db.prepare("SELECT COUNT(*) n FROM categories WHERE image LIKE 'demo/%'").first())!.n).toBe(6);
 
     // এককালীন টোকেনে সরাসরি ড্যাশবোর্ড
     const shopB = new Browser();

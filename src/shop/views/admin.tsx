@@ -680,9 +680,19 @@ export const OrderDetailPage = (p: { notes?: OrderNote[]; presets?: { key: strin
 };
 
 /* ---------- পণ্য ---------- */
-export const ProductsPage = ({ products, categories }: { products: Product[]; categories: Category[] }) => (
+export const ProductsPage = ({ products, categories, samples }: { products: Product[]; categories: Category[]; samples?: { count: number; own: number } }) => (
   <>
     <div class="detail-head"><h1>পণ্য</h1><div class="inline-actions"><a href="/admin/products/images" class="btn"><Icon name="image" size="sm" /> একসাথে ছবি</a> <a href="/admin/products/new" class="btn btn-primary">+ নতুন পণ্য</a></div></div>
+    {samples && samples.count > 0 && (
+      <div class={`sample-box${samples.own > 0 ? " sample-box-ready" : ""}`}>
+        <p>{samples.own > 0
+          ? <><b>নিজের পণ্য যোগ হয়েছে 🎉</b> এখন নমুনা পণ্যগুলো ({bn(samples.count)}টা) মুছে দেবেন? দোকানে শুধু আপনার পণ্য দেখাবে।</>
+          : <>দোকান কেমন দেখাবে বোঝাতে <b>{bn(samples.count)}টা নমুনা পণ্য</b> দেওয়া আছে। নিজের পণ্য যোগ করুন, তারপর এক চাপে সব নমুনা মুছে দিন।</>}</p>
+        <form method="post" action="/admin/products/remove-samples" data-confirm={`${bn(samples.count)}টা নমুনা পণ্য, নমুনার ব্যানার আর খালি ক্যাটাগরি মুছে যাবে। আপনার নিজের পণ্যে হাত পড়বে না। মুছবেন?`}>
+          <button class={samples.own > 0 ? "btn btn-primary" : "btn"}>🗑 সব নমুনা পণ্য মুছুন</button>
+        </form>
+      </div>
+    )}
     <div class="table-wrap">
       <table class="table">
         <thead><tr><th></th><th>নাম</th><th>দাম</th><th>স্টক</th><th>ক্যাটাগরি</th><th>অবস্থা</th><th></th></tr></thead>

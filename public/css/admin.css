@@ -746,3 +746,8 @@ body.admin .btn.btn-call:hover, .btn.btn-call:hover { background: #15803d !impor
   body.admin #bulk-form .bulk-bar .bulk-gap { display: none; }
   body.admin #bulk-form .bulk-bar .btn { min-height: 36px; }
 }
+
+/* নমুনা পণ্য মোছার বক্স */
+.sample-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 12px 14px; margin: 0 0 14px; }
+.sample-box p { margin: 0; flex: 1 1 320px; line-height: 1.6; }
+.sample-box-ready { background: #ecfdf5; border: 1px solid #a7f3d0; }

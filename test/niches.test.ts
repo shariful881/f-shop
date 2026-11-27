@@ -94,7 +94,7 @@ describe("সাইনআপে নিশ বাছাই", () => {
     await signup({ slug: "vulshop", niche: "nai" });
     const s = (await pdb().prepare("SELECT id, niche FROM shops WHERE slug = 'vulshop'").first<{ id: string; niche: string | null }>())!;
     expect(s.niche).toBeNull();
-    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(12);
+    expect((await shopDb(s.id).prepare("SELECT COUNT(*) n FROM products").first())!.n).toBe(24);
     const html = await (await new Browser().fetch("/signup?niche=khatibari", { base: P } as RequestInit)).text();
     expect(html).toMatch(/<option value="khatibari" selected/);
   });
@@ -220,10 +220,11 @@ describe("একসাথে ছবি আপলোড", () => {
 
 describe("ছবিসহ নমুনা", () => {
   it("পুরনো ছবি ছাড়া কাঠের নমুনা বদলে ছবিসহ নমুনা; অর্ডার হওয়া বা নিজের পণ্যে হাত দেয় না", async () => {
-    const { runInDurableObject } = await import("cloudflare:test");
+    const cft: any = await import("cloudflare:test");
+    const runIn: (stub: unknown, fn: (i: any) => Promise<any>) => Promise<any> = cft.runInDurableObject;
     const { shopStub, createShop } = await import("./helpers");
     await createShop("old-sample", "old-sample");
-    const r = await runInDurableObject(shopStub("old-sample"), async (i: any) => {
+    const r: any = await runIn(shopStub("old-sample"), async (i: any): Promise<any> => {
       await i.ensureInit("old-sample", true); // পুরনো ৩টা কাঠের নমুনা
       await i.db.prepare("INSERT INTO products (name, slug, price, is_active) VALUES ('নিজের পণ্য', 'nijer', 100, 1)").run();
       const res = await i.refreshSampleProducts("old-sample", true);
@@ -231,13 +232,30 @@ describe("ছবিসহ নমুনা", () => {
       return { res, rows };
     });
     expect(r.res.removed).toBe(3);
-    expect(r.res.added).toBe(12);
+    expect(r.res.added).toBe(24);
     const slugs = r.rows.map((x: any) => x.slug);
     expect(slugs).toContain("nijer");
     expect(slugs).not.toContain("wooden-wall-shelf");
-    expect(r.rows.filter((x: any) => String(x.image).startsWith("demo/")).length).toBe(12);
+    expect(r.rows.filter((x: any) => String(x.image).startsWith("demo/")).length).toBe(24);
     // আবার চালালে কিছু বদলায় না
-    const again = await runInDurableObject(shopStub("old-sample"), (i: any) => i.refreshSampleProducts("old-sample", true));
+    const again: any = await runIn(shopStub("old-sample"), (i: any): Promise<any> => i.refreshSampleProducts("old-sample", true));
     expect(again).toEqual({ removed: 0, added: 0 });
+  });
+});
+
+describe("সব নমুনা পণ্য মুছুন", () => {
+  it("নমুনা আর নমুনার ব্যানার মোছে, নিজের পণ্য থাকে", async () => {
+    const { adminBrowser, DB } = await import("./helpers");
+    const { generalStatements } = await import("../src/shop/lib/niches");
+    await DB.batch(generalStatements(DB as any, {}) as any);
+    await DB.prepare("INSERT INTO products (name, slug, price, is_active) VALUES ('নিজের পণ্য', 'nijer-ponno', 100, 1)").run();
+    const a = await adminBrowser();
+    const page = await (await a.get("/admin/products")).text();
+    expect(page).toContain("সব নমুনা পণ্য মুছুন");
+    await a.post("/admin/products/remove-samples", {});
+    const left = (await DB.prepare("SELECT slug FROM products WHERE slug LIKE 'nomuna-%'").all()).results;
+    expect(left.length).toBe(0);
+    expect(await DB.prepare("SELECT 1 FROM products WHERE slug = 'nijer-ponno'").first()).toBeTruthy();
+    expect((await DB.prepare("SELECT value FROM settings WHERE key = 'banner_1'").first<{ value: string }>())?.value ?? "").not.toMatch(/^demo\//);
   });
 });

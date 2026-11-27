@@ -48,6 +48,7 @@ import { FOLDER_LABEL, listMedia, mediaExists, mediaUsage, newMediaKey, recordMe
 import { MediaPage } from "../views/media";
 import { DesignEditorPage } from "../views/design";
 import { cachedCourierRecords, configuredCouriers, COURIER_NAME, courierRecord, courierRecordReady, orderCourierReport, parseOrderReport, platformCourierKeys, type PlatformCourierKeys, parcelStatus, pathaoList, redxAreas, sendParcel, type CourierKey, type SendOptions } from "../lib/courier";
+import { SAMPLE_CATS, SAMPLE_SLUG_SQL } from "../lib/niches";
 import { releaseSpam, spamHousekeeping, spamLevel, spamWeek } from "../lib/spam";
 import { clearOutcome, outcomeFromCourier, ownRecords, recordOutcome, riskOf, sharedRecords, type CourierSummary, type Risk } from "../lib/fraud";
 import { PhoneHistory, type PhoneHistoryOrder, type PhoneStat } from "../views/phone-history";
@@ -1290,7 +1291,27 @@ async function allCategories(db: D1Database) {
 
 admin.get("/products", async (c) => {
   const { results } = await c.env.DB.prepare("SELECT * FROM products ORDER BY is_active DESC, category_id, sort_order, id").all<Product>();
-  return render(c, "পণ্য", "products", <ProductsPage products={results} categories={await allCategories(c.env.DB)} />);
+  const sample = await c.env.DB.prepare(`SELECT COUNT(*) n FROM products WHERE ${SAMPLE_SLUG_SQL}`).first<{ n: number }>();
+  return render(c, "পণ্য", "products", <ProductsPage products={results} categories={await allCategories(c.env.DB)} samples={{ count: sample?.n ?? 0, own: results.length - (sample?.n ?? 0) }} />);
+});
+
+/** নমুনা পণ্য সব একসাথে মোছা — অর্ডার হওয়া নমুনা থাকে (বন্ধ করা হয়), দোকানদারের নিজের পণ্যে হাত দেয় না */
+admin.post("/products/remove-samples", async (c) => {
+  const db = c.env.DB;
+  const where = `${SAMPLE_SLUG_SQL} AND NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.product_id = products.id)`;
+  const n = await db.prepare(`SELECT COUNT(*) n FROM products WHERE ${where}`).first<{ n: number }>();
+  await db.batch([
+    db.prepare(`DELETE FROM product_variants WHERE product_id IN (SELECT id FROM products WHERE ${where})`),
+    db.prepare(`DELETE FROM products WHERE ${where}`),
+    db.prepare(`UPDATE products SET is_active = 0 WHERE ${SAMPLE_SLUG_SQL}`),
+    // ব্যানারে ডেমো ছবি থাকলে খালি (দোকানের নিজের ছবি থাকলে হাত দেয় না)
+    db.prepare("UPDATE settings SET value = '' WHERE key IN ('banner_1', 'banner_2', 'banner_3') AND value LIKE 'demo/%'"),
+    db.prepare("UPDATE categories SET image = NULL WHERE image LIKE 'demo/%'"),
+    // নমুনার ক্যাটাগরি খালি হলে মোছা (দোকানদারের নিজের বানানো ক্যাটাগরিতে হাত দেয় না)
+    db.prepare(`DELETE FROM categories WHERE name IN (${SAMPLE_CATS.map(() => "?").join(",")}) AND NOT EXISTS (SELECT 1 FROM products p WHERE p.category_id = categories.id) AND NOT EXISTS (SELECT 1 FROM categories ch WHERE ch.parent_id = categories.id)`).bind(...SAMPLE_CATS),
+  ]);
+  flash(c, "ok", `${bn(n?.n ?? 0)}টা নমুনা পণ্য মুছে ফেলা হয়েছে। খালি ক্যাটাগরি আর নমুনার ব্যানারও সরানো হয়েছে।`);
+  return c.redirect("/admin/products", 303);
 });
 
 
