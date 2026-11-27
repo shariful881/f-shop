@@ -113,7 +113,7 @@ describe("বাকি অপশন", () => {
 
   it("পাশের কার্ট, পেমেন্ট ব্যাজ, দামের ফিল্টার আর পাতা ভাগ", async () => {
     const a = await adminBrowser();
-    await customize(a, { side_cart: "1", footer_payments: "ক্যাশ অন ডেলিভারি, bKash", list_filter: "1", list_per_page: "24", footer_style: "full" });
+    await customize(a, { side_cart: "1", footer_payments: "ক্যাশ অন ডেলিভারি, bKash", list_filter: "1", list_per_page: "24", list_cat_title: "1", list_cat_image: "1", footer_style: "full" });
     const home = await get("/");
     expect(home).toContain("data-side-cart");
     expect(home).toContain("<span>bKash</span>");

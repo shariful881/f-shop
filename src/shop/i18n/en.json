@@ -3918,5 +3918,9 @@
  "হোমের ব্যানার {n}": "Home banner {n}",
  "হ্যাঁ": "Yes",
  "নাম দেয়নি": "No name given",
- "IP, ডিভাইস, fbp/fbc, ব্রাউজার": "IP, device, fbp/fbc, browser"
+ "IP, ডিভাইস, fbp/fbc, ব্রাউজার": "IP, device, fbp/fbc, browser",
+ "ক্যাটাগরির ছবি (উপরের ব্যানার)": "Category image (top banner)",
+ "ক্যাটাগরিতে ছবি দেওয়া থাকলে পেজের উপরে দেখায়": "Shows at the top of the page if the category has an image",
+ "ক্যাটাগরির নাম আর পণ্যের সংখ্যা": "Category name and product count",
+ "বন্ধ করলেও Google-এর জন্য নামটা লুকিয়ে থাকে": "When off, the name stays hidden for Google"
 }

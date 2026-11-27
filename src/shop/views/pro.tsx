@@ -604,9 +604,11 @@ export const ListingPage = ({ title, products, q, nav, activeId, cfg, sort = "",
   return (
   <div class="wrap px-listing">
     {on(cfg, "breadcrumbs") && <nav class="px-crumbs"><a href="/">হোম</a> › {parent && <><a href={`/c/${parent.id}`}>{parent.name}</a> › </>}<span>{title}</span></nav>}
-    {image && <div class="px-cat-banner"><img src={imageUrl(image)} alt={title} loading="lazy" /></div>}
+    {image && on(cfg, "list_cat_image") && <div class="px-cat-banner"><img src={imageUrl(image)} alt={title} loading="lazy" /></div>}
     <div class="px-list-head">
-      <h1 class="page-title">{title} <small class="muted">({bn(count)}টা পণ্য)</small></h1>
+      {on(cfg, "list_cat_title") || q !== undefined
+        ? <h1 class="page-title">{title} <small class="muted">({bn(count)}টা পণ্য)</small></h1>
+        : <h1 class="sr-only">{title}</h1>}
       {(on(cfg, "list_sort") || on(cfg, "list_filter")) && (count > 1 || !!lp?.min || !!lp?.max) && (
         <form method="get" class="px-sort">
           {q !== undefined && <input type="hidden" name="q" value={q} />}
